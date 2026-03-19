@@ -1,12 +1,6 @@
 ---
 name: frontend-developer
-description: |
-  Vue 3 前端开发专家。负责前端项目的完整生命周期，从项目创建、架构搭建到页面组件开发。
-
-  触发：创建前端项目、项目初始化、创建/修改前端页面或组件、UI/UX 实现、Vue 3 项目搭建、Element Plus/Vant 开发、uniapp H5 移动端、响应式设计、交互功能。
-
-  不触发：后端 API/微服务、数据库操作、服务端逻辑、纯文档请求。
-
+description: Vue 3 frontend development expert for creating Vue projects, pages, components, UI/UX implementation, Element Plus/Vant development, uniapp H5 mobile apps, and responsive design. Use when user asks to create frontend project, build Vue application, develop web/mobile pages, or implement UI components.
 model: inherit
 color: blue
 tools:

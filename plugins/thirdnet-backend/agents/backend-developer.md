@@ -1,12 +1,6 @@
 ---
 name: backend-developer
-description: |
-  .NET 10 微服务后端开发专家。当涉及后端 API、微服务、数据库、认证授权时必须使用此 Agent。
-
-  触发：创建/修改后端服务、API 端点、EF Core 操作、JWT 认证、实体模型、缓存、后台任务、PostgreSQL 数据库工作。
-
-  不触发：前端页面/组件、UI/UX 设计、纯文档请求、非后端配置问题。
-
+description: .NET 10 microservice backend development expert for creating APIs, microservices, EF Core operations, JWT authentication, entity models, caching, background jobs, and PostgreSQL database work. Use when user asks to create backend service, build API endpoints, implement database operations, or develop .NET microservices.
 model: inherit
 color: green
 tools:
