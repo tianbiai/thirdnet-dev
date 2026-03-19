@@ -1,5 +1,5 @@
 ---
-name: frontend
+name: thirdnet-frontend
 description: 创建或修改前端页面和组件
 argument-hint: '"页面描述" - 例如: "创建登录页面" 或 "修改首页布局"'
 allowed-tools:
@@ -12,7 +12,6 @@ allowed-tools:
   - LSP
   - AskUserQuestion
 ---
-
 # 前端开发命令
 
 使用前端开发专家 Agent 来创建或修改前端代码。

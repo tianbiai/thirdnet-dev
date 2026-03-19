@@ -1,5 +1,5 @@
 ---
-name: backend
+name: thirdnet-backend
 description: 创建或修改后端 API 和服务
 argument-hint: '"API描述" - 例如: "创建用户注册接口" 或 "添加分页查询"'
 allowed-tools:
@@ -12,7 +12,6 @@ allowed-tools:
   - LSP
   - AskUserQuestion
 ---
-
 # 后端开发命令
 
 使用后端开发专家 Agent 来创建或修改后端代码。
