@@ -1,0 +1,9 @@
+{
+  "name": "thirdnet-backend",
+  "version": "0.1.0",
+  "description": "后端开发助手 - .NET 10 微服务 API、数据库操作",
+  "author": {
+    "name": "thirdnet"
+  },
+  "license": "MIT"
+}

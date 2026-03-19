@@ -1,0 +1,46 @@
+{
+  "name": "thirdnet-plugins",
+  "id": "thirdnet-plugins",
+  "owner": {
+    "name": "thirdnet"
+  },
+  "metadata": {
+    "description": "Thirdnet 全栈开发插件集",
+    "version": "0.1.0"
+  },
+  "plugins": [
+    {
+      "name": "thirdnet-backend",
+      "source": "./plugins/thirdnet-backend",
+      "description": "后端开发助手 - .NET 10 微服务 API、数据库操作",
+      "version": "0.1.0",
+      "author": {
+        "name": "thirdnet"
+      },
+      "keywords": [
+        "backend",
+        "dotnet",
+        "api",
+        "database"
+      ],
+      "category": "development",
+      "strict": false
+    },
+    {
+      "name": "thirdnet-frontend",
+      "source": "./plugins/thirdnet-frontend",
+      "description": "前端开发助手 - Vue 3 页面、组件、样式开发",
+      "version": "0.1.0",
+      "author": {
+        "name": "thirdnet"
+      },
+      "keywords": [
+        "frontend",
+        "vue",
+        "development"
+      ],
+      "category": "development",
+      "strict": false
+    }
+  ]
+}

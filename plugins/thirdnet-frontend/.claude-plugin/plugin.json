@@ -1,0 +1,9 @@
+{
+  "name": "thirdnet-frontend",
+  "version": "0.1.0",
+  "description": "前端开发助手 - Vue 3 页面、组件、样式开发",
+  "author": {
+    "name": "thirdnet"
+  },
+  "license": "MIT"
+}
