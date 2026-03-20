@@ -149,6 +149,26 @@ public class UserInfoConfiguration : IEntityTypeConfiguration<UserInfoModel>
 └── {DbContextName}ModelSnapshot.cs
 ```
 
+### 生成迁移文件命令
+
+在 `.Api` 项目目录下执行以下命令，将迁移文件输出到规范定义的目录：
+
+```bash
+# 基本命令格式
+dotnet ef migrations add {MigrationName} --output-dir Data/Migrations/{DbContextName}
+
+# 示例：为 ContractDbContext 创建初始迁移
+dotnet ef migrations add InitialCreate --output-dir Data/Migrations/ContractDbContext
+
+# 示例：为 LogDbContext 创建迁移
+dotnet ef migrations add AddLogTable --output-dir Data/Migrations/LogDbContext
+```
+
+**注意**：
+- `{MigrationName}` 使用 PascalCase 命名，如 `InitialCreate`、`AddUserTable`
+- `{DbContextName}` 与 DbContext 类名一致，如 `ContractDbContext`、`LogDbContext`
+- 命令需在 `.Api` 项目目录下执行，或在命令中指定 `--project` 参数
+
 ## DbContext 模板
 
 ```csharp
