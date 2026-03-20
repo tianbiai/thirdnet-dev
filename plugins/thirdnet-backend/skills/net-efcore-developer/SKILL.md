@@ -94,8 +94,7 @@ public class UserInfoConfiguration : IEntityTypeConfiguration<UserInfoModel>
 {
     public void Configure(EntityTypeBuilder<UserInfoModel> builder)
     {
-        builder.ToTable("t_user_info")
-            .HasComment("用户信息表");
+        builder.ToTable("t_user_info", t => t.HasComment("用户信息表"));
 
         builder.HasKey(x => x.id);
 
