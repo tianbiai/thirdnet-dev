@@ -46,7 +46,19 @@ public class UserModel
 | 实体类 | 以 `Model` 结尾 | `UserInfoModel` |
 | 属性/字段 | 小写字母 | `user_name` |
 | 表名 | `t_` 前缀 + 小写下划线 | `t_user_info` |
+| Schema | 使用服务名作为 schema | `contract`（合同服务） |
 | 主键 | 必须使用 `long` 类型 | `public long id` |
+
+### Schema 规范
+
+**每个微服务使用独立的 schema**，实现数据隔离：
+
+| 服务名 | Schema | 表示例 |
+|-------|--------|--------|
+| 合同服务 ContractService | `contract` | `contract.t_contract` |
+| 用户服务 UserService | `user` | `user.t_user_info` |
+| 订单服务 OrderService | `order` | `order.t_order` |
+| 认证服务 IdentityService | `identity` | `identity.t_user` |
 
 ### 其他规则
 
@@ -94,7 +106,8 @@ public class UserInfoConfiguration : IEntityTypeConfiguration<UserInfoModel>
 {
     public void Configure(EntityTypeBuilder<UserInfoModel> builder)
     {
-        builder.ToTable("t_user_info", t => t.HasComment("用户信息表"));
+        // ToTable 参数：表名, schema, 配置动作
+        builder.ToTable("t_user_info", "contract", t => t.HasComment("用户信息表"));
 
         builder.HasKey(x => x.id);
 
@@ -238,11 +251,13 @@ public class UserWithDeptView
 
 ### 原生 SQL 查询
 
+**注意**：SQL 查询中的表名需要带上 schema 前缀，如 `contract.t_user_info`。
+
 ```csharp
 // 单条查询
 public async Task<UserView> GetById(long id)
 {
-    var sql = @"SELECT * FROM public.t_user WHERE id = {0}";
+    var sql = @"SELECT * FROM contract.t_user_info WHERE id = {0}";
     return await _dbcontext.Database.SqlQueryRaw<UserView>(sql, id)
         .AsNoTracking()
         .FirstOrDefaultAsync();
@@ -251,7 +266,7 @@ public async Task<UserView> GetById(long id)
 // 列表查询
 public async Task<List<UserView>> GetList()
 {
-    var sql = @"SELECT * FROM public.t_user";
+    var sql = @"SELECT * FROM contract.t_user_info";
     return await _dbcontext.Database.SqlQueryRaw<UserView>(sql)
         .AsNoTracking()
         .ToListAsync();
@@ -260,19 +275,19 @@ public async Task<List<UserView>> GetList()
 // 批量查询（PostgreSQL ANY）
 public async Task<List<UserView>> GetByIds(List<long> ids)
 {
-    var sql = @"SELECT * FROM public.t_user WHERE id = ANY(@ids)";
+    var sql = @"SELECT * FROM contract.t_user_info WHERE id = ANY(@ids)";
     return await _dbcontext.Database.SqlQueryRaw<UserView>(
         sql, new NpgsqlParameter("ids", ids))
         .AsNoTracking()
         .ToListAsync();
 }
 
-// 多表 JOIN
+// 多表 JOIN（同 schema 内）
 public async Task<List<UserWithDeptView>> GetUserWithDepartment()
 {
     var sql = @"SELECT u.id, u.user_name, d.name as department_name
-                FROM public.t_user u
-                LEFT JOIN public.t_department d ON u.department_id = d.id";
+                FROM contract.t_user_info u
+                LEFT JOIN contract.t_department d ON u.department_id = d.id";
     return await _dbcontext.Database.SqlQueryRaw<UserWithDeptView>(sql)
         .AsNoTracking()
         .ToListAsync();
@@ -282,7 +297,7 @@ public async Task<List<UserWithDeptView>> GetUserWithDepartment()
 public async Task<Dictionary<long, UserView>> GetDic()
 {
     var list = await _dbcontext.Database.SqlQueryRaw<UserView>(
-        @"SELECT * FROM public.t_user")
+        @"SELECT * FROM contract.t_user_info")
         .AsNoTracking()
         .ToListAsync();
     return list.ToDictionary(f => f.id, f => f);

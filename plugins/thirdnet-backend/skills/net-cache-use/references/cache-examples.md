@@ -50,8 +50,9 @@ namespace {项目名}.Cache.View
 /// </summary>
 public async Task<DepartmentView?> GetDepartment(long id)
 {
+    // 注意：使用对应服务的 schema（如 contract）
     var sql = @"SELECT id, name, parent_id, state, sort
-                FROM public.t_department
+                FROM contract.t_department
                 WHERE id = {0}";
     return await _dbcontext.Database
         .SqlQueryRaw<DepartmentView>(sql, id)
@@ -65,7 +66,7 @@ public async Task<DepartmentView?> GetDepartment(long id)
 public async Task<Dictionary<long, DepartmentView>> GetDepartmentList()
 {
     var sql = @"SELECT id, name, parent_id, state, sort
-                FROM public.t_department
+                FROM contract.t_department
                 WHERE state = 1
                 ORDER BY sort";
     var list = await _dbcontext.Database
@@ -84,7 +85,7 @@ public async Task<List<DepartmentView>> GetDepartments(List<long> ids)
         return new List<DepartmentView>();
 
     var sql = @"SELECT id, name, parent_id, state, sort
-                FROM public.t_department
+                FROM contract.t_department
                 WHERE id = ANY(@ids)";
     return await _dbcontext.Database
         .SqlQueryRaw<DepartmentView>(sql, new NpgsqlParameter("ids", ids))
@@ -98,7 +99,7 @@ public async Task<List<DepartmentView>> GetDepartments(List<long> ids)
 public async Task<List<DepartmentView>> GetChildDepartments(long parentId)
 {
     var sql = @"SELECT id, name, parent_id, state, sort
-                FROM public.t_department
+                FROM contract.t_department
                 WHERE parent_id = {0} AND state = 1
                 ORDER BY sort";
     return await _dbcontext.Database
@@ -154,7 +155,7 @@ public async Task<Dictionary<long, DepartmentView>> GetDepartmentInfo(List<long>
         var ids = keys.Select(s => long.Parse(s.Replace(key, ""))).ToList();
         using var dbcontext = new CacheViewDBContext(viewDbOp);
         var sql = @"SELECT id, name, parent_id, state, sort
-                    FROM public.t_department
+                    FROM contract.t_department
                     WHERE id = ANY(@ids)";
         var list = await dbcontext.Database
             .SqlQueryRaw<DepartmentView>(sql, new NpgsqlParameter("ids", ids))
@@ -284,7 +285,7 @@ public class UserView
 public async Task<UserView?> GetUser(long id)
 {
     var sql = @"SELECT id, user_name, phone, email, state, department_id
-                FROM public.t_user
+                FROM contract.t_user
                 WHERE id = {0}";
     return await _dbcontext.Database
         .SqlQueryRaw<UserView>(sql, id)
@@ -298,7 +299,7 @@ public async Task<UserView?> GetUser(long id)
 public async Task<UserView?> GetUserByPhone(string phone)
 {
     var sql = @"SELECT id, user_name, phone, email, state, department_id
-                FROM public.t_user
+                FROM contract.t_user
                 WHERE phone = {0}";
     return await _dbcontext.Database
         .SqlQueryRaw<UserView>(sql, phone)
@@ -312,7 +313,7 @@ public async Task<UserView?> GetUserByPhone(string phone)
 public async Task<UserView?> GetUserByEmail(string email)
 {
     var sql = @"SELECT id, user_name, phone, email, state, department_id
-                FROM public.t_user
+                FROM contract.t_user
                 WHERE email = {0}";
     return await _dbcontext.Database
         .SqlQueryRaw<UserView>(sql, email)
@@ -326,7 +327,7 @@ public async Task<UserView?> GetUserByEmail(string email)
 public async Task<Dictionary<long, UserView>> GetUserList()
 {
     var sql = @"SELECT id, user_name, phone, email, state, department_id
-                FROM public.t_user
+                FROM contract.t_user
                 WHERE state = 1";
     var list = await _dbcontext.Database
         .SqlQueryRaw<UserView>(sql)

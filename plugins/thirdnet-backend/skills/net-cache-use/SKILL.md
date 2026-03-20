@@ -82,7 +82,8 @@ public class UserView
 /// </summary>
 public async Task<UserView> GetUser(long id)
 {
-    var sql = @"SELECT * FROM public.t_user WHERE id = {0}";
+    // 注意：使用对应服务的 schema（如 contract）
+    var sql = @"SELECT * FROM contract.t_user WHERE id = {0}";
     return await _dbcontext.Database
         .SqlQueryRaw<UserView>(sql, id)
         .AsNoTracking()
@@ -94,7 +95,7 @@ public async Task<UserView> GetUser(long id)
 /// </summary>
 public async Task<Dictionary<long, UserView>> GetUserList()
 {
-    var sql = @"SELECT * FROM public.t_user";
+    var sql = @"SELECT * FROM contract.t_user";
     var list = await _dbcontext.Database
         .SqlQueryRaw<UserView>(sql)
         .AsNoTracking()
@@ -107,7 +108,7 @@ public async Task<Dictionary<long, UserView>> GetUserList()
 /// </summary>
 public async Task<List<UserView>> GetUsers(List<long> ids)
 {
-    var sql = @"SELECT * FROM public.t_user WHERE id = ANY(@ids)";
+    var sql = @"SELECT * FROM contract.t_user WHERE id = ANY(@ids)";
     return await _dbcontext.Database
         .SqlQueryRaw<UserView>(sql, new NpgsqlParameter("ids", ids))
         .AsNoTracking()
@@ -157,7 +158,7 @@ public async Task<Dictionary<long, UserView>> GetUserInfo(List<long> ids)
     {
         var ids = keys.Select(s => long.Parse(s.Replace(key, ""))).ToList();
         using var dbcontext = new CacheViewDBContext(viewDbOp);
-        var sql = @"SELECT * FROM public.t_user WHERE id = ANY(@ids)";
+        var sql = @"SELECT * FROM contract.t_user WHERE id = ANY(@ids)";
         var list = await dbcontext.Database
             .SqlQueryRaw<UserView>(sql, new NpgsqlParameter("ids", ids))
             .AsNoTracking()
