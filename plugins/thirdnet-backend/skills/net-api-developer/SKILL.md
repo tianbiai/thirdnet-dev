@@ -2,7 +2,6 @@
 name: net-api-developer
 description: .NET API 接口开发专家，负责创建 Controller、定义 API 路由、编写 HTTP 端点方法（仅使用 GET/POST）。**主动用于**：创建新的 Controller、编写 API 接口方法、定义路由、处理 HTTP 请求响应。当用户提到"接口"、"API"、"Controller"、"端点"、"路由"、"写个接口"、"加个接口"、"增删改查"、"CRUD"、"HttpGet"、"HttpPost"、"接口开发"、"API开发"时，必须使用此技能。
 ---
-
 ## 使用场景
 
 - 创建新的 Controller 类
@@ -11,6 +10,9 @@ description: .NET API 接口开发专家，负责创建 Controller、定义 API 
 - 配置认证授权策略
 - 处理请求参数绑定和响应格式
 - 设计 DTO 请求/响应模型
+- 配置 JWT Token 认证与授权
+- 实现 IAccountValidator 自定义账号验证
+- 在接口中获取用户身份信息
 
 ## 角色定位
 
@@ -20,17 +22,18 @@ description: .NET API 接口开发专家，负责创建 Controller、定义 API 
 
 **重要约束**：本项目 API 接口**仅允许使用 GET 和 POST 方法**，**禁止使用其他 HTTP 方法**。
 
-| 允许的方法 | 用途说明 | 示例路由 |
-|-----------|---------|---------|
-| **GET** | 查询、获取资源 | `GET /api/manager/users` |
+| 允许的方法     | 用途说明         | 示例路由                           |
+| -------------- | ---------------- | ---------------------------------- |
+| **GET**  | 查询、获取资源   | `GET /api/manager/users`         |
 | **POST** | 创建、更新、删除 | `POST /api/manager/users/create` |
-| DELETE | ❌ 禁止使用 | - |
-| PUT | ❌ 禁止使用 | - |
-| PATCH | ❌ 禁止使用 | - |
+| DELETE         | ❌ 禁止使用      | -                                  |
+| PUT            | ❌ 禁止使用      | -                                  |
+| PATCH          | ❌ 禁止使用      | -                                  |
 
 **原因**：项目网关会将 DELETE、PUT、PATCH 等方法作为危险操作进行屏蔽。
 
 **实现建议**：
+
 - 查询操作使用 GET 方法
 - 创建、更新、删除操作统一使用 POST 方法
 - 在路由中明确操作类型：`/create`、`/update`、`/delete`
@@ -41,19 +44,21 @@ API 接口路径必须使用 `api` 开头，格式为：`api/{端标识}/{模块
 
 **端标识规则**：
 **⚠️ 重要约束**：
+
 - **禁止在 API 路径中包含版本号**（如 `v1`、`v2` 等）
 - ❌ 错误示例：`api/v1/manager/user`、`api/manager/v1/user`
 - ✅ 正确示例：`api/manager/user`
 
 **端标识规则**：端标识与 Controllers 子目录对应，使用小写命名：
 
-| Controllers 子目录 | 端标识 | 说明 |
-|-------------------|-------|------|
-| `Manager/` | `manager` | 管理端 |
-| `App/` | `app` | 应用端 |
-| `Third/` | `third` | 第三方端 |
+| Controllers 子目录 | 端标识      | 说明     |
+| ------------------ | ----------- | -------- |
+| `Manager/`       | `manager` | 管理端   |
+| `App/`           | `app`     | 应用端   |
+| `Third/`         | `third`   | 第三方端 |
 
 **示例**：
+
 - 管理端用户管理：`api/manager/user`
 - 应用端订单管理：`api/app/order`
 - 第三方端回调接口：`api/third/callback`
@@ -72,11 +77,11 @@ API 接口路径必须使用 `api` 开头，格式为：`api/{端标识}/{模块
 
 **按调用方分类**：
 
-| 子目录 | 调用方 | 说明 |
-|-------|-------|------|
-| `Manager/` | 管理端 | 内部管理后台，运营人员使用 |
-| `App/` | 应用端 | 面向 C 端用户（Web、H5、小程序、App） |
-| `Third/` | 第三方端 | 开放 API，供第三方系统对接 |
+| 子目录       | 调用方   | 说明                                  |
+| ------------ | -------- | ------------------------------------- |
+| `Manager/` | 管理端   | 内部管理后台，运营人员使用            |
+| `App/`     | 应用端   | 面向 C 端用户（Web、H5、小程序、App） |
+| `Third/`   | 第三方端 | 开放 API，供第三方系统对接            |
 
 ## Controller 开发模板
 
@@ -134,13 +139,13 @@ namespace ContractService.Api.Controllers.Manager
 
 ## Controller 属性说明
 
-| 属性 | 说明 |
-|-----|------|
-| `Route` | 定义路由前缀，必须以 `api` 开头，端标识使用小写 |
-| `ApiController` | 标识为 API 控制器，启用自动模型验证等功能 |
-| `ApiExplorerSettings` | 配置 Swagger 文档分组，端标识使用小写 |
-| `SwaggerTag` | Swagger 文档中显示的中文标签 |
-| `Authorize` | 配置认证授权策略（如不需要认证可省略） |
+| 属性                    | 说明                                              |
+| ----------------------- | ------------------------------------------------- |
+| `Route`               | 定义路由前缀，必须以 `api` 开头，端标识使用小写 |
+| `ApiController`       | 标识为 API 控制器，启用自动模型验证等功能         |
+| `ApiExplorerSettings` | 配置 Swagger 文档分组，端标识使用小写             |
+| `SwaggerTag`          | Swagger 文档中显示的中文标签                      |
+| `Authorize`           | 配置认证授权策略（如不需要认证可省略）            |
 
 ## API 接口方法规范
 
@@ -149,6 +154,7 @@ namespace ContractService.Api.Controllers.Manager
 **核心原则**：API 默认直接返回实体 JSON，不包装状态码。状态码通过 HTTP 状态码返回。
 
 **响应格式要求**：
+
 - **成功响应**：直接返回实体对象 JSON，不包装任何结果状态码
 - **错误响应**：通过 HTTP 状态码 + 异常消息返回
 - **状态码传递**：仅通过 HTTP 状态码传递请求结果状态
@@ -190,13 +196,13 @@ public async Task<UserDto> GetUser(long id)
 
 ### 参数绑定规范
 
-| 参数来源 | 特性 | 示例 |
-|---------|-----|------|
-| URL 路径 | `[FromRoute]` | `GET /api/users/{id}` |
-| 查询字符串 | `[FromQuery]` | `GET /api/users?page=1&size=10` |
-| 请求 Body | `[FromBody]` | `POST /api/users/create` |
-| 请求 Header | `[FromHeader]` | 从 Header 获取参数 |
-| 表单数据 | `[FromForm]` | 表单提交 |
+| 参数来源    | 特性             | 示例                              |
+| ----------- | ---------------- | --------------------------------- |
+| URL 路径    | `[FromRoute]`  | `GET /api/users/{id}`           |
+| 查询字符串  | `[FromQuery]`  | `GET /api/users?page=1&size=10` |
+| 请求 Body   | `[FromBody]`   | `POST /api/users/create`        |
+| 请求 Header | `[FromHeader]` | 从 Header 获取参数                |
+| 表单数据    | `[FromForm]`   | 表单提交                          |
 
 ### DTO 模型设计规范
 
@@ -318,15 +324,78 @@ public async Task<IActionResult> GetUser(long id)
 
 ## 服务层集成
 
-通过构造函数注入服务：
+本项目使用基于 RSA 的 JWT Token 认证机制，通过统一的认证服务（IdentityService）进行身份验证。
+
+### 认证服务端配置
+
+认证服务需要配置以下组件：
 
 ```csharp
-private readonly IUserService _userService;
-private readonly ILogger<UserController> _logger;
-
-public UserController(IUserService userService, ILogger<UserController> logger)
+// Startup.cs 服务注册
+public void ConfigureServices(IServiceCollection services)
 {
-    _userService = userService;
-    _logger = logger;
+    // 自定义 Token 过期时间缓存（可选）
+    services.AddSingleton<IAccountTokenTimeCache, CustomAccountTokenTimeCache>();
+
+    // 配置 RSA JWT 认证
+    services.AddThirdNetDefaultRSAJwt(Configuration);
+
+    // 配置账号验证器
+    services.AddScoped<IAccountValidator, DefaultAccountValidator>();
 }
 ```
+
+### IAccountValidator 账号验证器
+
+实现 `IAccountValidator` 接口来验证用户账号密码并返回自定义 Claims：
+
+```csharp
+public class DefaultAccountValidator : IAccountValidator
+{
+    public async Task<List<Claim>> Validate(string account, string password, string[] scopes)
+    {
+        // 1. 根据 scope 验证账号密码
+        // 2. 创建自定义 claims（不应保存敏感信息，只保存标识信息）
+
+        var custom_claims = new List<Claim>();
+
+        // 身份提供者（如：wechat、tourist、wechatapp）
+        custom_claims.Add(new Claim("idp", "wechat"));
+
+        // 用户唯一标识
+        custom_claims.Add(new Claim(ClaimTypes.NameIdentifier, "用户ID"));
+
+        return custom_claims;
+    }
+}
+```
+
+### Token 端点规范
+
+| 端点                       | 方法 | 说明                                    |
+| -------------------------- | ---- | --------------------------------------- |
+| `/connect/token`         | POST | 获取 access_token（可选 refresh_token） |
+| `/connect/token/refresh` | POST | 使用 refresh_token 刷新 access_token    |
+
+**获取 Token 请求参数**（form-data）：
+
+| 参数     | 类型   | 说明                                                                 |
+| -------- | ------ | -------------------------------------------------------------------- |
+| username | string | 用户名                                                               |
+| password | string | 密码                                                                 |
+| scope    | string | 权限范围，多个用空格分隔，如 `offline_access` 可获取 refresh_token |
+
+**Token 响应格式**：
+
+```json
+{
+    "access_token": "eyJhbGciOiJSUzI1NiIs...",
+    "refresh_token": "eyJhbGciOiJSUzI1NiIs..."  // 仅当 scope 包含 offline_access 时返回
+}
+```
+
+**刷新 Token 请求参数**（form-data）：
+
+| 参数          | 类型   | 说明                     |
+| ------------- | ------ | ------------------------ |
+| refresh_token | string | 之前获取的 refresh_token |
