@@ -1,6 +1,6 @@
 ---
 name: net-efcore-developer
-description: EF Core 数据库开发专家，负责创建实体模型、Fluent API 配置、DbContext 和迁移文件。**主动用于**：创建数据库实体、定义表结构、配置映射关系、数据库迁移。当用户提到"实体"、"Model"、"DbContext"、"迁移"、"Migration"、"表结构"、"数据库设计"时，必须使用此技能。
+description: EF Core 数据库开发专家，负责创建实体模型（Model）、Fluent API 配置、DbContext 和迁移文件。**主动用于**：创建数据库实体、定义表结构、配置字段映射、生成迁移。当用户提到"实体"、"数据库实体"、"Entity"、"DbContext"、"迁移"、"Migration"、"表结构"、"数据库设计"、"建表"、"新建表"、"加字段"、"新增字段"、"FluentAPI"、"Configuration"、"EntityTypeConfiguration"、"DbSet"时，必须使用此技能。
 ---
 
 ## 使用场景
@@ -60,9 +60,29 @@ public class UserModel
 | 订单服务 OrderService | `order` | `order.t_order` |
 | 认证服务 IdentityService | `identity` | `identity.t_user` |
 
+### 字符串类型配置（重要）
+
+在 PostgreSQL 中，字符串属性**必须映射为 `text` 类型**，不要设置最大长度：
+
+```csharp
+// ✅ 正确：不设置 MaxLength，默认映射为 PostgreSQL 的 text 类型
+builder.Property(x => x.user_name)
+    .IsRequired()
+    .HasComment("用户名");
+
+// ❌ 禁止：设置 HasMaxLength
+builder.Property(x => x.user_name)
+    .HasMaxLength(100)  // 不要这样做！
+    .HasComment("用户名");
+```
+
+**原因说明**：
+- PostgreSQL 的 `text` 类型可以存储任意长度的字符串，性能与 `varchar(n)` 相同
+- 不限制长度可以避免未来需求变更时的迁移成本
+- EF Core 默认将 `string` 映射为 `text` 类型（在不设置 MaxLength 时）
+
 ### 其他规则
 
-- 字符串类型**不需要**配置 MaxLength
 - **不创建外键**，通过对应 id 关联
 - 迁移文件仅在用户明确要求时创建
 
@@ -131,6 +151,97 @@ public class UserInfoConfiguration : IEntityTypeConfiguration<UserInfoModel>
 }
 ```
 
+## 复杂类型配置
+
+### JSONB 类型
+
+用于存储 JSON 格式的复杂数据：
+
+```csharp
+// 实体模型
+public class OrderModel
+{
+    public long id { get; set; }
+    public string order_no { get; set; }
+    // JSONB 类型：存储收货地址信息
+    public ShippingAddress shipping_address { get; set; }
+    // JSONB 类型：存储扩展信息（字典结构）
+    public Dictionary<string, object> extra_info { get; set; }
+}
+
+// 嵌套对象（不需要单独建表）
+public class ShippingAddress
+{
+    public string province { get; set; }
+    public string city { get; set; }
+    public string detail { get; set; }
+}
+
+// Fluent API 配置
+public class OrderConfiguration : IEntityTypeConfiguration<OrderModel>
+{
+    public void Configure(EntityTypeBuilder<OrderModel> builder)
+    {
+        builder.ToTable("t_order", "order", t => t.HasComment("订单表"));
+
+        builder.HasKey(x => x.id);
+
+        // JSONB 类型配置 - 拥有类型（Owned Type）
+        builder.OwnsOne(x => x.shipping_address, nav =>
+        {
+            nav.ToJson();
+            nav.Property(x => x.province).HasComment("省份");
+            nav.Property(x => x.city).HasComment("城市");
+            nav.Property(x => x.detail).HasComment("详细地址");
+        });
+
+        builder.HasComment("收货地址");
+
+        // JSONB 类型配置 - 字典类型
+        builder.Property(x => x.extra_info)
+            .HasColumnType("jsonb")
+            .HasComment("扩展信息");
+    }
+}
+```
+
+### 数组类型
+
+用于存储 PostgreSQL 数组：
+
+```csharp
+// 实体模型
+public class ProductModel
+{
+    public long id { get; set; }
+    public string name { get; set; }
+    // 字符串数组：商品标签
+    public List<string> tags { get; set; }
+    // 长整型数组：关联的分类ID
+    public long[] category_ids { get; set; }
+}
+
+// Fluent API 配置
+public class ProductConfiguration : IEntityTypeConfiguration<ProductModel>
+{
+    public void Configure(EntityTypeBuilder<ProductModel> builder)
+    {
+        builder.ToTable("t_product", "product", t => t.HasComment("商品表"));
+
+        builder.HasKey(x => x.id);
+
+        // 数组类型配置
+        builder.Property(x => x.tags)
+            .HasColumnType("text[]")
+            .HasComment("商品标签");
+
+        builder.Property(x => x.category_ids)
+            .HasColumnType("bigint[]")
+            .HasComment("分类ID列表");
+    }
+}
+```
+
 ## 项目结构规范
 
 | 文件类型 | 项目位置 |
@@ -151,23 +262,33 @@ public class UserInfoConfiguration : IEntityTypeConfiguration<UserInfoModel>
 
 ### 生成迁移文件命令
 
-在 `.Api` 项目目录下执行以下命令，将迁移文件输出到规范定义的目录：
+在解决方案根目录执行以下命令：
 
 ```bash
-# 基本命令格式
-dotnet ef migrations add {MigrationName} --output-dir Data/Migrations/{DbContextName}
+# 基本命令格式（在解决方案根目录执行）
+dotnet ef migrations add {MigrationName} \
+  --project {ProjectName}.{ServiceName}.Database \
+  --startup-project {ProjectName}.{ServiceName}.API \
+  --output-dir Data/Migrations/{DbContextName}
 
 # 示例：为 ContractDbContext 创建初始迁移
-dotnet ef migrations add InitialCreate --output-dir Data/Migrations/ContractDbContext
+dotnet ef migrations add InitialCreate \
+  --project ContractService.Database \
+  --startup-project ContractService.API \
+  --output-dir Data/Migrations/ContractDbContext
 
 # 示例：为 LogDbContext 创建迁移
-dotnet ef migrations add AddLogTable --output-dir Data/Migrations/LogDbContext
+dotnet ef migrations add AddLogTable \
+  --project ContractService.Database \
+  --startup-project ContractService.API \
+  --output-dir Data/Migrations/LogDbContext
 ```
 
 **注意**：
 - `{MigrationName}` 使用 PascalCase 命名，如 `InitialCreate`、`AddUserTable`
 - `{DbContextName}` 与 DbContext 类名一致，如 `ContractDbContext`、`LogDbContext`
-- 命令需在 `.Api` 项目目录下执行，或在命令中指定 `--project` 参数
+- `--project` 指定 Database 项目（DbContext 所在位置）
+- `--startup-project` 指定 API 项目（包含数据库连接字符串配置）
 
 ## DbContext 模板
 

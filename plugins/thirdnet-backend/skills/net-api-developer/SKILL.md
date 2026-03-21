@@ -1,6 +1,6 @@
 ---
 name: net-api-developer
-description: .NET API 接口开发专家，负责创建 Controller、定义 API 路由、编写接口方法。**主动用于**：任何涉及 ASP.NET Core Controller 创建、API 路由定义、HTTP 端点开发的场景。当用户提到"接口"、"API"、"Controller"、"端点"、"路由"时，必须使用此技能。
+description: .NET API 接口开发专家，负责创建 Controller、定义 API 路由、编写 HTTP 端点方法（仅使用 GET/POST）。**主动用于**：创建新的 Controller、编写 API 接口方法、定义路由、处理 HTTP 请求响应。当用户提到"接口"、"API"、"Controller"、"端点"、"路由"、"写个接口"、"加个接口"、"增删改查"、"CRUD"、"HttpGet"、"HttpPost"、"接口开发"、"API开发"时，必须使用此技能。
 ---
 
 ## 使用场景
@@ -88,7 +88,7 @@ namespace ContractService.Api.Controllers.Manager
 {
     /// <summary>
     /// 用户管理控制器
-    /// `</summary>`
+    /// </summary>
     [Route("api/manager/user")]  // 注意：路径不含版本号
     [ApiController]
     [ApiExplorerSettings(GroupName = "manager")]
@@ -105,10 +105,10 @@ namespace ContractService.Api.Controllers.Manager
 
         /// <summary>
         /// 获取用户列表
-        /// `</summary>`
-        /// `<param name="page">`页码 `</param>`
-        /// `<param name="pageSize">`每页大小 `</param>`
-        /// `<returns>`用户列表（直接返回实体JSON，不包装状态码） `</returns>`
+        /// </summary>
+        /// <param name="page">页码</param>
+        /// <param name="pageSize">每页大小</param>
+        /// <returns>用户列表（直接返回实体JSON，不包装状态码）</returns>
         [HttpGet("list")]
         public async Task<IActionResult> GetUserList(int page = 1, int pageSize = 10)
         {
@@ -118,9 +118,9 @@ namespace ContractService.Api.Controllers.Manager
 
         /// <summary>
         /// 创建用户
-        /// `</summary>`
-        /// `<param name="request">`创建请求 `</param>`
-        /// `<returns>`创建的用户实体 `</returns>`
+        /// </summary>
+        /// <param name="request">创建请求</param>
+        /// <returns>创建的用户实体</returns>
         [HttpPost("create")]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
         {
@@ -198,31 +198,86 @@ public async Task<UserDto> GetUser(long id)
 | 请求 Header | `[FromHeader]` | 从 Header 获取参数 |
 | 表单数据 | `[FromForm]` | 表单提交 |
 
+### DTO 模型设计规范
+
+**命名规范**：
+- **类名**：使用 PascalCase，以 `Request` 或 `Response` 结尾
+- **属性名**：使用小写，与数据库字段命名保持一致
+
+**命名约定**：
+
+| 类型 | 命名格式 | 示例 |
+|-----|---------|------|
+| 创建请求 | `{Entity}CreateRequest` | `UserCreateRequest` |
+| 更新请求 | `{Entity}UpdateRequest` | `UserUpdateRequest` |
+| 查询请求 | `{Entity}QueryRequest` | `UserQueryRequest` |
+| 响应模型 | `{Entity}Response` 或 `{Entity}Dto` | `UserResponse`、`UserDto` |
+
+**示例模板**：
+
+```csharp
+/// <summary>
+/// 用户创建请求
+/// </summary>
+public class UserCreateRequest
+{
+    /// <summary>
+    /// 用户名
+    /// </summary>
+    public string user_name { get; set; }
+
+    /// <summary>
+    /// 邮箱地址
+    /// </summary>
+    public string email { get; set; }
+
+    /// <summary>
+    /// 部门ID
+    /// </summary>
+    public long department_id { get; set; }
+}
+
+/// <summary>
+/// 用户更新请求
+/// </summary>
+public class UserUpdateRequest
+{
+    /// <summary>
+    /// 用户ID
+    /// </summary>
+    public long id { get; set; }
+
+    /// <summary>
+    /// 用户名
+    /// </summary>
+    public string user_name { get; set; }
+
+    /// <summary>
+    /// 状态
+    /// </summary>
+    public int state { get; set; }
+}
+```
+
 ### 错误处理规范
 
-**核心原则**：HTTP 状态码是传递请求结果的唯一方式，响应体仅包含业务数据。
-
-| 状态码 | 说明         | 使用场景       | 响应体内容         |
-| ------ | ------------ | -------------- | ------------------ |
-| 200    | OK           | 请求成功       | 实体 JSON 或分页数据 |
-| 201    | Created      | 资源创建成功   | 创建的实体 JSON      |
-| 204    | No Content   | 操作成功无返回 | 空                   |
-| 400    | Bad Request  | 请求参数错误   | 错误消息（异常处理） |
-| 401    | Unauthorized | 未认证         | 错误消息（异常处理） |
-| 403    | Forbidden    | 无权限         | 错误消息（异常处理） |
-| 404    | Not Found    | 资源不存在     | 错误消息（异常处理） |
-| 500    | Server Error | 服务器内部错误 | 错误消息（异常处理） |
-
-#### 5.4 错误处理规范
-
-**错误返回方式**：错误信息通过 HTTP 状态码 + 异常消息返回，使用 `WebApiException` 抛出业务异常。
-
 **核心原则**：
-
 - **成功响应**：直接返回实体 JSON，不包装
 - **错误响应**：使用 `WebApiException` 抛出，由框架统一处理
 - **状态码传递**：仅通过 HTTP 状态码传递请求结果状态
-- 提供清晰的错误日志信息
+
+**常用 HTTP 状态码**：
+
+| 状态码 | 说明 | 使用场景 |
+|--------|------|---------|
+| 200 | OK | 请求成功，返回实体或分页数据 |
+| 201 | Created | 资源创建成功 |
+| 204 | No Content | 操作成功无返回 |
+| 400 | Bad Request | 请求参数错误（必填参数缺失、格式错误） |
+| 401 | Unauthorized | 未认证（Token 无效、未登录） |
+| 403 | Forbidden | 无权限（权限不足） |
+| 404 | Not Found | 资源不存在（用户/订单不存在） |
+| 500 | Server Error | 服务器内部错误（业务异常、数据库错误） |
 
 **使用示例**：
 
@@ -260,16 +315,6 @@ public async Task<IActionResult> GetUser(long id)
     return Ok(new { code = 200, data = user });  // 禁止包装
 }
 ```
-
-**常用 HTTP 状态码**：
-
-| HTTP 状态码 | 使用场景 | 示例 |
-|------------|---------|------|
-| 400 Bad Request | 请求参数错误 | 必填参数缺失、参数格式错误 |
-| 401 Unauthorized | 未认证 | Token 无效、未登录 |
-| 403 Forbidden | 无权限 | 权限不足、无权访问 |
-| 404 Not Found | 资源不存在 | 用户/订单不存在 |
-| 500 Internal Server Error | 服务器内部错误 | 业务处理异常、数据库错误 |
 
 ## 服务层集成
 

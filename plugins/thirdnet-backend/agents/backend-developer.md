@@ -98,6 +98,24 @@ tools:
 - **ORM**：Entity Framework Core（Code First）
 - **架构模式**：微服务架构
 
+### 规则 3.1：PostgreSQL 字符串类型规范
+
+在 EF Core Fluent API 配置中，**字符串属性不得设置 `HasMaxLength()`**：
+
+```csharp
+// ✅ 正确：不设置长度，默认映射为 PostgreSQL 的 text 类型
+builder.Property(x => x.user_name)
+    .IsRequired()
+    .HasComment("用户名");
+
+// ❌ 禁止：设置 HasMaxLength
+builder.Property(x => x.user_name)
+    .HasMaxLength(100)  // 不要这样做！
+    .HasComment("用户名");
+```
+
+**原因**：PostgreSQL 的 `text` 类型可存储任意长度字符串，性能与 `varchar(n)` 相同。不限制长度可避免未来需求变更时的迁移成本。
+
 **项目模板**：
 
 - Web API 服务：`ThirdNet.Core.WebApiService`

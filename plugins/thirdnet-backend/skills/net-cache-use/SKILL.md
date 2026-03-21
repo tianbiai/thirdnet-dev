@@ -1,6 +1,6 @@
 ---
 name: net-cache-use
-description: 缓存功能开发专家，为业务实体添加完整的 Redis 缓存功能。**主动用于**：字典数据缓存、配置信息缓存、高频查询数据缓存、性能优化。当用户提到"缓存"、"Cache"、"Redis"、"字典"、"配置"、"高频查询"、"性能优化"时，必须使用此技能。
+description: 缓存功能开发专家，为业务实体添加完整的 Redis 缓存功能（CacheManager、RedisHandler、View 三层架构）。**主动用于**：为实体添加缓存、字典数据缓存、配置信息缓存、高频查询缓存、缓存预热、性能优化。当用户提到"缓存"、"Cache"、"Redis"、"加缓存"、"缓存数据"、"字典缓存"、"配置缓存"、"高频查询"、"性能优化"、"预热"、"ICacheReader"、"ICacheRefresh"、"CacheManager"时，必须使用此技能。
 ---
 ## 使用场景
 
@@ -11,11 +11,28 @@ description: 缓存功能开发专家，为业务实体添加完整的 Redis 缓
 
 ## 核心功能
 
+**命名空间**: `ThirdNet.Core.Common`
+
 生成符合三层架构的缓存代码：
 
 - **Interface 层**：`ICacheReader`（读取接口）、`ICacheRefresh`（刷新接口）
 - **Cache 层**：`CacheManager`（缓存管理器）
 - **Data 层**：`RedisHandler`（数据查询）、`View`（视图模型）
+
+## 核心方法
+
+### CacheManager 读取方法
+
+| 方法 | 签名 | 说明 |
+|-----|------|------|
+| `GetSingle` | `Task<T> GetSingle<T>(string key, Func<Task<T>> factory, DateTime expire)` | 获取单个缓存，不存在时通过 factory 加载 |
+| `GetMultiple` | `Task<IDictionary<string, T>> GetMultiple<T>(string[] keys, Func<string[], Task<IDictionary<string, T>>> factory, DateTime expire)` | 批量获取缓存，不存在的通过 factory 加载 |
+
+### CacheManager 刷新方法
+
+| 方法 | 签名 | 说明 |
+|-----|------|------|
+| `AddOrUpdate` | `Task AddOrUpdate<T>(string key, T value, DateTime expire)` | 添加或更新缓存 |
 
 ## 执行步骤
 
