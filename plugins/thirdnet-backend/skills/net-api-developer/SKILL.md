@@ -1,6 +1,6 @@
 ---
 name: net-api-developer
-description: .NET API 接口开发专家，负责创建 Controller、定义 API 路由、编写 HTTP 端点方法（仅使用 GET/POST）。**主动用于**：创建新的 Controller、编写 API 接口方法、定义路由、处理 HTTP 请求响应。当用户提到"接口"、"API"、"Controller"、"端点"、"路由"、"写个接口"、"加个接口"、"增删改查"、"CRUD"、"HttpGet"、"HttpPost"、"接口开发"、"API开发"时，必须使用此技能。
+description: .NET API 接口开发专家，负责创建 Controller、定义 API 路由、编写 HTTP 端点方法（仅使用 GET/POST）。**主动用于**：创建新的 Controller、编写 API 接口方法、定义路由、处理 HTTP 请求响应。当用户提到"接口"、"API"、"Controller"、"端点"、"路由"、"写个接口"、"加个接口"、"增删改查"、"CRUD"、"HttpGet"、"HttpPost"、"接口开发"、"API开发"、"授权策略"、"Authorize"、"用户信息"、"HttpContext"时，必须使用此技能。
 ---
 ## 使用场景
 
@@ -13,6 +13,12 @@ description: .NET API 接口开发专家，负责创建 Controller、定义 API 
 - 配置 JWT Token 认证与授权
 - 实现 IAccountValidator 自定义账号验证
 - 在接口中获取用户身份信息
+
+## 相关技能
+
+- **net-authentication**: 认证系统开发，包含完整的认证配置和实现指南
+- **net-efcore-developer**: 数据库实体开发
+- **net-cache-use**: 缓存功能集成
 
 ## 角色定位
 
@@ -83,69 +89,72 @@ API 接口路径必须使用 `api` 开头，格式为：`api/{端标识}/{模块
 | `App/`     | 应用端   | 面向 C 端用户（Web、H5、小程序、App） |
 | `Third/`   | 第三方端 | 开放 API，供第三方系统对接            |
 
-## Controller 开发模板
+## 授权策略使用
+
+### 内置策略
+
+框架内置以下授权策略（定义于 `ExtensionHelper.cs`）：
+
+| 策略名 | 认证方式 | 使用场景 |
+|-------|---------|---------|
+|  | Basic + Bearer | 一般接口，支持应用和用户调用 |
+| Logon | Bearer | 需要用户登录的接口 |
+| Basic | Basic | 仅允许应用调用的接口 |
+| Both | Basic + Bearer | 两种认证都支持 |
+
+### 使用示例
 
 ```csharp
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+// 使用默认策略
+[Authorize]
+public class UserController : ControllerBase { }
 
-namespace ContractService.Api.Controllers.Manager
-{
-    /// <summary>
-    /// 用户管理控制器
-    /// </summary>
-    [Route("api/manager/user")]  // 注意：路径不含版本号
-    [ApiController]
-    [ApiExplorerSettings(GroupName = "manager")]
-    [SwaggerTag("用户管理")]
-    [Authorize(Policy = "manager-policy")]
-    public class UserController : ControllerBase
-    {
-        private readonly ILogger<UserController> _logger;
+// 必须用户登录
+[Authorize(Policy = "Logon")]
+public class ProfileController : ControllerBase { }
 
-        public UserController(ILogger<UserController> logger)
-        {
-            _logger = logger;
-        }
+// 仅 Basic 认证（应用间调用）
+[Authorize(Policy = "Basic")]
+public class InternalController : ControllerBase { }
 
-        /// <summary>
-        /// 获取用户列表
-        /// </summary>
-        /// <param name="page">页码</param>
-        /// <param name="pageSize">每页大小</param>
-        /// <returns>用户列表（直接返回实体JSON，不包装状态码）</returns>
-        [HttpGet("list")]
-        public async Task<IActionResult> GetUserList(int page = 1, int pageSize = 10)
-        {
-            // TODO: 实现业务逻辑，直接返回实体或分页结果
-            return Ok(new { list = new List<object>(), total = 0 });
-        }
-
-        /// <summary>
-        /// 创建用户
-        /// </summary>
-        /// <param name="request">创建请求</param>
-        /// <returns>创建的用户实体</returns>
-        [HttpPost("create")]
-        public async Task<IActionResult> CreateUser([FromBody] CreateUserRequest request)
-        {
-            // TODO: 实现业务逻辑，直接返回创建的实体
-            // 错误时抛出 WebApiException
-            return Ok(createdUser);  // 直接返回实体
-        }
-    }
-}
+// 不需要认证
+[AllowAnonymous]
+public class PublicController : ControllerBase { }
 ```
 
-## Controller 属性说明
+## 获取用户信息
 
-| 属性                    | 说明                                              |
-| ----------------------- | ------------------------------------------------- |
-| `Route`               | 定义路由前缀，必须以 `api` 开头，端标识使用小写 |
-| `ApiController`       | 标识为 API 控制器，启用自动模型验证等功能         |
-| `ApiExplorerSettings` | 配置 Swagger 文档分组，端标识使用小写             |
-| `SwaggerTag`          | Swagger 文档中显示的中文标签                      |
-| `Authorize`           | 配置认证授权策略（如不需要认证可省略）            |
+### 可用扩展方法
+
+| 方法 | 返回类型 | 说明 |
+|-----|---------|------|
+| `HttpContext.GetCurrentClientId()` | string | 获取客户端应用 ID |
+| `HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value` | string | 获取用户 ID |
+| `HttpContext.User.FindFirst("idp")?.Value` | string | 获取身份提供者 |
+| `HttpContext.User.Identity?.IsAuthenticated` | bool | 判断是否已认证 |
+
+### 使用示例
+
+```csharp
+[HttpGet("profile")]
+public async Task<IActionResult> GetProfile()
+{
+    // 获取用户 ID
+    var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+    if (string.IsNullOrEmpty(userId))
+    {
+        throw new WebApiException(HttpStatusCode.Unauthorized, "未登录");
+    }
+
+    // 获取客户端应用 ID
+    var clientId = HttpContext.GetCurrentClientId();
+
+    // 使用用户 ID 查询数据
+    var profile = await _userService.GetProfile(long.Parse(userId));
+    return Ok(profile);
+}
+```
 
 ## API 接口方法规范
 
@@ -160,49 +169,6 @@ namespace ContractService.Api.Controllers.Manager
 - **状态码传递**：仅通过 HTTP 状态码传递请求结果状态
 
 统一使用 `IActionResult` 作为返回类型，便于灵活返回不同的 HTTP 状态码。
-
-```csharp
-// ✅ 推荐：成功直接返回实体
-public async Task<IActionResult> GetUser(long id)
-{
-    var user = await _userService.GetUserById(id);
-    if (user == null)
-    {
-        throw new WebApiException(System.Net.HttpStatusCode.NotFound, "用户不存在");
-    }
-    return Ok(user);  // 直接返回实体JSON，不包装
-}
-
-// ✅ 推荐：列表查询直接返回列表
-public async Task<IActionResult> GetUserList(int page = 1, int pageSize = 10)
-{
-    var (list, total) = await _userService.GetPagedUsers(page, pageSize);
-    return Ok(new { list, total });  // 简单的分页结构
-}
-
-// ❌ 禁止：包装状态码的响应格式
-public async Task<IActionResult> GetUser(long id)
-{
-    var user = await _userService.GetUserById(id);
-    return Ok(new { code = 200, data = user, message = "success" });  // 禁止这种包装
-}
-
-// ❌ 不推荐：直接返回 DTO 类型（无法灵活控制状态码）
-public async Task<UserDto> GetUser(long id)
-{
-    return await _userService.GetUserById(id);
-}
-```
-
-### 参数绑定规范
-
-| 参数来源    | 特性             | 示例                              |
-| ----------- | ---------------- | --------------------------------- |
-| URL 路径    | `[FromRoute]`  | `GET /api/users/{id}`           |
-| 查询字符串  | `[FromQuery]`  | `GET /api/users?page=1&size=10` |
-| 请求 Body   | `[FromBody]`   | `POST /api/users/create`        |
-| 请求 Header | `[FromHeader]` | 从 Header 获取参数                |
-| 表单数据    | `[FromForm]`   | 表单提交                          |
 
 ### DTO 模型设计规范
 
@@ -219,51 +185,6 @@ public async Task<UserDto> GetUser(long id)
 | 查询请求 | `{Entity}QueryRequest` | `UserQueryRequest` |
 | 响应模型 | `{Entity}Response` 或 `{Entity}Dto` | `UserResponse`、`UserDto` |
 
-**示例模板**：
-
-```csharp
-/// <summary>
-/// 用户创建请求
-/// </summary>
-public class UserCreateRequest
-{
-    /// <summary>
-    /// 用户名
-    /// </summary>
-    public string user_name { get; set; }
-
-    /// <summary>
-    /// 邮箱地址
-    /// </summary>
-    public string email { get; set; }
-
-    /// <summary>
-    /// 部门ID
-    /// </summary>
-    public long department_id { get; set; }
-}
-
-/// <summary>
-/// 用户更新请求
-/// </summary>
-public class UserUpdateRequest
-{
-    /// <summary>
-    /// 用户ID
-    /// </summary>
-    public long id { get; set; }
-
-    /// <summary>
-    /// 用户名
-    /// </summary>
-    public string user_name { get; set; }
-
-    /// <summary>
-    /// 状态
-    /// </summary>
-    public int state { get; set; }
-}
-```
 
 ### 错误处理规范
 
@@ -321,81 +242,3 @@ public async Task<IActionResult> GetUser(long id)
     return Ok(new { code = 200, data = user });  // 禁止包装
 }
 ```
-
-## 服务层集成
-
-本项目使用基于 RSA 的 JWT Token 认证机制，通过统一的认证服务（IdentityService）进行身份验证。
-
-### 认证服务端配置
-
-认证服务需要配置以下组件：
-
-```csharp
-// Startup.cs 服务注册
-public void ConfigureServices(IServiceCollection services)
-{
-    // 自定义 Token 过期时间缓存（可选）
-    services.AddSingleton<IAccountTokenTimeCache, CustomAccountTokenTimeCache>();
-
-    // 配置 RSA JWT 认证
-    services.AddThirdNetDefaultRSAJwt(Configuration);
-
-    // 配置账号验证器
-    services.AddScoped<IAccountValidator, DefaultAccountValidator>();
-}
-```
-
-### IAccountValidator 账号验证器
-
-实现 `IAccountValidator` 接口来验证用户账号密码并返回自定义 Claims：
-
-```csharp
-public class DefaultAccountValidator : IAccountValidator
-{
-    public async Task<List<Claim>> Validate(string account, string password, string[] scopes)
-    {
-        // 1. 根据 scope 验证账号密码
-        // 2. 创建自定义 claims（不应保存敏感信息，只保存标识信息）
-
-        var custom_claims = new List<Claim>();
-
-        // 身份提供者（如：wechat、tourist、wechatapp）
-        custom_claims.Add(new Claim("idp", "wechat"));
-
-        // 用户唯一标识
-        custom_claims.Add(new Claim(ClaimTypes.NameIdentifier, "用户ID"));
-
-        return custom_claims;
-    }
-}
-```
-
-### Token 端点规范
-
-| 端点                       | 方法 | 说明                                    |
-| -------------------------- | ---- | --------------------------------------- |
-| `/connect/token`         | POST | 获取 access_token（可选 refresh_token） |
-| `/connect/token/refresh` | POST | 使用 refresh_token 刷新 access_token    |
-
-**获取 Token 请求参数**（form-data）：
-
-| 参数     | 类型   | 说明                                                                 |
-| -------- | ------ | -------------------------------------------------------------------- |
-| username | string | 用户名                                                               |
-| password | string | 密码                                                                 |
-| scope    | string | 权限范围，多个用空格分隔，如 `offline_access` 可获取 refresh_token |
-
-**Token 响应格式**：
-
-```json
-{
-    "access_token": "eyJhbGciOiJSUzI1NiIs...",
-    "refresh_token": "eyJhbGciOiJSUzI1NiIs..."  // 仅当 scope 包含 offline_access 时返回
-}
-```
-
-**刷新 Token 请求参数**（form-data）：
-
-| 参数          | 类型   | 说明                     |
-| ------------- | ------ | ------------------------ |
-| refresh_token | string | 之前获取的 refresh_token |
