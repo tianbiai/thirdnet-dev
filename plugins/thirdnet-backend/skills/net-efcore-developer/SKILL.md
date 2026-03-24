@@ -251,44 +251,78 @@ public class ProductConfiguration : IEntityTypeConfiguration<ProductModel>
 | 实体配置 | `.Database` 项目 |
 | 迁移文件 | `.Api` 项目 |
 
-### 迁移文件目录
+### ⚠️ 迁移文件位置（极易出错！）
+
+**迁移文件必须放在 API 项目中，不是 Database 项目！**
 
 ```
-{ProjectName}.{ServiceName}.API/Data/Migrations/{DbContext名称}/
-├── 20250212_InitialCreate.cs
-├── 20250212_InitialCreate.Designer.cs
-└── {DbContextName}ModelSnapshot.cs
+✅ 正确位置：{ProjectName}.{ServiceName}.API/Data/Migrations/{YourDbContextName}/
+│   ├── 20250212_InitialCreate.cs
+│   ├── 20250212_InitialCreate.Designer.cs
+│   └── {YourDbContextName}ModelSnapshot.cs
+
+❌ 错误位置：{ProjectName}.{ServiceName}.API/Data/Migrations/ThirdNetDb/        ← 这是系统数据库！不是你的业务库！
+❌ 错误位置：{ProjectName}.{ServiceName}.Database/Migrations/                  ← 绝对禁止！
+❌ 错误位置：{ProjectName}.{ServiceName}.Database/Data/Migrations/             ← 绝对禁止！
 ```
+
+**重要说明**：
+- `ThirdNetDb` 目录是**框架系统数据库**的迁移文件位置，存放框架内置表的迁移
+- 你的**业务数据库**迁移必须放在**你自己创建的 DbContext 对应的目录**下
+- 例如：你创建了 `ContractDbContext`，迁移应放在 `Data/Migrations/ContractDbContext/`
+
+**为什么迁移文件要放在 API 项目？**
+- API 项目包含数据库连接字符串配置
+- 迁移文件与运行时环境相关，应放在可执行项目中
+- 便于自动应用迁移（Program.cs 中调用 Database.Migrate()）
 
 ### 生成迁移文件命令
 
-在解决方案根目录执行以下命令：
+**关键点**：`--output-dir` 是相对于 `--project`（Database 项目）的路径，必须使用相对路径 `../` 指向 API 项目！
+
+在**服务根目录**（`{ProjectName}.{ServiceName}/`）执行以下命令：
 
 ```bash
-# 基本命令格式（在解决方案根目录执行）
+# 基本命令格式（在服务根目录执行，即 API 和 Database 项目的父目录）
 dotnet ef migrations add {MigrationName} \
   --project {ProjectName}.{ServiceName}.Database \
   --startup-project {ProjectName}.{ServiceName}.API \
-  --output-dir Data/Migrations/{DbContextName}
+  --output-dir ../{ProjectName}.{ServiceName}.API/Data/Migrations/{DbContextName}
 
 # 示例：为 ContractDbContext 创建初始迁移
+# 当前目录：backend/MyApp/MyApp.Contract/（包含 API 和 Database 子目录）
 dotnet ef migrations add InitialCreate \
-  --project ContractService.Database \
-  --startup-project ContractService.API \
-  --output-dir Data/Migrations/ContractDbContext
+  --project MyApp.Contract.Database \
+  --startup-project MyApp.Contract.API \
+  --output-dir ../MyApp.Contract.API/Data/Migrations/ContractDbContext
 
 # 示例：为 LogDbContext 创建迁移
 dotnet ef migrations add AddLogTable \
-  --project ContractService.Database \
-  --startup-project ContractService.API \
-  --output-dir Data/Migrations/LogDbContext
+  --project MyApp.Contract.Database \
+  --startup-project MyApp.Contract.API \
+  --output-dir ../MyApp.Contract.API/Data/Migrations/LogDbContext
 ```
 
-**注意**：
-- `{MigrationName}` 使用 PascalCase 命名，如 `InitialCreate`、`AddUserTable`
-- `{DbContextName}` 与 DbContext 类名一致，如 `ContractDbContext`、`LogDbContext`
-- `--project` 指定 Database 项目（DbContext 所在位置）
-- `--startup-project` 指定 API 项目（包含数据库连接字符串配置）
+**参数说明**：
+| 参数 | 说明 | 示例 |
+|-----|------|------|
+| `{MigrationName}` | 迁移名称，PascalCase | `InitialCreate`、`AddUserTable` |
+| `{DbContextName}` | DbContext 类名（不含 DbContext 后缀时也行） | `ContractDbContext` → `ContractDbContext` |
+| `--project` | Database 项目（DbContext 所在位置） | `MyApp.Contract.Database` |
+| `--startup-project` | API 项目（连接字符串配置） | `MyApp.Contract.API` |
+| `--output-dir` | **相对路径指向 API 项目** | `../MyApp.Contract.API/Data/Migrations/ContractDbContext` |
+
+**常见错误**：
+```bash
+# ❌ 错误：缺少 ../ 前缀，迁移文件会生成到 Database 项目
+--output-dir Data/Migrations/ContractDbContext
+
+# ❌ 错误：直接在 Database 项目下创建 Migrations 目录
+--output-dir Migrations
+
+# ✅ 正确：使用 ../ 指向 API 项目
+--output-dir ../MyApp.Contract.API/Data/Migrations/ContractDbContext
+```
 
 ## DbContext 模板
 
