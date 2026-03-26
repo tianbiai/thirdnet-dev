@@ -55,6 +55,8 @@ dotnet new install ThirdNet.Core.WebApiService --force
 dotnet new install ThirdNet.Core.IdentityService --force
 ```
 
+**安装失败处理**：如果模板包不在本地 NuGet 缓存中，需要先确认模板包的 NuGet 源地址，然后通过 `dotnet new install <包路径或NuGet包ID>` 安装。安装后再次运行 `dotnet new list` 确认模板可用。
+
 ## 项目类型
 
 ### 工具类库
@@ -110,7 +112,9 @@ backend/
         │   └── appsettings.json
         └── {ProjectName}.{ServiceName}.Database/
             ├── Models/                      # 实体模型
-            └── Configurations/              # Fluent API 配置
+            ├── Configurations/              # Fluent API 配置
+            └── Migrations/                  # 数据库迁移文件
+                └── {DbContextName}/         # 按 DbContext 分目录
 ```
 
 **命名规范（均使用英文名）**：

@@ -97,7 +97,7 @@ API 接口路径必须使用 `api` 开头，格式为：`api/{端标识}/{模块
 
 | 策略名 | 认证方式 | 使用场景 |
 |-------|---------|---------|
-|  | Basic + Bearer | 一般接口，支持应用和用户调用 |
+| Default | Basic + Bearer | 一般接口，支持应用和用户调用 |
 | Logon | Bearer | 需要用户登录的接口 |
 | Basic | Basic | 仅允许应用调用的接口 |
 | Both | Basic + Bearer | 两种认证都支持 |

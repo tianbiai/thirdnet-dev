@@ -72,7 +72,18 @@ await bulkCopy.MergeToServer(
 );
 ```
 
-### 4. 完整同步
+### 4. 条件插入（跳过已存在记录）
+
+```csharp
+// 插入数据，但跳过主键或唯一约束已存在的记录（不会报错）
+await bulkCopy.CopyToServerWithoutUniqueKey(
+    connectionString,
+    "users",
+    users
+);
+```
+
+### 5. 完整同步
 
 ```csharp
 // 同步数据，删除目标表中不存在于源数据的记录
