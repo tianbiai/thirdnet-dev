@@ -110,7 +110,9 @@ backend/
         │   └── appsettings.json
         └── {ProjectName}.{ServiceName}.Database/
             ├── Models/                      # 实体模型
-            └── Configurations/              # Fluent API 配置
+            ├── Configurations/              # Fluent API 配置
+            └── Migrations/                  # 数据库迁移文件
+                └── {DbContextName}/         # 按 DbContext 分目录
 ```
 
 **命名规范（均使用英文名）**：
