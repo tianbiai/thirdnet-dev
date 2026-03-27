@@ -169,6 +169,49 @@ public class NotificationBackgroundTask : BackgroundRunner
 - **取消令牌**：检查 `cancellationToken` 以响应停止请求
 - **资源释放**：长时间运行的任务注意释放资源，避免内存泄漏
 
+## 在后台任务中使用 Scoped 服务
+
+`BackgroundRunner` 注册为 Singleton，无法直接注入 Scoped 服务（如 DbContext）。需要通过 `IServiceScopeFactory` 创建作用域：
+
+```csharp
+public class DataSyncBackgroundTask : BackgroundRunner
+{
+    private readonly IServiceScopeFactory _scopeFactory;
+
+    public DataSyncBackgroundTask(
+        ILogger<DataSyncBackgroundTask> logger,
+        IServiceScopeFactory scopeFactory)
+        : base(logger)
+    {
+        _scopeFactory = scopeFactory;
+        Name = "数据同步任务";
+        SleepTime = 60000;
+    }
+
+    public override bool Check => true;
+
+    public override async Task WorkAsync(CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<MyDbContext>();
+        var cacheReader = scope.ServiceProvider.GetRequiredService<ICacheReader>();
+
+        // 使用 dbContext 和 cacheReader 进行业务操作
+        var pendingItems = await dbContext.TaskQueue
+            .Where(t => t.status == 0)
+            .ToListAsync(cancellationToken);
+
+        foreach (var item in pendingItems)
+        {
+            if (cancellationToken.IsCancellationRequested) break;
+            // 处理逻辑...
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+}
+```
+
 ## SleepTime 常用值参考
 
 | 场景 | 建议值 | 毫秒数 |

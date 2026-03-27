@@ -48,7 +48,6 @@ description: .NET API 接口开发专家，负责创建 Controller、定义 API 
 
 API 接口路径必须使用 `api` 开头，格式为：`api/{端标识}/{模块名}`
 
-**端标识规则**：
 **⚠️ 重要约束**：
 
 - **禁止在 API 路径中包含版本号**（如 `v1`、`v2` 等）
@@ -91,9 +90,9 @@ API 接口路径必须使用 `api` 开头，格式为：`api/{端标识}/{模块
 
 ## 授权策略使用
 
-### 内置策略
+> 授权策略的完整说明、认证方式对比和配置方法请参阅 **net-authentication** 技能。
 
-框架内置以下授权策略（定义于 `ExtensionHelper.cs`）：
+**快速参考**：
 
 | 策略名 | 认证方式 | 使用场景 |
 |-------|---------|---------|
@@ -102,58 +101,26 @@ API 接口路径必须使用 `api` 开头，格式为：`api/{端标识}/{模块
 | Basic | Basic | 仅允许应用调用的接口 |
 | Both | Basic + Bearer | 两种认证都支持 |
 
-### 使用示例
-
 ```csharp
-// 使用默认策略
-[Authorize]
-public class UserController : ControllerBase { }
-
-// 必须用户登录
-[Authorize(Policy = "Logon")]
-public class ProfileController : ControllerBase { }
-
-// 仅 Basic 认证（应用间调用）
-[Authorize(Policy = "Basic")]
-public class InternalController : ControllerBase { }
-
-// 不需要认证
-[AllowAnonymous]
-public class PublicController : ControllerBase { }
+[Authorize]                              // 默认策略
+[Authorize(Policy = "Logon")]            // 需要用户登录
+[Authorize(Policy = "Basic")]            // 仅应用间调用
+[AllowAnonymous]                         // 无需认证
 ```
 
 ## 获取用户信息
 
-### 可用扩展方法
+> 完整的用户信息获取方法和 HttpContext 扩展请参阅 **net-authentication** 技能。
 
-| 方法 | 返回类型 | 说明 |
-|-----|---------|------|
-| `HttpContext.GetCurrentClientId()` | string | 获取客户端应用 ID |
-| `HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value` | string | 获取用户 ID |
-| `HttpContext.User.FindFirst("idp")?.Value` | string | 获取身份提供者 |
-| `HttpContext.User.Identity?.IsAuthenticated` | bool | 判断是否已认证 |
-
-### 使用示例
+**快速参考**：
 
 ```csharp
-[HttpGet("profile")]
-public async Task<IActionResult> GetProfile()
-{
-    // 获取用户 ID
-    var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-    if (string.IsNullOrEmpty(userId))
-    {
-        throw new WebApiException(HttpStatusCode.Unauthorized, "未登录");
-    }
-
-    // 获取客户端应用 ID
-    var clientId = HttpContext.GetCurrentClientId();
-
-    // 使用用户 ID 查询数据
-    var profile = await _userService.GetProfile(long.Parse(userId));
-    return Ok(profile);
-}
+// 获取用户 ID
+var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+// 获取客户端应用 ID
+var clientId = HttpContext.GetCurrentClientId();
+// 判断是否已认证
+var isAuth = HttpContext.User.Identity?.IsAuthenticated ?? false;
 ```
 
 ## API 接口方法规范
@@ -241,4 +208,3 @@ public async Task<IActionResult> GetUser(long id)
     }
     return Ok(new { code = 200, data = user });  // 禁止包装
 }
-```

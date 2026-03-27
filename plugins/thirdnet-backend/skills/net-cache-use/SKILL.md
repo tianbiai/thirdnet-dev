@@ -97,7 +97,7 @@ public class UserView
 /// <summary>
 /// 获取单个用户
 /// </summary>
-public async Task<UserView> GetUser(long id)
+public async Task<UserView?> GetUser(long id)
 {
     // 注意：使用对应服务的 schema（如 contract）
     var sql = @"SELECT * FROM contract.t_user WHERE id = {0}";
@@ -143,7 +143,7 @@ public async Task<List<UserView>> GetUsers(List<long> ids)
 /// <summary>
 /// 获取单个用户
 /// </summary>
-public async Task<UserView> GetUserInfo(long id)
+public async Task<UserView?> GetUserInfo(long id)
 {
     string key = $"user.{id}";
     return await GetSingle(key, () => reader.GetUser(id), _stime8);
@@ -167,7 +167,7 @@ public async Task<Dictionary<long, UserView>> GetUserInfo(List<long> ids)
     var dic = await GetMultiple(
         ids.Distinct().Select(s => $"{key}{s}").ToArray(),
         func,
-        DateTime.Now.AddHours(8)
+        _stime8
     );
     return dic.ToDictionary(f => long.Parse(f.Key.Replace(key, "")), v => v.Value);
 

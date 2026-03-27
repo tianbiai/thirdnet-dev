@@ -378,27 +378,44 @@ public async Task<UserView?> GetUserByEmail(string email)
 /// </summary>
 public async Task RefreshUser(long id)
 {
+    // 先获取旧数据，用于清除旧的辅助键
+    var oldKey = $"user.{id}";
+    var oldInfo = await GetSingle(oldKey, () => reader.GetUser(id), _stime8);
+
     // 获取最新数据
     var info = await reader.GetUser(id);
     if (info == null)
     {
-        // 用户不存在，删除所有相关缓存
+        // 用户不存在，清除所有相关缓存
         await RemoveSingle($"user.{id}");
-        await RemoveSingle($"user.phone.");
-        await RemoveSingle($"user.email.");
+        if (oldInfo != null)
+        {
+            if (!string.IsNullOrEmpty(oldInfo.phone))
+                await RemoveSingle($"user.phone.{oldInfo.phone}");
+            if (!string.IsNullOrEmpty(oldInfo.email))
+                await RemoveSingle($"user.email.{oldInfo.email}");
+        }
         return;
     }
 
     // 刷新ID键
     await AddOrUpdate($"user.{id}", info, _stime8);
 
-    // 刷新手机号键
+    // 刷新手机号键（如果手机号变更，清除旧键）
+    if (oldInfo != null && !string.IsNullOrEmpty(oldInfo.phone) && oldInfo.phone != info.phone)
+    {
+        await RemoveSingle($"user.phone.{oldInfo.phone}");
+    }
     if (!string.IsNullOrEmpty(info.phone))
     {
         await AddOrUpdate($"user.phone.{info.phone}", info, _stime8);
     }
 
-    // 刷新邮箱键
+    // 刷新邮箱键（如果邮箱变更，清除旧键）
+    if (oldInfo != null && !string.IsNullOrEmpty(oldInfo.email) && oldInfo.email != info.email)
+    {
+        await RemoveSingle($"user.email.{oldInfo.email}");
+    }
     if (!string.IsNullOrEmpty(info.email))
     {
         await AddOrUpdate($"user.email.{info.email}", info, _stime8);
