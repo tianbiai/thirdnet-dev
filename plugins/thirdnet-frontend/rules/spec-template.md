@@ -89,6 +89,8 @@
 - [ ] 已拆分为小型、专注的组件
 - [ ] 复杂逻辑已提取到 composables
 - [ ] UI 部分已拆分为子组件（props in, events out）
+- [ ] 所有 `.vue` 文件不超过 300 行（详见 [sfc-large-component-refactoring.md](./sfc-large-component-refactoring.md)）
+- [ ] 父组件是薄组合层，无业务逻辑
 
 ### 响应式适配
 

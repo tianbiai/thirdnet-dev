@@ -122,6 +122,23 @@ tools:
 - 组件包含 3 个以上独立 UI 区块（表单、列表、筛选器等）
 - 模板中存在重复或可复用的结构（列表项、卡片等）
 
+#### SFC 行数上限（强制）
+
+> 详见 `rules/sfc-large-component-refactoring.md`
+
+| 指标 | 必须重构 |
+|------|----------|
+| `.vue` 文件总行数 | > **300 行** |
+| `<script setup>` | > **200 行** |
+| `<template>` | > **150 行** |
+| `<style scoped>` | > **100 行** |
+
+**当任何指标超过上限时，禁止继续添加功能，必须先按四步法拆分**：
+1. 状态和副作用 → `useXxx()` Composable
+2. UI 区域 → 子组件（props in, events out）
+3. 跨组件共享状态 → Pinia Store
+4. CSS 精简 → 全局样式或外部 CSS 文件
+
 #### 代码整洁标准
 - **命名规范**：组件使用 PascalCase，composable 使用 use 前缀
 - **文件结构**：`<script>` → `<template>` → `<style>` 顺序
@@ -229,6 +246,7 @@ spec.md 存在？ ──否──→ 创建 spec.md
 - [ ] 所有功能正常运行
 - [ ] 代码与 spec.md 一致
 - [ ] changelog.md 已记录所有大变更
+- [ ] 所有 `.vue` 文件不超过 300 行，各 section 不超限（详见 `rules/sfc-large-component-refactoring.md`）
 
 ## 项目结构
 
@@ -294,5 +312,6 @@ frontend/
 
 ### 参考文档
 - `rules/skills-checklist.md` - 技能检查清单
+- `rules/sfc-large-component-refactoring.md` - Vue 大文件重构规则（行数上限、四步拆分法、目录结构）
 - `rules/project-spec-template.md` - 项目规格模板
 - `rules/changelog-template.md` - 变更日志模板
