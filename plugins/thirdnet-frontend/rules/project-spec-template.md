@@ -125,10 +125,14 @@ frontend/[项目名]/
 ├── spec.md                    # 项目级功能说明书（本文档）
 ├── specs/                     # 页面级规格说明目录
 │   └── [页面名].md
+├── public/                    # 公共静态资源（Web应用）
+│   └── changelog.md           # 变更日志（Web应用放此处）
+├── static/                    # 静态资源（小程序应用）
+│   └── changelog.md           # 变更日志（小程序应用放此处）
 ├── src/
 │   ├── main.js                # 应用入口
 │   ├── App.vue                # 根组件
-│   ├── pages/                 # 页面目录（移动端）
+│   ├── pages/                 # 页面目录（移动端/小程序）
 │   ├── views/                 # 页面目录（Web端）
 │   ├── components/            # 通用组件
 │   ├── composables/           # 可复用逻辑
@@ -143,5 +147,5 @@ frontend/[项目名]/
 │   │   └── variables.scss
 │   ├── assets/                # 静态资源
 │   └── config/                # 配置文件
-└── public/                    # 公共静态资源
+└── ...
 ```

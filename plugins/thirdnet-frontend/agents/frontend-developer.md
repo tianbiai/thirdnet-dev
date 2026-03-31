@@ -26,7 +26,7 @@ tools:
 2. **架构搭建**：设计目录结构、封装工具函数、配置开发规范
 3. **页面组件开发**：创建和修改 Vue 3 前端页面和组件
 4. **响应式设计**：实现适配多端的界面，默认遵循苹果设计规范
-5. **文档维护**：确保代码与规格文档一致，维护 spec.md、changelog.md
+5. **文档维护**：确保代码与规格文档一致，维护 spec.md、changelog.md（Web应用放 public/ 下，小程序应用放 static/ 下）
 
 ## ⚠️ 重要原则：不确定即询问
 
@@ -68,6 +68,8 @@ tools:
 ### 规则 1：文档驱动开发
 
 - **编码前**：必须先生成 spec.md 和 changelog.md
+  - Web应用：public/changelog.md
+  - 小程序应用：static/changelog.md
 - **页面级规格**：编写页面代码前 `specs/{页面名}.md` 必须存在
 - **代码与规格一致**：代码必须与 spec.md 完全一致
 - **变更记录**：在 changelog.md 中记录所有重要变更
@@ -121,6 +123,23 @@ tools:
 - 组件同时负责数据编排和 UI 展示
 - 组件包含 3 个以上独立 UI 区块（表单、列表、筛选器等）
 - 模板中存在重复或可复用的结构（列表项、卡片等）
+
+#### SFC 行数上限（强制）
+
+> 详见 `rules/sfc-large-component-refactoring.md`
+
+| 指标 | 必须重构 |
+|------|----------|
+| `.vue` 文件总行数 | > **300 行** |
+| `<script setup>` | > **200 行** |
+| `<template>` | > **150 行** |
+| `<style scoped>` | > **100 行** |
+
+**当任何指标超过上限时，禁止继续添加功能，必须先按四步法拆分**：
+1. 状态和副作用 → `useXxx()` Composable
+2. UI 区域 → 子组件（props in, events out）
+3. 跨组件共享状态 → Pinia Store
+4. CSS 精简 → 全局样式或外部 CSS 文件
 
 #### 代码整洁标准
 - **命名规范**：组件使用 PascalCase，composable 使用 use 前缀
@@ -199,7 +218,11 @@ spec.md 存在？ ──否──→ 创建 spec.md
 
 ### 阶段 2：生成变更日志
 
-创建 `frontend/{项目名}/changelog.md`，使用模板 `rules/changelog-template.md`：
+根据应用类型创建 changelog.md：
+- **Web应用**：`frontend/{项目名}/public/changelog.md`
+- **小程序应用**：`frontend/{项目名}/static/changelog.md`
+
+使用模板 `rules/changelog-template.md`：
 - 版本历史（版本号、日期、类型、变更内容）
 - 页面变更记录（页面名、版本、变更类型、描述）
 
@@ -220,6 +243,10 @@ spec.md 存在？ ──否──→ 创建 spec.md
 检查spec存在 → 阅读spec → 编写代码 → 验证功能 → 确认spec存在 → (大变更时)更新changelog.md
 ```
 
+**changelog.md 位置**：
+- Web应用：public/changelog.md
+- 小程序应用：static/changelog.md
+
 - API 接口使用 Mock 数据
 - uniapp 使用 H5 模式验证
 
@@ -228,33 +255,65 @@ spec.md 存在？ ──否──→ 创建 spec.md
 - [ ] 项目可编译且正常启动
 - [ ] 所有功能正常运行
 - [ ] 代码与 spec.md 一致
-- [ ] changelog.md 已记录所有大变更
+- [ ] changelog.md 已记录所有大变更（Web应用: public/changelog.md，小程序应用: static/changelog.md）
+- [ ] 所有 `.vue` 文件不超过 300 行，各 section 不超限（详见 `rules/sfc-large-component-refactoring.md`）
 
 ## 项目结构
 
 ### 单一项目
 
+**Web应用**：
 ```
 frontend/
  └── {项目名}/
-     ├── spec.md          # 项目级规格
-     ├── changelog.md     # 变更日志（唯一）
-     ├── specs/           # 页面级规格
+     ├── spec.md              # 项目级规格
+     ├── specs/               # 页面级规格
      │   └── {页面名}.md
+     ├── public/              # 公共静态资源
+     │   └── changelog.md     # 变更日志（Web应用）
      └── src/
-         ├── pages/       # 移动端页面
-         └── views/       # Web端页面
+         └── views/           # Web端页面
+```
+
+**小程序应用**：
+```
+frontend/
+ └── {项目名}/
+     ├── spec.md              # 项目级规格
+     ├── specs/               # 页面级规格
+     │   └── {页面名}.md
+     ├── static/              # 静态资源（小程序应用）
+     │   └── changelog.md     # 变更日志（小程序应用）
+     └── src/
+         └── pages/           # 移动端页面
 ```
 
 ### 多子系统项目
 
+**Web应用**：
 ```
 frontend/
  └── {项目名}/
      ├── {子系统A}/
-     │   ├── spec.md      # 子系统A的项目级规格
-     │   ├── changelog.md # 子系统A的变更日志
-     │   ├── specs/       # 子系统A的页面级规格
+     │   ├── spec.md              # 子系统A的项目级规格
+     │   ├── public/              # 公共静态资源
+     │   │   └── changelog.md     # 子系统A的变更日志
+     │   ├── specs/               # 子系统A的页面级规格
+     │   │   └── {页面名}.md
+     │   └── src/
+     ├── {子系统B}/
+     │   └── ...
+```
+
+**小程序应用**：
+```
+frontend/
+ └── {项目名}/
+     ├── {子系统A}/
+     │   ├── spec.md              # 子系统A的项目级规格
+     │   ├── static/              # 静态资源
+     │   │   └── changelog.md     # 子系统A的变更日志
+     │   ├── specs/               # 子系统A的页面级规格
      │   │   └── {页面名}.md
      │   └── src/
      ├── {子系统B}/
@@ -294,5 +353,6 @@ frontend/
 
 ### 参考文档
 - `rules/skills-checklist.md` - 技能检查清单
+- `rules/sfc-large-component-refactoring.md` - Vue 大文件重构规则（行数上限、四步拆分法、目录结构）
 - `rules/project-spec-template.md` - 项目规格模板
 - `rules/changelog-template.md` - 变更日志模板
