@@ -26,7 +26,7 @@ tools:
 2. **架构搭建**：设计目录结构、封装工具函数、配置开发规范
 3. **页面组件开发**：创建和修改 Vue 3 前端页面和组件
 4. **响应式设计**：实现适配多端的界面，默认遵循苹果设计规范
-5. **文档维护**：确保代码与规格文档一致，维护 spec.md、changelog.md（Web应用放 public/ 下，小程序应用放 static/ 下）
+5. **文档维护**：确保代码与规格文档一致，维护 spec.md、changelog.md 及配套的渲染页面（Web应用: public/changelog.md + changelog.html + marked.min.js，小程序应用: static/changelog.md + changelog.html + marked.min.js）
 
 ## ⚠️ 重要原则：不确定即询问
 
@@ -67,9 +67,15 @@ tools:
 
 ### 规则 1：文档驱动开发
 
-- **编码前**：必须先生成 spec.md 和 changelog.md
-  - Web应用：public/changelog.md
-  - 小程序应用：static/changelog.md
+- **编码前**：必须先生成 spec.md 和 changelog.md，以及配套的渲染页面文件
+  - **Web应用**：
+    - `public/changelog.md` — 变更日志内容
+    - `public/changelog.html` — 渲染页面
+    - `public/marked.min.js` — Markdown解析库
+  - **小程序应用**：
+    - `static/changelog.md` — 变更日志内容
+    - `static/changelog.html` — 渲染页面
+    - `static/marked.min.js` — Markdown解析库
 - **页面级规格**：编写页面代码前 `specs/{页面名}.md` 必须存在
 - **代码与规格一致**：代码必须与 spec.md 完全一致
 - **变更记录**：在 changelog.md 中记录所有重要变更
@@ -218,13 +224,19 @@ spec.md 存在？ ──否──→ 创建 spec.md
 
 ### 阶段 2：生成变更日志
 
-根据应用类型创建 changelog.md：
-- **Web应用**：`frontend/{项目名}/public/changelog.md`
-- **小程序应用**：`frontend/{项目名}/static/changelog.md`
+根据应用类型创建 changelog.md 及配套的渲染页面：
 
-使用模板 `rules/changelog-template.md`：
-- 版本历史（版本号、日期、类型、变更内容）
-- 页面变更记录（页面名、版本、变更类型、描述）
+**Web应用**：
+- `frontend/{项目名}/public/changelog.md` — 变更日志内容
+- `frontend/{项目名}/public/changelog.html` — 渲染页面（模板：`rules/changelog-html-template.md`）
+- `frontend/{项目名}/public/marked.min.js` — Markdown解析库（获取：`rules/marked-js-reference.md`）
+
+**小程序应用**：
+- `frontend/{项目名}/static/changelog.md` — 变更日志内容
+- `frontend/{项目名}/static/changelog.html` — 渲染页面（模板：`rules/changelog-html-template.md`）
+- `frontend/{项目名}/static/marked.min.js` — Markdown解析库（获取：`rules/marked-js-reference.md`）
+
+使用模板 `rules/changelog-template.md` 创建 changelog.md，并按模板说明创建配套的渲染页面文件。
 
 ### 阶段 3：生成项目 Spec
 
@@ -243,9 +255,15 @@ spec.md 存在？ ──否──→ 创建 spec.md
 检查spec存在 → 阅读spec → 编写代码 → 验证功能 → 确认spec存在 → (大变更时)更新changelog.md
 ```
 
-**changelog.md 位置**：
-- Web应用：public/changelog.md
-- 小程序应用：static/changelog.md
+**changelog 相关文件位置**：
+- **Web应用**：
+  - `public/changelog.md` — 变更日志内容
+  - `public/changelog.html` — 渲染页面
+  - `public/marked.min.js` — Markdown解析库
+- **小程序应用**：
+  - `static/changelog.md` — 变更日志内容
+  - `static/changelog.html` — 渲染页面
+  - `static/marked.min.js` — Markdown解析库
 
 - API 接口使用 Mock 数据
 - uniapp 使用 H5 模式验证
@@ -255,7 +273,9 @@ spec.md 存在？ ──否──→ 创建 spec.md
 - [ ] 项目可编译且正常启动
 - [ ] 所有功能正常运行
 - [ ] 代码与 spec.md 一致
-- [ ] changelog.md 已记录所有大变更（Web应用: public/changelog.md，小程序应用: static/changelog.md）
+- [ ] changelog.md 已记录所有大变更，且 `changelog.html` 和 `marked.min.js` 已创建：
+  - **Web应用**: `public/changelog.md` + `public/changelog.html` + `public/marked.min.js`
+  - **小程序应用**: `static/changelog.md` + `static/changelog.html` + `static/marked.min.js`
 - [ ] 所有 `.vue` 文件不超过 300 行，各 section 不超限（详见 `rules/sfc-large-component-refactoring.md`）
 
 ## 项目结构
@@ -270,7 +290,9 @@ frontend/
      ├── specs/               # 页面级规格
      │   └── {页面名}.md
      ├── public/              # 公共静态资源
-     │   └── changelog.md     # 变更日志（Web应用）
+     │   ├── changelog.md     # 变更日志内容
+     │   ├── changelog.html   # Changelog渲染页面
+     │   └── marked.min.js    # Markdown解析库
      └── src/
          └── views/           # Web端页面
 ```
@@ -283,7 +305,9 @@ frontend/
      ├── specs/               # 页面级规格
      │   └── {页面名}.md
      ├── static/              # 静态资源（小程序应用）
-     │   └── changelog.md     # 变更日志（小程序应用）
+     │   ├── changelog.md     # 变更日志内容
+     │   ├── changelog.html   # Changelog渲染页面
+     │   └── marked.min.js    # Markdown解析库
      └── src/
          └── pages/           # 移动端页面
 ```
@@ -297,7 +321,9 @@ frontend/
      ├── {子系统A}/
      │   ├── spec.md              # 子系统A的项目级规格
      │   ├── public/              # 公共静态资源
-     │   │   └── changelog.md     # 子系统A的变更日志
+     │   │   ├── changelog.md     # 子系统A的变更日志内容
+     │   │   ├── changelog.html   # 子系统A的Changelog渲染页面
+     │   │   └── marked.min.js    # Markdown解析库
      │   ├── specs/               # 子系统A的页面级规格
      │   │   └── {页面名}.md
      │   └── src/
@@ -312,7 +338,9 @@ frontend/
      ├── {子系统A}/
      │   ├── spec.md              # 子系统A的项目级规格
      │   ├── static/              # 静态资源
-     │   │   └── changelog.md     # 子系统A的变更日志
+     │   │   ├── changelog.md     # 子系统A的变更日志内容
+     │   │   ├── changelog.html   # 子系统A的Changelog渲染页面
+     │   │   └── marked.min.js    # Markdown解析库
      │   ├── specs/               # 子系统A的页面级规格
      │   │   └── {页面名}.md
      │   └── src/

@@ -126,9 +126,13 @@ frontend/[项目名]/
 ├── specs/                     # 页面级规格说明目录
 │   └── [页面名].md
 ├── public/                    # 公共静态资源（Web应用）
-│   └── changelog.md           # 变更日志（Web应用放此处）
+│   ├── changelog.md           # 变更日志内容（Web应用）
+│   ├── changelog.html         # 变更日志渲染页面（Web应用）
+│   └── marked.min.js          # Markdown解析库（Web应用）
 ├── static/                    # 静态资源（小程序应用）
-│   └── changelog.md           # 变更日志（小程序应用放此处）
+│   ├── changelog.md           # 变更日志内容（小程序应用）
+│   ├── changelog.html         # 变更日志渲染页面（小程序应用）
+│   └── marked.min.js          # Markdown解析库（小程序应用）
 ├── src/
 │   ├── main.js                # 应用入口
 │   ├── App.vue                # 根组件
