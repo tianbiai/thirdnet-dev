@@ -194,6 +194,153 @@ tools:
 - 项目初始化失败 → 检查环境依赖 → 提供解决方案
 - 编译错误 → 分析错误信息 → 修复并验证
 
+### 规则 7：按钮防连续点击
+
+所有用户可点击的按钮（特别是涉及 API 调用的操作）必须具备防连续点击机制，防止重复提交和重复请求。
+
+**适用场景**：
+- 表单提交按钮（登录、注册、保存等）
+- 数据操作按钮（删除、审批、发布等）
+- 支付/交易类按钮
+- 任何会触发 API 请求的按钮
+
+**推荐实现方式**（按优先级排序）：
+
+| 方式 | 适用场景 | 说明 |
+|------|----------|------|
+| **Loading 状态** | 提交类按钮（最常用） | 点击后按钮进入 loading 状态，API 返回后恢复。用户能看到请求进行中 |
+| **防抖（debounce）** | 搜索、筛选等高频操作 | 短时间内多次点击只执行最后一次 |
+| **节流（throttle）** | 导出、下载等操作 | 固定时间间隔内只执行一次 |
+| **禁用按钮** | 简单操作 | 点击后立即禁用，处理完成后恢复 |
+
+**代码示例**：
+
+```vue
+<!-- 方式 1：Loading 状态（推荐，用于表单提交） -->
+<el-button :loading="submitting" @click="handleSubmit">提交</el-button>
+
+<script setup lang="ts">
+const submitting = ref(false)
+
+async function handleSubmit() {
+  if (submitting.value) return
+  submitting.value = true
+  try {
+    await api.submit(formData)
+  } finally {
+    submitting.value = false
+  }
+}
+</script>
+
+<!-- 方式 2：Composable 封装（推荐复用） -->
+<script setup lang="ts">
+const { loading, execute } = useAsyncAction(() => api.submit(formData))
+</script>
+
+<el-button :loading="loading" @click="execute">提交</el-button>
+```
+
+**不适用场景**（无需防点击）：
+- 纯前端状态切换（Tab 切换、折叠展开）
+- 导航跳转（路由链接）
+- 输入框聚焦等无副作用的交互
+
+### 规则 8：并发接口错误去重
+
+当页面同时发起多个 API 请求时（如 `Promise.all`、`Promise.allSettled` 或多个独立 `async` 调用），若因网络问题或其他原因导致多个接口同时报错，**错误提示只弹出一次**，禁止连续弹出多个错误框让用户反复点击确认。
+
+**适用场景**：
+- 页面初始化同时加载多个模块数据
+- 使用 `Promise.all` / `Promise.allSettled` 并发请求
+- 同一生命周期（`onMounted`、`onActivated`）中发起多个独立请求
+- 同一用户操作触发多个接口调用
+
+**推荐实现方式**（按优先级排序）：
+
+| 方式 | 适用场景 | 说明 |
+|------|----------|------|
+| **全局错误去重（拦截器）** | 所有并发场景（最推荐） | 在 Axios 响应拦截器中，短时间内收集所有错误，合并为一条提示 |
+| **聚合错误处理** | `Promise.all` 场景 | 使用 `Promise.allSettled` 收集所有失败结果，统一展示一条汇总提示 |
+| **错误锁（debounce）** | 简单场景 | 在全局错误提示函数上加防抖，相同时间窗口内的错误只弹出一次 |
+
+**代码示例**：
+
+```typescript
+// 方式 1：全局拦截器去重（推荐，在 axios 拦截器中实现）
+let errorToastTimer: ReturnType<typeof setTimeout> | null = null
+let pendingErrorMessage: string | null = null
+
+function showErrorToast(message: string) {
+  if (errorToastTimer) {
+    // 已有待显示的错误，合并消息
+    pendingErrorMessage = '多个请求失败，请检查网络后重试'
+    return
+  }
+  pendingErrorMessage = message
+  errorToastTimer = setTimeout(() => {
+    // Element Plus
+    ElMessage.error(pendingErrorMessage)
+    // Vant: showToast({ message: pendingErrorMessage, type: 'fail' })
+    errorToastTimer = null
+    pendingErrorMessage = null
+  }, 300) // 300ms 内的错误合并为一条
+}
+
+// 在 axios 响应拦截器中使用
+service.interceptors.response.use(
+  (response) => response.data,
+  (error) => {
+    showErrorToast(error.message || '请求失败')
+    return Promise.reject(error)
+  }
+)
+
+// 方式 2：Promise.allSettled 聚合处理
+async function loadPageData() {
+  const results = await Promise.allSettled([
+    api.getUserInfo(),
+    api.getConfig(),
+    api.getPermissions(),
+  ])
+  const errors = results.filter(r => r.status === 'rejected')
+  if (errors.length > 0) {
+    // 只弹出一次错误提示
+    ElMessage.error(`${errors.length} 个请求失败，请刷新重试`)
+  }
+  // 处理成功的结果
+  const [user, config, permissions] = results
+    .filter(r => r.status === 'fulfilled')
+    .map(r => (r as PromiseFulfilledResult<any>).value)
+}
+
+// 方式 3：Composable 封装（推荐复用）
+function useConcurrentRequests() {
+  const errorShown = ref(false)
+
+  async function runAll(requests: Promise<any>[]) {
+    errorShown.value = false
+    const results = await Promise.allSettled(requests)
+    const failed = results.filter(r => r.status === 'rejected')
+    if (failed.length > 0 && !errorShown.value) {
+      errorShown.value = true
+      ElMessage.error(failed.length > 1
+        ? `${failed.length} 个请求失败，请检查网络`
+        : failed[0].reason?.message || '请求失败'
+      )
+    }
+    return results
+  }
+
+  return { runAll }
+}
+```
+
+**禁止行为**：
+- 在 `Promise.all` 的 `catch` 中对每个请求单独弹出错误
+- 在多个独立 `async` 调用的 `catch` 中各自弹出 `ElMessage.error`
+- 在拦截器中不加去重逻辑，直接对每个失败响应弹出提示
+
 ## 工作流程
 
 ```
