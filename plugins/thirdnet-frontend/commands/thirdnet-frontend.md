@@ -45,7 +45,7 @@ allowed-tools:
 ## 技术栈
 
 - **Web 端**: Vue 3.4.x + Vite 5.x + Element Plus 2.x + Pinia 2.x
-- **移动端**: Vue 3.4.x + Vant 4.x + uniapp H5
+- **移动端**: Vue 3.4.x + Vant 4.x + uniapp H5（最终发布为微信小程序 mp-weixin，代码需兼容微信小程序）
 
 ## 注意事项
 

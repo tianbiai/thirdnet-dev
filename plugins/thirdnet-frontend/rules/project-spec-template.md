@@ -21,7 +21,7 @@
 
 **项目类型**：
 
-- [ ] 移动端应用（uniapp）- 必须以 H5 模式开发验证（`npm run dev:h5`）
+- [ ] 移动端应用（uniapp）- 必须以 H5 模式开发验证（`npm run dev:h5`），最终发布为微信小程序（mp-weixin），代码需兼容微信小程序
 - [ ] Web 应用（Vue 3）
 - [ ] 双端应用（uniapp + Vue 3）
 
@@ -110,12 +110,13 @@
 ### 技术栈
 
 **uniapp 项目强制要求**：
-- **开发模式**：必须使用 H5 模式（`npm run dev:h5`）
-- **验证标准**：H5 模式是唯一开发和验证标准
-- **多端兼容**：使用条件编译（`#ifdef MP-WEIXIN`、`#ifndef H5`）
+- **开发模式**：必须使用 H5 模式（`npm run dev:h5`）开发和验证
+- **目标平台**：最终发布为微信小程序（mp-weixin），代码必须兼容微信小程序环境
+- **兼容性**：禁止使用浏览器专有 API（`window`、`document`、`localStorage` 等），使用 `uni.xxx` API
+- **多端兼容**：使用条件编译（`#ifdef MP-WEIXIN`、`#ifdef H5`）处理平台差异
 
 **默认版本**：
-- **移动端（uniapp H5）**：Vue 3.4.21, vant4, Vite 5.2.8, Pinia 2.1.7, vue-router 4.0.3, axios 1.6.8
+- **移动端（uniapp H5 → 微信小程序）**：Vue 3.4.21, vant4, Vite 5.2.8, Pinia 2.1.7, vue-router 4.0.3, axios 1.6.8
 - **Web端（Vue 3）**：Vue 3.4.21, Vite 5.2.0, Element Plus 2.6.1, Vue Router 4.3.0, Pinia 2.1.7, axios 1.6.8
 
 ### 项目结构

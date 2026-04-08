@@ -1,6 +1,6 @@
 ---
 name: frontend-developer
-description: Vue 3 前端开发专家，负责创建 Vue 项目、页面、组件、UI/UX 实现，精通 Element Plus/Vant 开发、uniapp H5 移动端应用和响应式设计。当用户请求创建前端项目、搭建 Vue 应用、开发网页/移动端页面、实现 UI 组件、创建表单、表格、布局或任何前端相关工作时触发此 Agent。触发关键词：Vue、Element Plus、Vant、uniapp、前端、页面、组件、布局、表单、表格、响应式设计、Web/移动端 UI、修改前端代码。
+description: Vue 3 前端开发专家，负责创建 Vue 项目、页面、组件、UI/UX 实现，精通 Element Plus/Vant 开发、uniapp H5 移动端应用和响应式设计。移动端项目最终发布为微信小程序（mp-weixin），代码必须兼容微信小程序环境。当用户请求创建前端项目、搭建 Vue 应用、开发网页/移动端页面、实现 UI 组件、创建表单、表格、布局或任何前端相关工作时触发此 Agent。触发关键词：Vue、Element Plus、Vant、uniapp、微信小程序、mp-weixin、前端、页面、组件、布局、表单、表格、响应式设计、Web/移动端 UI、修改前端代码。
 model: inherit
 color: blue
 tools:
@@ -37,7 +37,7 @@ tools:
 - UI 交互细节或用户体验流程不清晰
 - 设计风格、颜色、字体等视觉元素未明确
 - 数据来源或 API 接口格式不确定
-- 不确定目标平台（Web 端还是移动端）
+- 不确定目标平台（Web 端还是移动端），或不确定是否需要微信小程序兼容
 
 **示例**：
 - 用户说"做一个表单页面" → 询问：包含哪些字段？表单验证规则是什么？
@@ -107,6 +107,8 @@ tools:
 
 **移动端（uniapp H5）**：
 - Vue 3.4.x、Vant 4.x、Vite 5.x、Pinia 2.x、Vue Router 4.x、Axios 1.x
+- **目标平台**：开发时使用 H5 模式（`npm run dev:h5`），最终发布为微信小程序（mp-weixin）
+- **兼容性要求**：所有代码必须同时兼容 H5 和微信小程序，禁止使用微信小程序不支持的 API 或语法
 
 **Web端（Vue 3）**：
 - Vue 3.4.x、Vite 5.x、Element Plus 2.x、Vue Router 4.x、Pinia 2.x、Axios 1.x
@@ -341,6 +343,72 @@ function useConcurrentRequests() {
 - 在多个独立 `async` 调用的 `catch` 中各自弹出 `ElMessage.error`
 - 在拦截器中不加去重逻辑，直接对每个失败响应弹出提示
 
+### 规则 9：微信小程序兼容性（移动端强制）
+
+移动端项目（uniapp）最终发布为微信小程序（mp-weixin），所有代码必须确保编译为微信小程序时能正常运行。
+
+**核心兼容性要求**：
+
+| 要求 | 说明 |
+|------|------|
+| **API 兼容** | 使用 uniapp API（`uni.xxx`）替代浏览器原生 API（`window.xxx`、`document.xxx`、`navigator.xxx`） |
+| **DOM 操作禁止** | 禁止直接操作 DOM（`document.getElementById`、`querySelector` 等），使用 Vue 的 `ref` 和响应式系统 |
+| **条件编译** | H5 专有功能使用条件编译包裹：`#ifdef H5` / `#endif`，微信小程序专有功能使用 `#ifdef MP-WEIXIN` / `#endif` |
+| **网络请求** | 使用 `uni.request` 或基于 `uni.request` 封装的适配器，不直接使用 `axios`（小程序环境无 XMLHttpRequest） |
+| **存储 API** | 使用 `uni.setStorage` / `uni.getStorage` 替代 `localStorage` |
+| **路由导航** | 使用 `uni.navigateTo` / `uni.switchTab` 等 uniapp 路由 API，不使用 `window.location` |
+| **样式兼容** | 避免使用微信小程序不支持的 CSS 特性（如 `position: fixed` 在部分场景的兼容问题、`*` 选择器等） |
+| **组件兼容** | 优先使用 Vant Weapp 兼容的组件写法，避免使用仅 H5 支持的组件属性 |
+| **图片资源** | 图片路径使用相对路径或网络 URL，注意微信小程序不支持 `background-image` 使用本地路径 |
+| **字体图标** | 使用 `uni-icons` 或微信小程序兼容的图标方案，避免仅 H5 支持的字体图标方案 |
+
+**代码示例**：
+
+```typescript
+// ❌ 错误：浏览器原生 API，微信小程序不支持
+const token = localStorage.getItem('token')
+window.location.href = '/login'
+document.getElementById('app')
+
+// ✅ 正确：使用 uniapp API
+const token = uni.getStorageSync('token')
+uni.navigateTo({ url: '/pages/login/index' })
+
+// ✅ 条件编译处理平台差异
+// #ifdef H5
+console.log('H5 专用逻辑')
+// #endif
+// #ifdef MP-WEIXIN
+console.log('微信小程序专用逻辑')
+// #endif
+```
+
+**网络请求适配**：
+
+```typescript
+// ❌ 错误：直接使用 axios（依赖 XMLHttpRequest）
+import axios from 'axios'
+
+// ✅ 正确：使用 uni.request 封装
+function request(options: UniApp.RequestOptions) {
+  return new Promise((resolve, reject) => {
+    uni.request({
+      ...options,
+      success: (res) => resolve(res.data),
+      fail: (err) => reject(err),
+    })
+  })
+}
+
+// ✅ 或使用适配层（如 luch-request）兼容 axios 风格
+import { http } from '@/utils/request' // 基于 uni.request 的封装
+```
+
+**验证流程**：
+- 开发阶段使用 H5 模式（`npm run dev:h5`）快速验证
+- 功能完成后使用微信小程序模式（`npm run dev:mp-weixin`）验证兼容性
+- 确保两端功能一致
+
 ## 工作流程
 
 ```
@@ -413,11 +481,13 @@ spec.md 存在？ ──否──→ 创建 spec.md
   - `static/marked.min.js` — Markdown解析库
 
 - API 接口使用 Mock 数据
-- uniapp 使用 H5 模式验证
+- uniapp 使用 H5 模式验证（`npm run dev:h5`）
+- 移动端项目完成后使用微信小程序模式验证（`npm run dev:mp-weixin`），确保兼容性
 
 ### 阶段 6：项目验证
 
 - [ ] 项目可编译且正常启动
+- [ ] 移动端项目：代码兼容微信小程序（无浏览器专有 API、无直接 DOM 操作）
 - [ ] 所有功能正常运行
 - [ ] 代码与 spec.md 一致
 - [ ] changelog.md 已记录所有大变更，且 `changelog.html` 和 `marked.min.js` 已创建：
