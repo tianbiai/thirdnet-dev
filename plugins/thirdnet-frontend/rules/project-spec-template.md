@@ -7,7 +7,7 @@
 | 优先级 | 技能 | 适用场景 |
 |--------|------|----------|
 | ⭐⭐⭐ | `vue-best-practices` | 所有 Vue 开发工作 |
-| ⭐⭐ | `frontend-design` | 任何 UI/界面设计工作 |
+| ⭐⭐ | `/frontend-design` | 任何 UI/界面设计工作（全局技能） |
 
 完整技能清单：[skills-checklist.md](./skills-checklist.md)
 
@@ -71,7 +71,7 @@
 
 ## 设计系统
 
-> ⚠️ 必须遵循 `frontend-design/SKILL.md` 规范，避免通用 AI 美学。
+> ⚠️ 必须遵循 `/frontend-design` 全局技能规范，避免通用 AI 美学。
 
 ### 设计风格
 

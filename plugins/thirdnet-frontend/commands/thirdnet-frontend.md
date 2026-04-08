@@ -37,7 +37,7 @@ allowed-tools:
 2. 调用前端开发专家 Agent（`agents/frontend-developer.md`）
 3. Agent 将：
    - 理解需求和技术上下文
-   - 参考前端技能文档（`skills/vue-best-practices/`、`skills/frontend-design/`、`skills/vue-pinia-best-practices/` 等）
+   - 参考前端技能文档（`skills/vue-best-practices/`、全局技能 `/frontend-design`、`skills/vue-pinia-best-practices/` 等）
    - 参考 `rules/project-spec-template.md`、`rules/changelog-template.md` 等规范模板
    - 遵循文档驱动开发流程
    - 生成或修改相应的代码文件

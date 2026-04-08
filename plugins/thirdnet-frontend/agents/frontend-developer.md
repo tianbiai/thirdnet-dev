@@ -578,13 +578,14 @@ frontend/
 - `skills/create-adaptable-composable/` - 创建可复用 Composable 指南
 
 ### UI/UX 设计技能（设计前必读）
-- `skills/frontend-design/` - 前端界面设计规范
+- `/frontend-design`（全局技能）- 前端界面设计规范
   - **核心内容**：设计思维、前端美学指南
   - **字体**：选择独特、美观的字体组合，避免 Inter、Roboto、Arial
   - **色彩**：使用一致的配色方案（CSS 变量），避免陈词滥调的紫色渐变
   - **布局**：创造意想不到的布局（非对称、重叠、网格破坏）
   - **视觉细节**：添加背景效果（渐变、纹理、图案、阴影等）
   - **动效**：使用动画和微交互（CSS 优先）
+  - **使用方式**：通过 `/frontend-design` 命令调用
 
 - `ui-ux-pro-max`（全局技能）- UI/UX 专业优化技能
   - **核心功能**：页面视觉优化、用户体验提升
