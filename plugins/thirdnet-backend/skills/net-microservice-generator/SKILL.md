@@ -1,5 +1,6 @@
 ---
 name: net-microservice-generator
+version: 0.1.0
 description: .NET 微服务解决方案生成器，负责创建标准化的项目结构和代码骨架（Common、Cache、API、Database 分层）。**主动用于**：创建新的微服务项目、初始化项目架构、生成解决方案结构、搭建脚手架。当用户提到"创建项目"、"新建服务"、"新建微服务"、"项目结构"、"解决方案"、"sln"、"初始化项目"、"脚手架"、"scaffold"、"dotnet new"、"搭建框架"、"新建服务端"、"Startup"、"Program"、"中间件"、"配置"、"数据库连接"、"Redis"、"appsettings"时，必须使用此技能。
 ---
 
@@ -196,23 +197,7 @@ namespace MyApp.UserService
 
 ## 数据库配置
 
-### 连接字符串配置
-
-在 `appsettings.json` 中配置：
-
-```json
-{
-  "DefaultConnectionString": "Host=localhost;Database=framework_db;Username=postgres;Password=xxx",
-  "ConnectionString": "Host=localhost;Database=business_db;Username=postgres;Password=xxx"
-}
-```
-
-### 配置项说明
-
-| 配置项 | 用途 |
-|-------|------|
-| `DefaultConnectionString` | 框架配置库，存储应用配置、角色权限、IP 白名单等 |
-| `ConnectionString` | 服务主业务数据库 |
+> 连接字符串配置（`DefaultConnectionString`、`ConnectionString` 等）请参阅 **net-efcore-developer** 技能。
 
 ### 多数据库支持
 

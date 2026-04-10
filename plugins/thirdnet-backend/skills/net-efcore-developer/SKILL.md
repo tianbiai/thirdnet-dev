@@ -1,5 +1,6 @@
 ---
 name: net-efcore-developer
+version: 0.1.0
 description: EF Core 数据库开发专家，负责创建实体模型（Model）、Fluent API 配置、DbContext 和迁移文件。**主动用于**：创建数据库实体、定义表结构、配置字段映射、生成迁移。当用户提到"实体"、"数据库实体"、"Entity"、"DbContext"、"迁移"、"Migration"、"表结构"、"数据库设计"、"建表"、"新建表"、"加字段"、"新增字段"、"FluentAPI"、"Configuration"、"EntityTypeConfiguration"、"DbSet"时，必须使用此技能。
 ---
 

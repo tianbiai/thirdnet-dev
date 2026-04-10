@@ -1,5 +1,6 @@
 ---
 name: net-authentication
+version: 0.1.0
 description: .NET 认证系统开发专家，负责配置 Basic/Bearer 认证、实现账号验证器、管理 Token 流程。**主动用于**：认证配置、IAccountValidator 实现、Token 获取/刷新、授权策略使用。当用户提到"认证"、"授权"、"登录"、"Token"、"JWT"、"Basic"、"Bearer"、"IAccountValidator"、"策略"、"Policy"、"用户验证"时，必须使用此技能。
 ---
 

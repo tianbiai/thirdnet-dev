@@ -35,17 +35,14 @@
 
 ### API 接口清单
 
-> ⚠️ **强制规范**：
-> - 路径不含版本号（❌ `api/v1/user` ✅ `api/user`）
-> - 仅允许 GET 和 POST 方法
-> - 响应格式：直接返回实体 JSON，状态码通过 HTTP 状态码返回
+> ⚠️ **API 接口规范请参阅 **net-api-developer** 技能**（路径规范、HTTP 方法限制、响应格式、Controller 命名规则等）。
 
-| 方法 | 路由 | 功能 | 优先级 | 认证 |
-|------|------|------|--------|------|
-| POST | `/api/[module]/[resource]/create` | 创建资源 | P0 | ✅ |
-| POST | `/api/[module]/[resource]/update` | 更新资源 | P0 | ✅ |
-| POST | `/api/[module]/[resource]/delete` | 删除资源 | P0 | ✅ |
-| GET | `/api/[module]/[resource]` | 获取资源 | P0 | ✅ |
+| 方法 | 路由 | Controller | 功能 | 优先级 | 认证 |
+|------|------|------------|------|--------|------|
+| POST | `/api/[module]/[resource]/create` | `[Resource]ManagerController` | 创建资源 | P0 | ✅ |
+| POST | `/api/[module]/[resource]/update` | `[Resource]ManagerController` | 更新资源 | P0 | ✅ |
+| POST | `/api/[module]/[resource]/delete` | `[Resource]ManagerController` | 删除资源 | P0 | ✅ |
+| GET | `/api/[module]/[resource]` | `[Resource]ManagerController` | 获取资源 | P0 | ✅ |
 
 ---
 
@@ -60,16 +57,7 @@
 
 ### 字段配置规范
 
-> 必须遵循 `net-efcore-developer` 技能的 Fluent API 配置规范。
-
-**核心原则**：
-1. **禁止数据注解**：实体模型严禁使用 Data Annotations
-2. **命名规范**：
-   - 实体类：以 `Model` 结尾（如 `UserInfoModel`）
-   - 字段：小写下划线（如 `user_name`、`create_time`）
-   - 表名：`t_` 前缀（如 `t_user_info`）
-3. **主键限制**：`id` 必须使用 `long` 类型
-4. **实体关系**：不创建外键关系，通过 id 字段关联
+> 字段配置、命名规范、主键要求等请遵循 **net-efcore-developer** 技能的 Fluent API 配置规范。
 
 ---
 
@@ -77,20 +65,7 @@
 
 ### 项目结构
 
-```
-{ProjectName}.{ServiceName}.slnx
-├── {ProjectName}.{ServiceName}.API/       # 表示层
-│   ├── Controllers/
-│   │   ├── Manager/           # 管理端 Controllers
-│   │   ├── App/               # 应用端 Controllers
-│   │   └── Third/             # 第三方端 Controllers
-│   ├── Program.cs
-│   └── appsettings.json
-└── {ProjectName}.{ServiceName}.Database/  # 数据层
-    ├── Models/                # 实体模型
-    ├── Configurations/        # Fluent API 配置
-    └── {ServiceName}DbContext.cs
-```
+> 项目结构请参阅 **net-microservice-generator** 技能中的"标准目录结构"章节。
 
 ### 分层架构
 

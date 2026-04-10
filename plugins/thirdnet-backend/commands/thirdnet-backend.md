@@ -35,25 +35,11 @@ allowed-tools:
 
 1. 分析用户提供的需求描述
 2. 调用后端开发专家 Agent（`agents/backend-developer.md`）
-3. Agent 将：
-   - 理解需求和技术上下文
-   - 参考后端技能文档：
-     - `skills/net-microservice-generator/` - 项目架构生成
-     - `skills/net-api-developer/` - API 接口开发
-     - `skills/net-efcore-developer/` - 数据库实体开发
-     - `skills/net-cache-use/` - 缓存功能
-     - `skills/net-background-job/` - 后台定时任务
-     - `skills/net-database-bulkcopy/` - 批量数据操作
-   - 参考 `rules/service-spec-template.md` 等规范模板
-   - 遵循文档驱动开发流程
-   - 生成或修改相应的代码文件
+3. Agent 将按文档驱动开发流程执行（详见 `agents/backend-developer.md`）
 
 ## 技术栈
 
-- **框架**: .NET 10
-- **数据库**: PostgreSQL
-- **ORM**: Entity Framework Core (Code First)
-- **架构**: 微服务架构
+> 参阅 `skills/net-microservice-generator/SKILL.md` 中的技术栈定义。
 
 ## 注意事项
 

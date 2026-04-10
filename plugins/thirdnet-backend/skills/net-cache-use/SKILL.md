@@ -1,5 +1,6 @@
 ---
 name: net-cache-use
+version: 0.1.0
 description: 缓存功能开发专家，为业务实体添加完整的 Redis 缓存功能（CacheManager、RedisHandler、View 三层架构）。**主动用于**：为实体添加缓存、字典数据缓存、配置信息缓存、高频查询缓存、缓存预热、性能优化。当用户提到"缓存"、"Cache"、"Redis"、"加缓存"、"缓存数据"、"字典缓存"、"配置缓存"、"高频查询"、"性能优化"、"预热"、"ICacheReader"、"ICacheRefresh"、"CacheManager"时，必须使用此技能。
 ---
 ## 使用场景
@@ -319,9 +320,9 @@ public class DepartmentService
 
 ### 禁止使用数据验证注解
 
-本项目**严格禁止**在实体模型中使用数据验证相关的注解（如 `[Required]`、`[MaxLength]`、`[Key]` 等），所有数据库配置必须通过 Fluent API 实现。
-
-**例外**：`[DbBulk]` 特性是批量操作框架的特殊要求，**不是数据验证注解**，可以安全使用。
+> 实体模型禁止使用数据注解，所有配置通过 Fluent API 实现。详见 **net-efcore-developer** 技能。
+>
+> **例外**：`[DbBulk]` 特性是批量操作框架的特殊要求，**不是数据验证注解**，可以安全使用。
 
 ### 必须遵循的规范
 

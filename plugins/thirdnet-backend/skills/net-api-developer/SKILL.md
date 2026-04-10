@@ -1,5 +1,6 @@
 ---
 name: net-api-developer
+version: 0.1.0
 description: .NET API 接口开发专家，负责创建 Controller、定义 API 路由、编写 HTTP 端点方法（仅使用 GET/POST）。**主动用于**：创建新的 Controller、编写 API 接口方法、定义路由、处理 HTTP 请求响应。当用户提到"接口"、"API"、"Controller"、"端点"、"路由"、"写个接口"、"加个接口"、"增删改查"、"CRUD"、"HttpGet"、"HttpPost"、"接口开发"、"API开发"、"授权策略"、"Authorize"、"用户信息"、"HttpContext"时，必须使用此技能。
 ---
 ## 使用场景
@@ -68,14 +69,17 @@ API 接口路径必须使用 `api` 开头，格式为：`api/{端标识}/{模块
 - 应用端订单管理：`api/app/order`
 - 第三方端回调接口：`api/third/callback`
 
-## Controllers 目录组织规范
+## Controllers 目录组织与命名规范
 
 ```
 {ProjectName}.{ServiceName}.API/
 ├── Controllers/              # 所有 Controller 的根目录
 │   ├── Manager/              # 管理端 Controller（管理后台）
+│   │   └── UserManagerController.cs
 │   ├── App/                  # 应用端 Controller（C 端用户应用）
+│   │   └── OrderAppController.cs
 │   └── Third/                # 第三方端 Controller（开放 API）
+│       └── CallbackThirdController.cs
 ├── Program.cs
 └── appsettings.json
 ```
@@ -88,40 +92,46 @@ API 接口路径必须使用 `api` 开头，格式为：`api/{端标识}/{模块
 | `App/`     | 应用端   | 面向 C 端用户（Web、H5、小程序、App） |
 | `Third/`   | 第三方端 | 开放 API，供第三方系统对接            |
 
-## 授权策略使用
+### Controller 类命名规范
 
-> 授权策略的完整说明、认证方式对比和配置方法请参阅 **net-authentication** 技能。
+Controller 类名必须以调用方类型作为后缀，格式为 `{模块名}{端类型}Controller`：
 
-**快速参考**：
+| 端类型     | 命名格式                     | 示例                          | 路由前缀              |
+| ---------- | ---------------------------- | ----------------------------- | --------------------- |
+| 管理端     | `{Module}ManagerController`  | `UserManagerController`       | `api/manager/user`    |
+| 应用端     | `{Module}AppController`      | `OrderAppController`          | `api/app/order`       |
+| 第三方端   | `{Module}ThirdController`    | `CallbackThirdController`     | `api/third/callback`  |
 
-| 策略名 | 认证方式 | 使用场景 |
-|-------|---------|---------|
-| Default | Basic + Bearer | 一般接口，支持应用和用户调用 |
-| Logon | Bearer | 需要用户登录的接口 |
-| Basic | Basic | 仅允许应用调用的接口 |
-| Both | Basic + Bearer | 两种认证都支持 |
+**示例**：
 
 ```csharp
-[Authorize]                              // 默认策略
-[Authorize(Policy = "Logon")]            // 需要用户登录
-[Authorize(Policy = "Basic")]            // 仅应用间调用
-[AllowAnonymous]                         // 无需认证
+// ✅ 管理端用户管理 Controller
+[ApiController]
+[Route("api/manager/user")]
+public class UserManagerController : ControllerBase { }
+
+// ✅ 应用端订单管理 Controller
+[ApiController]
+[Route("api/app/order")]
+public class OrderAppController : ControllerBase { }
+
+// ✅ 第三方端回调 Controller
+[ApiController]
+[Route("api/third/callback")]
+public class CallbackThirdController : ControllerBase { }
+
+// ❌ 禁止：不区分端类型的通用命名
+public class UserController : ControllerBase { }      // 缺少端类型后缀
+public class OrderController : ControllerBase { }      // 缺少端类型后缀
 ```
+
+## 授权策略使用
+
+> 授权策略的完整说明、配置方法和使用示例请参阅 **net-authentication** 技能。
 
 ## 获取用户信息
 
 > 完整的用户信息获取方法和 HttpContext 扩展请参阅 **net-authentication** 技能。
-
-**快速参考**：
-
-```csharp
-// 获取用户 ID
-var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-// 获取客户端应用 ID
-var clientId = HttpContext.GetCurrentClientId();
-// 判断是否已认证
-var isAuth = HttpContext.User.Identity?.IsAuthenticated ?? false;
-```
 
 ## API 接口方法规范
 
@@ -208,3 +218,39 @@ public async Task<IActionResult> GetUser(long id)
     }
     return Ok(new { code = 200, data = user });  // 禁止包装
 }
+```
+
+## 代码审查清单
+
+### 路由与 HTTP 方法
+
+- [ ] 仅使用 GET 和 POST 方法（无 DELETE/PUT/PATCH）
+- [ ] 路由以 `api/` 开头，无版本号
+- [ ] 端标识正确（manager/app/third）
+
+### Controller 命名
+
+- [ ] Controller 类名包含端类型后缀（`ManagerController`/`AppController`/`ThirdController`）
+- [ ] Controller 位于正确的子目录（`Manager/`、`App/`、`Third/`）
+
+### DTO 设计
+
+- [ ] DTO 类名使用 PascalCase，以 `Request` 或 `Response` 结尾
+- [ ] DTO 属性名使用小写（与数据库字段一致）
+
+### 响应与错误处理
+
+- [ ] 成功响应直接返回实体（不包装状态码）
+- [ ] 错误使用 `WebApiException` 抛出（不手动包装错误对象）
+- [ ] 返回类型使用 `IActionResult`
+
+### 授权
+
+- [ ] 需要认证的接口已配置授权策略
+- [ ] 使用正确的策略名称（Default/Logon/Basic/Both）
+
+## 详细参考
+
+- 认证系统完整指南：**net-authentication** 技能
+- 数据库实体开发：**net-efcore-developer** 技能
+- 缓存功能集成：**net-cache-use** 技能

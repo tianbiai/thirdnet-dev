@@ -109,15 +109,11 @@
 
 ### 技术栈
 
-**uniapp 项目强制要求**：
-- **开发模式**：必须使用 H5 模式（`npm run dev:h5`）开发和验证
-- **目标平台**：最终发布为微信小程序（mp-weixin），代码必须兼容微信小程序环境
-- **兼容性**：禁止使用浏览器专有 API（`window`、`document`、`localStorage` 等），使用 `uni.xxx` API
-- **多端兼容**：使用条件编译（`#ifdef MP-WEIXIN`、`#ifdef H5`）处理平台差异
+**uniapp 项目**：H5 模式开发（`npm run dev:h5`），最终发布为微信小程序，需兼容小程序环境（详见 Agent 规则9）
 
 **默认版本**：
-- **移动端（uniapp H5 → 微信小程序）**：Vue 3.4.21, vant4, Vite 5.2.8, Pinia 2.1.7, vue-router 4.0.3, axios 1.6.8
-- **Web端（Vue 3）**：Vue 3.4.21, Vite 5.2.0, Element Plus 2.6.1, Vue Router 4.3.0, Pinia 2.1.7, axios 1.6.8
+- **移动端**：Vue 3.4.x、Vant 4.x、Vite 5.x、Pinia 2.x、Vue Router 4.x、Axios 1.x
+- **Web端**：Vue 3.4.x、Vite 5.x、Element Plus 2.x、Vue Router 4.x、Pinia 2.x、Axios 1.x
 
 ### 项目结构
 
@@ -126,31 +122,32 @@ frontend/[项目名]/
 ├── spec.md                    # 项目级功能说明书（本文档）
 ├── specs/                     # 页面级规格说明目录
 │   └── [页面名].md
-├── public/                    # 公共静态资源（Web应用）
-│   ├── changelog.md           # 变更日志内容（Web应用）
-│   ├── changelog.html         # 变更日志渲染页面（Web应用）
-│   └── marked.min.js          # Markdown解析库（Web应用）
-├── static/                    # 静态资源（小程序应用）
-│   ├── changelog.md           # 变更日志内容（小程序应用）
-│   ├── changelog.html         # 变更日志渲染页面（小程序应用）
-│   └── marked.min.js          # Markdown解析库（小程序应用）
+├── {public 或 static}/        # Web: public/  小程序: static/
+│   ├── changelog.md           # 变更日志
+│   ├── changelog.html         # 渲染页面
+│   └── marked.min.js          # Markdown 解析库
+├── mock/                      # Mock 数据（按页面命名）
+│   └── {页面名}.js
 ├── src/
 │   ├── main.js                # 应用入口
 │   ├── App.vue                # 根组件
-│   ├── pages/                 # 页面目录（移动端/小程序）
-│   ├── views/                 # 页面目录（Web端）
+│   ├── {pages 或 views}/      # 移动端: pages/  Web端: views/
 │   ├── components/            # 通用组件
 │   ├── composables/           # 可复用逻辑
 │   ├── api/                   # API 接口管理
-│   │   ├── index.js
-│   │   └── modules/
 │   ├── stores/                # 状态管理（Pinia）
 │   ├── router/                # 路由配置（Web端）
 │   ├── utils/                 # 工具函数
 │   ├── styles/                # 全局样式
-│   │   ├── index.scss
-│   │   └── variables.scss
 │   ├── assets/                # 静态资源
 │   └── config/                # 配置文件
 └── ...
 ```
+
+### API 规范
+
+> 详细规范见 Agent 规则10（Mock 数据与 API 规范），核心要点：
+
+- **路径**：用户端 `api/app/{资源名}`，管理端 `api/manager/{资源名}`
+- **参数命名**：snake_case（`user_name`, `order_id`, `created_at`）
+- **响应**：直接返回数据，HTTP 状态码表达结果，禁止 `code` 字段

@@ -1,5 +1,6 @@
 ---
 name: net-background-job
+version: 0.1.0
 description: 后台定时任务开发专家，基于 BackgroundRunner 框架生成循环执行的后台任务代码（使用 SleepTime 毫秒间隔，非 Cron 表达式）。**主动用于**：定时任务、后台作业、周期性数据处理、数据同步、定时检查。当用户提到"定时"、"周期"、"后台任务"、"Job"、"Worker"、"每隔"、"自动执行"、"BackgroundService"、"定时同步"、"后台处理"、"循环任务"时，必须使用此技能。
 ---
 

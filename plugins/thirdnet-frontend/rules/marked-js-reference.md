@@ -76,28 +76,8 @@ const html = marked.parse(markdown, {
 });
 ```
 
-确保 `marked.min.js` 和 `changelog.html` 在同一目录下，且 `changelog.md` 也在同一目录。
-
-## 目录结构示例
-
-```
-public/                    # Web应用示例
-├── changelog.md          # 变更日志内容
-├── changelog.html        # 渲染页面
-└── marked.min.js         # Markdown 解析库
-
-static/                   # 小程序应用示例
-├── changelog.md
-├── changelog.html
-└── marked.min.js
-```
+确保 `marked.min.js`、`changelog.html`、`changelog.md` 三者在同一目录下。
 
 ## 验证
 
-放置文件后，启动开发服务器，访问：
-
-```
-http://localhost:{port}/changelog.html
-```
-
-应能看到格式化的 changelog 内容。
+启动开发服务器后访问 `http://localhost:{port}/changelog.html`，应能看到格式化的 changelog 内容。

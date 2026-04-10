@@ -4,37 +4,12 @@
 
 ## 文件存放位置
 
-- **Web应用**：`public/changelog.md` — 发布时会自动包含在构建产物中
-- **小程序应用**：`static/changelog.md` — 发布时会自动包含在构建产物中
+- **Web应用**：`public/changelog.md`
+- **小程序应用**：`static/changelog.md`
 
----
+## 配套渲染页面
 
-## Changelog 渲染页面
-
-为便于团队成员通过浏览器直接查看格式化的更新日志，需同时创建以下配套文件：
-
-### 文件清单
-
-- **Web应用**：
-  - `public/changelog.html` — Changelog 渲染页面（模板见 `changelog-html-template.md`）
-  - `public/marked.min.js` — Markdown 解析库（获取方式见 `marked-js-reference.md`）
-
-- **小程序应用**：
-  - `static/changelog.html` — Changelog 渲染页面（模板见 `changelog-html-template.md`）
-  - `static/marked.min.js` — Markdown 解析库（获取方式见 `marked-js-reference.md`）
-
-### 使用方法
-
-1. 复制 `changelog-html-template.md` 中的代码，保存为 `changelog.html`
-2. 按 `marked-js-reference.md` 说明获取 `marked.min.js`
-3. 将两个文件放置到对应目录（`public/` 或 `static/`）
-4. 启动开发服务器后，访问 `http://localhost:{port}/changelog.html` 查看
-
-### 注意事项
-
-- `changelog.html`、`changelog.md`、`marked.min.js` 必须在同一目录下
-- 修改 `changelog.md` 后刷新页面即可看到最新内容
-- 如需自定义页面标题，编辑 `changelog.html` 中的 `<title>` 和 `.subtitle`
+需同时创建 `changelog.html`（模板见 `changelog-html-template.md`）和 `marked.min.js`（获取见 `marked-js-reference.md`），三者放在同一目录。启动开发服务器后访问 `http://localhost:{port}/changelog.html` 查看。
 
 ---
 

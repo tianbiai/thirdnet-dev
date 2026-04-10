@@ -1,5 +1,6 @@
 ---
 name: net-database-bulkcopy
+version: 0.1.0
 description: PostgreSQL 批量数据操作专家，基于 PostgresqlAsyncBulk 实现高性能数据操作。**主动用于**：大数据量导入（>1000条）、批量更新、批量插入、数据同步、ETL 场景、数据迁移、初始化数据。当用户提到"批量"、"导入"、"同步"、"大数据量"、"Excel导入"、"数据迁移"、"Upsert"、"Merge"、"CopyToServer"、"MergeToServer"、"BulkCopy"、"批量写入"、"批量插入"时，必须使用此技能。
 ---
 
