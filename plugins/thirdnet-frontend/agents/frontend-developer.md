@@ -343,7 +343,48 @@ function useConcurrentRequests() {
 - 在多个独立 `async` 调用的 `catch` 中各自弹出 `ElMessage.error`
 - 在拦截器中不加去重逻辑，直接对每个失败响应弹出提示
 
-### 规则 9：微信小程序兼容性（移动端强制）
+### 规则 9：Mock API 同步更新（前端需求变更时强制）
+
+当涉及接口字段变更（新增、修改、删除字段）或接口本身变更（新增接口、修改路由、删除接口）时，**必须同步更新 Mock API**，确保前端与 Mock 接口的字段定义完全一致。
+
+**适用场景**：
+
+| 变更类型 | 是否需要同步 Mock | 示例 |
+|---------|------------------|------|
+| 新增页面调用新接口 | 需要 | 新增订单页面，需创建 Mock 订单接口 |
+| 接口字段新增 | 需要 | 用户列表新增 `avatar` 字段 |
+| 接口字段修改 | 需要 | `user_name` 改为 `nick_name` |
+| 接口字段删除 | 需要 | 移除响应中的 `deprecated_field` |
+| 新增接口路由 | 需要 | 新增 `POST api/app/order/create` |
+| 纯 UI 样式调整 | 不需要 | 修改按钮颜色、调整间距 |
+| 纯前端逻辑调整 | 不需要 | 修改表单验证规则（不涉及字段变更） |
+
+**同步检查清单**：
+
+1. 前端新增/修改了哪些 API 调用？
+2. 对应的 Mock API Controller 是否存在？
+3. Request/Response DTO 的字段是否与前端使用的字段完全匹配？
+4. Mock 数据是否覆盖了前端需要的所有字段？
+
+**操作流程**：
+
+```
+前端需求涉及接口变更？
+    ↓ 是
+检查 mockapi/ 目录是否存在
+    ↓ 存在
+定位对应的 Controller 和 DTO 文件
+    ↓
+更新 DTO 字段定义（新增/修改/删除属性）
+    ↓
+更新 Controller 中的 Mock 数据（确保新字段有值）
+    ↓
+验证字段一致性：前端请求参数 = Mock Request DTO，前端响应字段 = Mock Response DTO
+```
+
+**字段一致性验证**：使用 Mock API 的 `net-mock-api-developer` 技能，确保命名规范（snake_case 属性名、PascalCase 类名）与 thirdnet-backend 保持一致。
+
+### 规则 10：微信小程序兼容性（移动端强制）
 
 移动端项目（uniapp）最终发布为微信小程序（mp-weixin），所有代码必须确保编译为微信小程序时能正常运行。
 
@@ -424,6 +465,8 @@ spec.md 存在？ ──否──→ 创建 spec.md
     ↓ 是
 编写代码
     ↓
+涉及接口字段变更？ ──是──→ 同步更新 Mock API（Controller + DTO）
+    ↓ 否
 验证功能
     ↓
 是大变更？ ──是──→ 更新 changelog.md
@@ -467,7 +510,7 @@ spec.md 存在？ ──否──→ 创建 spec.md
 ### 阶段 5：功能开发
 
 ```
-检查spec存在 → 阅读spec → 编写代码 → 验证功能 → 确认spec存在 → (大变更时)更新changelog.md
+检查spec存在 → 阅读spec → 编写代码 → (涉及接口变更时)同步Mock API → 验证功能 → 确认spec存在 → (大变更时)更新changelog.md
 ```
 
 **changelog 相关文件位置**：
@@ -494,6 +537,7 @@ spec.md 存在？ ──否──→ 创建 spec.md
   - **Web应用**: `public/changelog.md` + `public/changelog.html` + `public/marked.min.js`
   - **小程序应用**: `static/changelog.md` + `static/changelog.html` + `static/marked.min.js`
 - [ ] 所有 `.vue` 文件不超过 300 行，各 section 不超限（详见 `rules/sfc-large-component-refactoring.md`）
+- [ ] 如涉及接口变更，Mock API 的 Controller 和 DTO 已同步更新（字段名、字段类型一致）
 
 ## 项目结构
 
@@ -596,6 +640,7 @@ frontend/
 ### 其他技能（按需）
 - `skills/vue-jsx-best-practices/` - Vue JSX 最佳实践
 - `skills/vue-options-api-best-practices/` - Options API 最佳实践
+- `skills/net-mock-api-developer/` - Mock API 接口开发（涉及接口变更时必读）
 
 ### 参考文档
 - `rules/skills-checklist.md` - 技能检查清单

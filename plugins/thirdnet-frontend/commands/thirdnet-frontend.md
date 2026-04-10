@@ -41,6 +41,7 @@ allowed-tools:
    - 参考 `rules/project-spec-template.md`、`rules/changelog-template.md` 等规范模板
    - 遵循文档驱动开发流程
    - 生成或修改相应的代码文件
+   - **如涉及接口字段变更，同步更新 Mock API**（Controller、Request/Response DTO），确保前端与 Mock 接口字段一致（详见 `skills/net-mock-api-developer/`）
 
 ## 技术栈
 
