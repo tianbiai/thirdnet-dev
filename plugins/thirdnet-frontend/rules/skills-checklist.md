@@ -7,6 +7,7 @@
 | 技能 | 优先级 | 触发场景 |
 |------|--------|----------|
 | `vue-best-practices` | ⭐⭐⭐ | 所有 Vue 开发工作（必读） |
+| `design-apple` | ⭐⭐ | 所有前端设计（Web + 移动端默认 Apple 风格） |
 | `/frontend-design` | ⭐⭐ | UI/界面设计、视觉效果优化（全局技能） |
 | `/ui-ux-pro-max` | 全局 | 页面视觉优化（命令调用） |
 | `vue-pinia-best-practices` | ⭐ | 使用 Pinia 状态管理 |
@@ -24,6 +25,12 @@
 Vue 3 核心最佳实践，**所有 Vue 开发工作必读**。推荐 Composition API + `<script setup lang="ts">` 作为标准方案。涵盖：响应式系统、组件设计（Props/Emits/Slots）、模板语法、生命周期、过渡动画、TypeScript 集成、性能优化等。包含 90+ 篇参考文档，按需加载。
 
 **核心原则**：状态可预测（单一数据源）、数据流显式（Props down/Events up）、组件小型化、避免不必要重渲染。
+
+### design-apple ⭐⭐
+
+Apple 设计规范，**所有前端项目（Web + 移动端）的默认设计参考**。涵盖完整的视觉主题、色板（Apple Blue 唯一强调色）、SF Pro 排版体系（光学尺寸 + 负字间距）、组件样式（药丸 CTA、玻璃导航栏）、布局原则（电影式黑白节奏）、阴影与深度系统、Do's & Don'ts、响应式策略，以及面向 Agent 的组件提示词。
+
+**何时使用**：所有前端页面的设计实现（Web 端和移动端均适用），或用户明确要求 Apple 风格设计时。
 
 ### /frontend-design ⭐⭐（全局技能）
 

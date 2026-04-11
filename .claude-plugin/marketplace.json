@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Thirdnet 全栈开发插件集",
-    "version": "0.8.0"
+    "version": "0.9.0"
   },
   "plugins": [
     {
@@ -30,7 +30,7 @@
       "name": "thirdnet-frontend",
       "source": "./plugins/thirdnet-frontend",
       "description": "前端开发助手 - Vue 3 页面、组件、样式开发",
-      "version": "0.8.0",
+      "version": "0.9.0",
       "author": {
         "name": "thirdnet"
       },
