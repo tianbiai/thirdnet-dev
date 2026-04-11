@@ -126,28 +126,45 @@ frontend/[项目名]/
 │   ├── changelog.md           # 变更日志
 │   ├── changelog.html         # 渲染页面
 │   └── marked.min.js          # Markdown 解析库
-├── mock/                      # Mock 数据（按页面命名）
-│   └── {页面名}.js
 ├── src/
 │   ├── main.js                # 应用入口
 │   ├── App.vue                # 根组件
+│   ├── config/                # 配置文件
+│   │   └── index.js           # MOCK_ENABLED 等全局配置
 │   ├── {pages 或 views}/      # 移动端: pages/  Web端: views/
-│   ├── components/            # 通用组件
+│   ├── components/            # 通用组件（含 HelpBubble）
 │   ├── composables/           # 可复用逻辑
-│   ├── api/                   # API 接口管理
+│   ├── api/                   # API 接口层
+│   │   ├── index.js           # API 统一导出
+│   │   └── modules/           # API 模块（按业务命名）
+│   │       ├── order.js
+│   │       └── user.js
+│   ├── mock/                  # Mock 路由拦截层
+│   │   ├── index.js           # Mock 路由入口（按 URL+Method 匹配）
+│   │   └── data/              # Mock 数据（与 api/modules/ 一一对应）
+│   │       ├── order.js       # ←→ api/modules/order.js
+│   │       └── user.js        # ←→ api/modules/user.js
 │   ├── stores/                # 状态管理（Pinia）
 │   ├── router/                # 路由配置（Web端）
 │   ├── utils/                 # 工具函数
+│   │   └── request.js         # 统一请求方法
 │   ├── styles/                # 全局样式
-│   ├── assets/                # 静态资源
-│   └── config/                # 配置文件
+│   └── assets/                # 静态资源
 └── ...
 ```
 
 ### API 规范
 
-> 详细规范见 Agent 规则10（Mock 数据与 API 规范），核心要点：
+> 详细规范见 Agent 规则10（API-Mock 一一对应架构）和规则11（演示模式与帮助气泡控制）
 
+- **架构**：Mock 路由拦截层，API 模块（`api/modules/*.js`）与 Mock 数据（`mock/data/*.js`）一一对应
+- **切换控制**：通过 `MOCK_ENABLED` 开关控制 Mock/真实 API，业务代码零修改
 - **路径**：用户端 `api/app/{资源名}`，管理端 `api/manager/{资源名}`
 - **参数命名**：snake_case（`user_name`, `order_id`, `created_at`）
 - **响应**：直接返回数据，HTTP 状态码表达结果，禁止 `code` 字段
+
+### 演示模式控制
+
+- **开关**：`MOCK_ENABLED`（位于 `src/config/index.js`）
+- **演示模式（true）**：显示帮助气泡（HelpBubble），使用 Mock 数据
+- **生产模式（false）**：帮助气泡完全移除（`v-if`），使用真实 API

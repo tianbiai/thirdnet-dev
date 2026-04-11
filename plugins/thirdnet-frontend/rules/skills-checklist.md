@@ -86,3 +86,18 @@ Vue 3 Options API 风格指南。涵盖 data()、methods、computed、watch、th
 > **任何 `.vue` 文件超过 300 行必须重构。**
 
 详见 [sfc-large-component-refactoring.md](./sfc-large-component-refactoring.md)
+
+---
+
+## API-Mock 一一对应架构
+
+> **所有 API 模块与 Mock 数据文件必须一一对应。**
+
+详见 Agent 规则10（API-Mock 一一对应架构）和规则11（演示模式与帮助气泡控制）
+
+| 架构要点 | 说明 |
+|----------|------|
+| 文件对应 | `api/modules/*.js` ←→ `mock/data/*.js`，文件名完全一致 |
+| 方法对应 | API 方法通过 `request()` 发请求，Mock 路由按 URL+Method 匹配 |
+| 切换控制 | `MOCK_ENABLED` 单一开关，业务代码零修改 |
+| 帮助气泡 | `v-if="isMockEnabled"` 控制，生产模式 DOM 完全移除 |

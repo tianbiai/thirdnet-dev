@@ -27,13 +27,15 @@
 
 ### 强制要求
 
-> ⚠️ 页面右上角必须有帮助说明气泡，点击显示页面说明。
+> ⚠️ 页面右上角必须有帮助说明气泡（仅演示模式显示），点击显示页面说明。
 
-**帮助气泡规范**：
+**帮助气泡规范**（由 `MOCK_ENABLED` 控制）：
+- **条件渲染**：使用 `v-if="isMockEnabled"`，演示模式显示，生产模式完全移除（DOM 中无残留）
 - **位置**：页面可视区域右上角（固定定位）
 - **图标**：`QuestionFilled` 或类似图标
 - **交互**：点击弹出帮助内容（气泡/Popover/Drawer）
 - **内容**：页面功能说明、业务流程、注意事项
+- **安全**：禁止使用 `v-show`，必须用 `v-if` 确保生产环境无信息泄露
 
 ### 交互要点
 
@@ -60,17 +62,20 @@
 ### 数据来源
 
 - **数据类型**：[列表/单据/配置/...]
-- **数据源**：Mock 数据（`mock/{页面名}.js`）
+- **数据源**：Mock 数据（`mock/data/{模块名}.js`）←→ API 接口（`api/modules/{模块名}.js`）
 - **关键字段**：`field1`: [说明], `field2`: [说明]
 
 #### API 接口规范
 
-> 遵循 Agent 规则10（路径 `api/app/{资源名}` 或 `api/manager/{资源名}`，参数 snake_case，直接返回数据，禁止 `code` 字段）
+> 遵循 Agent 规则10（API-Mock 一一对应架构）
+> - API 模块（`api/modules/*.js`）只定义接口契约，Mock 数据（`mock/data/*.js`）只负责模拟数据
+> - 路径 `api/app/{资源名}` 或 `api/manager/{资源名}`，参数 snake_case，直接返回数据，禁止 `code` 字段
+> - Mock 路由层（`mock/index.js`）按 URL + Method 精确匹配，通过 `MOCK_ENABLED` 开关控制
 
-| 接口 | 方法 | 路径 | 入参 | 出参 |
-|------|------|------|------|------|
-| [接口1] | GET/POST | `api/app/xxx` | `{ param_name }` | `{ field_name }` |
-| [接口2] | GET/POST | `api/manager/xxx` | `{ param_name }` | `{ field_name }` |
+| 接口 | 方法 | 路径 | 入参 | 出参 | Mock 数据文件 |
+|------|------|------|------|------|--------------|
+| [接口1] | GET/POST | `api/app/xxx` | `{ param_name }` | `{ field_name }` | `mock/data/xxx.js` |
+| [接口2] | GET/POST | `api/manager/xxx` | `{ param_name }` | `{ field_name }` | `mock/data/xxx.js` |
 
 ---
 
