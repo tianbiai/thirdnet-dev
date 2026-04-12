@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "检查本次 Write/Edit 操作是否修改了前端代码的功能性部分（Vue 组件、页面、composables、API 模块、Mock 数据、路由配置、状态管理、样式）。\n\n工具输入：$TOOL_INPUT\n\n如果编辑的文件是：\n- Vue 组件/页面（src/pages/**、src/views/**、**/*.vue）\n- composable（src/composables/**）\n- API 模块（src/api/**）\n- Mock 数据或路由（src/mock/**）\n- 状态管理（src/stores/**）\n- 路由配置（src/router/**）\n- 全局样式或设计变量（src/styles/**）\n- 配置文件（src/config/**）\n\n则输出系统消息提醒：\n\"本次编辑可能涉及功能性变更。在结束任务前，请确保更新对应的 spec.md（项目级和/或页面级）和 changelog 相关文件（Web应用: public/changelog.md + public/changelog.html + public/marked.min.js，小程序应用: static/changelog.md + static/changelog.html + static/marked.min.js）。\"\n\n**API-Mock 一一对应检查**：如果新增或修改了 `src/api/modules/*.js` 文件，确保对应的 `src/mock/data/*.js` 文件也同步创建或更新（文件名一致）。反之亦然。\n\n如果文件是测试文件、构建脚本或文档文件本身，则不输出任何内容。",
+            "prompt": "检查本次 Write/Edit 操作是否修改了前端代码的功能性部分（Vue 组件、页面、composables、API 模块、Mock 数据、路由配置、状态管理、样式）。\n\n工具输入：$TOOL_INPUT\n\n如果编辑的文件是：\n- Vue 组件/页面（src/pages/**、src/views/**、**/*.vue）\n- composable（src/composables/**）\n- API 模块（src/api/**）\n- Mock 数据或路由（src/mock/**）\n- 状态管理（src/stores/**）\n- 路由配置（src/router/**）\n- 全局样式或设计变量（src/styles/**）\n- 配置文件（src/config/**）\n\n则输出系统消息提醒：\n\"本次编辑可能涉及功能性变更。在结束任务前，请确保更新对应的 spec.md（项目级和/或页面级）和 changelog 相关文件（Web应用: public/changelog.md + public/changelog.html + public/marked.min.js，小程序应用: static/changelog.md + static/changelog.html + static/marked.min.js）。\"\n\n**API-Mock 一一对应检查**：如果新增或修改了 `src/api/modules/**/*.ts` 文件，确保对应的 `src/mock/data/**/*.ts` 文件也同步创建或更新（端点+文件名一致）。反之亦然。\n\n如果文件是测试文件、构建脚本或文档文件本身，则不输出任何内容。",
             "timeout": 15
           }
         ]

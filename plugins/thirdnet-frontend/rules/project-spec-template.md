@@ -8,6 +8,7 @@
 |--------|------|----------|
 | ⭐⭐⭐ | `vue-best-practices` | 所有 Vue 开发工作 |
 | ⭐⭐ | `/frontend-design` | 任何 UI/界面设计工作（全局技能） |
+| ⭐⭐ | `api-typescript-spec` | 创建 API 接口、Mock 数据、请求类型 |
 
 完整技能清单：[skills-checklist.md](./skills-checklist.md)
 
@@ -127,27 +128,41 @@ frontend/[项目名]/
 │   ├── changelog.html         # 渲染页面
 │   └── marked.min.js          # Markdown 解析库
 ├── src/
-│   ├── main.js                # 应用入口
+│   ├── main.ts                # 应用入口
 │   ├── App.vue                # 根组件
 │   ├── config/                # 配置文件
-│   │   └── index.js           # MOCK_ENABLED 等全局配置
+│   │   └── index.ts           # MOCK_ENABLED、API_BASE_URL 等配置
 │   ├── {pages 或 views}/      # 移动端: pages/  Web端: views/
 │   ├── components/            # 通用组件（含 HelpBubble）
 │   ├── composables/           # 可复用逻辑
-│   ├── api/                   # API 接口层
-│   │   ├── index.js           # API 统一导出
-│   │   └── modules/           # API 模块（按业务命名）
-│   │       ├── order.js
-│   │       └── user.js
-│   ├── mock/                  # Mock 路由拦截层
-│   │   ├── index.js           # Mock 路由入口（按 URL+Method 匹配）
-│   │   └── data/              # Mock 数据（与 api/modules/ 一一对应）
-│   │       ├── order.js       # ←→ api/modules/order.js
-│   │       └── user.js        # ←→ api/modules/user.js
+│   ├── api/                   # API 接口层（TypeScript）
+│   │   ├── types/common.ts   # 基础类型（PaginationParams、PaginatedResponse、RequestConfig）
+│   │   ├── adapter.ts        # RequestAdapter 接口定义
+│   │   ├── adapter.web.ts    # Web 端 Axios 实现
+│   │   ├── adapter.uni.ts    # 移动端 uni.request 实现
+│   │   ├── request.ts        # 统一 request<T>() 导出
+│   │   └── modules/          # API 模块（按端点+业务命名）
+│   │       ├── app/          # 用户端接口
+│   │       │   ├── auth.ts
+│   │       │   ├── order.ts
+│   │       │   └── product.ts
+│   │       └── manager/      # 管理端接口
+│   │           ├── user.ts
+│   │           └── role.ts
+│   ├── mock/                  # Mock 系统（TypeScript）
+│   │   ├── types.ts          # MockRoute、MockConfig 类型
+│   │   ├── handler.ts        # 路由注册表 + findMockRoute + executeMock
+│   │   └── data/             # Mock 数据（与 api/modules/ 一一对应）
+│   │       ├── app/
+│   │       │   ├── order.ts  # ←→ api/modules/app/order.ts
+│   │       │   └── product.ts # ←→ api/modules/app/product.ts
+│   │       └── manager/
+│   │           ├── user.ts   # ←→ api/modules/manager/user.ts
+│   │           └── role.ts   # ←→ api/modules/manager/role.ts
 │   ├── stores/                # 状态管理（Pinia）
 │   ├── router/                # 路由配置（Web端）
 │   ├── utils/                 # 工具函数
-│   │   └── request.js         # 统一请求方法
+│   │   └── token.ts          # Token 存取（双平台适配）
 │   ├── styles/                # 全局样式
 │   └── assets/                # 静态资源
 └── ...
@@ -155,16 +170,19 @@ frontend/[项目名]/
 
 ### API 规范
 
-> 详细规范见 Agent 规则10（API-Mock 一一对应架构）和规则11（演示模式与帮助气泡控制）
+> 详细规范见 `skills/api-typescript-spec/` 技能和 Agent 规则9（API-Mock 一一对应架构）
 
-- **架构**：Mock 路由拦截层，API 模块（`api/modules/*.js`）与 Mock 数据（`mock/data/*.js`）一一对应
-- **切换控制**：通过 `MOCK_ENABLED` 开关控制 Mock/真实 API，业务代码零修改
-- **路径**：用户端 `api/app/{资源名}`，管理端 `api/manager/{资源名}`
+- **架构**：适配器模式 + Mock 路由拦截层，API 模块（`api/modules/{endpoint}/*.ts`）与 Mock 数据（`mock/data/{endpoint}/*.ts`）一一对应
+- **类型安全**：`request<T>()` 泛型请求，`PaginationParams`/`PaginatedResponse<T>` 分页类型，`RequestConfig<TData>` 请求配置
+- **适配器**：Web 端使用 Axios（`adapter.web.ts`），移动端使用 uni.request（`adapter.uni.ts`），条件编译自动选择
+- **端点组织**：用户端 `api/modules/app/`，管理端 `api/modules/manager/`，对应后端 Controller 目录
+- **路径**：用户端 `/app/{模块名}/{操作}`，管理端 `/manager/{模块名}/{操作}`
 - **参数命名**：snake_case（`user_name`, `order_id`, `created_at`）
-- **响应**：直接返回数据，HTTP 状态码表达结果，禁止 `code` 字段
+- **响应**：直接返回数据或 `PaginatedResponse<T>`，HTTP 状态码表达结果，禁止 `code` 字段
+- **认证**：`api/modules/app/auth.ts` 使用 IdentityServer Connect 端点，`utils/token.ts` 双平台 Token 管理
 
 ### 演示模式控制
 
-- **开关**：`MOCK_ENABLED`（位于 `src/config/index.js`）
+- **开关**：`MOCK_ENABLED`（位于 `src/config/index.ts`）
 - **演示模式（true）**：显示帮助气泡（HelpBubble），使用 Mock 数据
 - **生产模式（false）**：帮助气泡完全移除（`v-if`），使用真实 API

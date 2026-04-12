@@ -180,48 +180,71 @@ console.log('H5 专用逻辑')
 
 **验证流程**：开发用 H5 模式，完成后用小程序模式（`npm run dev:mp-weixin`）验证兼容性。
 
-### 规则 9：API-Mock 一一对应架构
+### 规则 9：API-Mock 一一对应架构（TypeScript）
 
-系统采用 Mock 路由拦截层架构，API 接口与 Mock 数据完全解耦。核心原则：API 模块只定义接口契约，Mock 路由层只负责数据拦截。
+系统采用适配器模式 + Mock 路由拦截层架构，API 接口与 Mock 数据完全解耦。核心原则：API 模块定义接口契约+类型，Mock 路由层负责数据拦截，类型通过 `import type` 保证一致。
+
+> 详细规范见 `skills/api-typescript-spec/` 技能文档
 
 #### 三层一一对应
 
-页面 → API 模块 → Mock 数据，三者文件名、方法名、字段名必须完全一致：
+页面 → API 模块 → Mock 数据，三者端点+文件名、方法名、字段名必须完全一致：
 
 ```
-页面                  API 模块                    Mock 数据
-pages/order/index.vue  ←→  api/modules/order.js  ←→  mock/data/order.js
-  引用 getOrderList()      定义 getOrderList()       提供 orderList 数据（字段与 API 响应一致）
+页面                  API 模块                         Mock 数据
+pages/order/index.vue  ←→  api/modules/app/order.ts  ←→  mock/data/app/order.ts
+  引用 getOrderList()      定义类型 + getOrderList()     import type + mockOrderList（字段与 API 类型一致）
 ```
 
-```javascript
-// api/modules/order.js —— 只定义接口，不涉及 Mock
-export const getOrderList = (params) => request({ url: '/order/list', method: 'GET', data: params })
+```typescript
+// api/modules/app/order.ts —— 类型定义在上，API 函数在下
+import { request } from '@/api/request'
+import type { PaginationParams, PaginatedResponse } from '@/api/types/common'
 
-// mock/data/order.js —— 纯数据定义，字段名与 API 响应一致
-export const orderList = [
-  { order_id: 1, order_no: 'ORD202401001', status: 'paid', amount: 299.00 },
+interface OrderItem {
+  order_id: number
+  order_no: string
+  status: string
+  amount: number
+  created_at: string
+}
+
+export function getOrderList(params: PaginationParams) {
+  return request<PaginatedResponse<OrderItem>>({
+    url: '/app/order/list',
+    method: 'GET',
+    params,
+  })
+}
+
+// mock/data/app/order.ts —— import type 保证类型一致
+import type { OrderItem } from '@/api/modules/app/order'
+
+export const mockOrderList: OrderItem[] = [
+  { order_id: 1, order_no: 'ORD202401001', status: 'paid', amount: 299.00, created_at: '2024-01-15' },
 ]
 
-// mock/index.js —— Mock 路由按 URL + Method 精确匹配
-if (urlPath === '/order/list' && m === 'GET') return paginate(orderList, data)
+// mock/handler.ts —— Mock 路由按 URL + Method 精确匹配
+{ url: '/app/order/list', method: 'GET', handler: (data) => paginate(mockOrderList, data) }
 ```
 
 #### API 规范
 
-- **路径**：用户端 `api/app/{资源名}`，管理端 `api/manager/{资源名}`
+- **适配器**：Web 端使用 Axios（`adapter.web.ts`），移动端使用 uni.request（`adapter.uni.ts`），条件编译自动选择
+- **端点组织**：用户端 `api/modules/app/`，管理端 `api/modules/manager/`，对应后端 Controller 目录
+- **路径**：用户端 `/app/{模块名}/{操作}`，管理端 `/manager/{模块名}/{操作}`
 - **参数命名**：snake_case（`user_name`、`order_id`、`created_at`）
-- **响应格式**：直接返回数据，状态码通过 HTTP 状态码返回，**禁止**在响应体中添加 `code` 字段
+- **响应格式**：直接返回数据或 `PaginatedResponse<T>`，状态码通过 HTTP 状态码返回，**禁止**在响应体中添加 `code` 字段
 
-```javascript
-// ✅ 正确：GET api/app/user_profile → HTTP 200
-{ "user_id": 1, "user_name": "张三", "created_at": "2024-01-15" }
+```typescript
+// ✅ 正确：GET /app/order/detail?id=1 → HTTP 200
+{ "order_id": 1, "order_no": "ORD202401001", "status": "paid" }
 
 // ❌ 错误：禁止包装 code 字段
-{ "code": 0, "data": { "user_id": 1 }, "message": "success" }
+{ "code": 0, "data": { "order_id": 1 }, "message": "success" }
 ```
 
-**切换方式**：在 `.env` 文件中设置 `VITE_MOCK=true/false`，`config/index.js` 通过 `import.meta.env.VITE_MOCK` 读取并导出 `MOCK_ENABLED`。切换时只需修改 `.env`，无需改动业务代码。
+**切换方式**：在 `.env` 文件中设置 `VITE_MOCK=true/false`，`config/index.ts` 通过 `import.meta.env.VITE_MOCK` 读取并导出 `MOCK_ENABLED`。切换时只需修改 `.env`，无需改动业务代码。
 
 ### 规则 10：演示模式与帮助气泡
 
@@ -302,17 +325,26 @@ frontend/
      │   ├── changelog.html
      │   └── marked.min.js
      └── src/
-         ├── config/index.js          # 读取 .env 导出 MOCK_ENABLED 等配置
+         ├── config/index.ts          # MOCK_ENABLED、API_BASE_URL 等配置
          ├── {views 或 pages}/        # Web: views/  移动端: pages/
          ├── components/HelpBubble.vue
          ├── composables/
-         ├── utils/request.js
+         ├── utils/token.ts           # Token 存取（双平台适配）
          ├── api/
-         │   ├── index.js
-         │   └── modules/             # API 模块（按业务命名）
+         │   ├── types/common.ts      # PaginationParams、PaginatedResponse 等基础类型
+         │   ├── adapter.ts           # RequestAdapter 接口
+         │   ├── adapter.web.ts       # Axios 实现
+         │   ├── adapter.uni.ts       # uni.request 实现
+         │   ├── request.ts           # 统一 request<T>() 导出
+         │   └── modules/             # API 模块（按端点+业务命名）
+         │       ├── app/             # 用户端接口
+         │       └── manager/         # 管理端接口
          ├── mock/
-         │   ├── index.js             # Mock 路由入口（URL+Method 匹配）
+         │   ├── types.ts             # MockRoute、MockConfig 类型
+         │   ├── handler.ts           # 路由注册 + findMockRoute + executeMock
          │   └── data/                # 与 api/modules/ 一一对应
+         │       ├── app/
+         │       └── manager/
          ├── stores/
          ├── router/
          └── styles/
@@ -336,6 +368,7 @@ frontend/
 - `skills/create-adaptable-composable/` - Composable 开发指南
 - `skills/vue-jsx-best-practices/` - Vue JSX 最佳实践
 - `skills/vue-options-api-best-practices/` - Options API 最佳实践
+- `skills/api-typescript-spec/` - API 接口及 Mock 接口 TypeScript 规范
 
 ### 参考文档
 

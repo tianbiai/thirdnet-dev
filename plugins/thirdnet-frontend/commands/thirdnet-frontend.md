@@ -39,7 +39,7 @@ allowed-tools:
    - 理解需求和技术上下文
    - 参考前端技能文档（`skills/vue-best-practices/`、全局技能 `/frontend-design`、`skills/vue-pinia-best-practices/` 等）
    - 参考 `rules/project-spec-template.md`、`rules/changelog-template.md` 等规范模板
-   - 遵循 API-Mock 一一对应架构：API 模块（`api/modules/*.js`）与 Mock 数据（`mock/data/*.js`）文件名一致
+   - 遵循 API-Mock 一一对应架构（`skills/api-typescript-spec/`）：API 模块（`api/modules/{endpoint}/*.ts`）与 Mock 数据（`mock/data/{endpoint}/*.ts`）文件名一致
    - 遵循演示模式控制：`MOCK_ENABLED` 开关控制帮助气泡显示与数据来源
    - 遵循文档驱动开发流程
    - 生成或修改相应的代码文件

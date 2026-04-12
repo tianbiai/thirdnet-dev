@@ -14,6 +14,7 @@
 | `vue-router-best-practices` | ⭐ | 使用 Vue Router |
 | `create-adaptable-composable` | ⭐ | 创建可复用 Composable |
 | `vue-jsx-best-practices` | ⭐ | 使用 JSX 语法 |
+| `api-typescript-spec` | ⭐⭐ | 创建 API 接口、Mock 数据、请求类型、DTO 定义 |
 | `vue-options-api-best-practices` | ⭐ | 使用 Options API |
 
 ---
@@ -96,15 +97,17 @@ Vue 3 Options API 风格指南。涵盖 data()、methods、computed、watch、th
 
 ---
 
-## API-Mock 一一对应架构
+## API-Mock 一一对应架构（TypeScript）
 
-> **所有 API 模块与 Mock 数据文件必须一一对应。**
+> **所有 API 模块与 Mock 数据文件必须一一对应，遵循 TypeScript 全流程规范。**
 
-详见 Agent 规则10（API-Mock 一一对应架构）和规则11（演示模式与帮助气泡控制）
+详见 `skills/api-typescript-spec/` 技能文档和 Agent 规则9（API-Mock 一一对应架构）
 
 | 架构要点 | 说明 |
 |----------|------|
-| 文件对应 | `api/modules/*.js` ←→ `mock/data/*.js`，文件名完全一致 |
-| 方法对应 | API 方法通过 `request()` 发请求，Mock 路由按 URL+Method 匹配 |
+| 文件对应 | `api/modules/{endpoint}/{module}.ts` ←→ `mock/data/{endpoint}/{module}.ts`，端点+文件名完全一致 |
+| 适配器模式 | `request<T>(config)` 通过 `RequestAdapter` 接口适配 Web（Axios）/移动端（uni.request） |
+| 类型定义 | `api/types/common.ts` 定义 `PaginationParams`、`PaginatedResponse<T>`、`RequestConfig<TData>` 等基础类型 |
+| Mock 类型 | `mock/types.ts` 定义 `MockRoute`、`MockConfig`，`mock/handler.ts` 统一路由注册 |
 | 切换控制 | `MOCK_ENABLED` 单一开关，业务代码零修改 |
 | 帮助气泡 | `v-if="isMockEnabled"` 控制，生产模式 DOM 完全移除 |

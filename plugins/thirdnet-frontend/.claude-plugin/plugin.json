@@ -1,7 +1,7 @@
 {
   "name": "thirdnet-frontend",
-  "version": "0.9.0",
-  "description": "前端开发助手 - Vue 3 页面、组件、样式开发，支持 API-Mock 一一对应架构与演示模式控制",
+  "version": "0.10.0",
+  "description": "前端开发助手 - Vue 3 页面、组件、样式开发，支持 TypeScript API + Mock 适配器架构与演示模式控制",
   "author": {
     "name": "thirdnet"
   },

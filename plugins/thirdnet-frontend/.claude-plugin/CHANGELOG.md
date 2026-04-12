@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.10.0 - 2026-04-12
+
+### Added
+- 新增 `api-typescript-spec` 技能：完整的 TypeScript API + Mock 全流程规范
+- 新增适配器模式：Web 端 Axios（`adapter.web.ts`）+ 移动端 uni.request（`adapter.uni.ts`），条件编译自动选择
+- 新增基础类型定义：`PaginationParams`、`PaginatedResponse<T>`、`RequestConfig<TData>`、`ApiError`、`SortParams`
+- 新增认证接口模块：`api/modules/app/auth.ts`（IdentityServer Connect）+ `utils/token.ts`（双平台 Token 管理）
+- 新增 Mock 类型系统：`mock/types.ts`（`MockRoute`、`MockConfig`）+ `mock/handler.ts` 统一路由注册
+
+### Changed
+- **TypeScript 全面升级**：API 模块（`api/modules/*.js`）→（`api/modules/{endpoint}/*.ts`），Mock 数据（`mock/data/*.js`）→（`mock/data/{endpoint}/*.ts`）
+- **端点嵌套结构**：API 和 Mock 目录按 `app/`（用户端）和 `manager/`（管理端）子目录组织，对应后端 Controller 目录
+- **请求模式升级**：直接 `request()` → 适配器模式 `request<T>(config)`，支持类型推断
+- 更新 `rules/skills-checklist.md`：API-Mock 章节引用 TypeScript 规范，新增 `api-typescript-spec` 技能
+- 更新 `rules/project-spec-template.md`：项目结构树和 API 规范章节全面改为 TypeScript 架构
+- 更新 `rules/spec-template.md`：数据来源和 API 接口规范引用 TypeScript 路径和模式
+- 更新 `agents/frontend-developer.md`：规则9 代码示例改为 TypeScript，项目结构树更新
+- 更新 `commands/thirdnet-frontend.md`：API-Mock 引用改为 TypeScript 路径
+- 更新 `hooks.json`：PostToolUse 钩子检查路径改为 `**/*.ts`
+
 ## 0.9.0 - 2026-04-11
 
 ### Added

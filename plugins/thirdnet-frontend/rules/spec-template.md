@@ -62,20 +62,20 @@
 ### 数据来源
 
 - **数据类型**：[列表/单据/配置/...]
-- **数据源**：Mock 数据（`mock/data/{模块名}.js`）←→ API 接口（`api/modules/{模块名}.js`）
+- **数据源**：Mock 数据（`mock/data/{endpoint}/{模块名}.ts`）←→ API 接口（`api/modules/{endpoint}/{模块名}.ts`）
 - **关键字段**：`field1`: [说明], `field2`: [说明]
 
 #### API 接口规范
 
-> 遵循 Agent 规则10（API-Mock 一一对应架构）
-> - API 模块（`api/modules/*.js`）只定义接口契约，Mock 数据（`mock/data/*.js`）只负责模拟数据
-> - 路径 `api/app/{资源名}` 或 `api/manager/{资源名}`，参数 snake_case，直接返回数据，禁止 `code` 字段
-> - Mock 路由层（`mock/index.js`）按 URL + Method 精确匹配，通过 `MOCK_ENABLED` 开关控制
+> 遵循 `skills/api-typescript-spec/` 技能规范和 Agent 规则9（API-Mock 一一对应架构）
+> - API 模块（`api/modules/{endpoint}/*.ts`）定义接口契约+类型，Mock 数据（`mock/data/{endpoint}/*.ts`）使用 `import type` 保证类型一致
+> - 路径 `/app/{模块名}/{操作}` 或 `/manager/{模块名}/{操作}`，参数 snake_case，直接返回数据或 `PaginatedResponse<T>`，禁止 `code` 字段
+> - Mock 路由（`mock/handler.ts`）按 URL + Method 精确匹配，通过 `MOCK_ENABLED` 开关控制
 
 | 接口 | 方法 | 路径 | 入参 | 出参 | Mock 数据文件 |
 |------|------|------|------|------|--------------|
-| [接口1] | GET/POST | `api/app/xxx` | `{ param_name }` | `{ field_name }` | `mock/data/xxx.js` |
-| [接口2] | GET/POST | `api/manager/xxx` | `{ param_name }` | `{ field_name }` | `mock/data/xxx.js` |
+| [接口1] | GET/POST | `/app/{module}/list` | `{ param_name }` | `{ field_name }` | `mock/data/app/{module}.ts` |
+| [接口2] | GET/POST | `/manager/{module}/list` | `{ param_name }` | `{ field_name }` | `mock/data/manager/{module}.ts` |
 
 ---
 
@@ -95,8 +95,8 @@
 ├── [子组件A].vue    # 职责：[描述]
 ├── [子组件B].vue    # 职责：[描述]
 └── composables/
-    ├── use[A].js    # 职责：[描述]
-    └── use[B].js    # 职责：[描述]
+    ├── use[A].ts    # 职责：[描述]
+    └── use[B].ts    # 职责：[描述]
 ```
 
 **组件拆分检查**：
