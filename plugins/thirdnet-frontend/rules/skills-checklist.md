@@ -97,17 +97,20 @@ Vue 3 Options API 风格指南。涵盖 data()、methods、computed、watch、th
 
 ---
 
-## API-Mock 一一对应架构（TypeScript）
+## API 策略工厂架构（TypeScript）
 
-> **所有 API 模块与 Mock 数据文件必须一一对应，遵循 TypeScript 全流程规范。**
+> **所有 API 模块采用接口契约的策略工厂模式，与 Mock 数据文件必须一一对应。**
 
-详见 `skills/api-typescript-spec/` 技能文档和 Agent 规则9（API-Mock 一一对应架构）
+详见 `skills/api-typescript-spec/` 技能文档和 Agent 规则9（API 策略工厂架构）
 
 | 架构要点 | 说明 |
 |----------|------|
 | 文件对应 | `api/modules/{endpoint}/{module}.ts` ←→ `mock/data/{endpoint}/{module}.ts`，端点+文件名完全一致 |
+| 接口契约 | 每个 API 模块定义 `IXxxApi` 接口，声明所有方法签名（Strategy Interface） |
+| 策略实现 | `RealXxxApi`（适配 HTTP，通过 `request<T>()`）+ `MockXxxApi`（适配本地数据）均为 `IXxxApi` 的可互换实现 |
+| 工厂函数 | `createXxxApi(): IXxxApi` 根据 `MOCK_ENABLED` 自动选择 Real 或 Mock 策略 |
 | 适配器模式 | `request<T>(config)` 通过 `RequestAdapter` 接口适配 Web（Axios）/移动端（uni.request） |
-| 类型定义 | `api/types/common.ts` 定义 `PaginationParams`、`PaginatedResponse<T>`、`RequestConfig<TData>` 等基础类型 |
-| Mock 类型 | `mock/types.ts` 定义 `MockRoute`、`MockConfig`，`mock/handler.ts` 统一路由注册 |
-| 切换控制 | `MOCK_ENABLED` 单一开关，业务代码零修改 |
+| 类型定义 | `api/types/common.ts` 定义基础类型，`api/types/enums.ts` 定义跨模块枚举（`enum` + JSDoc） |
+| 枚举规范 | 所有枚举使用 `enum` 关键字定义 + JSDoc 注释，禁止 union type 或 const object 替代 |
+| 无缝切换 | `.env` 中 `VITE_MOCK=true/false` 控制，业务代码零修改，只需重启开发服务器 |
 | 帮助气泡 | `v-if="isMockEnabled"` 控制，生产模式 DOM 完全移除 |

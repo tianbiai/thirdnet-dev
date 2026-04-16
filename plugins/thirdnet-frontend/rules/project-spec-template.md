@@ -137,11 +137,12 @@ frontend/[项目名]/
 │   ├── composables/           # 可复用逻辑
 │   ├── api/                   # API 接口层（TypeScript）
 │   │   ├── types/common.ts   # 基础类型（PaginationParams、PaginatedResponse、RequestConfig）
+│   │   ├── types/enums.ts    # 跨模块枚举类型（enum + JSDoc 注释）
 │   │   ├── adapter.ts        # RequestAdapter 接口定义
 │   │   ├── adapter.web.ts    # Web 端 Axios 实现
 │   │   ├── adapter.uni.ts    # 移动端 uni.request 实现
 │   │   ├── request.ts        # 统一 request<T>() 导出
-│   │   └── modules/          # API 模块（按端点+业务命名）
+│   │   └── modules/          # API 模块（策略工厂模式：IXxxApi + Real + Mock + factory）
 │   │       ├── app/          # 用户端接口
 │   │       │   ├── auth.ts
 │   │       │   ├── order.ts
@@ -149,9 +150,7 @@ frontend/[项目名]/
 │   │       └── manager/      # 管理端接口
 │   │           ├── user.ts
 │   │           └── role.ts
-│   ├── mock/                  # Mock 系统（TypeScript）
-│   │   ├── types.ts          # MockRoute、MockConfig 类型
-│   │   ├── handler.ts        # 路由注册表 + findMockRoute + executeMock
+│   ├── mock/                  # Mock 数据（TypeScript）
 │   │   └── data/             # Mock 数据（与 api/modules/ 一一对应）
 │   │       ├── app/
 │   │       │   ├── order.ts  # ←→ api/modules/app/order.ts
@@ -170,16 +169,19 @@ frontend/[项目名]/
 
 ### API 规范
 
-> 详细规范见 `skills/api-typescript-spec/` 技能和 Agent 规则9（API-Mock 一一对应架构）
+> 详细规范见 `skills/api-typescript-spec/` 技能和 Agent 规则9（API 策略工厂架构）
 
-- **架构**：适配器模式 + Mock 路由拦截层，API 模块（`api/modules/{endpoint}/*.ts`）与 Mock 数据（`mock/data/{endpoint}/*.ts`）一一对应
+- **架构**：接口契约的策略工厂模式，每个 API 模块包含 `IXxxApi` 接口 + `RealXxxApi`（HTTP）+ `MockXxxApi`（本地数据）+ `createXxxApi()` 工厂函数
+- **设计模式**：策略模式（可互换实现）+ 简单工厂（配置驱动创建）+ 适配器模式（多数据源适配同一契约）
 - **类型安全**：`request<T>()` 泛型请求，`PaginationParams`/`PaginatedResponse<T>` 分页类型，`RequestConfig<TData>` 请求配置
+- **枚举规范**：所有枚举使用 `enum` 关键字 + JSDoc 注释，禁止 union type 替代
 - **适配器**：Web 端使用 Axios（`adapter.web.ts`），移动端使用 uni.request（`adapter.uni.ts`），条件编译自动选择
 - **端点组织**：用户端 `api/modules/app/`，管理端 `api/modules/manager/`，对应后端 Controller 目录
 - **路径**：用户端 `/app/{模块名}/{操作}`，管理端 `/manager/{模块名}/{操作}`
 - **参数命名**：snake_case（`user_name`, `order_id`, `created_at`）
 - **响应**：直接返回数据或 `PaginatedResponse<T>`，HTTP 状态码表达结果，禁止 `code` 字段
 - **认证**：`api/modules/app/auth.ts` 使用 IdentityServer Connect 端点，`utils/token.ts` 双平台 Token 管理
+- **无缝切换**：`.env` 中 `VITE_MOCK=true/false` 控制，业务代码零修改
 
 ### 演示模式控制
 

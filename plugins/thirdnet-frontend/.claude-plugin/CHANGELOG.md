@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.11.0 - 2026-04-16
+
+### Added
+- 新增**策略工厂模式（Strategy Factory Pattern）**：API 模块从纯函数升级为接口契约（`IXxxApi`）+ Real 策略（`RealXxxApi` 适配 HTTP）+ Mock 策略（`MockXxxApi` 适配本地数据）+ 工厂函数（`createXxxApi()`）
+- 新增**设计模式文档**：策略模式 + 简单工厂 + 适配器模式的组合运用说明，以及 SOLID 原则对应关系
+- 新增**枚举类型规范**：所有枚举使用 TypeScript `enum` 关键字 + JSDoc 注释，禁止 union type 或 const object 替代
+- 新增**TypeScript 强制要求**：所有前端代码必须使用 `.ts` 扩展名，Vue 组件必须 `<script setup lang="ts">`，禁止原生 JS
+- 新增 `api/types/enums.ts` 跨模块枚举文件到项目结构
+
+### Changed
+- **架构升级**：适配器模式 + Mock 路由拦截层 → 接口契约的策略工厂模式，Mock 逻辑从适配器层移入 `MockXxxApi` 类
+- **无缝切换**：通过 `.env` 中 `VITE_MOCK=true/false` 控制，工厂函数自动选择策略，业务代码零修改
+- 重写 `skills/api-typescript-spec/SKILL.md`：完整策略工厂模式规范，包含设计模式说明、枚举规范、认证模块示例
+- 更新 `agents/frontend-developer.md`：规则2 新增 TypeScript 强制和枚举规范，规则9 从"API-Mock 一一对应"改为"API 策略工厂架构"
+- 更新 `rules/skills-checklist.md`：API-Mock 章节改为"API 策略工厂架构"，新增接口契约、策略实现、工厂函数、枚举规范等要点
+- 更新 `rules/spec-template.md`：API 接口规范章节改为策略工厂模式描述
+- 更新 `rules/project-spec-template.md`：API 规范章节改为策略工厂模式，目录结构移除 `mock/types.ts` 和 `mock/handler.ts`
+
+### Removed
+- 移除 `mock/types.ts` 和 `mock/handler.ts`（Mock 路由拦截层不再需要，Mock 逻辑内聚到各 `MockXxxApi` 类）
+
 ## 0.10.0 - 2026-04-12
 
 ### Added

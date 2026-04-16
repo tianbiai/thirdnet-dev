@@ -67,10 +67,11 @@
 
 #### API 接口规范
 
-> 遵循 `skills/api-typescript-spec/` 技能规范和 Agent 规则9（API-Mock 一一对应架构）
-> - API 模块（`api/modules/{endpoint}/*.ts`）定义接口契约+类型，Mock 数据（`mock/data/{endpoint}/*.ts`）使用 `import type` 保证类型一致
+> 遵循 `skills/api-typescript-spec/` 技能规范和 Agent 规则9（API 策略工厂架构）
+> - API 模块（`api/modules/{endpoint}/*.ts`）采用策略工厂模式：定义 `IXxxApi` 接口契约 + `RealXxxApi`（HTTP）+ `MockXxxApi`（本地数据）+ `createXxxApi()` 工厂函数
+> - Mock 数据（`mock/data/{endpoint}/*.ts`）使用 `import type` 保证类型一致，枚举使用 `import` 引入
 > - 路径 `/app/{模块名}/{操作}` 或 `/manager/{模块名}/{操作}`，参数 snake_case，直接返回数据或 `PaginatedResponse<T>`，禁止 `code` 字段
-> - Mock 路由（`mock/handler.ts`）按 URL + Method 精确匹配，通过 `MOCK_ENABLED` 开关控制
+> - 通过 `.env` 中 `VITE_MOCK=true/false` 无缝切换 Real/Mock，业务代码零修改
 
 | 接口 | 方法 | 路径 | 入参 | 出参 | Mock 数据文件 |
 |------|------|------|------|------|--------------|
