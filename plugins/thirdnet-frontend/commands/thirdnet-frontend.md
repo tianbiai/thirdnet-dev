@@ -38,7 +38,7 @@ allowed-tools:
 3. Agent 将：
    - 理解需求和技术上下文
    - 参考前端技能文档（`skills/vue-best-practices/`、全局技能 `/frontend-design`、`skills/vue-pinia-best-practices/` 等）
-   - 参考 `rules/project-spec-template.md`、`rules/changelog-template.md` 等规范模板
+   - 参考 `skills/doc-templates/references/project-spec-template.md`、`skills/doc-templates/references/changelog-template.md` 等规范模板
    - 遵循 API 策略工厂架构（`skills/api-typescript-spec/`）：API 模块采用接口契约策略工厂模式（`IXxxApi` + `RealXxxApi` + `MockXxxApi` + `createXxxApi()`），与 Mock 数据（`mock/data/{endpoint}/*.ts`）文件名一致
    - 遵循演示模式控制：`MOCK_ENABLED` 开关控制帮助气泡显示与数据来源
    - 遵循文档驱动开发流程

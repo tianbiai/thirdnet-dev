@@ -1,14 +1,26 @@
-# Changelog 渲染页面模板
+# 通用 Markdown 查看器
 
-> 用于在浏览器中直接查看格式化的 Changelog。
+> 通用 HTML 页面，通过 URL 参数加载并渲染任意 Markdown 文件。
 
-## 使用说明
+## 使用方式
 
-将此文件保存为 `changelog.html`，放置在：
-- **Web应用**：`public/changelog.html`
-- **小程序应用**：`static/changelog.html`
+将 `viewer.html` 和 `marked.min.js`（获取方式见 [marked-js-setup](marked-js-setup.md)）放在同一目录下。
 
-同时需要 `marked.min.js` 文件（Markdown解析库），获取方式见 `marked-js-reference.md`。
+**文件存放位置**：
+
+- **Web 应用**：`public/viewer.html` + `public/marked.min.js`
+- **小程序应用**：`static/viewer.html` + `static/marked.min.js`
+
+**访问方式**：
+
+| URL | 加载文件 |
+|-----|---------|
+| `http://localhost:{port}/viewer.html` | 默认加载 `changelog.md` |
+| `http://localhost:{port}/viewer.html?file=changelog.md` | 加载 changelog |
+| `http://localhost:{port}/viewer.html?file=spec.md` | 加载项目规格 |
+| `http://localhost:{port}/viewer.html?file=specs/首页.md` | 加载页面规格 |
+
+通过 `?file=` 参数指定任意 `.md` 文件的相对路径。
 
 ---
 
@@ -20,7 +32,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>更新日志</title>
+  <title>文档查看器</title>
   <script src="marked.min.js"></script>
   <style>
     * {
@@ -230,8 +242,8 @@
 <body>
   <div class="container">
     <div class="header">
-      <h1>📋 更新日志</h1>
-      <div class="subtitle">项目变更记录</div>
+      <h1 id="page-title">文档查看器</h1>
+      <div class="subtitle" id="page-subtitle"></div>
     </div>
     <div id="content" class="markdown-body">
       <div class="loading">加载中...</div>
@@ -239,18 +251,39 @@
   </div>
 
   <script>
-    // 加载并渲染 changelog.md
-    async function loadChangelog() {
+    // 从 URL 参数读取目标文件路径，默认加载 changelog.md
+    function getFilePath() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('file') || 'changelog.md';
+    }
+
+    // 根据文件名生成页面标题
+    function getFileTitle(filePath) {
+      const fileName = filePath.split('/').pop().replace('.md', '');
+      return fileName;
+    }
+
+    // 加载并渲染 Markdown 文件
+    async function loadMarkdown() {
       const contentEl = document.getElementById('content');
+      const titleEl = document.getElementById('page-title');
+      const subtitleEl = document.getElementById('page-subtitle');
+      const filePath = getFilePath();
 
       try {
-        const response = await fetch('changelog.md');
+        const response = await fetch(filePath);
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
         const markdown = await response.text();
+
+        // 更新页面标题
+        const fileTitle = getFileTitle(filePath);
+        titleEl.textContent = fileTitle;
+        subtitleEl.textContent = filePath;
+        document.title = fileTitle;
 
         // 使用 marked 解析 markdown
         const html = marked.parse(markdown, {
@@ -260,11 +293,11 @@
 
         contentEl.innerHTML = html;
       } catch (error) {
-        console.error('加载 changelog 失败:', error);
+        console.error('加载失败:', error);
         contentEl.innerHTML = `
           <div class="error">
-            <p>❌ 加载失败</p>
-            <p>无法加载 changelog.md 文件</p>
+            <p>加载失败</p>
+            <p>无法加载文件: ${filePath}</p>
             <p style="font-size: 14px; margin-top: 8px;">${error.message}</p>
           </div>
         `;
@@ -272,22 +305,12 @@
     }
 
     // 页面加载完成后执行
-    document.addEventListener('DOMContentLoaded', loadChangelog);
+    document.addEventListener('DOMContentLoaded', loadMarkdown);
   </script>
 </body>
 </html>
 ```
 
-## 自定义标题
+## 自定义
 
-如需修改页面标题，编辑以下内容：
-
-```html
-<title>更新日志</title>
-```
-
-以及：
-
-```html
-<div class="subtitle">项目变更记录</div>
-```
+如需修改页面默认标题样式，编辑 `.header h1` 相关 CSS。页面标题会根据加载的文件名自动设置。

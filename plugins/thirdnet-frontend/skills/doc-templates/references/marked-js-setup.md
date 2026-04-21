@@ -65,9 +65,9 @@ marked.js 支持以下 Markdown 语法：
 - ✅ 任务列表（GFM 扩展）
 - ✅ 水平分割线
 
-## 与 changelog.html 的配合
+## 与 viewer.html 的配合
 
-`changelog.html` 通过以下代码使用 marked.js：
+`viewer.html` 通过以下代码使用 marked.js：
 
 ```javascript
 const html = marked.parse(markdown, {
@@ -76,8 +76,8 @@ const html = marked.parse(markdown, {
 });
 ```
 
-确保 `marked.min.js`、`changelog.html`、`changelog.md` 三者在同一目录下。
+确保 `marked.min.js`、`viewer.html`、`changelog.md` 三者在同一目录下。
 
 ## 验证
 
-启动开发服务器后访问 `http://localhost:{port}/changelog.html`，应能看到格式化的 changelog 内容。
+启动开发服务器后访问 `http://localhost:{port}/viewer.html?file=changelog.md`，应能看到格式化的 changelog 内容。

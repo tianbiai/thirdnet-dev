@@ -125,7 +125,7 @@ frontend/[项目名]/
 │   └── [页面名].md
 ├── {public 或 static}/        # Web: public/  小程序: static/
 │   ├── changelog.md           # 变更日志
-│   ├── changelog.html         # 渲染页面
+│   ├── viewer.html            # 通用 Markdown 查看器
 │   └── marked.min.js          # Markdown 解析库
 ├── src/
 │   ├── main.ts                # 应用入口

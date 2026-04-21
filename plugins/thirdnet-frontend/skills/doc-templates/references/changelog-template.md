@@ -9,7 +9,7 @@
 
 ## 配套渲染页面
 
-需同时创建 `changelog.html`（模板见 `changelog-html-template.md`）和 `marked.min.js`（获取见 `marked-js-reference.md`），三者放在同一目录。启动开发服务器后访问 `http://localhost:{port}/changelog.html` 查看。
+需同时创建 `viewer.html`（通用 Markdown 查看器，模板见 [markdown-viewer](markdown-viewer.md)）和 `marked.min.js`（获取见 [marked-js-setup](marked-js-setup.md)），三者放在同一目录。启动开发服务器后访问 `http://localhost:{port}/viewer.html?file=changelog.md` 查看。
 
 ---
 

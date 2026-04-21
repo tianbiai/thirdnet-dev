@@ -243,6 +243,13 @@ services.AddRedisExtensionService(Configuration);
 - 通用类库 Common + Cache
 - API 服务层 + Database 数据层
 
+## 模板文件（按需读取）
+
+当创建新项目时，按以下模板生成文档：
+
+- 服务规格：[service-spec-template](references/service-spec-template.md)
+- 变更日志：[changelog-template](references/changelog-template.md)
+
 ## 输出要求
 
 - 所有命令必须可直接复制执行

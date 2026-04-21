@@ -155,7 +155,7 @@ tools:
 
 ### 阶段 0.6：生成变更日志
 
-创建 `backend/{ProjectName}/changelog.md`，使用模板 `rules/changelog-template.md`：
+创建 `backend/{ProjectName}/changelog.md`，使用模板 `skills/net-microservice-generator/references/changelog-template.md`：
 
 | 章节         | 内容                           |
 | ------------ | ------------------------------ |
@@ -166,7 +166,7 @@ tools:
 
 ### 阶段 1：生成服务规格
 
-生成 `backend/{ProjectName}/{ProjectName}.{ServiceName}/spec.md`，使用模板 `rules/service-spec-template.md`。
+生成 `backend/{ProjectName}/{ProjectName}.{ServiceName}/spec.md`，使用模板 `skills/net-microservice-generator/references/service-spec-template.md`。
 
 ### 阶段 2：项目框架生成
 
@@ -213,7 +213,7 @@ tools:
 
 ## 变更日志管理
 
-> 变更日志管理请参阅 `rules/changelog-template.md` 模板。
+> 变更日志管理请参阅 `skills/net-microservice-generator/references/changelog-template.md` 模板。
 
 ## 需求变更管理
 
