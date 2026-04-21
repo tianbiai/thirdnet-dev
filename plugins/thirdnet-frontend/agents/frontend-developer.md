@@ -393,8 +393,8 @@ frontend/
 ### 必读
 
 - `skills/vue-best-practices/` - Vue 3 最佳实践
-- `/frontend-design` - 前端界面设计规范
-- `ui-ux-pro-max` - UI/UX 专业优化技能
+- `frontend-design` - 前端界面设计规范（全局安装技能）
+- `ui-ux-pro-max` - UI/UX 专业优化技能（全局安装技能）
 
 ### 按需
 

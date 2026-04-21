@@ -7,7 +7,7 @@
 | 技能 | 优先级 | 触发场景 |
 |------|--------|----------|
 | `vue-best-practices` | ⭐⭐⭐ | 所有 Vue 开发（必读） |
-| `design-apple` | ⭐⭐ | 前端设计（默认 Apple 风格） |
+| `design-apple` | ⭐⭐⭐ | 前端页面设计（默认 Apple 风格，Web + 移动端均适用） |
 | `doc-templates` | ⭐⭐ | 项目文档模板（spec、changelog、Markdown 查看器） |
 | `api-typescript-spec` | ⭐⭐ | API 接口、Mock 数据、DTO |
 | `vue-pinia-best-practices` | ⭐ | Pinia 状态管理 |
