@@ -35,11 +35,11 @@ allowed-tools:
 
 1. 分析用户提供的需求描述
 2. 调用后端开发专家 Agent（`agents/backend-developer.md`）
-3. Agent 将按文档驱动开发流程执行（详见 `agents/backend-developer.md`）
+3. Agent 将按文档驱动开发流程执行（详见 **backend-developer** Agent）
 
 ## 技术栈
 
-> 参阅 `skills/net-microservice-generator/SKILL.md` 中的技术栈定义。
+> 参阅 **net-microservice-generator** 技能中的技术栈定义。
 
 ## 注意事项
 
@@ -48,3 +48,4 @@ allowed-tools:
 - 如有特殊的认证或授权需求，请说明
 - 复杂的业务逻辑建议分步实现
 - 遵循文档驱动开发：先有 plan.md 和 spec.md 再编写代码
+- 项目目录结构：后端服务创建在 `backend/<ServiceName>/`，前端项目创建在 `frontend/<ServiceName>/`

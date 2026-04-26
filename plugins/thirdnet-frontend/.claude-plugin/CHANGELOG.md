@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.12.0 - 2026-04-26
+
+### Changed
+- 将插件描述和 Agent/Command 中所有技能路径引用（如 `skills/vue-best-practices/`）改为技能名称（如 `vue-best-practices`），子代理无法访问技能目录路径
+- 将 `rules/guidelines.md` 的开发准则内容直接合并到 Agent 系统提示中，子代理和插件不会加载 rules 文件夹
+- 修改前端项目目录结构：从 `frontend/{项目名}/` 改为 `frontend/{子系统名}/`（如 `frontend/web`、`frontend/minigram`），根目录即为项目总文件夹
+- 更新 hooks.json 中的目录引用和模板路径，移除 rules 文件夹路径引用
+
+### Removed
+- 删除 `rules/` 文件夹（插件和子代理不会加载 rules 内容，已合并到 Agent 系统提示中）
+
 ## 0.11.0 - 2026-04-16
 
 ### Added

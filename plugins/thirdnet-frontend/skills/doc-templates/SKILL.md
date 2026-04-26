@@ -30,5 +30,5 @@ description: 前端项目文档模板集，提供通用 Markdown 查看器、Cha
 | changelog.md | `public/changelog.md` | `static/changelog.md` |
 | viewer.html | `public/viewer.html` | `static/viewer.html` |
 | marked.min.js | `public/marked.min.js` | `static/marked.min.js` |
-| spec.md | `frontend/{项目名}/spec.md` | 同左 |
-| 页面 spec | `frontend/{项目名}/specs/{页面名}.md` | 同左 |
+| spec.md | `frontend/{子系统名}/spec.md` | 同左 |
+| 页面 spec | `frontend/{子系统名}/specs/{页面名}.md` | 同左 |

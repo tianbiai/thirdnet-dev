@@ -119,7 +119,7 @@
 ### 项目结构
 
 ```
-frontend/[项目名]/
+frontend/[子系统名]/
 ├── spec.md                    # 项目级功能说明书（本文档）
 ├── specs/                     # 页面级规格说明目录
 │   └── [页面名].md
@@ -169,7 +169,7 @@ frontend/[项目名]/
 
 ### API 规范
 
-> 详细规范见 `skills/api-typescript-spec/` 技能和 Agent 规则9（API 策略工厂架构）
+> 详细规范见 `api-typescript-spec` 技能和 Agent 规则9（API 策略工厂架构）
 
 - **架构**：接口契约的策略工厂模式，每个 API 模块包含 `IXxxApi` 接口 + `RealXxxApi`（HTTP）+ `MockXxxApi`（本地数据）+ `createXxxApi()` 工厂函数
 - **设计模式**：策略模式（可互换实现）+ 简单工厂（配置驱动创建）+ 适配器模式（多数据源适配同一契约）

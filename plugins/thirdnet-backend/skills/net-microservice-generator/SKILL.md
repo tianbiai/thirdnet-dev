@@ -62,71 +62,69 @@ dotnet new install ThirdNet.Core.IdentityService --force
 
 ### 工具类库
 
-在 `backend/{ProjectName}/` 下创建 `Tools` 作为根文件夹：
+在 `backend/` 下创建 `Tools` 作为根文件夹：
 
 ```bash
-cd backend/{ProjectName}/Tools
-dotnet new classlib -n {ProjectName}.Common -o {ProjectName}.Common
-dotnet new classlib -n {ProjectName}.Cache -o {ProjectName}.Cache
+cd backend/Tools
+dotnet new classlib -n Common -o Common
+dotnet new classlib -n Cache -o Cache
 ```
 
 ### 认证服务（IdentityService）
 
 ```bash
-cd backend/{ProjectName}/{ProjectName}.Identity
-dotnet new IdentityService -n {ProjectName}.Identity.API -o {ProjectName}.Identity.API
-dotnet new classlib -n {ProjectName}.Identity.Database -o {ProjectName}.Identity.Database
+cd backend/identity
+dotnet new IdentityService -n identity.API -o identity.API
+dotnet new classlib -n identity.Database -o identity.Database
 ```
 
 ### 业务微服务
 
 ```bash
-cd backend/{ProjectName}/{ProjectName}.{ServiceName}
-dotnet new WebApiService -n {ProjectName}.{ServiceName}.API -o {ProjectName}.{ServiceName}.API
-dotnet new classlib -n {ProjectName}.{ServiceName}.Database -o {ProjectName}.{ServiceName}.Database
+cd backend/{ServiceName}
+dotnet new WebApiService -n {ServiceName}.API -o {ServiceName}.API
+dotnet new classlib -n {ServiceName}.Database -o {ServiceName}.Database
 ```
 
 ## 标准目录结构
 
 ```
 backend/
-└── {ProjectName}/                           # 项目文件夹（英文名）
-    ├── plan.md                              # 项目规划文档
-    ├── changelog.md                         # 变更日志
-    ├── Tools/
-    │   ├── {ProjectName}.Common/            # 通用工具类库
-    │   └── {ProjectName}.Cache/             # 缓存工具类库
-    ├── {ProjectName}.Identity/              # 认证服务（如需要）
-    │   ├── spec.md                          # 服务功能说明书
-    │   ├── {ProjectName}.Identity.slnx
-    │   ├── {ProjectName}.Identity.API/
-    │   └── {ProjectName}.Identity.Database/
-    └── {ProjectName}.{ServiceName}/         # 业务服务：项目名.服务名
-        ├── spec.md                          # 服务功能说明书
-        ├── {ProjectName}.{ServiceName}.slnx
-        ├── {ProjectName}.{ServiceName}.API/
-        │   ├── Controllers/
-        │   │   ├── Manager/                 # 管理端 Controller
-        │   │   ├── App/                     # 应用端 Controller
-        │   │   └── Third/                   # 第三方端 Controller
-        │   ├── Program.cs
-        │   └── appsettings.json
-        └── {ProjectName}.{ServiceName}.Database/
-            ├── Models/                      # 实体模型
-            ├── Configurations/              # Fluent API 配置
-            └── Migrations/                  # 数据库迁移文件
-                └── {DbContextName}/         # 按 DbContext 分目录
+├── plan.md                              # 项目规划文档（全局）
+├── changelog.md                         # 变更日志（全局）
+├── Tools/
+│   ├── Common/                          # 通用工具类库
+│   └── Cache/                           # 缓存工具类库
+├── identity/                            # 认证服务（如需要）
+│   ├── spec.md                          # 服务功能说明书
+│   ├── identity.slnx
+│   ├── identity.API/
+│   └── identity.Database/
+└── {ServiceName}/                       # 业务服务
+    ├── spec.md                          # 服务功能说明书
+    ├── {ServiceName}.slnx
+    ├── {ServiceName}.API/
+    │   ├── Controllers/
+    │   │   ├── Manager/                 # 管理端 Controller
+    │   │   ├── App/                     # 应用端 Controller
+    │   │   └── Third/                   # 第三方端 Controller
+    │   ├── Program.cs
+    │   └── appsettings.json
+    └── {ServiceName}.Database/
+        ├── Models/                      # 实体模型
+        ├── Configurations/              # Fluent API 配置
+        └── Migrations/                  # 数据库迁移文件
+            └── {DbContextName}/         # 按 DbContext 分目录
 ```
 
 **命名规范（均使用英文名）**：
 
-| 层级           | 格式                              | 示例                           |
-| -------------- | --------------------------------- | ------------------------------ |
-| 项目文件夹     | `{ProjectName}`                   | `MyApp`                        |
-| 服务文件夹     | `{ProjectName}.{ServiceName}`     | `MyApp.User`, `MyApp.Order`    |
-| 解决方案文件   | `{ProjectName}.{ServiceName}.slnx`| `MyApp.User.slnx`              |
-| API 项目       | `{ProjectName}.{ServiceName}.API` | `MyApp.User.API`               |
-| Database 项目  | `{ProjectName}.{ServiceName}.Database` | `MyApp.User.Database`     |
+| 层级           | 格式                        | 示例                        |
+| -------------- | --------------------------- | --------------------------- |
+| 服务文件夹     | `{ServiceName}`             | `identity`, `coin`          |
+| 解决方案文件   | `{ServiceName}.slnx`        | `identity.slnx`             |
+| API 项目       | `{ServiceName}.API`         | `identity.API`              |
+| Database 项目  | `{ServiceName}.Database`    | `identity.Database`         |
 
 ## 服务启动配置
 

@@ -67,7 +67,7 @@
 
 #### API 接口规范
 
-> 遵循 `skills/api-typescript-spec/` 技能规范和 Agent 规则9（API 策略工厂架构）
+> 遵循 `api-typescript-spec` 技能规范和 Agent 规则9（API 策略工厂架构）
 > - API 模块（`api/modules/{endpoint}/*.ts`）采用策略工厂模式：定义 `IXxxApi` 接口契约 + `RealXxxApi`（HTTP）+ `MockXxxApi`（本地数据）+ `createXxxApi()` 工厂函数
 > - Mock 数据（`mock/data/{endpoint}/*.ts`）使用 `import type` 保证类型一致，枚举使用 `import` 引入
 > - 路径 `/app/{模块名}/{操作}` 或 `/manager/{模块名}/{操作}`，参数 snake_case，直接返回数据或 `PaginatedResponse<T>`，禁止 `code` 字段

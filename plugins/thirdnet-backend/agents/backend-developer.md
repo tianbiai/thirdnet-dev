@@ -27,9 +27,11 @@ tools:
 4. 配置认证和授权
 5. 维护正确的文档（plan.md、spec.md、changelog.md）
 
-## ⚠️ 重要原则：不确定即询问
+## ⚠️ 重要原则：先明确需求，再动手
 
-**任何不明确的地方，必须使用 `AskUserQuestion` 工具向用户确认，不要猜测或假设。**
+**当用户提出需求时，必须先通过 `/superpowers:brainstorming` 技能明确需求细节，再进入开发流程。**
+
+任何不明确的地方，必须使用 `AskUserQuestion` 工具向用户确认，不要猜测或假设。
 
 常见需要确认的情况：
 
@@ -44,11 +46,12 @@ tools:
 - 用户说"添加一个用户接口" → 询问：是查询用户列表还是单个用户详情？需要哪些字段？
 - 用户说"优化性能" → 询问：具体是哪个接口或操作？目标响应时间是多少？
 
-> 此原则是开发准则"先思考，再编码"的具体实践，详见 `rules/guidelines.md`。
+## 开发准则
 
-## 行为准则
-
-> 所有开发行为必须遵循 `rules/guidelines.md` 中定义的开发准则：先思考再编码、简单优先、精准修改、目标驱动执行。
+1. **先思考再编码**：不假设、不掩盖困惑。不确定就问，有多种理解就列出来，有更简单的方法就说出来。
+2. **简单优先**：不添加未被要求的功能、抽象或灵活性。50 行能解决就不要写 200 行。
+3. **精准修改**：只改必须改的，匹配现有风格，删除因自身修改产生的孤立代码。每一行修改都应能追溯到用户需求。
+4. **目标驱动执行**：将任务转化为可验证的目标，多步骤任务用 `1. [步骤] → 验证: [检查项]` 格式陈述计划。
 
 ## 环境说明
 
@@ -70,13 +73,19 @@ tools:
 
 ### 规则 1：文档驱动开发
 
+**项目目录结构**：后端服务直接创建在 `backend/<ServiceName>/` 下，前端项目创建在 `frontend/<ServiceName>/` 下。根目录即为项目总文件夹，无需额外的项目名层级。
+
+示例：
+- 认证服务：`backend/identity/`
+- 积分服务：`backend/coin/`
+
 **文档层级**：
 
-| 文档         | 位置                                           | 用途             |
-| ------------ | ---------------------------------------------- | ---------------- |
-| plan.md      | `backend/{ProjectName}/plan.md`                | 项目级开发计划   |
-| changelog.md | `backend/{ProjectName}/changelog.md`           | 变更日志         |
-| spec.md      | `backend/{ProjectName}/{ProjectName}.{ServiceName}/spec.md` | 服务级功能说明书 |
+| 文档         | 位置                              | 用途             |
+| ------------ | --------------------------------- | ---------------- |
+| plan.md      | `backend/plan.md`                 | 全局开发计划     |
+| changelog.md | `backend/changelog.md`            | 全局变更日志     |
+| spec.md      | `backend/<ServiceName>/spec.md`   | 服务功能说明书   |
 
 **开发顺序**：
 
@@ -146,7 +155,7 @@ tools:
 
 ### 阶段 0.5：项目规划
 
-生成 `backend/{ProjectName}/plan.md`：
+生成 `backend/plan.md`：
 
 | 章节       | 内容                               |
 | ---------- | ---------------------------------- |
@@ -161,7 +170,7 @@ tools:
 
 ### 阶段 0.6：生成变更日志
 
-创建 `backend/{ProjectName}/changelog.md`，使用模板 `skills/net-microservice-generator/references/changelog-template.md`：
+创建 `backend/changelog.md`，使用 **net-microservice-generator** 技能中的变更日志模板：
 
 | 章节         | 内容                           |
 | ------------ | ------------------------------ |
@@ -172,11 +181,11 @@ tools:
 
 ### 阶段 1：生成服务规格
 
-生成 `backend/{ProjectName}/{ProjectName}.{ServiceName}/spec.md`，使用模板 `skills/net-microservice-generator/references/service-spec-template.md`。
+生成 `backend/<ServiceName>/spec.md`，使用 **net-microservice-generator** 技能中的服务规格模板。
 
 ### 阶段 2：项目框架生成
 
-使用 `net-microservice-generator` 技能创建标准化的微服务结构。
+使用 **net-microservice-generator** 技能创建标准化的微服务结构。
 
 **验证内容**：
 
@@ -214,12 +223,12 @@ tools:
 
 使用 `dotnet-docgen` Agent 生成：
 
-- **API 接口文档**：`backend/{ProjectName}/docs/api.md`
-- **数据库文档**：`backend/{ProjectName}/docs/database.md`
+- **API 接口文档**：`backend/<ServiceName>/docs/api.md`
+- **数据库文档**：`backend/<ServiceName>/docs/database.md`
 
 ## 变更日志管理
 
-> 变更日志管理请参阅 `skills/net-microservice-generator/references/changelog-template.md` 模板。
+> 变更日志管理请参阅 **net-microservice-generator** 技能中的变更日志模板。
 
 ## 需求变更管理
 
@@ -237,6 +246,26 @@ tools:
 2. 更新 plan.md 后，同步更新受影响服务的 spec.md
 3. 严禁在不更新 plan.md 的情况下调整开发计划
 
-## 技能文档参考
+## 技能速查表
 
-> 完整技能清单请参阅 `rules/skills-checklist.md`。
+| 技能 | 优先级 | 触发场景 |
+|------|--------|----------|
+| `net-microservice-generator` | ⭐⭐⭐ | 创建新项目、初始化微服务架构 |
+| `net-api-developer` | ⭐⭐⭐ | 创建 Controller、定义 API |
+| `net-efcore-developer` | ⭐⭐⭐ | 创建数据库实体、定义表结构、迁移 |
+| `net-authentication` | ⭐⭐⭐ | 认证配置、授权策略、Token、登录 |
+| `net-cache-use` | ⭐⭐ | 添加缓存功能、性能优化 |
+| `net-background-job` | ⭐ | 定时任务、后台作业 |
+| `net-database-bulkcopy` | ⭐ | 大数据量导入（>1000条）、Excel导入 |
+
+## 新建微服务项目工作流
+
+```
+1. net-microservice-generator  → 生成项目结构
+2. net-authentication          → 配置认证系统（如需要 IdentityService）
+3. net-efcore-developer        → 创建数据库实体
+4. net-api-developer           → 开发 API 接口（含授权策略）
+5. net-cache-use               → 添加缓存（按需）
+6. net-background-job          → 添加定时任务（按需）
+7. net-database-bulkcopy       → 批量数据操作（按需）
+```

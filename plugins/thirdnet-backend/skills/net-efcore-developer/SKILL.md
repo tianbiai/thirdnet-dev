@@ -257,13 +257,13 @@ public class ProductConfiguration : IEntityTypeConfiguration<ProductModel>
 **迁移文件统一放在 Database 项目中，与 DbContext 保持内聚。**
 
 ```
-✅ 正确位置：{ProjectName}.{ServiceName}.Database/Migrations/{YourDbContextName}/
+✅ 正确位置：{ServiceName}.Database/Migrations/{YourDbContextName}/
 │   ├── 20250212_InitialCreate.cs
 │   ├── 20250212_InitialCreate.Designer.cs
 │   └── {YourDbContextName}ModelSnapshot.cs
 
-❌ 错误位置：{ProjectName}.{ServiceName}.API/Data/Migrations/            ← 不要放在 API 项目！
-❌ 错误位置：{ProjectName}.{ServiceName}.Database/Data/Migrations/       ← 目录结构不对
+❌ 错误位置：{ServiceName}.API/Data/Migrations/            ← 不要放在 API 项目！
+❌ 错误位置：{ServiceName}.Database/Data/Migrations/       ← 目录结构不对
 ```
 
 **重要说明**：
@@ -273,26 +273,26 @@ public class ProductConfiguration : IEntityTypeConfiguration<ProductModel>
 
 ### 生成迁移文件命令
 
-在**服务根目录**（`{ProjectName}.{ServiceName}/`）执行以下命令：
+在**服务根目录**（`backend/{ServiceName}/`）执行以下命令：
 
 ```bash
 # 基本命令格式（在服务根目录执行，即 API 和 Database 项目的父目录）
 dotnet ef migrations add {MigrationName} \
-  --project {ProjectName}.{ServiceName}.Database \
-  --startup-project {ProjectName}.{ServiceName}.API \
+  --project {ServiceName}.Database \
+  --startup-project {ServiceName}.API \
   --output-dir Migrations/{DbContextName}
 
 # 示例：为 ContractDbContext 创建初始迁移
-# 当前目录：backend/MyApp/MyApp.Contract/（包含 API 和 Database 子目录）
+# 当前目录：backend/contract/（包含 API 和 Database 子目录）
 dotnet ef migrations add InitialCreate \
-  --project MyApp.Contract.Database \
-  --startup-project MyApp.Contract.API \
+  --project contract.Database \
+  --startup-project contract.API \
   --output-dir Migrations/ContractDbContext
 
 # 示例：为 LogDbContext 创建迁移
 dotnet ef migrations add AddLogTable \
-  --project MyApp.Contract.Database \
-  --startup-project MyApp.Contract.API \
+  --project contract.Database \
+  --startup-project contract.API \
   --output-dir Migrations/LogDbContext
 ```
 
@@ -301,8 +301,8 @@ dotnet ef migrations add AddLogTable \
 |-----|------|------|
 | `{MigrationName}` | 迁移名称，PascalCase | `InitialCreate`、`AddUserTable` |
 | `{DbContextName}` | DbContext 类名（不含 DbContext 后缀时也行） | `ContractDbContext` → `ContractDbContext` |
-| `--project` | Database 项目（DbContext 和迁移所在位置） | `MyApp.Contract.Database` |
-| `--startup-project` | API 项目（连接字符串配置） | `MyApp.Contract.API` |
+| `--project` | Database 项目（DbContext 和迁移所在位置） | `contract.Database` |
+| `--startup-project` | API 项目（连接字符串配置） | `contract.API` |
 | `--output-dir` | 迁移输出目录（相对于 Database 项目） | `Migrations/ContractDbContext` |
 
 ## DbContext 模板

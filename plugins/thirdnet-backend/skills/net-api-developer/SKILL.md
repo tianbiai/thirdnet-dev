@@ -72,7 +72,7 @@ API 接口路径必须使用 `api` 开头，格式为：`api/{端标识}/{模块
 ## Controllers 目录组织与命名规范
 
 ```
-{ProjectName}.{ServiceName}.API/
+{ServiceName}.API/
 ├── Controllers/              # 所有 Controller 的根目录
 │   ├── Manager/              # 管理端 Controller（管理后台）
 │   │   └── UserManagerController.cs
