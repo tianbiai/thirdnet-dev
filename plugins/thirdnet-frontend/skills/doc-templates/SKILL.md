@@ -1,6 +1,10 @@
 ---
 name: doc-templates
 description: 前端项目文档模板集，提供通用 Markdown 查看器、Changelog 模板、页面规格模板、项目规格模板。当需要创建 spec.md、changelog.md、Markdown 查看页面、项目文档、页面规格说明、生成文档模板时，必须使用此技能。
+license: MIT
+metadata:
+  version: "1.0.0"
+  author: thirdnet
 ---
 
 ## 使用场景

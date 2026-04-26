@@ -10,8 +10,6 @@
 | ⭐⭐ | `/frontend-design` | 任何 UI/界面设计工作（全局技能） |
 | ⭐⭐ | `api-typescript-spec` | 创建 API 接口、Mock 数据、请求类型 |
 
-完整技能清单：[skills-checklist.md](./skills-checklist.md)
-
 ---
 
 ## 项目概述

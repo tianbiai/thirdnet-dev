@@ -128,7 +128,7 @@ frontend/
 | 场景              | 必读技能                                      | 按需技能                                                       |
 | ----------------- | --------------------------------------------- | -------------------------------------------------------------- |
 | 所有 Vue 开发     | `vue-best-practices`                        | `vue-pinia-best-practices`、`vue-router-best-practices`    |
-| 前端页面设计      | `frontend-design`（全局）、`design-apple` | `ui-ux-pro-max`（全局）                                      |
+| 前端页面设计      | `/frontend-design`（全局）、`design-apple` | `/ui-ux-pro-max`（全局）                                      |
 | API/Mock 开发     | `api-typescript-spec`                       | —                                                             |
 | 文档模板          | `doc-templates`                             | —                                                             |
 | Composable        | —                                            | `create-adaptable-composable`                                |
