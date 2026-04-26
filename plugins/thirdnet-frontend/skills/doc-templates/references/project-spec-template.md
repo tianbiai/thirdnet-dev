@@ -176,7 +176,7 @@ frontend/[子系统名]/
 - **适配器**：Web 端使用 Axios（`adapter.web.ts`），移动端使用 uni.request（`adapter.uni.ts`），条件编译自动选择
 - **端点组织**：用户端 `api/modules/app/`，管理端 `api/modules/manager/`，对应后端 Controller 目录
 - **路径**：用户端 `/app/{模块名}/{操作}`，管理端 `/manager/{模块名}/{操作}`
-- **参数命名**：snake_case（`user_name`, `order_id`, `created_at`）
+- **字段命名强制 snake_case**：所有 API 入参、出参、Mock 数据的字段名必须使用 `snake_case`（`user_name`, `order_id`, `created_at`），与后端 DTO 保持一致，**禁止使用 camelCase**
 - **响应**：直接返回数据或 `PaginatedResponse<T>`，HTTP 状态码表达结果，禁止 `code` 字段
 - **认证**：`api/modules/app/auth.ts` 使用 IdentityServer Connect 端点，`utils/token.ts` 双平台 Token 管理
 - **无缝切换**：`.env` 中 `VITE_MOCK=true/false` 控制，业务代码零修改

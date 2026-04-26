@@ -17,7 +17,7 @@ API 层采用**接口契约的策略工厂模式**，通过 TypeScript 接口定
 来自后端架构和网关限制，不可违反：
 
 1. **仅 GET / POST**：网关限制，不使用 PUT/DELETE/PATCH
-2. **字段名 snake_case**：与后端 DTO 一致（如 `order_id`、`created_at`）
+2. **字段名强制 snake_case**：所有 API 入参、出参、Mock 数据的字段名必须使用 `snake_case`（如 `order_id`、`created_at`、`user_name`），与后端 DTO 保持一致，**禁止使用 camelCase**
 3. **响应无包装**：成功直接返回实体 JSON 或 `PaginatedResponse<T>`，不用 `{ code, message, data }` 包装
 4. **错误走 HTTP 状态码**：通过 401/403/404/500 等区分错误
 5. **API 与 Mock 1:1**：`api/modules/{endpoint}/{module}.ts` 对应 `mock/data/{endpoint}/{module}.ts`
