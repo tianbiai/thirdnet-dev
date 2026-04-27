@@ -134,6 +134,40 @@ spec.md 不存在？→ 创建
 编写代码 → 验证 → 大变更时更新 changelog.md
 ```
 
+## 开发完成校验
+
+编码完成后，交付前必须逐项检查以下清单。每一项对应一条已建立的规则，校验的目的是确保没有遗漏。
+
+### 流程合规
+
+- [ ] spec.md 已生成且内容与实际代码一致
+- [ ] changelog.md 已记录本次变更
+- [ ] 涉及的页面均有对应的 `specs/{页面名}.md`
+- [ ] 编码前已调用所有相关技能（对照技能路由表确认无遗漏）
+
+### 代码规范
+
+- [ ] 所有文件使用 TypeScript（`.ts` / `<script setup lang="ts">`），无 `.js` 文件
+- [ ] 枚举使用 `enum` 关键字 + JSDoc，无 union type 或 const object
+- [ ] API 模块遵循策略工厂模式（`IXxxApi` + `RealXxxApi` + `MockXxxApi` + `createXxxApi()`）
+- [ ] 每个页面右上角有 HelpBubble，使用 `v-if` 而非 `v-show`
+- [ ] 涉及 API 调用的按钮有 Loading/防抖/禁用机制
+- [ ] 多请求失败时错误提示只弹一次（并发错误去重）
+
+### 移动端额外检查（仅 minigram / uniapp 项目）
+
+- [ ] 使用 `uni.xxx` 替代 `window`/`document`，无直接 DOM 操作
+- [ ] H5 专有功能使用 `#ifdef H5` 条件编译
+
+### 文件结构
+
+- [ ] 页面组件在 `src/views/`（Web）或 `src/pages/`（移动端）
+- [ ] API 模块在 `src/api/modules/` 下按端分类（app/manager）
+- [ ] Mock 数据在 `src/mock/data/` 下与 API 模块一一对应
+- [ ] Store 在 `src/stores/`，路由在 `src/router/`
+
+**发现不合规项时，先修正再交付，不要遗留问题。**
+
 ## 项目结构
 
 前端项目统一创建在工作区根目录的 `frontend/` 文件夹下。若根目录不存在 `frontend/` 文件夹，必须先创建它，再在其中组织项目代码。
