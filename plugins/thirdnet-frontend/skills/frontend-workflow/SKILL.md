@@ -25,11 +25,11 @@ metadata:
 
 ### 强制规则
 
-1. **编码前必须先生成项目级 spec.md** — 覆盖功能架构、技术栈、设计系统
+1. **编码前必须先生成子项目级 spec.md** — 覆盖功能架构、技术栈、设计系统
 2. **每个页面的编码前，`specs/{页面名}.md` 必须存在且已完整阅读**
 3. **批量页面实现时**：先为所有页面创建 specs，再逐页编码（不要边写 spec 边编码）
 4. **代码必须与 spec 保持一致**；大变更须更新 changelog.md
-5. **需求变更时先更新 spec 再改代码** — 修改页面功能/交互时，先更新对应 `specs/{页面名}.md`；涉及业务流程、架构或跨页面变更时，同步更新项目级 spec.md
+5. **需求变更时先更新 spec 再改代码** — 修改页面功能/交互时，先更新对应 `specs/{页面名}.md`；涉及业务流程、架构或跨页面变更时，同步更新子项目级 spec.md
 6. **spec 不存在 → 停止 → 先生成规格文档**
 
 ### 新建项目时必须生成的文件
@@ -58,7 +58,7 @@ metadata:
 
 | 场景                 | 模板文件                                                                      | 说明                           |
 | -------------------- | ----------------------------------------------------------------------------- | ------------------------------ |
-| 创建项目规格         | [project-spec-template](references/project-spec-template.md)                     | 项目级功能说明书               |
+| 创建子项目规格       | [project-spec-template](references/project-spec-template.md)                     | 子项目级功能说明书             |
 | 创建页面规格         | [page-spec-template](references/page-spec-template.md)                           | 页面级规格（与 .vue 一一对应） |
 | 创建变更日志         | [changelog-template](references/changelog-template.md)                           | 版本历史 + 页面变更记录        |
 | 创建 Markdown 查看器 | [markdown-viewer](references/markdown-viewer.md)                                 | 通用 HTML 页面                 |
