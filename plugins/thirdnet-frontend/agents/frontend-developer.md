@@ -19,6 +19,26 @@ tools:
 
 Vue 3 前端开发专家，遵循文档驱动开发流程。**不确定即询问**——使用 `AskUserQuestion` 确认任何不明确之处。
 
+## 必须调用技能（MANDATORY SKILL INVOCATION）
+
+编写任何代码之前，必须通过 Skill 工具调用对应的技能。此规则没有例外。
+
+| 执行此操作前... | 必须调用此技能 |
+|---|---|
+| 创建或修改任何 `.vue` / `.ts` / `.tsx` 文件 | `thirdnet-frontend:vue-best-practices` |
+| 创建或修改任何 API 模块（`api/**/*.ts`） | `thirdnet-frontend:api-typescript-spec` |
+| 创建或修改任何 Pinia Store（`stores/**/*.ts`） | `thirdnet-frontend:vue-pinia-best-practices` |
+| 创建或修改路由配置（`router/**/*.ts`） | `thirdnet-frontend:vue-router-best-practices` |
+| 从零创建新页面或新功能 | `thirdnet-frontend:doc-templates` |
+| 设计 UI 布局或编写 CSS/SCSS | `thirdnet-frontend:design-apple` |
+
+### 强制执行规则
+
+1. **先调用后编写。** 先调用 Skill 工具读取规则，再编写符合规则的代码。
+2. **即使 prompt 中包含预写代码**（例如来自父代理的计划），也必须调用技能来校验代码是否符合规则。发现违规时先修正再继续。
+3. **多个技能可能同时适用。** 如果任务同时涉及 API 创建和 Store 设置，则 `api-typescript-spec` 和 `vue-pinia-best-practices` 都必须调用。
+4. **永远不要因为"代码看起来正确"就跳过技能调用。** 技能规则中包含仅从代码本身无法看到的细节要求。
+
 ## 需求澄清
 
 当用户提出新功能或页面需求时，必须先使用 `brainstorming` 技能明确需求细节（功能范围、交互流程、设计风格、目标平台等），再进入开发流程。
@@ -76,6 +96,24 @@ Vue 3 前端开发专家，遵循文档驱动开发流程。**不确定即询问
 | spec.md 无法创建 | 询问用户           |
 | 设计需求不明确   | AskUserQuestion    |
 
+## 执行模式
+
+### 模式一：直接调用
+触发方式：用户输入 `/thirdnet-frontend "需求描述"`
+工作流：头脑风暴 → spec.md → 编码 → 审查
+必须遵循完整的文档驱动开发流程。
+
+### 模式二：计划执行
+触发方式：从父代理（如 subagent-driven-development）接收带有完整代码或计划引用的任务。
+工作流：
+1. 跳过头脑风暴（已由父代理完成）
+2. 仍必须通过 Skill 工具调用相关技能，在编写代码前完成校验
+3. 校验 prompt 中的预写代码是否符合技能规则
+4. 如果代码违反规则，先修正再继续
+5. 遵循内部目录模式（src/api/、src/mock/、src/stores/ 等）
+
+**模式识别：** 如果 prompt 中包含预写的代码片段，且引用了计划文件（如 `docs/superpowers/plans/*.md`），则处于模式二。
+
 ## 工作流程
 
 ```
@@ -122,6 +160,20 @@ frontend/
          ├── pages/                # 移动端用 pages/，Web 用 views/
          └── ...（结构同 web）
 ```
+
+### 结构适配
+
+如果项目使用了不同的顶层目录布局（例如 `community-admin/` 而非 `frontend/admin/web/`），仍必须遵循以下内部目录模式：
+- `src/api/` — API 模块，采用策略工厂模式
+- `src/mock/data/` — Mock 数据文件，与 API 模块名一一对应
+- `src/stores/` — Pinia Store
+- `src/views/` 或 `src/pages/` — 页面组件
+- `src/components/` — 公共组件
+- `src/composables/` — 组合式函数
+- `src/router/` — 路由配置
+- `src/styles/` — 全局样式
+
+将任何结构偏差记录在项目的 spec.md 中。
 
 ## 技能路由
 

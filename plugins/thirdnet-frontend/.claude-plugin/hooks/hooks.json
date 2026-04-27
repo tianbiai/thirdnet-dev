@@ -19,7 +19,12 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "检查本次 Write/Edit 操作是否修改了 `frontend/` 目录下的前端代码的功能性部分。\n\n工具输入：$TOOL_INPUT\n\n如果文件路径不包含 `frontend/`，不输出任何内容。\n\n如果编辑的文件在 `frontend/` 下且是：\n- Vue 组件/页面（src/pages/**、src/views/**、**/*.vue）\n- composable（src/composables/**）\n- API 模块（src/api/**）\n- Mock 数据（src/mock/**）\n- 状态管理（src/stores/**）\n- 路由配置（src/router/**）\n- 全局样式或设计变量（src/styles/**）\n- 配置文件（src/config/**）\n\n则输出系统消息提醒：\n\"本次编辑可能涉及功能性变更。在结束任务前，请确保更新对应的 spec.md（项目级和/或页面级）和 changelog 相关文件（Web应用: public/changelog.md + public/viewer.html + public/marked.min.js，小程序应用: static/changelog.md + static/viewer.html + static/marked.min.js）。\"\n\n**API 策略工厂架构检查**：如果新增或修改了 `src/api/modules/**/*.ts` 文件，确保对应的 `src/mock/data/**/*.ts` 文件也同步创建或更新（端点+文件名一致，遵循策略工厂模式：IXxxApi + RealXxxApi + MockXxxApi + createXxxApi）。反之亦然。\n\n如果文件是测试文件、构建脚本或文档文件本身，则不输出任何内容。",
+            "prompt": "检查本次 Write/Edit 操作是否修改了 `frontend/` 目录下的前端代码的功能性部分。\n\n工具输入：$TOOL_INPUT\n\n如果文件路径不包含 `frontend/`，不输出任何内容。\n\n如果编辑的文件在 `frontend/` 下且是：\n- Vue 组件/页面（src/pages/**、src/views/**、**/*.vue）\n- composable（src/composables/**）\n- API 模块（src/api/**）\n- Mock 数据（src/mock/**）\n- 状态管理（src/stores/**）\n- 路由配置（src/router/**）\n- 全局样式或设计变量（src/styles/**）\n- 配置文件（src/config/**）\n\n则输出系统消息提醒：\n\"本次编辑可能涉及功能性变更。在结束任务前，请确保更新对应的 spec.md（项目级和/或页面级）和 changelog 相关文件（Web应用: public/changelog.md + public/viewer.html + public/marked.min.js，小程序应用: static/changelog.md + static/viewer.html + static/marked.min.js）。\"\n\n**API 策略工厂架构检查**：如果新增或修改了 `src/api/modules/**/*.ts` 文件，逐项检查以下策略工厂模式要求：
+1. 文件是否定义了接口（如 IXxxApi）？
+2. 是否同时包含 RealXxxApi 和 MockXxxApi 两个实现类？
+3. 是否导出了基于配置切换的 createXxxApi() 工厂函数？
+4. 对应的 Mock 数据文件是否存在于 src/mock/data/{模块名}/？
+如果任何检查未通过，输出警告信息，说明违反了哪条规则以及如何修复。反之，如果新增或修改了 `src/mock/data/**/*.ts` 文件，确保对应的 `src/api/modules/**/*.ts` API 模块也同步创建或更新。\n\n如果文件是测试文件、构建脚本或文档文件本身，则不输出任何内容。",
             "timeout": 15
           }
         ]

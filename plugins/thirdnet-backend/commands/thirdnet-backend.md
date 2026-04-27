@@ -37,6 +37,27 @@ allowed-tools:
 2. 调用后端开发专家 Agent（`agents/backend-developer.md`）
 3. Agent 将按文档驱动开发流程执行（详见 **backend-developer** Agent）
 
+## 必须调用的技能（不可跳过）
+
+代理执行任何代码编写前，必须通过 Skill 工具调用以下技能：
+
+1. **创建微服务项目** → 调用 `thirdnet-backend:net-microservice-generator`
+2. **开发 API 接口 / Controller** → 调用 `thirdnet-backend:net-api-developer`
+3. **数据库实体 / 迁移 / Fluent API** → 调用 `thirdnet-backend:net-efcore-developer`
+4. **认证授权配置** → 调用 `thirdnet-backend:net-authentication`
+5. **Redis 缓存功能** → 调用 `thirdnet-backend:net-cache-use`
+6. **后台定时任务** → 调用 `thirdnet-backend:net-background-job`
+7. **批量数据操作** → 调用 `thirdnet-backend:net-database-bulkcopy`
+
+## 必须遵循的约定
+
+- .NET 10 + PostgreSQL + EF Core 技术栈，不可替换
+- 禁止 Minimal API，API 和 Database 项目必须分离
+- EF Core 实体禁止使用数据注解，统一使用 Fluent API
+- API 仅允许 GET 和 POST 方法，禁止 DELETE/PUT/PATCH
+- 数据库字段使用 snake_case 命名
+- 文档驱动开发：plan.md → spec.md → changelog.md → 代码
+
 ## 技术栈
 
 > 参阅 **net-microservice-generator** 技能中的技术栈定义。

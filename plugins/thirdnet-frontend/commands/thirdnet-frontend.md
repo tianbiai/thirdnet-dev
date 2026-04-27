@@ -37,12 +37,24 @@ allowed-tools:
 2. 调用前端开发专家 Agent（`agents/frontend-developer.md`）
 3. Agent 将：
    - 理解需求和技术上下文
-   - 参考前端技能文档（`vue-best-practices`、全局技能 `/frontend-design`、`vue-pinia-best-practices` 等）
-   - 参考 `doc-templates` 技能中的规范模板（project-spec-template、changelog-template 等）
-   - 遵循 API 策略工厂架构（`api-typescript-spec` 技能）：API 模块采用接口契约策略工厂模式（`IXxxApi` + `RealXxxApi` + `MockXxxApi` + `createXxxApi()`），与 Mock 数据（`mock/data/{endpoint}/*.ts`）文件名一致
-   - 遵循演示模式控制：`MOCK_ENABLED` 开关控制帮助气泡显示与数据来源
-   - 遵循文档驱动开发流程
    - 生成或修改相应的代码文件
+
+## 必须调用的技能（不可跳过）
+
+代理执行任何代码编写前，必须通过 Skill 工具调用以下技能：
+
+1. **所有 Vue 开发任务** → 调用 `thirdnet-frontend:vue-best-practices`
+2. **API / Mock 模块开发** → 调用 `thirdnet-frontend:api-typescript-spec`
+3. **Pinia 状态管理** → 调用 `thirdnet-frontend:vue-pinia-best-practices`
+4. **Vue Router 路由** → 调用 `thirdnet-frontend:vue-router-best-practices`
+5. **新建页面/功能** → 调用 `thirdnet-frontend:doc-templates`（先写 spec.md）
+6. **UI 设计 / 样式** → 调用 `thirdnet-frontend:design-apple`
+
+## 必须遵循的约定
+
+- API 模块采用接口契约策略工厂模式（`IXxxApi` + `RealXxxApi` + `MockXxxApi` + `createXxxApi()`），与 Mock 数据（`mock/data/{endpoint}/*.ts`）文件名一致
+- `MOCK_ENABLED` 开关控制帮助气泡显示与数据来源
+- 文档驱动开发：先有 spec.md 再编写代码
 
 ## 注意事项
 

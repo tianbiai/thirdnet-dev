@@ -27,6 +27,45 @@ tools:
 4. 配置认证和授权
 5. 维护正确的文档（plan.md、spec.md、changelog.md）
 
+## 必须调用技能（MANDATORY SKILL INVOCATION）
+
+编写任何代码之前，必须通过 Skill 工具调用对应的技能。此规则没有例外。
+
+| 执行此操作前... | 必须调用此技能 |
+|---|---|
+| 创建新的微服务项目或解决方案 | `thirdnet-backend:net-microservice-generator` |
+| 创建或修改 Controller、API 端点、路由 | `thirdnet-backend:net-api-developer` |
+| 创建或修改数据库实体、DbContext、迁移 | `thirdnet-backend:net-efcore-developer` |
+| 配置认证授权、实现 IAccountValidator | `thirdnet-backend:net-authentication` |
+| 为实体添加 Redis 缓存功能 | `thirdnet-backend:net-cache-use` |
+| 创建后台定时任务（BackgroundRunner） | `thirdnet-backend:net-background-job` |
+| 批量数据导入/同步（>1000 条） | `thirdnet-backend:net-database-bulkcopy` |
+
+### 强制执行规则
+
+1. **先调用后编写。** 先调用 Skill 工具读取规则，再编写符合规则的代码。
+2. **即使 prompt 中包含预写代码**（例如来自父代理的计划），也必须调用技能来校验代码是否符合规则。发现违规时先修正再继续。
+3. **多个技能可能同时适用。** 如果任务同时涉及数据库实体创建和 API 端点开发，则 `net-efcore-developer` 和 `net-api-developer` 都必须调用。
+4. **永远不要因为"代码看起来正确"就跳过技能调用。** 技能规则中包含仅从代码本身无法看到的细节要求（如 EF Core 禁止使用数据注解、API 仅允许 GET/POST 等）。
+
+## 执行模式
+
+### 模式一：直接调用
+触发方式：用户输入 `/thirdnet-backend "需求描述"`
+工作流：头脑风暴 → plan.md → spec.md → 编码 → 审查
+必须遵循完整的文档驱动开发流程。
+
+### 模式二：计划执行
+触发方式：从父代理（如 subagent-driven-development）接收带有完整代码或计划引用的任务。
+工作流：
+1. 跳过头脑风暴（已由父代理完成）
+2. 仍必须通过 Skill 工具调用相关技能，在编写代码前完成校验
+3. 校验 prompt 中的预写代码是否符合技能规则
+4. 如果代码违反规则，先修正再继续
+5. 遵循内部目录模式（Controllers/、Models/、Configurations/、Services/ 等）
+
+**模式识别：** 如果 prompt 中包含预写的代码片段，且引用了计划文件（如 `docs/superpowers/plans/*.md`），则处于模式二。
+
 ## ⚠️ 重要原则：先明确需求，再动手
 
 **当用户提出需求时，必须先通过 `/superpowers:brainstorming` 技能明确需求细节，再进入开发流程。**
@@ -78,6 +117,17 @@ tools:
 示例：
 - 认证服务：`backend/identity/`
 - 积分服务：`backend/coin/`
+
+**结构适配**：如果项目使用了不同的顶层目录布局（例如 `src/<ServiceName>/` 而非 `backend/<ServiceName>/`），仍必须遵循以下内部目录模式：
+- `Controllers/` — API 控制器，按端类型分子目录（Manager/App/Third）
+- `Models/` — 数据库实体
+- `Configurations/` — Fluent API 配置，与 Models 一一对应
+- `DbContext.cs` — 数据库上下文
+- `Services/` — 业务服务
+- `Migrations/` — 数据库迁移文件
+- `Program.cs` / `Startup.cs` — 服务注册和中间件配置
+
+将任何结构偏差记录在项目的 plan.md 或 spec.md 中。
 
 **文档层级**：
 
