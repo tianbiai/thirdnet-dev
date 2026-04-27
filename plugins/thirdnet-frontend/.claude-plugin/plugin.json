@@ -1,6 +1,6 @@
 {
   "name": "thirdnet-frontend",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "description": "前端开发助手 - Vue 3 页面、组件、样式开发，支持 TypeScript API 策略工厂模式（接口契约 + Real/Mock 可互换策略）、枚举规范（enum + JSDoc）、.env 无缝切换与演示模式控制",
   "author": {
     "name": "thirdnet"
