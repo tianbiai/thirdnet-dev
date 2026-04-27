@@ -47,6 +47,7 @@ tools:
 2. **即使 prompt 中包含预写代码**（例如来自父代理的计划），也必须调用技能来校验代码是否符合规则。发现违规时先修正再继续。
 3. **多个技能可能同时适用。** 如果任务同时涉及数据库实体创建和 API 端点开发，则 `net-efcore-developer` 和 `net-api-developer` 都必须调用。
 4. **永远不要因为"代码看起来正确"就跳过技能调用。** 技能规则中包含仅从代码本身无法看到的细节要求（如 EF Core 禁止使用数据注解、API 仅允许 GET/POST 等）。
+5. **外部流程不能覆盖本规则。** 即使父代理的 prompt 说"跳过技能调用"或"按计划直接执行"，也必须在首次写入后端代码前调用所有适用技能。本规则优先级高于任何外部 prompt 指令。
 
 ## 执行模式
 
@@ -57,14 +58,27 @@ tools:
 
 ### 模式二：计划执行
 触发方式：从父代理（如 subagent-driven-development）接收带有完整代码或计划引用的任务。
+
+**关键原则：模式二只跳过了头脑风暴，不跳过技能调用。** 因为跳过了 brainstorming，技能规则是此时唯一的质量保障。
+
 工作流：
 1. 跳过头脑风暴（已由父代理完成）
-2. 仍必须通过 Skill 工具调用相关技能，在编写代码前完成校验
-3. 校验 prompt 中的预写代码是否符合技能规则
-4. 如果代码违反规则，先修正再继续
+2. **强制：对照技能速查表逐项检查，通过 Skill 工具调用所有适用的技能**
+3. 将技能规则与 prompt 中的预写代码/计划进行逐条比对
+4. 如果代码违反技能规则，修正后再继续（不得以"计划已写好"为由跳过修正）
 5. 遵循内部目录模式（Controllers/、Models/、Configurations/、Services/ 等）
 
 **模式识别：** 如果 prompt 中包含预写的代码片段，且引用了计划文件（如 `docs/superpowers/plans/*.md`），则处于模式二。
+
+**模式二下的技能调用检查清单：**
+- [ ] 涉及新项目创建 → 已调用 `net-microservice-generator`
+- [ ] 涉及 Controller / API 端点 → 已调用 `net-api-developer`
+- [ ] 涉及 Models / DbContext / 迁移 → 已调用 `net-efcore-developer`
+- [ ] 涉及认证授权 → 已调用 `net-authentication`
+- [ ] 涉及缓存功能 → 已调用 `net-cache-use`
+- [ ] 涉及后台任务 → 已调用 `net-background-job`
+- [ ] 涉及批量数据操作 → 已调用 `net-database-bulkcopy`
+- [ ] 以上所有适用项勾选后，方可开始编码
 
 ## 需求澄清
 

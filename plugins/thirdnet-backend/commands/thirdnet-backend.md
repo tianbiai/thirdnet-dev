@@ -31,11 +31,37 @@ allowed-tools:
 /thirdnet-backend "优化数据库查询性能"
 ```
 
-## 执行流程
+## 执行流程（严格按阶段顺序，不可跳过任何阶段）
+
+### 阶段一：需求澄清
 
 1. 分析用户提供的需求描述
-2. 调用后端开发专家 Agent（`agents/backend-developer.md`）
-3. Agent 将按文档驱动开发流程执行（详见 **backend-developer** Agent）
+2. 判断需求清晰度：
+   - **模糊需求**（缺少功能范围、数据模型、接口设计、架构方案等）→ 调用 `superpowers:brainstorming` 进行需求澄清
+   - **明确需求**（功能范围、数据模型、接口、架构均已确定）→ 跳过 brainstorming，直接进入阶段二
+   - **部分明确** → 用 AskUserQuestion 补充确认后进入阶段二
+3. **关键约束：** brainstorming 完成后，流程必须回到本命令继续执行阶段二。禁止直接跳转到 superpowers 的 writing-plans 或 subagent-driven-development 流程。
+
+### 阶段二：技能加载（不可跳过）
+
+4. 根据需求涉及的技术领域，通过 Skill 工具调用以下技能（按需匹配）：
+   - 创建微服务项目 → `thirdnet-backend:net-microservice-generator`
+   - 开发 API 接口 / Controller → `thirdnet-backend:net-api-developer`
+   - 数据库实体 / 迁移 / Fluent API → `thirdnet-backend:net-efcore-developer`
+   - 认证授权配置 → `thirdnet-backend:net-authentication`
+   - Redis 缓存功能 → `thirdnet-backend:net-cache-use`
+   - 后台定时任务 → `thirdnet-backend:net-background-job`
+   - 批量数据操作 → `thirdnet-backend:net-database-bulkcopy`
+5. 技能规则加载完成后，进入阶段三
+
+### 阶段三：开发执行
+
+6. 调用后端开发专家 Agent（`agents/backend-developer.md`），将技能输出作为上下文传递
+7. Agent 按文档驱动开发流程执行：plan.md → spec.md → 编码 → 审查
+
+### 阶段四：完成校验
+
+8. 执行开发完成校验清单（见 agent 中的校验部分）
 
 ## 必须调用的技能（不可跳过）
 
