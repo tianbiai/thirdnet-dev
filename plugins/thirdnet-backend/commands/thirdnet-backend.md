@@ -11,6 +11,8 @@ allowed-tools:
   - Bash
   - LSP
   - AskUserQuestion
+  - TodoWrite
+  - WebSearch
 ---
 # 后端开发命令
 
@@ -67,7 +69,13 @@ allowed-tools:
 
 ### 阶段三：开发执行
 
-6. 按照「文档驱动开发」流程执行：加载技能规则 → 编写 plan.md → 编写 spec.md → 编码 → 自查
+6. 按照「文档驱动开发」流程执行，严格按以下顺序：
+   a. 编写项目级 `plan.md`（服务规划、开发顺序、技术架构）
+   b. 编写 `changelog.md`（初始化版本记录，读取 `net-microservice-generator` 技能中的变更日志模板）
+   c. 为每个待开发的微服务创建 `backend/{ServiceName}/spec.md`（读取 `net-microservice-generator` 技能中的服务规格模板）
+   d. 服务级 spec 必须在对应代码编写前完成
+   e. 编码实现（代码必须与 spec 保持一致）
+   f. 自查
 7. 所有代码编写必须遵循阶段二中已加载的技能规则
 
 ### 阶段四：完成校验
@@ -78,7 +86,7 @@ allowed-tools:
 
 代理执行任何代码编写前，必须通过 Skill 工具调用以下技能：
 
-1. **创建微服务项目** → 调用 `thirdnet-backend:net-microservice-generator`
+1. **创建微服务项目** → 调用 `thirdnet-backend:net-microservice-generator`（必须按模板生成 plan.md、changelog.md、spec.md，详见该技能"强制规则"）
 2. **开发 API 接口 / Controller** → 调用 `thirdnet-backend:net-api-developer`
 3. **数据库实体 / 迁移 / Fluent API** → 调用 `thirdnet-backend:net-efcore-developer`
 4. **认证授权配置** → 调用 `thirdnet-backend:net-authentication`
@@ -93,7 +101,8 @@ allowed-tools:
 - EF Core 实体禁止使用数据注解，统一使用 Fluent API
 - API 仅允许 GET 和 POST 方法，禁止 DELETE/PUT/PATCH
 - 数据库字段使用 snake_case 命名
-- 文档驱动开发：plan.md → spec.md → changelog.md → 代码
+- 文档驱动开发：先有 plan.md，再生成 changelog.md，再为每个服务编写 spec.md，最后再编写代码
+- 服务级 spec 不可跳过：任何微服务的代码编写前，对应的 `backend/{ServiceName}/spec.md` 必须已存在
 
 ## 技术栈
 
@@ -105,5 +114,5 @@ allowed-tools:
 - 描述 API 的输入输出要求
 - 如有特殊的认证或授权需求，请说明
 - 复杂的业务逻辑建议分步实现
-- 遵循文档驱动开发：先有 plan.md 和 spec.md 再编写代码
-- 项目目录结构：后端服务创建在 `backend/<ServiceName>/`，前端项目创建在 `frontend/<ServiceName>/`
+- 遵循文档驱动开发：先有 plan.md，再生成 changelog.md，再为每个服务编写 spec.md，最后再编写代码
+- 项目目录结构：后端服务创建在 `backend/<ServiceName>/` 下

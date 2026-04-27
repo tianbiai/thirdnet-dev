@@ -31,15 +31,15 @@ tools:
 
 编写任何代码之前，必须通过 Skill 工具调用对应的技能。此规则没有例外。
 
-| 执行此操作前... | 必须调用此技能 |
-|---|---|
-| 创建新的微服务项目或解决方案 | `thirdnet-backend:net-microservice-generator` |
-| 创建或修改 Controller、API 端点、路由 | `thirdnet-backend:net-api-developer` |
-| 创建或修改数据库实体、DbContext、迁移 | `thirdnet-backend:net-efcore-developer` |
-| 配置认证授权、实现 IAccountValidator | `thirdnet-backend:net-authentication` |
-| 为实体添加 Redis 缓存功能 | `thirdnet-backend:net-cache-use` |
-| 创建后台定时任务（BackgroundRunner） | `thirdnet-backend:net-background-job` |
-| 批量数据导入/同步（>1000 条） | `thirdnet-backend:net-database-bulkcopy` |
+| 执行此操作前...                       | 必须调用此技能                                  |
+| ------------------------------------- | ----------------------------------------------- |
+| 创建新的微服务项目或解决方案          | `thirdnet-backend:net-microservice-generator` |
+| 创建或修改 Controller、API 端点、路由 | `thirdnet-backend:net-api-developer`          |
+| 创建或修改数据库实体、DbContext、迁移 | `thirdnet-backend:net-efcore-developer`       |
+| 配置认证授权、实现 IAccountValidator  | `thirdnet-backend:net-authentication`         |
+| 为实体添加 Redis 缓存功能             | `thirdnet-backend:net-cache-use`              |
+| 创建后台定时任务（BackgroundRunner）  | `thirdnet-backend:net-background-job`         |
+| 批量数据导入/同步（>1000 条）         | `thirdnet-backend:net-database-bulkcopy`      |
 
 ### 强制执行规则
 
@@ -52,24 +52,29 @@ tools:
 ## 执行模式
 
 ### 模式一：直接调用
+
 触发方式：用户输入 `/thirdnet-backend "需求描述"`
-工作流：需求澄清（AskUserQuestion）→ 加载技能 → plan.md → spec.md → 编码 → 审查
+工作流：需求澄清（AskUserQuestion）→ 加载技能 → plan.md → changelog.md → spec.md → 编码 → 审查
 
 ### 模式二：计划执行
+
 触发方式：从父代理（如 subagent-driven-development）接收带有完整代码或计划引用的任务。
 
 **关键原则：模式二只跳过了需求澄清，不跳过技能调用。** 因为跳过了澄清阶段，技能规则是此时唯一的质量保障。
 
 工作流：
+
 1. 跳过需求澄清（已由父代理完成）
 2. **强制：对照技能速查表逐项检查，通过 Skill 工具调用所有适用的技能**
+   2.5 检查 `backend/<ServiceName>/spec.md` 是否存在，不存在则先调用 `net-microservice-generator` 生成
 3. 将技能规则与 prompt 中的预写代码/计划进行逐条比对
 4. 如果代码违反技能规则，修正后再继续（不得以"计划已写好"为由跳过修正）
 5. 遵循内部目录模式（Controllers/、Models/、Configurations/、Services/ 等）
 
-**模式识别：** 如果 prompt 中包含预写的代码片段，且引用了计划文件（如 `docs/superpowers/plans/*.md`），则处于模式二。
+**模式识别：** 如果 prompt 中包含预写的代码片段，且引用了计划文件，则处于模式二。
 
 **模式二下的技能调用检查清单：**
+
 - [ ] 涉及新项目创建 → 已调用 `net-microservice-generator`
 - [ ] 涉及 Controller / API 端点 → 已调用 `net-api-developer`
 - [ ] 涉及 Models / DbContext / 迁移 → 已调用 `net-efcore-developer`
@@ -86,6 +91,7 @@ tools:
 **判断标准：** 如果无法直接写出完整的 spec.md（功能范围、数据模型、接口设计、架构方案均已明确），则需要澄清。
 
 **澄清方式：** 使用 `AskUserQuestion` 逐轮提问，按优先级澄清：
+
 1. 服务范围 — 需要哪些微服务？每个服务的职责？
 2. 数据与接口 — 核心数据模型？需要哪些 API 接口？
 3. 架构与约束 — 认证方式？缓存需求？后台任务？
@@ -124,10 +130,12 @@ tools:
 服务直接创建在 `backend/<ServiceName>/` 下。根目录即为项目总文件夹，无需额外的项目名层级。
 
 示例：
+
 - 认证服务：`backend/identity/`
 - 积分服务：`backend/coin/`
 
 **结构适配**：如果项目使用了不同的顶层目录布局（例如 `src/<ServiceName>/` 而非 `backend/<ServiceName>/`），仍必须遵循以下内部目录模式：
+
 - `Controllers/` — API 控制器，按端类型分子目录（Manager/App/Third）
 - `Models/` — 数据库实体
 - `Configurations/` — Fluent API 配置，与 Models 一一对应
@@ -140,11 +148,11 @@ tools:
 
 **文档层级**：
 
-| 文档         | 位置                              | 用途             |
-| ------------ | --------------------------------- | ---------------- |
-| plan.md      | `backend/plan.md`                 | 全局开发计划     |
-| changelog.md | `backend/changelog.md`            | 全局变更日志     |
-| spec.md      | `backend/<ServiceName>/spec.md`   | 服务功能说明书   |
+| 文档         | 位置                              | 用途           |
+| ------------ | --------------------------------- | -------------- |
+| plan.md      | `backend/plan.md`               | 全局开发计划   |
+| changelog.md | `backend/changelog.md`          | 全局变更日志   |
+| spec.md      | `backend/<ServiceName>/spec.md` | 服务功能说明书 |
 
 **开发顺序**：
 
@@ -154,10 +162,14 @@ tools:
 
 **阻断机制**：
 
+- 编码前必须先生成项目级 plan.md、changelog.md
+- 每个微服务的编码前，`backend/<ServiceName>/spec.md` 必须存在且已完整阅读
+- **批量服务实现时**：先为所有服务创建 spec.md，再逐个编码（不要边写 spec 边编码）
+- 代码必须与 spec 保持一致；大变更须更新 changelog.md
+- spec 不存在 → 停止 → 先生成规格文档
 - 所有开发工作必须按照 plan.md 规划进行
 - 严禁跳过 plan.md 或 spec.md 直接编写代码
 - 任何需求变更必须先更新文档
-- 大变更完成后必须更新 changelog.md
 
 ### 规则 2：API 接口规范
 
@@ -331,15 +343,15 @@ tools:
 
 ## 技能速查表
 
-| 技能 | 优先级 | 触发场景 |
-|------|--------|----------|
-| `net-microservice-generator` | ⭐⭐⭐ | 创建新项目、初始化微服务架构 |
-| `net-api-developer` | ⭐⭐⭐ | 创建 Controller、定义 API |
-| `net-efcore-developer` | ⭐⭐⭐ | 创建数据库实体、定义表结构、迁移 |
-| `net-authentication` | ⭐⭐⭐ | 认证配置、授权策略、Token、登录 |
-| `net-cache-use` | ⭐⭐ | 添加缓存功能、性能优化 |
-| `net-background-job` | ⭐ | 定时任务、后台作业 |
-| `net-database-bulkcopy` | ⭐ | 大数据量导入（>1000条）、Excel导入 |
+| 技能                           | 优先级 | 触发场景                           |
+| ------------------------------ | ------ | ---------------------------------- |
+| `net-microservice-generator` | ⭐⭐⭐ | 创建新项目、初始化微服务架构       |
+| `net-api-developer`          | ⭐⭐⭐ | 创建 Controller、定义 API          |
+| `net-efcore-developer`       | ⭐⭐⭐ | 创建数据库实体、定义表结构、迁移   |
+| `net-authentication`         | ⭐⭐⭐ | 认证配置、授权策略、Token、登录    |
+| `net-cache-use`              | ⭐⭐   | 添加缓存功能、性能优化             |
+| `net-background-job`         | ⭐     | 定时任务、后台作业                 |
+| `net-database-bulkcopy`      | ⭐     | 大数据量导入（>1000条）、Excel导入 |
 
 ## 新建微服务项目工作流
 

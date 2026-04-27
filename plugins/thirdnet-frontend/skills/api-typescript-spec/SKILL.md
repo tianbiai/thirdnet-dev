@@ -16,7 +16,7 @@ API 层采用**接口契约的策略工厂模式**，通过 TypeScript 接口定
 
 来自后端架构和网关限制，不可违反：
 
-1. **仅 GET / POST**：网关限制，不使用 PUT/DELETE/PATCH
+1. **仅 GET / POST**：网关限制，不使用 PUT/DELETE/PATCH。禁止在 request.ts 中导出 PUT/DELETE/PATCH 的便捷方法。adapter 接口中的 HttpMethod 类型应限定为 `'GET' | 'POST'`
 2. **字段名强制 snake_case**：所有 API 入参、出参、Mock 数据的字段名必须使用 `snake_case`（如 `order_id`、`created_at`、`user_name`），与后端 DTO 保持一致，**禁止使用 camelCase**
 3. **响应无包装**：成功直接返回实体 JSON 或 `PaginatedResponse<T>`，不用 `{ code, message, data }` 包装
 4. **错误走 HTTP 状态码**：通过 401/403/404/500 等区分错误
@@ -118,6 +118,8 @@ interface RequestAdapter {
 - 请求拦截：从 storage 读取 token，添加 `Authorization: bearer {token}` 头
 - 401 处理：尝试 refreshToken，失败则 clearToken 并跳转登录页
 - uni.request 需手动拼接 query string，错误判断用 `statusCode >= 400`
+
+**uniapp 项目适配器选择**：对于 uniapp 项目，H5 和 MP-WEIXIN 均使用 `UniAdapter`，无需条件编译选择适配器。条件编译仅在 `token.ts` 等需要区分 `localStorage` 和 `uni.getStorageSync` 的场景中使用。
 
 **统一导出** — `request.ts`（条件编译选择平台适配器）：
 ```typescript

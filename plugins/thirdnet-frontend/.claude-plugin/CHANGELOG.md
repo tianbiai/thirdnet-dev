@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.16.0 - 2026-04-27
+
+### Changed
+- 移除 Agent 中 brainstorming 残留引用（"跳过头脑风暴" → "跳过需求澄清"）
+- 修正命令"必调技能清单"中 doc-templates 描述与阶段二不一致的问题
+- PreToolUse Hook 匹配器从 `Write` 扩展为 `Write|Edit`，堵住 Edit 绕过技能合规检查的漏洞
+- Command allowed-tools 补齐 TodoWrite 和 WebSearch，与 Agent 工具声明一致
+
 ## 0.12.0 - 2026-04-26
 
 ### Changed

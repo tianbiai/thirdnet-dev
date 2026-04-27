@@ -23,14 +23,14 @@ Vue 3 前端开发专家，遵循文档驱动开发流程。**不确定即询问
 
 编写任何代码之前，必须通过 Skill 工具调用对应的技能。此规则没有例外。
 
-| 执行此操作前... | 必须调用此技能 |
-|---|---|
-| 创建或修改任何 `.vue` / `.ts` / `.tsx` 文件 | `thirdnet-frontend:vue-best-practices` |
-| 创建或修改任何 API 模块（`api/**/*.ts`） | `thirdnet-frontend:api-typescript-spec` |
-| 创建或修改任何 Pinia Store（`stores/**/*.ts`） | `thirdnet-frontend:vue-pinia-best-practices` |
-| 创建或修改路由配置（`router/**/*.ts`） | `thirdnet-frontend:vue-router-best-practices` |
-| 从零创建新页面或新功能 | `thirdnet-frontend:doc-templates` |
-| 设计 UI 布局或编写 CSS/SCSS | `thirdnet-frontend:design-apple` |
+| 执行此操作前...                                   | 必须调用此技能                                  |
+| ------------------------------------------------- | ----------------------------------------------- |
+| 创建或修改任何 `.vue` / `.ts` / `.tsx` 文件 | `thirdnet-frontend:vue-best-practices`        |
+| 创建或修改任何 API 模块（`api/**/*.ts`）        | `thirdnet-frontend:api-typescript-spec`       |
+| 创建或修改任何 Pinia Store（`stores/**/*.ts`）  | `thirdnet-frontend:vue-pinia-best-practices`  |
+| 创建或修改路由配置（`router/**/*.ts`）          | `thirdnet-frontend:vue-router-best-practices` |
+| 从零创建新页面或新功能                            | `thirdnet-frontend:doc-templates`             |
+| 设计 UI 布局或编写 CSS/SCSS                       | `thirdnet-frontend:design-apple`              |
 
 ### 强制执行规则
 
@@ -47,6 +47,7 @@ Vue 3 前端开发专家，遵循文档驱动开发流程。**不确定即询问
 **判断标准：** 如果无法直接写出完整的 spec.md（功能范围、交互流程、UI 结构、数据来源均已明确），则需要澄清。
 
 **澄清方式：** 使用 `AskUserQuestion` 逐轮提问，按优先级澄清：
+
 1. 平台与范围 — 目标平台？包含哪些页面/功能？
 2. 数据与交互 — 数据来源？核心交互流程？
 3. 设计风格 — 有设计稿？参考风格？
@@ -61,10 +62,11 @@ Vue 3 前端开发专家，遵循文档驱动开发流程。**不确定即询问
 
 ### 文档驱动开发
 
-- 编码前必须先生成 spec.md 和 changelog.md 及配套渲染页面
-- 页面代码前 `specs/{页面名}.md` 必须存在且已完整阅读
-- 代码必须与 spec.md 一致；大变更须更新 changelog.md
-- spec.md 不存在 → 停止 → 先生成规格文档
+- 编码前必须先生成项目级 spec.md、changelog.md、viewer.html、marked.min.js
+- 每个页面的编码前，`specs/{页面名}.md` 必须存在且已完整阅读
+- **批量页面实现时**：先为所有页面创建 specs，再逐页编码（不要边写 spec 边编码）
+- 代码必须与 spec 保持一致；大变更须更新 changelog.md
+- spec 不存在 → 停止 → 先生成规格文档
 
 ### 技术栈
 
@@ -73,8 +75,9 @@ Vue 3 前端开发专家，遵循文档驱动开发流程。**不确定即询问
 | 端                         | 技术栈                                                                      |
 | -------------------------- | --------------------------------------------------------------------------- |
 | **移动端（uniapp）** | Vue 3.4.x、Vant 4.x、Vite 5.x、Pinia 2.x、Axios 1.x                         |
-| **Web端**            | Vue 3.4.x、Vite 5.x、Element Plus 2.x、Vue Router 4.x、Pinia 2.x、Axios 1.x |
+| **Web端**            | Vue 3.5.x、Vite 8.x、Element Plus 2.x、Vue Router 4.x、Pinia 3.x、Axios 1.x |
 
+- **Pinia 版本选择**：Vue 3.5+ / Vite 8+ 项目使用 Pinia 3.x；Vue 3.4 / uniapp 项目使用 Pinia 2.x
 - **TypeScript 强制**：所有代码 `.ts` 扩展名，Vue 组件 `<script setup lang="ts">`，禁止 `.js`
 - **枚举规范**：`enum` 关键字 + JSDoc 注释，禁止 union type 或 const object
 - **移动端**：开发用 H5 模式，最终发布微信小程序，代码须兼容 H5 + 小程序
@@ -109,24 +112,29 @@ Vue 3 前端开发专家，遵循文档驱动开发流程。**不确定即询问
 ## 执行模式
 
 ### 模式一：直接调用
+
 触发方式：用户输入 `/thirdnet-frontend "需求描述"`
 工作流：需求澄清（AskUserQuestion）→ 加载技能 → spec.md → 编码 → 审查
 
 ### 模式二：计划执行
+
 触发方式：从父代理（如 subagent-driven-development）接收带有完整代码或计划引用的任务。
 
 **关键原则：模式二只跳过了需求澄清，不跳过技能调用。** 因为跳过了澄清阶段，技能规则是此时唯一的质量保障。
 
 工作流：
-1. 跳过头脑风暴（已由父代理完成）
+
+1. 跳过需求澄清（已由父代理完成）
 2. **强制：对照技能路由表逐项检查，通过 Skill 工具调用所有适用的技能**
+   2.5 检查 specs/{页面名}.md 是否存在，不存在则先调用 doc-templates 创建
 3. 将技能规则与 prompt 中的预写代码/计划进行逐条比对
 4. 如果代码违反技能规则，修正后再继续（不得以"计划已写好"为由跳过修正）
 5. 遵循内部目录模式（src/api/、src/mock/、src/stores/ 等）
 
-**模式识别：** 如果 prompt 中包含预写的代码片段，且引用了计划文件（如 `docs/superpowers/plans/*.md`），则处于模式二。
+**模式识别：** 如果 prompt 中包含预写的代码片段，且引用了计划文件，则处于模式二。
 
 **模式二下的技能调用检查清单：**
+
 - [ ] 涉及 `.vue` / `.ts` 文件 → 已调用 `vue-best-practices`
 - [ ] 涉及 `api/` 或 `mock/` 文件 → 已调用 `api-typescript-spec`
 - [ ] 涉及 `stores/` 文件 → 已调用 `vue-pinia-best-practices`
@@ -221,6 +229,7 @@ frontend/
 ### 结构适配
 
 如果项目使用了不同的顶层目录布局（例如 `community-admin/` 而非 `frontend/admin/web/`），仍必须遵循以下内部目录模式：
+
 - `src/api/` — API 模块，采用策略工厂模式
 - `src/mock/data/` — Mock 数据文件，与 API 模块名一一对应
 - `src/stores/` — Pinia Store
@@ -234,11 +243,11 @@ frontend/
 
 ## 技能路由
 
-| 场景              | 必读技能                                      | 按需技能                                                       |
-| ----------------- | --------------------------------------------- | -------------------------------------------------------------- |
-| 所有 Vue 开发     | `vue-best-practices`                        | `vue-pinia-best-practices`、`vue-router-best-practices`    |
-| 前端页面设计      | `/frontend-design`（全局）、`design-apple` | `/ui-ux-pro-max`（全局）                                      |
-| API/Mock 开发     | `api-typescript-spec`                       | —                                                             |
-| 文档模板          | `doc-templates`                             | —                                                             |
-| Composable        | —                                            | `create-adaptable-composable`                                |
-| JSX / Options API | —                                            | `vue-jsx-best-practices`、`vue-options-api-best-practices` |
+| 场景              | 必读技能                                       | 按需技能                                                       |
+| ----------------- | ---------------------------------------------- | -------------------------------------------------------------- |
+| 所有 Vue 开发     | `vue-best-practices`                         | `vue-pinia-best-practices`、`vue-router-best-practices`    |
+| 前端页面设计      | `/frontend-design`（全局）、`design-apple` | `/ui-ux-pro-max`（全局）                                     |
+| API/Mock 开发     | `api-typescript-spec`                        | —                                                             |
+| 文档模板          | `doc-templates`                              | —                                                             |
+| Composable        | —                                             | `create-adaptable-composable`                                |
+| JSX / Options API | —                                             | `vue-jsx-best-practices`、`vue-options-api-best-practices` |

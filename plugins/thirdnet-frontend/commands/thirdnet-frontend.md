@@ -11,6 +11,8 @@ allowed-tools:
   - Bash
   - LSP
   - AskUserQuestion
+  - TodoWrite
+  - WebSearch
 ---
 # 前端开发命令
 
@@ -60,13 +62,19 @@ allowed-tools:
    - API / Mock 模块开发 → `thirdnet-frontend:api-typescript-spec`
    - Pinia 状态管理 → `thirdnet-frontend:vue-pinia-best-practices`
    - Vue Router 路由 → `thirdnet-frontend:vue-router-best-practices`
-   - 新建页面/功能 → `thirdnet-frontend:doc-templates`（先写 spec.md）
+   - 新建页面/功能 → `thirdnet-frontend:doc-templates`（先写 spec.md + 生成 changelog.md / viewer.html / marked.min.js 等配套文件，详见该技能"强制规则"）
    - UI 设计 / 样式 → `thirdnet-frontend:design-apple`
 5. 技能规则加载完成后，进入阶段三
 
 ### 阶段三：开发执行
 
-6. 按照「文档驱动开发」流程执行：加载技能规则 → 编写 spec.md → 编码 → 自查
+6. 按照「文档驱动开发」流程执行，严格按以下顺序：
+   a. 编写项目级 `spec.md`（功能架构、技术栈、设计系统）
+   b. 调用 `doc-templates` 技能，生成配套文件（changelog.md、viewer.html、marked.min.js）
+   c. 为每个待实现的页面创建 `specs/{页面名}.md`（读取 `doc-templates` 的 `page-spec-template` 模板）
+   d. 页面 spec 必须在对应 .vue 文件编码前完成
+   e. 编码实现（代码必须与 spec 保持一致）
+   f. 自查
 7. 所有代码编写必须遵循阶段二中已加载的技能规则
 
 ### 阶段四：完成校验
@@ -81,19 +89,20 @@ allowed-tools:
 2. **API / Mock 模块开发** → 调用 `thirdnet-frontend:api-typescript-spec`
 3. **Pinia 状态管理** → 调用 `thirdnet-frontend:vue-pinia-best-practices`
 4. **Vue Router 路由** → 调用 `thirdnet-frontend:vue-router-best-practices`
-5. **新建页面/功能** → 调用 `thirdnet-frontend:doc-templates`（先写 spec.md）
+5. **新建页面/功能** → 调用 `thirdnet-frontend:doc-templates`（先写 spec.md + 生成 changelog.md / viewer.html / marked.min.js 等配套文件，详见该技能"强制规则"）
 6. **UI 设计 / 样式** → 调用 `thirdnet-frontend:design-apple`
 
 ## 必须遵循的约定
 
 - API 模块采用接口契约策略工厂模式（`IXxxApi` + `RealXxxApi` + `MockXxxApi` + `createXxxApi()`），与 Mock 数据（`mock/data/{endpoint}/*.ts`）文件名一致
 - `MOCK_ENABLED` 开关控制帮助气泡显示与数据来源
-- 文档驱动开发：先有 spec.md 再编写代码
+- 文档驱动开发：先有项目级 spec.md，再为每个页面编写 specs/{页面名}.md，最后再编写代码
+- 页面级 spec 不可跳过：任何 .vue 文件的编码前，对应的 specs/{页面名}.md 必须已存在
 
 ## 注意事项
 
 - 确保项目已初始化前端框架
 - 描述尽量具体，包含必要的功能点
 - 如需特定样式或交互，请详细说明
-- 遵循文档驱动开发：先有 spec.md 再编写代码
+- 遵循文档驱动开发：先有项目级 spec.md，再为每个页面编写 specs/{页面名}.md，最后再编写代码
 - 设计或开发过程中，可使用 `/ui-ux-pro-max` 全局技能对页面进行优化
