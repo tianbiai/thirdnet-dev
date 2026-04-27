@@ -1,6 +1,6 @@
 ---
 name: net-database-bulkcopy
-version: 0.1.0
+version: 1.0.0
 description: PostgreSQL 批量数据操作专家，基于 PostgresqlAsyncBulk 实现高性能数据操作。**主动用于**：大数据量导入（>1000条）、批量更新、批量插入、数据同步、ETL 场景、数据迁移、初始化数据。当用户提到"批量"、"导入"、"同步"、"大数据量"、"Excel导入"、"数据迁移"、"Upsert"、"Merge"、"CopyToServer"、"MergeToServer"、"BulkCopy"、"批量写入"、"批量插入"时，必须使用此技能。
 ---
 
@@ -189,3 +189,10 @@ public async Task SyncDataFromExternalSystem(List<ExternalData> externalData)
 ## 详细 API 文档
 
 完整的 API 参数说明和更多示例，请参阅：`references/bulk-operations.md`
+
+## 相关技能
+
+- **backend-workflow**: 文档驱动开发流程和交付标准
+- **net-efcore-developer**: 数据库实体开发（BulkCopy 基于实体进行映射）
+- **net-api-developer**: API 接口开发（批量操作常通过 API 触发）
+- **net-cache-use**: 缓存功能集成（批量操作后需刷新相关缓存）

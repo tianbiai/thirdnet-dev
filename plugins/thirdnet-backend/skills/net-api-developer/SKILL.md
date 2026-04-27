@@ -1,6 +1,6 @@
 ---
 name: net-api-developer
-version: 0.1.0
+version: 1.0.0
 description: .NET API 接口开发专家，负责创建 Controller、定义 API 路由、编写 HTTP 端点方法（仅使用 GET/POST）。**主动用于**：创建新的 Controller、编写 API 接口方法、定义路由、处理 HTTP 请求响应。当用户提到"接口"、"API"、"Controller"、"端点"、"路由"、"写个接口"、"加个接口"、"增删改查"、"CRUD"、"HttpGet"、"HttpPost"、"接口开发"、"API开发"、"授权策略"、"Authorize"、"用户信息"、"HttpContext"时，必须使用此技能。
 ---
 ## 使用场景
@@ -151,7 +151,7 @@ public class OrderController : ControllerBase { }      // 缺少端类型后缀
 
 **命名规范**：
 - **类名**：使用 PascalCase，以 `Request` 或 `Response` 结尾
-- **属性名**：使用小写，与数据库字段命名保持一致
+- **属性名**：使用 snake_case，与数据库字段命名保持一致
 
 **命名约定**：
 
@@ -236,7 +236,7 @@ public async Task<IActionResult> GetUser(long id)
 ### DTO 设计
 
 - [ ] DTO 类名使用 PascalCase，以 `Request` 或 `Response` 结尾
-- [ ] DTO 属性名使用小写（与数据库字段一致）
+- [ ] DTO 属性名使用 snake_case（与数据库字段一致）
 
 ### 响应与错误处理
 

@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "你是前端项目的文档完整性检查器。\n\n首先，检查本次对话是否涉及了对 `frontend/` 目录下代码库的修改。如果没有涉及前端代码，返回：{\"decision\": \"approve\"}\n\n如果涉及前端代码，评估本次对话是否涉及了**功能性需求变更**。功能性变更包括：\n- 新增、删除或修改页面功能或 UI 组件\n- 变更业务逻辑或用户交互流程\n- 新增页面、路由或视图\n- 修改 API 集成或数据流\n- 变更设计规范（颜色、布局、字体等）\n\n如果**没有**功能性变更（例如仅修复 Bug、重构代码、添加注释、修改配置），返回：{\"decision\": \"approve\"}\n\n如果**有**功能性变更，验证以下文档是否已更新：\n1. **项目级 spec.md** — 位于 `frontend/{子系统名}/spec.md`（如 frontend/web/spec.md、frontend/minigram/spec.md）— 应反映新增/变更的功能\n2. **页面级 spec.md** — 位于 `frontend/{子系统名}/specs/{页面名}.md` 或类似路径 — 应反映页面相关变更\n3. **changelog 相关文件** — 应新增条目记录版本号、日期和变更描述，并确保渲染页面文件存在\n   - **Web应用**：`public/changelog.md` + `public/viewer.html` + `public/marked.min.js`\n   - **小程序应用**：`static/changelog.md` + `static/viewer.html` + `static/marked.min.js`\n\n检查这些文件是否已存在且在本次会话中被修改。如果有任何必需的文档缺失或未更新：\n\n返回 JSON：\n{\"decision\": \"block\", \"reason\": \"检测到功能性变更但文档未更新。你必须更新以下内容：\\n1. 项目级 spec.md — 更新功能清单、架构或设计系统章节\\n2. 页面级 specs/{页面名}.md — 更新受影响页面的规格说明\\n3. changelog 相关文件 — 添加版本条目（Web应用: public/changelog.md + public/viewer.html + public/marked.min.js，小程序应用: static/changelog.md + static/viewer.html + static/marked.min.js）\\n\\n模板参考：\\n- 项目级规格模板：doc-templates 技能中的 project-spec-template\\n- 页面级规格模板：doc-templates 技能中的 page-spec-template\\n- 变更日志模板：doc-templates 技能中的 changelog-template\\n- 通用Markdown查看器模板：doc-templates 技能中的 markdown-viewer\\n- JS库说明：doc-templates 技能中的 marked-js-setup\"}\n\n如果所有文档都已正确更新，返回：{\"decision\": \"approve\"}",
+            "prompt": "你是前端项目的文档完整性检查器。\n\n首先，检查本次对话是否涉及了对 `frontend/` 目录下代码库的修改。如果没有涉及前端代码，返回：{\"decision\": \"approve\"}\n\n如果涉及前端代码，评估本次对话是否涉及了**功能性需求变更**。功能性变更包括：\n- 新增、删除或修改页面功能或 UI 组件\n- 变更业务逻辑或用户交互流程\n- 新增页面、路由或视图\n- 修改 API 集成或数据流\n- 变更设计规范（颜色、布局、字体等）\n\n如果**没有**功能性变更（例如仅修复 Bug、重构代码、添加注释、修改配置），返回：{\"decision\": \"approve\"}\n\n如果**有**功能性变更，验证以下文档是否已更新：\n1. **项目级 spec.md** — 位于 `frontend/{子系统名}/spec.md`（如 frontend/web/spec.md、frontend/minigram/spec.md）— 应反映新增/变更的功能\n2. **页面级 spec.md** — 位于 `frontend/{子系统名}/specs/{页面名}.md` 或类似路径 — 应反映页面相关变更\n3. **changelog 相关文件** — 应新增条目记录版本号、日期和变更描述，并确保渲染页面文件存在\n   - **Web应用**：`public/changelog.md` + `public/viewer.html` + `public/marked.min.js`\n   - **小程序应用**：`static/changelog.md` + `static/viewer.html` + `static/marked.min.js`\n\n检查这些文件是否已存在且在本次会话中被修改。如果有任何必需的文档缺失或未更新：\n\n返回 JSON：\n{\"decision\": \"block\", \"reason\": \"检测到功能性变更但文档未更新。你必须更新以下内容：\\n1. 项目级 spec.md — 更新功能清单、架构或设计系统章节\\n2. 页面级 specs/{页面名}.md — 更新受影响页面的规格说明\\n3. changelog 相关文件 — 添加版本条目（Web应用: public/changelog.md + public/viewer.html + public/marked.min.js，小程序应用: static/changelog.md + static/viewer.html + static/marked.min.js）\\n\\n模板参考：\\n- 项目级规格模板：project-spec-template\\n- 页面级规格模板：page-spec-template\\n- 变更日志模板：changelog-template\\n- 通用Markdown查看器模板：markdown-viewer\\n- JS库说明：marked-js-setup\"}\n\n如果所有文档都已正确更新，返回：{\"decision\": \"approve\"}",
             "timeout": 30
           }
         ]
@@ -15,6 +15,7 @@
     ],
     "PreToolUse": [
       {
+        "_comment": "frontend-workflow 是流程技能，不在此检查。Agent 通过强制技能表保证调用，Stop Hook 检查文档输出作为兜底。",
         "matcher": "Write|Edit",
         "hooks": [
           {

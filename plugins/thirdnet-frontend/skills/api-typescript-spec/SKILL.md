@@ -5,7 +5,11 @@ description: |
   指导创建：策略接口（IXxxApi）、真实实现（RealXxxApi 适配 HTTP）、Mock 实现（MockXxxApi 适配本地数据）、工厂函数（createXxxApi）、枚举类型（enum + JSDoc 注释）。
   当用户需要创建 API 接口、添加接口模块、编写 Mock 数据、定义请求类型、设置 API 层架构、创建枚举类型、或任何涉及 api/modules/ 和 mock/data/ 目录的操作时，必须使用此 skill。
   关键触发词：API、接口、Mock、请求、adapter、request、类型定义、DTO、分页、认证、登录、token、枚举、enum、策略模式、工厂模式、接口契约、IXxxApi。
-compatibility: Vue 3 + TypeScript + Vite 项目，支持 Web（Element Plus）和移动端（uniapp + Vant，发布为微信小程序 mp-weixin）
+license: MIT
+metadata:
+  version: "1.0.0"
+  author: thirdnet
+  compatibility: Vue 3 + TypeScript + Vite 项目，支持 Web（Element Plus）和移动端（uniapp + Vant，发布为微信小程序 mp-weixin）
 ---
 
 # 前端 API 接口 TypeScript 规范（策略工厂模式）

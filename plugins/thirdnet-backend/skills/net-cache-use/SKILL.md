@@ -1,6 +1,6 @@
 ---
 name: net-cache-use
-version: 0.1.0
+version: 1.0.0
 description: 缓存功能开发专家，为业务实体添加完整的 Redis 缓存功能（CacheManager、RedisHandler、View 三层架构）。**主动用于**：为实体添加缓存、字典数据缓存、配置信息缓存、高频查询缓存、缓存预热、性能优化。当用户提到"缓存"、"Cache"、"Redis"、"加缓存"、"缓存数据"、"字典缓存"、"配置缓存"、"高频查询"、"性能优化"、"预热"、"ICacheReader"、"ICacheRefresh"、"CacheManager"时，必须使用此技能。
 ---
 ## 使用场景
@@ -345,3 +345,10 @@ public class DepartmentService
 ## 详细示例
 
 完整的缓存实现示例（包括多键场景、树形结构等），请参阅：`references/cache-examples.md`
+
+## 相关技能
+
+- **backend-workflow**: 文档驱动开发流程和交付标准
+- **net-efcore-developer**: 数据库实体开发（缓存基于实体创建 View 和 RedisHandler）
+- **net-api-developer**: API 接口开发（缓存通过 API 层的 CacheManager 调用）
+- **net-database-bulkcopy**: 批量数据操作（批量导入后需刷新缓存）

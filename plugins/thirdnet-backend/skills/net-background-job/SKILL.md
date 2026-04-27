@@ -1,6 +1,6 @@
 ---
 name: net-background-job
-version: 0.1.0
+version: 1.0.0
 description: 后台定时任务开发专家，基于 BackgroundRunner 框架生成循环执行的后台任务代码（使用 SleepTime 毫秒间隔，非 Cron 表达式）。**主动用于**：定时任务、后台作业、周期性数据处理、数据同步、定时检查。当用户提到"定时"、"周期"、"后台任务"、"Job"、"Worker"、"每隔"、"自动执行"、"BackgroundService"、"定时同步"、"后台处理"、"循环任务"时，必须使用此技能。
 ---
 
@@ -90,10 +90,10 @@ public class DataSyncBackgroundTask : BackgroundRunner
 
 ### 2. 注册服务
 
-在 `Program.cs` 中注册：
+在 `Startup.cs` 的 `ConfigureServices` 方法中注册：
 
 ```csharp
-builder.Services.AddHostedService<DataSyncBackgroundTask>();
+services.AddHostedService<DataSyncBackgroundTask>();
 ```
 
 ## 常见场景示例
@@ -222,3 +222,12 @@ public class DataSyncBackgroundTask : BackgroundRunner
 | 中频任务（状态更新） | 5分钟 | 300000 |
 | 低频任务（报表生成） | 1小时 | 3600000 |
 | 每日任务（日志清理） | 24小时 | 86400000 |
+
+## 相关技能
+
+- **backend-workflow**: 文档驱动开发流程和交付标准
+- **net-microservice-generator**: 项目结构生成（后台任务注册于 Startup.cs）
+- **net-efcore-developer**: 数据库实体开发（后台任务常操作数据库）
+- **net-cache-use**: 缓存功能集成（后台任务常刷新缓存）
+- **net-api-developer**: API 接口开发（后台任务常与 API 配合使用）
+- **net-authentication**: 认证系统（后台任务可能需要服务间认证）

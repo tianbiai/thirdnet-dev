@@ -1,6 +1,6 @@
 ---
 name: net-efcore-developer
-version: 0.1.0
+version: 1.0.0
 description: EF Core 数据库开发专家，负责创建实体模型（Model）、Fluent API 配置、DbContext 和迁移文件。**主动用于**：创建数据库实体、定义表结构、配置字段映射、生成迁移。当用户提到"实体"、"数据库实体"、"Entity"、"DbContext"、"迁移"、"Migration"、"表结构"、"数据库设计"、"建表"、"新建表"、"加字段"、"新增字段"、"FluentAPI"、"Configuration"、"EntityTypeConfiguration"、"DbSet"时，必须使用此技能。
 ---
 
@@ -22,6 +22,8 @@ description: EF Core 数据库开发专家，负责创建实体模型（Model）
 
 **实体模型类必须是纯净的 POCO 类**，所有数据库配置通过 Fluent API 实现。
 
+**例外**：`[DbBulk]` 特性是批量操作框架的映射要求，不是数据验证注解，可以安全使用。详见 `net-database-bulkcopy` 技能。
+
 ```csharp
 // ❌ 禁止：使用数据注解
 public class User
@@ -32,7 +34,7 @@ public class User
     public string Name { get; set; }
 }
 
-// ✅ 正确：纯净的 POCO 类
+// ✅ 正确：纯净的 POCO 类（[DbBulk] 除外）
 public class UserModel
 {
     public long id { get; set; }
@@ -337,16 +339,16 @@ namespace ContractService.Database
 
 ## DbContext 注册
 
-在 `Program.cs` 中：
+在 `Startup.cs` 的 `ConfigureServices` 方法中：
 
 ```csharp
 // 注册主数据库
-builder.Services.AddDbContextPool<ContractDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("ConnectionString")));
+services.AddDbContextPool<ContractDbContext>(options =>
+    options.UseNpgsql(Configuration.GetConnectionString("ConnectionString")));
 
 // 注册其他数据库（如需要）
-builder.Services.AddDbContextPool<LogDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("LogConnectionString")));
+services.AddDbContextPool<LogDbContext>(options =>
+    options.UseNpgsql(Configuration.GetConnectionString("LogConnectionString")));
 ```
 
 ## 连接字符串配置
@@ -369,22 +371,23 @@ builder.Services.AddDbContextPool<LogDbContext>(options =>
 
 ## 迁移自动应用
 
-**禁止命令行手动迁移**，在 `Program.cs` 中自动应用：
+**禁止命令行手动迁移**，在 `Startup.cs` 的 `Configure` 方法中自动应用：
 
 ```csharp
-var app = builder.Build();
-
-// 自动应用迁移
-using (var serviceScope = app.Services.GetService<IServiceScopeFactory>().CreateScope())
+public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
 {
-    // 单 DbContext
-    serviceScope.ServiceProvider.GetRequiredService<ContractDbContext>().Database.Migrate();
+    // 自动应用迁移
+    using (var serviceScope = app.ApplicationServices.GetService<IServiceScopeFactory>().CreateScope())
+    {
+        // 单 DbContext
+        serviceScope.ServiceProvider.GetRequiredService<ContractDbContext>().Database.Migrate();
 
-    // 多 DbContext（如需要）
-    serviceScope.ServiceProvider.GetRequiredService<AuditDbContext>().Database.Migrate();
+        // 多 DbContext（如需要）
+        serviceScope.ServiceProvider.GetRequiredService<AuditDbContext>().Database.Migrate();
+    }
+
+    // ... 其他中间件配置
 }
-
-app.Run();
 ```
 
 ## 视图模型与原生 SQL
@@ -468,3 +471,11 @@ public async Task<Dictionary<long, UserView>> GetDic()
 | 后缀 | `Model` | `View` |
 | 配置 | 需要 Fluent API | 无需配置 |
 | 操作 | 支持增删改查 | 仅支持查询 |
+
+## 相关技能
+
+- **backend-workflow**: 文档驱动开发流程和交付标准
+- **net-microservice-generator**: 项目结构生成和 Startup.cs 配置
+- **net-api-developer**: API 接口开发（实体通过 API 暴露）
+- **net-cache-use**: 缓存功能集成（基于实体创建 CacheManager）
+- **net-database-bulkcopy**: 批量数据操作（基于实体进行 BulkCopy）

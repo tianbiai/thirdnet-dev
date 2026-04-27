@@ -1,6 +1,6 @@
 ---
 name: net-authentication
-version: 0.1.0
+version: 1.0.0
 description: .NET 认证系统开发专家，负责配置 Basic/Bearer 认证、实现账号验证器、管理 Token 流程。**主动用于**：认证配置、IAccountValidator 实现、Token 获取/刷新、授权策略使用。当用户提到"认证"、"授权"、"登录"、"Token"、"JWT"、"Basic"、"Bearer"、"IAccountValidator"、"策略"、"Policy"、"用户验证"时，必须使用此技能。
 ---
 
@@ -20,6 +20,8 @@ description: .NET 认证系统开发专家，负责配置 Basic/Bearer 认证、
 
 - **net-api-developer**: API 接口开发
 - **net-microservice-generator**: 微服务项目生成
+- **net-efcore-developer**: 数据库实体开发（认证器常访问用户表）
+- **net-cache-use**: 缓存功能集成（Token 过期缓存可使用 Redis）
 
 ## 认证方式概览
 
@@ -88,86 +90,25 @@ Authorization: Basic base64(application:base64(HMacSHA512(url,key)))
 
 ## 服务端配置
 
-### IdentityService 配置（认证服务）
+> 标准 Startup.cs 配置（服务注册顺序、中间件配置）请参阅 **net-microservice-generator** 技能。以下仅说明认证相关的额外配置。
+
+### IdentityService 认证专属配置
+
+在标准 Startup.cs 基础上，IdentityService 需额外注册以下服务：
 
 ```csharp
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using ThirdNet.Core.AspNetCore;
+// ConfigureServices 中，在 AddThirdNetDefaultRSAJwt 之后添加：
 
-public class Startup
-{
-    public IConfiguration Configuration { get; }
+// 自定义 Token 过期时间缓存（可选，默认使用内存缓存）
+services.AddSingleton<IAccountTokenTimeCache, CustomAccountTokenTimeCache>();
 
-    public void ConfigureServices(IServiceCollection services)
-    {
-        // 1. 初始化配置库
-        var assembly = typeof(Startup).Assembly.GetName().Name;
-        services.AddInitDbWithPostgresql(assembly, Configuration["DefaultConnectionString"]);
-
-        // 2. 启用压缩
-        services.AddResponseCompression();
-
-        // 3. 自定义 Token 过期时间缓存（可选）
-        services.AddSingleton<IAccountTokenTimeCache, CustomAccountTokenTimeCache>();
-
-        // 4. 配置限流
-        services.AddThirdNetIpAndApplicationPathRateLimiting(Configuration);
-
-        // 5. 配置 RSA JWT 认证
-        services.AddThirdNetDefaultRSAJwt(Configuration);
-
-        // 6. 配置账号验证器
-        services.AddScoped<IAccountValidator, DefaultAccountValidator>();
-
-        // 7. 配置 MVC 和数据库
-        services.AddThirdNetMvcWithPostgresql(Configuration);
-
-        // 8. 配置帮助页面
-        services.Configure<HelpPageOptions>(Configuration.GetSection("HelpPage"));
-        services.AddThirdNetVersioningHelpPage(Configuration.GetSection("HelpPage").Get<HelpPageOptions>());
-    }
-
-    public void Configure(IApplicationBuilder app, ILoggerFactory loggerFactory,
-                          IApiVersionDescriptionProvider provider, IOptions<HelpPageOptions> options)
-    {
-        app.UseResponseCompression();
-        app.UseThirdNetVersioningHelpPage(provider, options.Value);
-        app.UseThirdNetMvc(loggerFactory);
-    }
-}
+// 配置账号验证器（必须）
+services.AddScoped<IAccountValidator, DefaultAccountValidator>();
 ```
 
-### WebApiService 配置（业务服务）
+### WebApiService 认证专属配置
 
-```csharp
-public void ConfigureServices(IServiceCollection services)
-{
-    // 1. 初始化配置库
-    var assembly = typeof(Startup).Assembly.GetName().Name;
-    services.AddInitDbWithPostgresql(assembly, Configuration["DefaultConnectionString"].GetConnectionStringWithAppName());
-
-    // 2. 启用压缩
-    services.AddResponseCompression(options => { options.EnableForHttps = true; });
-
-    // 3. 配置限流
-    services.AddThirdNetIpAndApplicationPathRateLimiting(Configuration);
-
-    // 4. 配置 RSA JWT 认证（验证 Token）
-    services.AddThirdNetDefaultRSAJwt(Configuration);
-
-    // 5. 配置 Redis
-    services.AddRedisExtensionService(Configuration);
-
-    // 6. 配置 MVC 和数据库
-    services.AddThirdNetMvcWithPostgresql(Configuration);
-
-    // 7. 配置帮助页面
-    services.Configure<HelpPageOptions>(Configuration.GetSection("HelpPage"));
-    services.AddThirdNetVersioningHelpPage(Configuration.GetSection("HelpPage").Get<HelpPageOptions>());
-}
-```
+WebApiService 仅需标准配置中的 `AddThirdNetDefaultRSAJwt`（验证 Token），无需额外认证注册。无需注册 `IAccountValidator`（仅 IdentityService 需要）。
 
 ## IAccountValidator 实现
 

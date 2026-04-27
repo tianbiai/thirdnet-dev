@@ -133,7 +133,7 @@
 
 **框架**：BackgroundRunner
 
-**注册方式**：`builder.Services.AddHostedService<[TaskName]>()`
+**注册方式**：在 `Startup.ConfigureServices` 中 `services.AddHostedService<[TaskName]>()`
 
 ---
 

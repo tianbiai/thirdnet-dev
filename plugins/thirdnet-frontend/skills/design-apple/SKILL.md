@@ -1,9 +1,10 @@
 ---
 name: design-apple
 description: Apple 设计规范，所有前端项目（Web + 移动端）的默认设计参考。触发场景：前端页面设计、UI 样式实现、组件视觉规范、配色方案、排版系统、布局设计。触发关键词：Apple 风格、苹果设计、设计规范、UI 设计、视觉规范、配色、排版、布局。
-version: "1.0.0"
 license: MIT
-author: thirdnet
+metadata:
+  version: "1.0.0"
+  author: thirdnet
 ---
 
 # Apple 设计规范
@@ -400,23 +401,7 @@ Apple 标志性的行内 CTA——透明底、蓝色文字、药丸形容器。
 </style>
 ```
 
-## 10. HelpBubble 组件
-
-每个页面右上角必须有 HelpBubble（问号图标），点击显示功能说明。
-
-**组件 Props**：
-- `content: string` — 帮助内容（纯文本或 Markdown）
-- `placement?: string` — 弹出位置（默认 `'bottom-end'`）
-
-**Web 端实现**（Element Plus）：
-- 使用 `ElPopover` + `ElIcon` + `QuestionFilled` 图标
-- 添加 `v-if="MOCK_ENABLED"` 条件渲染
-
-**移动端实现**（uni-app / Vant）：
-- 使用 `van-popup` 或 `uni.showModal`
-- 添加 `v-if="MOCK_ENABLED"` 条件渲染
-
-## 11. Element Plus 主题覆盖
+## 10. Element Plus 主题覆盖
 
 当管理后台使用 Element Plus 时，通过 CSS 变量覆盖实现 Apple 设计风格：
 
@@ -432,7 +417,7 @@ Apple 标志性的行内 CTA——透明底、蓝色文字、药丸形容器。
 `--font-display`, `--font-text`, `--radius-sm`, `--radius-md`, `--radius-pill`,
 `--color-accent`, `--space-unit` 等。
 
-## 12. Agent 组件提示词参考
+## 11. Agent 组件提示词参考
 
 ### Hero 区
 

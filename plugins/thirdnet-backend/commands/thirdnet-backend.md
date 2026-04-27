@@ -57,52 +57,38 @@ allowed-tools:
 
 ### 阶段二：技能加载（不可跳过）
 
-4. 根据需求涉及的技术领域，通过 Skill 工具调用以下技能（按需匹配）：
-   - 创建微服务项目 → `thirdnet-backend:net-microservice-generator`
-   - 开发 API 接口 / Controller → `thirdnet-backend:net-api-developer`
-   - 数据库实体 / 迁移 / Fluent API → `thirdnet-backend:net-efcore-developer`
-   - 认证授权配置 → `thirdnet-backend:net-authentication`
-   - Redis 缓存功能 → `thirdnet-backend:net-cache-use`
-   - 后台定时任务 → `thirdnet-backend:net-background-job`
-   - 批量数据操作 → `thirdnet-backend:net-database-bulkcopy`
-5. 技能规则加载完成后，进入阶段三
+通过 Skill 工具调用 `thirdnet-backend:backend-workflow` 获取完整工作流程、文档规范和项目结构。
+
+然后根据需求涉及的技术领域，参照 `backend-workflow` 技能中的「技能速查表」加载适用的技术技能：
+
+| 触发场景 | 必须调用的技能 |
+|---------|--------------|
+| 创建微服务项目 | `thirdnet-backend:net-microservice-generator` |
+| 开发 API 接口 / Controller | `thirdnet-backend:net-api-developer` |
+| 数据库实体 / 迁移 / Fluent API | `thirdnet-backend:net-efcore-developer` |
+| 认证授权配置 | `thirdnet-backend:net-authentication` |
+| Redis 缓存功能 | `thirdnet-backend:net-cache-use` |
+| 后台定时任务 | `thirdnet-backend:net-background-job` |
+| 批量数据操作 | `thirdnet-backend:net-database-bulkcopy` |
+
+技能规则加载完成后，进入阶段三。
 
 ### 阶段三：开发执行
 
-6. 按照「文档驱动开发」流程执行，严格按以下顺序：
-   a. 编写项目级 `plan.md`（服务规划、开发顺序、技术架构）
-   b. 编写 `changelog.md`（初始化版本记录，读取 `net-microservice-generator` 技能中的变更日志模板）
-   c. 为每个待开发的微服务创建 `backend/{ServiceName}/spec.md`（读取 `net-microservice-generator` 技能中的服务规格模板）
-   d. 服务级 spec 必须在对应代码编写前完成
-   e. 编码实现（代码必须与 spec 保持一致）
-   f. 自查
-7. 所有代码编写必须遵循阶段二中已加载的技能规则
+按照 `backend-workflow` 技能中定义的「文档驱动开发」流程严格执行。所有代码编写必须遵循阶段二中已加载的技能规则。
 
 ### 阶段四：完成校验
 
-8. 执行开发完成校验清单（见 agent 中的校验部分）
-
-## 必须调用的技能（不可跳过）
-
-代理执行任何代码编写前，必须通过 Skill 工具调用以下技能：
-
-1. **创建微服务项目** → 调用 `thirdnet-backend:net-microservice-generator`（必须按模板生成 plan.md、changelog.md、spec.md，详见该技能"强制规则"）
-2. **开发 API 接口 / Controller** → 调用 `thirdnet-backend:net-api-developer`
-3. **数据库实体 / 迁移 / Fluent API** → 调用 `thirdnet-backend:net-efcore-developer`
-4. **认证授权配置** → 调用 `thirdnet-backend:net-authentication`
-5. **Redis 缓存功能** → 调用 `thirdnet-backend:net-cache-use`
-6. **后台定时任务** → 调用 `thirdnet-backend:net-background-job`
-7. **批量数据操作** → 调用 `thirdnet-backend:net-database-bulkcopy`
+执行 `backend-workflow` 技能中的「开发完成校验」清单。
 
 ## 必须遵循的约定
 
 - .NET 10 + PostgreSQL + EF Core 技术栈，不可替换
 - 禁止 Minimal API，API 和 Database 项目必须分离
-- EF Core 实体禁止使用数据注解，统一使用 Fluent API
+- EF Core 实体禁止使用数据注解，统一使用 Fluent API（`[DbBulk]` 除外）
 - API 仅允许 GET 和 POST 方法，禁止 DELETE/PUT/PATCH
-- 数据库字段使用 snake_case 命名
-- 文档驱动开发：先有 plan.md，再生成 changelog.md，再为每个服务编写 spec.md，最后再编写代码
-- 服务级 spec 不可跳过：任何微服务的代码编写前，对应的 `backend/{ServiceName}/spec.md` 必须已存在
+- API 参数和数据库字段均使用 snake_case 命名
+- 项目目录结构：后端服务创建在 `backend/<ServiceName>/` 下
 
 ## 技术栈
 
@@ -114,5 +100,3 @@ allowed-tools:
 - 描述 API 的输入输出要求
 - 如有特殊的认证或授权需求，请说明
 - 复杂的业务逻辑建议分步实现
-- 遵循文档驱动开发：先有 plan.md，再生成 changelog.md，再为每个服务编写 spec.md，最后再编写代码
-- 项目目录结构：后端服务创建在 `backend/<ServiceName>/` 下
