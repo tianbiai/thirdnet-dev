@@ -36,7 +36,7 @@ metadata:
 
 当从零创建前端项目时，**严格按以下步骤顺序执行**，不可跳过：
 
-1. **创建顶层目录**：在工作区根目录创建 `frontend/` 文件夹
+1. **创建顶层目录**：在工作区根目录创建 `frontend/` 文件夹，所有子系统均创建在该文件夹下。
 2. **创建子项目目录**：根据平台类型创建 `frontend/{子系统名}/`（如 `frontend/web/`、`frontend/minigram/`、`frontend/admin/`）
 3. **初始化 Vue 项目**：使用 Vite 在子项目目录中创建对应类型的 Vue 3 + TypeScript 项目（Web 端或 uniapp）
 4. **生成强制文件**：changelog.md、viewer.html、marked.min.js（见下方表格）
@@ -118,14 +118,17 @@ IXxxApi（接口契约）
 ### HelpBubble 组件
 
 **组件 Props**：
+
 - `content: string` — 帮助内容（纯文本或 Markdown）
 - `placement?: string` — 弹出位置（默认 `'bottom-end'`）
 
 **Web 端实现**（Element Plus）：
+
 - 使用 `ElPopover` + `ElIcon` + `QuestionFilled` 图标
 - 添加 `v-if="MOCK_ENABLED"` 条件渲染
 
 **移动端实现**（uni-app / Vant）：
+
 - 使用 `van-popup` 或 `uni.showModal`
 - 添加 `v-if="MOCK_ENABLED"` 条件渲染
 
