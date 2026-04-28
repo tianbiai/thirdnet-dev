@@ -146,7 +146,7 @@ public async Task<Dictionary<long, DepartmentView>> GetDepartmentInfo(List<long>
     var dic = await GetMultiple(
         ids.Distinct().Select(s => $"{key}{s}").ToArray(),
         func,
-        DateTime.Now.AddHours(24)
+        _stime24
     );
     return dic.ToDictionary(f => long.Parse(f.Key.Replace(key, "")), v => v.Value);
 

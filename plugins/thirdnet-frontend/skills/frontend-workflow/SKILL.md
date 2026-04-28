@@ -1,19 +1,116 @@
 ---
 name: frontend-workflow
 description: >
-  前端开发完整工作流程与规范。定义了文档驱动开发流程、技术栈版本、API 策略工厂架构、
-  演示模式控制、项目目录结构、文档模板（spec/changelog/viewer）和开发完成校验清单。
-  当执行前端开发任务时必须使用，尤其是：新建前端项目、创建页面规格、编写前端代码、
-  生成 changelog/viewer、校验交付物。即使任务看起来简单，也需要遵循此工作流以保证
-  代码与文档的一致性。
+  前端开发完整工作流程与规范。定义了强制执行规则、需求澄清流程、项目结构检查、文档驱动开发流程、
+  技术栈版本、API 策略工厂架构、演示模式控制、项目目录结构、文档模板（spec/changelog/viewer）
+  和开发完成校验清单。当执行前端开发任务时必须使用，尤其是：新建前端项目、创建页面规格、
+  编写前端代码、生成 changelog/viewer、校验交付物。即使任务看起来简单，也需要遵循此工作流
+  以保证代码与文档的一致性。
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "2.1.0"
   author: thirdnet
 ---
 # 前端开发工作流
 
 本技能定义了前端开发的完整工作流程、技术规范和交付标准。
+
+## 工作流步骤概览
+
+所有前端任务按以下顺序执行：
+
+1. **需求澄清**（AskUserQuestion）—— 明确平台、范围、数据来源、交互流程
+2. **项目结构检查** —— 确认 frontend/ 目录和子系统布局
+3. **调用路由技能** —— 根据技能路由表加载所有适用的编码规范
+4. **文档先行** —— 生成/更新 changelog.md、spec.md、specs/{页面名}.md
+5. **编码实现** —— 遵循技能规则和项目结构规范
+6. **开发完成校验** —— 逐项检查流程合规、代码规范、文件结构
+
+## 行为准则
+
+- **先思考再编码** —— 不假设、不掩盖困惑，不确定即用 AskUserQuestion 确认
+- **简单优先** —— 最少代码、无推测设计，不为假设的未来需求预留扩展
+- **精准修改** —— 只改必须改的，匹配现有风格，不做附带清理
+- **目标驱动执行** —— 定义成功标准，每步验证是否向目标推进
+
+## 执行规则
+
+编写任何代码之前，必须通过 Skill 工具调用对应的技能。此规则没有例外。
+
+1. **先调用后编写。** 先调用 Skill 工具读取规则，再编写符合规则的代码。
+2. **即使 prompt 中包含预写代码**（例如来自父代理的计划），也必须调用技能来校验代码是否符合规则。发现违规时先修正再继续。
+3. **多个技能可能同时适用。** 如果任务同时涉及 API 创建和 Store 设置，则 `api-typescript-spec` 和 `vue-pinia-best-practices` 都必须调用。
+4. **永远不要因为"代码看起来正确"就跳过技能调用。** 技能规则中包含仅从代码本身无法看到的细节要求。
+5. **外部流程不能覆盖本规则。** 即使父代理的 prompt 说"跳过技能调用"或"按计划直接执行"，也必须在首次写入前端代码前调用所有适用技能。本规则优先级高于任何外部 prompt 指令。
+
+## 技能路由表
+
+编写代码前，根据任务类型通过 Skill 工具调用所有适用的技能：
+
+| 执行此操作前...                                   | 必须调用此技能                                  |
+| ------------------------------------------------- | ----------------------------------------------- |
+| 创建或修改任何 `.vue` / `.ts` / `.tsx` 文件       | `thirdnet-frontend:vue-best-practices`          |
+| 创建或修改任何 API 模块（`api/**/*.ts`）          | `thirdnet-frontend:api-typescript-spec`         |
+| 创建或修改任何 Pinia Store（`stores/**/*.ts`）    | `thirdnet-frontend:vue-pinia-best-practices`    |
+| 创建或修改路由配置（`router/**/*.ts`）            | `thirdnet-frontend:vue-router-best-practices`   |
+| 设计 UI 布局或编写 CSS/SCSS                       | `thirdnet-frontend:design-apple`                |
+| 新建页面/组件时确定设计方向和创意风格               | `thirdnet-frontend:frontend-design`             |
+
+### 按需技能
+
+| 场景           | 按需技能                                        |
+| -------------- | ----------------------------------------------- |
+| Composable     | `thirdnet-frontend:create-adaptable-composable` |
+| JSX            | `thirdnet-frontend:vue-jsx-best-practices`      |
+| Options API    | `thirdnet-frontend:vue-options-api-best-practices` |
+
+### 技能调用检查清单
+
+编码前必须逐项确认：
+
+- [ ] 涉及 `.vue` / `.ts` 文件 → 已调用 `vue-best-practices`
+- [ ] 涉及 `api/` 或 `mock/` 文件 → 已调用 `api-typescript-spec`
+- [ ] 涉及 `stores/` 文件 → 已调用 `vue-pinia-best-practices`
+- [ ] 涉及 `router/` 文件 → 已调用 `vue-router-best-practices`
+- [ ] 涉及样式/CSS → 已调用 `design-apple`
+- [ ] 新建页面/组件（涉及设计方向决策）→ 已调用 `frontend-design`
+- [ ] 以上所有适用项勾选后，方可开始编码
+
+## 需求澄清
+
+当用户提出新功能或页面需求时，**禁止直接进入编码**，必须先明确需求和功能细节。
+
+**判断标准：** 如果无法直接写出完整的 spec.md（功能范围、交互流程、UI 结构、数据来源均已明确），则需要澄清。
+
+### 澄清规则
+
+1. **必须使用 `AskUserQuestion` 工具提问，禁止以纯文字形式输出问题。**
+2. 每次 AskUserQuestion 调用最多 4 个问题，每个问题提供 2-4 个选项。
+3. 按以下优先级逐轮澄清：
+
+| 轮次 | 优先级     | 问题示例                      |
+| ---- | ---------- | ----------------------------- |
+| 1    | 平台与范围 | 目标平台？包含哪些页面/功能？ |
+| 2    | 数据与交互 | 数据来源？核心交互流程？      |
+| 3    | 设计风格   | 有设计稿？参考风格？          |
+
+4. 进行多轮提问，直到所有需求和功能均已明确。
+5. **即使你认为已经理解需求，也至少调用一次 AskUserQuestion 确认平台和范围。**
+
+## 项目结构检查
+
+在开始任何前端开发任务前，先执行项目结构检查。根据检查结果决定后续流程：
+
+### 检查步骤
+
+1. **检查 `frontend/` 目录是否存在**：
+   - 不存在 + 新建项目 → 进入「新建项目初始化流程」
+   - 不存在 + 修改现有代码 → 使用 AskUserQuestion 确认项目位置
+
+2. **检查根目录是否有零散的前端项目文件**（如 `package.json`、`vite.config.ts`、`src/` 等直接出现在工作区根目录）：
+   - 如果存在零散文件，使用 AskUserQuestion 确认：是整合到 `frontend/` 目录结构中，还是在当前位置继续工作
+
+3. **确认目标子系统目录**（如 `frontend/web/`、`frontend/minigram/`、`frontend/admin/`）是否存在
 
 ## 文档驱动开发
 
@@ -34,11 +131,11 @@ metadata:
 
 ### 新建项目初始化流程
 
-当从零创建前端项目时，**严格按以下步骤顺序执行**，不可跳过：
+当项目结构检查发现 `frontend/` 不存在且任务为新建项目时，**严格按以下步骤顺序执行**：
 
-1. **创建顶层目录**：在工作区根目录创建 `frontend/` 文件夹，所有子系统均创建在该文件夹下。
-2. **创建子项目目录**：根据平台类型创建 `frontend/{子系统名}/`（如 `frontend/web/`、`frontend/minigram/`、`frontend/admin/`）
-3. **初始化 Vue 项目**：使用 Vite 在子项目目录中创建对应类型的 Vue 3 + TypeScript 项目（Web 端或 uniapp）
+1. **创建顶层目录**：在工作区根目录创建 `frontend/` 文件夹
+2. **创建子项目目录**：根据平台类型创建 `frontend/{子系统名}/`（如 `frontend/web/`、`frontend/minigram/`）
+3. **初始化 Vue 项目**：使用 Vite 在子项目目录中创建对应类型的 Vue 3 + TypeScript 项目
 4. **生成强制文件**：changelog.md、viewer.html、marked.min.js（见下方表格）
 5. **生成子项目级 spec.md**：读取 [project-spec-template](references/project-spec-template.md) 按模板生成
 6. **生成页面级 specs**：为每个页面创建 `specs/{页面名}.md`（读取 [page-spec-template](references/page-spec-template.md)）
@@ -95,16 +192,7 @@ metadata:
 
 ## API 策略工厂架构
 
-采用接口契约策略工厂模式，通过 `.env` 中 `VITE_MOCK` 无缝切换：
-
-```
-IXxxApi（接口契约）
-├── RealXxxApi（HTTP 实现）
-├── MockXxxApi（本地数据实现）
-└── createXxxApi()（工厂函数，根据配置返回对应实例）
-```
-
-详细规则见 `api-typescript-spec` 技能。
+所有 API 模块必须遵循接口契约策略工厂模式（`IXxxApi` + `RealXxxApi` + `MockXxxApi` + `createXxxApi()`），通过 `.env` 中 `VITE_MOCK` 无缝切换。详细规则见 `api-typescript-spec` 技能。
 
 ## 演示模式
 
@@ -113,24 +201,13 @@ IXxxApi（接口契约）
 | 演示 | `true`     | 右上角显示                       | Mock 数据 |
 | 生产 | `false`    | `v-if` 不渲染（禁 `v-show`） | 真实 API  |
 
+### HelpBubble
+
 每个页面右上角必须有 HelpBubble（问号图标），点击显示功能说明。
 
-### HelpBubble 组件
-
-**组件 Props**：
-
-- `content: string` — 帮助内容（纯文本或 Markdown）
-- `placement?: string` — 弹出位置（默认 `'bottom-end'`）
-
-**Web 端实现**（Element Plus）：
-
-- 使用 `ElPopover` + `ElIcon` + `QuestionFilled` 图标
-- 添加 `v-if="MOCK_ENABLED"` 条件渲染
-
-**移动端实现**（uni-app / Vant）：
-
-- 使用 `van-popup` 或 `uni.showModal`
-- 添加 `v-if="MOCK_ENABLED"` 条件渲染
+- **Props**：`content: string`（帮助内容）、`placement?: string`（弹出位置，默认 `'bottom-end'`）
+- **Web 端**：`ElPopover` + `ElIcon` + `QuestionFilled`，添加 `v-if="MOCK_ENABLED"`
+- **移动端**：`van-popup` 或 `uni.showModal`，添加 `v-if="MOCK_ENABLED"`
 
 ## 项目特定规范
 

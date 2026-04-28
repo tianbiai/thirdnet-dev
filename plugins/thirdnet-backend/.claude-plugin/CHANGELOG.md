@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.10.0 - 2026-04-28
+
+### Changed
+- 移除 Agent（`agents/backend-developer.md`）和 Command（`commands/thirdnet-backend.md`），统一为单工作流技能模式
+- 将 Agent 的行为准则、强制执行规则、需求澄清流程、技能调用检查清单合并到 `backend-workflow` 技能
+- 将 Command 的执行阶段流程、必须遵循的约定合并到 `backend-workflow` 技能
+- 重构 `backend-workflow/SKILL.md` 结构，与前端 `frontend-workflow` 技能保持对齐（工作流步骤概览 → 行为准则 → 执行规则 → 技能路由表 → 需求澄清 → 项目结构检查 → 文档驱动开发 → 开发阶段 → 完成校验）
+
+### Removed
+- 删除 `agents/backend-developer.md`
+- 删除 `commands/thirdnet-backend.md`
+
 ## 0.5.0 - 2026-04-27
 
 ### Changed

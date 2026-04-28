@@ -248,7 +248,7 @@ services.AddRedisExtensionService(Configuration);
 
 ### 使用 Redis
 
-注入 `ICacheReader` 和 `ICacheRefresh` 接口使用缓存功能，详见 @net-cache-use skill。
+注入 `ICacheReader` 和 `ICacheRefresh` 接口使用缓存功能，详见 **net-cache-use** 技能。
 
 ## 解决方案引用关系
 

@@ -7,7 +7,7 @@
 | 优先级 | 技能 | 适用场景 |
 |--------|------|----------|
 | ⭐⭐⭐ | `vue-best-practices` | 所有 Vue 开发工作 |
-| ⭐⭐ | `/frontend-design` | 任何 UI/界面设计工作（全局技能） |
+| ⭐⭐ | `frontend-design` | 任何 UI/界面设计工作 |
 | ⭐⭐ | `api-typescript-spec` | 创建 API 接口、Mock 数据、请求类型 |
 
 ---
@@ -70,7 +70,7 @@
 
 ## 设计系统
 
-> ⚠️ 必须遵循 `/frontend-design` 全局技能规范，避免通用 AI 美学。
+> ⚠️ 必须遵循 `frontend-design` 技能规范，避免通用 AI 美学。
 
 ### 设计风格
 
@@ -108,11 +108,11 @@
 
 ### 技术栈
 
-**uniapp 项目**：H5 模式开发（`npm run dev:h5`），最终发布为微信小程序，需兼容小程序环境（详见 Agent 规则9）
+**uniapp 项目**：H5 模式开发（`npm run dev:h5`），最终发布为微信小程序，需兼容小程序环境（详见 api-typescript-spec 技能）
 
 **默认版本**：
 - **移动端**：Vue 3.4.x、Vant 4.x、Vite 5.x、Pinia 2.x、Vue Router 4.x、Axios 1.x
-- **Web端**：Vue 3.4.x、Vite 5.x、Element Plus 2.x、Vue Router 4.x、Pinia 2.x、Axios 1.x
+- **Web端**：Vue 3.5.x、Vite 8.x、Element Plus 2.x、Vue Router 4.x、Pinia 3.x、Axios 1.x
 
 ### 项目结构
 
@@ -167,7 +167,7 @@ frontend/[子系统名]/
 
 ### API 规范
 
-> 详细规范见 `api-typescript-spec` 技能和 Agent 规则9（API 策略工厂架构）
+> 详细规范见 `api-typescript-spec` 技能
 
 - **架构**：接口契约的策略工厂模式，每个 API 模块包含 `IXxxApi` 接口 + `RealXxxApi`（HTTP）+ `MockXxxApi`（本地数据）+ `createXxxApi()` 工厂函数
 - **设计模式**：策略模式（可互换实现）+ 简单工厂（配置驱动创建）+ 适配器模式（多数据源适配同一契约）

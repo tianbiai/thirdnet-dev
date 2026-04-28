@@ -7,7 +7,7 @@
 | 优先级 | 技能 | 适用场景 |
 |--------|------|----------|
 | ⭐⭐⭐ | `vue-best-practices` | Vue 组件设计原则 |
-| ⭐⭐ | `/frontend-design` | 界面设计规范（全局技能） |
+| ⭐⭐ | `frontend-design` | 界面设计规范 |
 
 ---
 
@@ -67,7 +67,7 @@
 
 #### API 接口规范
 
-> 遵循 `api-typescript-spec` 技能规范和 Agent 规则9（API 策略工厂架构）
+> 遵循 `api-typescript-spec` 技能规范
 > - API 模块（`api/modules/{endpoint}/*.ts`）采用策略工厂模式：定义 `IXxxApi` 接口契约 + `RealXxxApi`（HTTP）+ `MockXxxApi`（本地数据）+ `createXxxApi()` 工厂函数
 > - Mock 数据（`mock/data/{endpoint}/*.ts`）使用 `import type` 保证类型一致，枚举使用 `import` 引入
 > - 路径 `/app/{模块名}/{操作}` 或 `/manager/{模块名}/{操作}`，直接返回数据或 `PaginatedResponse<T>`，禁止 `code` 字段
@@ -120,7 +120,7 @@
 
 ## 视觉规范
 
-> 必须遵循 `/frontend-design` 全局技能规范，避免通用 AI 美学。
+> 必须遵循 `frontend-design` 技能规范，避免通用 AI 美学。
 
 ### 设计风格
 

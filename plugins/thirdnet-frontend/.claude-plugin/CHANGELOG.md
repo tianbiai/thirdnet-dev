@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.19.0 - 2026-04-28
+
+### Changed
+- 删除 `agents/frontend-developer.md` 和 `commands/thirdnet-frontend.md`，统一为单工作流技能模型
+- 将 Agent 行为规则、强制技能调用、需求澄清流程、技能路由表合并到 `frontend-workflow` 技能
+- 新增 `frontend-design` 技能（前端创意设计规范），从全局技能迁移为插件本地技能
+- 更新 hooks.json，在 PreToolUse 中增加 `frontend-design` 技能合规检查
+
+## 0.18.0 - 2026-04-28
+
+### Changed
+- 双端插件新增「新建项目初始化流程」，强制第一步创建 `frontend/` 目录
+- 双端插件合并执行模式，统一为单工作流，强制需求澄清
+
+## 0.17.0 - 2026-04-27
+
+### Changed
+- 重构双端插件技能体系，新增 workflow 技能并精简冗余内容
+- 将「项目级spec」统一改为「子项目级spec」，每个子项目对应一个 spec
+- 强化双端 Agent 需求澄清规则，强制使用 AskUserQuestion 工具
+
 ## 0.16.0 - 2026-04-27
 
 ### Changed

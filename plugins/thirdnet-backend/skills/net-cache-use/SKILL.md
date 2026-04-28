@@ -34,6 +34,7 @@ description: 缓存功能开发专家，为业务实体添加完整的 Redis 缓
 | 方法 | 签名 | 说明 |
 |-----|------|------|
 | `AddOrUpdate` | `Task AddOrUpdate<T>(string key, T value, DateTime expire)` | 添加或更新缓存 |
+| `RemoveSingle` | `Task RemoveSingle(string key)` | 删除指定键的缓存 |
 
 ## 执行步骤
 

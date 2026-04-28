@@ -4,7 +4,7 @@ Claude Code 全栈开发插件集合，为 .NET 后端和 Vue 前端提供专业
 
 ## 插件列表
 
-### thirdnet-backend (v0.3.0)
+### thirdnet-backend (v0.10.0)
 
 .NET 10 微服务后端开发助手。
 
@@ -20,7 +20,7 @@ Claude Code 全栈开发插件集合，为 .NET 后端和 Vue 前端提供专业
 
 **触发命令：** `/thirdnet-backend`
 
-### thirdnet-frontend (v0.8.0)
+### thirdnet-frontend (v0.19.0)
 
 Vue 3 前端开发助手，支持 Web 端和移动端。
 
@@ -29,8 +29,9 @@ Vue 3 前端开发助手，支持 Web 端和移动端。
 - Vue 3 Composition API 开发（`<script setup lang="ts">`）
 - Element Plus（Web 端）/ Vant（移动端）组件开发
 - uniapp 移动端开发（微信小程序兼容）
-- Pinia 状态管理
-- Vue Router 路由管理
+- Apple 设计规范与前端创意设计技能
+- TypeScript API 策略工厂模式（接口契约 + Mock/Real 无缝切换）
+- Pinia 状态管理 + Vue Router 路由管理
 - 文档驱动开发工作流
 
 **触发命令：** `/thirdnet-frontend`
@@ -50,18 +51,12 @@ git clone https://github.com/tianbiai/thirdnet-dev.git
 ```
 thirdnet-dev/
 ├── .claude-plugin/
-│   └── marketplace.json
+│   └── marketplace.json      # 插件集合注册清单
 ├── plugins/
 │   ├── thirdnet-backend/
-│   │   ├── agents/          # Agent 定义
-│   │   ├── commands/        # 斜杠命令
-│   │   ├── rules/           # 规则和模板
-│   │   └── skills/          # 开发技能
+│   │   └── skills/           # 后端开发技能（7 个）
 │   └── thirdnet-frontend/
-│       ├── agents/
-│       ├── commands/
-│       ├── rules/
-│       └── skills/
+│       └── skills/           # 前端开发技能（10 个）
 └── CLAUDE.md
 ```
 
