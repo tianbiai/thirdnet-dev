@@ -198,6 +198,11 @@
       font-weight: 600;
     }
 
+    .markdown-body img {
+      max-width: 100%;
+      height: auto;
+    }
+
     .loading {
       text-align: center;
       padding: 40px;
@@ -263,6 +268,34 @@
       return fileName;
     }
 
+    // 修正 markdown 内容中的图片路径
+    // 当 markdown 文件位于子目录时，图片路径需要加上目录前缀
+    // 例如：markdown 在 docs/manual/abc.md，图片路径 manual/screenshots/login.png
+    // 需要修正为 docs/manual/screenshots/login.png
+    function fixImagePaths(markdown, filePath) {
+      // 获取 markdown 文件所在的目录
+      const pathParts = filePath.split('/');
+      pathParts.pop(); // 移除文件名
+      const dir = pathParts.join('/');
+
+      if (!dir) return markdown; // 文件在根目录，无需修正
+
+      // 匹配 markdown 中的图片语法：![](path)
+      return markdown.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (match, alt, src) => {
+        // 跳过绝对路径（以 / 开头）或外部 URL（以 http:// 或 https:// 开头）
+        if (src.startsWith('/') || src.startsWith('http://') || src.startsWith('https://')) {
+          return match;
+        }
+        // 跳过带协议或 data: 的图片
+        if (src.includes('://')) {
+          return match;
+        }
+        // 修正相对路径：加上 markdown 所在目录作为前缀
+        const fixedSrc = dir + '/' + src;
+        return `![${alt}](${fixedSrc})`;
+      });
+    }
+
     // 加载并渲染 Markdown 文件
     async function loadMarkdown() {
       const contentEl = document.getElementById('content');
@@ -277,13 +310,16 @@
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
-        const markdown = await response.text();
+        let markdown = await response.text();
 
         // 更新页面标题
         const fileTitle = getFileTitle(filePath);
         titleEl.textContent = fileTitle;
         subtitleEl.textContent = filePath;
         document.title = fileTitle;
+
+        // 修正图片路径
+        markdown = fixImagePaths(markdown, filePath);
 
         // 使用 marked 解析 markdown
         const html = marked.parse(markdown, {
