@@ -1,7 +1,7 @@
 ---
 name: net-cache-use
-version: 1.0.0
-description: 缓存功能开发专家，为业务实体添加完整的 Redis 缓存功能（CacheManager、RedisHandler、View 三层架构）。**主动用于**：为实体添加缓存、字典数据缓存、配置信息缓存、高频查询缓存、缓存预热、性能优化。当用户提到"缓存"、"Cache"、"Redis"、"加缓存"、"缓存数据"、"字典缓存"、"配置缓存"、"高频查询"、"性能优化"、"预热"、"ICacheReader"、"ICacheRefresh"、"CacheManager"时，必须使用此技能。
+version: 3.0.0
+description: 缓存功能开发专家，基于 RedisCacheManager 基类为业务实体添加完整的 Redis 缓存功能（CacheManager、RedisHandler、View 三层架构）及 RedisLock 分布式锁。**主动用于**：为实体添加缓存、字典数据缓存、配置信息缓存、高频查询缓存、缓存预热、性能优化、分布式锁。当用户提到"缓存"、"Cache"、"Redis"、"加缓存"、"缓存数据"、"字典缓存"、"配置缓存"、"高频查询"、"性能优化"、"预热"、"ICacheReader"、"ICacheRefresh"、"CacheManager"、"RedisCacheManager"、"分布式锁"、"RedisLock"、"并发控制"、"防重复"时，必须使用此技能。
 ---
 ## 使用场景
 
@@ -9,233 +9,180 @@ description: 缓存功能开发专家，为业务实体添加完整的 Redis 缓
 - **配置信息缓存**：系统配置、业务参数
 - **高频查询数据**：用户信息、商品信息
 - **性能优化**：减少数据库查询、提升响应速度
+- **分布式锁**：防止并发重复操作、资源互斥访问
 
-## 核心功能
+## 核心架构
 
 **命名空间**: `ThirdNet.Core.Common`
 
-生成符合三层架构的缓存代码：
+框架提供 `RedisCacheManager` 抽象基类，业务层基于它构建三层缓存架构：
 
-- **Interface 层**：`ICacheReader`（读取接口）、`ICacheRefresh`（刷新接口）
-- **Cache 层**：`CacheManager`（缓存管理器）
-- **Data 层**：`RedisHandler`（数据查询）、`View`（视图模型）
+```
+RedisCacheManager（框架基类，Polly 熔断 + SemaphoreSlim 防击穿 + TTL 抖动）
+  └── 业务 CacheManager（继承基类，组合 RedisHandler）
+        ├── ICacheReader 接口（业务读取接口）
+        ├── ICacheRefresh 接口（业务刷新接口）
+        ├── RedisHandler（数据查询层，原生 SQL 查询 PostgreSQL）
+        └── View/（视图模型目录）
+```
 
-## 核心方法
+### RedisCacheManager 基类内置能力
 
-### CacheManager 读取方法
+继承 `RedisCacheManager` 即可获得以下能力，无需重复实现：
+
+| 能力 | 说明 |
+|------|------|
+| **Polly 熔断** | 连续 3 次 Redis 异常后自动熔断 5 分钟，熔断期间直接返回默认值 |
+| **缓存击穿防护** | 进程内 `SemaphoreSlim` 锁 + Double-check，同一 key 只允许一个请求穿透到数据库 |
+| **TTL 抖动** | `GetSingle` 写入时自动添加 ±10% 随机抖动，防止缓存雪崩 |
+| **异常回退** | Redis 不可用时返回 `default_value`，不抛异常影响业务 |
+
+## 基类方法签名
+
+以下是 `RedisCacheManager` 提供的完整方法。业务 CacheManager 子类直接调用这些方法，无需重写。
+
+### 读取方法
 
 | 方法 | 签名 | 说明 |
-|-----|------|------|
-| `GetSingle` | `Task<T> GetSingle<T>(string key, Func<Task<T>> factory, DateTime expire)` | 获取单个缓存，不存在时通过 factory 加载 |
-| `GetMultiple` | `Task<IDictionary<string, T>> GetMultiple<T>(string[] keys, Func<string[], Task<IDictionary<string, T>>> factory, DateTime expire)` | 批量获取缓存，不存在的通过 factory 加载 |
+|------|------|------|
+| `GetSingle` | `Task<TResult> GetSingle<TResult>(string key, Func<Task<TResult>> func, TimeSpan? timespan = null, bool refresh = false, TResult default_value = default)` | 获取单个缓存。不存在时通过 `func` 加载并写入，带击穿防护和 TTL 抖动 |
+| `GetMultiple` | `Task<IDictionary<string, TResult>> GetMultiple<TResult>(string[] keys, Func<string[], Task<IDictionary<string, TResult>>> func, DateTimeOffset? offset = null, TResult default_value = default)` | 批量获取。自动识别缺失 key，只对缺失的调用 `func` 查询并回写 |
 
-### CacheManager 刷新方法
+### 写入/删除方法
 
 | 方法 | 签名 | 说明 |
-|-----|------|------|
-| `AddOrUpdate` | `Task AddOrUpdate<T>(string key, T value, DateTime expire)` | 添加或更新缓存 |
-| `RemoveSingle` | `Task RemoveSingle(string key)` | 删除指定键的缓存 |
+|------|------|------|
+| `AddOrUpdate` | `Task<bool> AddOrUpdate<TResult>(string key, TResult model, TimeSpan? timespan = null)` | 添加或更新单个缓存 |
+| `AddOrUpdateMultiple` | `Task<bool> AddOrUpdateMultiple<TResult>(Tuple<string, TResult>[] list, DateTimeOffset? offset = null)` | 批量添加或更新 |
+| `RemoveSingle` | `Task<bool> RemoveSingle(string key)` | 删除单个缓存 |
+| `RemoveMultiple` | `Task<bool> RemoveMultiple(string[] keys)` | 批量删除，全部删除返回 true |
+
+### 参数说明
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `key` | `string` | 缓存键，必须小写、点号分隔（如 `user.123`） |
+| `func` | `Func<Task<TResult>>` | 缓存未命中时的数据加载回调 |
+| `timespan` | `TimeSpan?` | 单个操作的过期时间，null 表示永不过期。`GetSingle` 写入时自动加 ±10% 抖动 |
+| `offset` | `DateTimeOffset?` | 批量操作的过期时间点，null 表示永不过期 |
+| `refresh` | `bool` | 读取缓存后是否刷新 TTL，默认 false |
+| `default_value` | `TResult` | 缓存不存在或 Redis 异常时返回的默认值 |
+
+### TTL 参数类型规则
+
+- `GetSingle`、`AddOrUpdate`、`RemoveSingle` 使用 **`TimeSpan?`** 表示过期时长（如 `_stime8`）
+- `GetMultiple`、`AddOrUpdateMultiple` 使用 **`DateTimeOffset?`** 表示过期时间点（如 `DateTimeOffset.Now.Add(_stime8)`）
+
+## TTL 选择指南
+
+| 字段名 | 值 | 适用场景 |
+|--------|------|------|
+| `_stime010` | 10 分钟 | 临时会话数据 |
+| `_stime2` | 2 小时 | 外部 API Token |
+| `_stime8` | 8 小时 | 用户相关数据（房屋、住户、积分） |
+| `_stime24` | 24 小时 | 大部分参考数据（字典、配置、角色） |
 
 ## 执行步骤
 
 ### 步骤 1：收集实体信息
 
-**必需信息**：
+**必需**：实体英文名、主键类型、数据库表名、字段列表
 
-| 信息             | 说明                          | 示例                               |
-| ---------------- | ----------------------------- | ---------------------------------- |
-| 实体名称（英文） | 用于类命名                    | `User`、`Role`、`Department` |
-| 主键类型         | 通常是 `long` 或 `string` | `long`                           |
-| 数据库表名       | PostgreSQL 表名               | `t_user`、`t_role`             |
-| 字段列表         | 实体包含的所有字段            | `id`、`name`、`state`        |
+**可选**：唯一索引字段（手机号/账号等）、TTL 时长、是否需要树形结构、自定义查询条件
 
-**可选信息**：
+### 步骤 2：生成 View 视图模型
 
-| 信息             | 说明                                     |
-| ---------------- | ---------------------------------------- |
-| 唯一索引字段     | 除主键外的唯一查询字段（如手机号、账号） |
-| TTL 时长         | 缓存过期时间                             |
-| 是否需要嵌套结构 | 是否需要树形结构或复杂关联               |
-| 自定义查询条件   | 是否需要 JOIN、WHERE 等复杂查询          |
+在 `View/` 目录下创建 `{Entity}View.cs`，类名以 `View` 结尾，属性小写与数据库字段一致，必须包含 `id`。
 
-### 步骤 2：生成缓存视图模型
-
-在 `View/` 目录下创建 `{Entity}View.cs`：
-
-```csharp
-/// <summary>
-/// 用户视图模型
-/// </summary>
-public class UserView
-{
-    /// <summary>
-    /// 主键ID
-    /// </summary>
-    public long id { get; set; }
-
-    /// <summary>
-    /// 用户名
-    /// </summary>
-    public string user_name { get; set; }
-
-    /// <summary>
-    /// 状态
-    /// </summary>
-    public int state { get; set; }
-}
-```
-
-**要点**：
-
-- 类名以 `View` 结尾
-- 属性名使用小写（与数据库字段一致）
-- 必须包含 `id` 属性
+> 完整代码示例见 `references/cache-examples.md`「基础模式」章节
 
 ### 步骤 3：实现 RedisHandler 查询方法
 
-在 `RedisHandler.cs` 中添加查询方法：
+在 `RedisHandler.cs` 中添加三类查询方法：
+- **单个查询**：`SqlQueryRaw` + `FirstOrDefaultAsync`，按主键查询
+- **列表查询**：`SqlQueryRaw` + `ToListAsync`，返回 `Dictionary<key, View>`
+- **批量查询**：`SqlQueryRaw` + `ANY(@ids)` + `NpgsqlParameter`，用于 `GetMultiple` 的 func 回调
 
-```csharp
-/// <summary>
-/// 获取单个用户
-/// </summary>
-public async Task<UserView?> GetUser(long id)
-{
-    // 注意：使用对应服务的 schema（如 contract）
-    var sql = @"SELECT * FROM contract.t_user WHERE id = {0}";
-    return await _dbcontext.Database
-        .SqlQueryRaw<UserView>(sql, id)
-        .AsNoTracking()
-        .FirstOrDefaultAsync();
-}
-
-/// <summary>
-/// 获取用户列表
-/// </summary>
-public async Task<Dictionary<long, UserView>> GetUserList()
-{
-    var sql = @"SELECT * FROM contract.t_user";
-    var list = await _dbcontext.Database
-        .SqlQueryRaw<UserView>(sql)
-        .AsNoTracking()
-        .ToListAsync();
-    return list.ToDictionary(f => f.id, f => f);
-}
-
-/// <summary>
-/// 批量获取用户
-/// </summary>
-public async Task<List<UserView>> GetUsers(List<long> ids)
-{
-    var sql = @"SELECT * FROM contract.t_user WHERE id = ANY(@ids)";
-    return await _dbcontext.Database
-        .SqlQueryRaw<UserView>(sql, new NpgsqlParameter("ids", ids))
-        .AsNoTracking()
-        .ToListAsync();
-}
-```
+> 完整代码示例见 `references/cache-examples.md`「基础模式」章节
 
 ### 步骤 4：实现 CacheManager 读取方法
 
-在 `CacheManager.cs` 的 Reader 部分添加：
+业务 CacheManager 继承 `RedisCacheManager`，通过 `ICacheReader` 暴露读取方法：
 
-```csharp
-#region Reader - 用户相关
+- **单个读取**：`GetSingle(key, () => reader.GetXxx(id), _stimeX)`
+- **字典读取**：`GetSingle("entity", reader.GetXxxList, _stime24)`，缓存整个字典
+- **批量读取**：`GetMultiple(keys, func, DateTimeOffset.Now.Add(_stimeX))`，func 内部解析缺失 key，查询后返回 `IDictionary<string, TResult>`
 
-/// <summary>
-/// 获取单个用户
-/// </summary>
-public async Task<UserView?> GetUserInfo(long id)
-{
-    string key = $"user.{id}";
-    return await GetSingle(key, () => reader.GetUser(id), _stime8);
-}
-
-/// <summary>
-/// 获取用户字典
-/// </summary>
-public async Task<Dictionary<long, UserView>> GetUserDic()
-{
-    var key = "user";
-    return await GetSingle(key, reader.GetUserList, _stime24);
-}
-
-/// <summary>
-/// 批量获取用户
-/// </summary>
-public async Task<Dictionary<long, UserView>> GetUserInfo(List<long> ids)
-{
-    string key = "user.";
-    var dic = await GetMultiple(
-        ids.Distinct().Select(s => $"{key}{s}").ToArray(),
-        func,
-        _stime8
-    );
-    return dic.ToDictionary(f => long.Parse(f.Key.Replace(key, "")), v => v.Value);
-
-    async Task<IDictionary<string, UserView>> func(string[] keys)
-    {
-        var ids = keys.Select(s => long.Parse(s.Replace(key, ""))).ToList();
-        using var dbcontext = new CacheViewDBContext(viewDbOp);
-        var sql = @"SELECT * FROM contract.t_user WHERE id = ANY(@ids)";
-        var list = await dbcontext.Database
-            .SqlQueryRaw<UserView>(sql, new NpgsqlParameter("ids", ids))
-            .AsNoTracking()
-            .ToListAsync();
-        return list.ToDictionary(f => $"{key}{f.id}");
-    }
-}
-
-#endregion
-```
+> 完整代码示例（含批量查询 func 写法）见 `references/cache-examples.md`「基础模式」章节
 
 ### 步骤 5：实现 CacheManager 刷新方法
 
-在 `CacheManager.cs` 的 Refresh 部分添加：
+通过 `ICacheRefresh` 暴露刷新方法：
+
+- **按 ID 刷新**：先查询最新数据，存在则 `AddOrUpdate`，不存在则 `RemoveSingle`
+- **按模型刷新**：直接 `AddOrUpdate(key, model, ttl)`
+- **整集刷新**：重新加载列表后 `AddOrUpdate`
+
+多键场景（如用户同时缓存 `user.{id}`、`user.phone.{phone}`、`user.email.{email}`）刷新时需处理 key 迁移——先删旧键再建新键。
+
+> 多键场景完整示例见 `references/cache-examples.md`「多键场景」章节
+
+### 步骤 6：定义接口
 
 ```csharp
-#region Refresh - 用户相关
-
-/// <summary>
-/// 刷新单个用户
-/// </summary>
-public async Task RefreshUser(long id)
+// ICacheReader.cs
+public interface ICacheReader
 {
-    string key = $"user.{id}";
-    var info = await reader.GetUser(id);
-    await AddOrUpdate(key, info, _stime8);
+    Task<EntityView?> GetEntityInfo(long id);
+    Task<Dictionary<long, EntityView>> GetEntityDic();
+    Task<Dictionary<long, EntityView>> GetEntityInfo(List<long> ids);
 }
 
-/// <summary>
-/// 刷新整个用户集合
-/// </summary>
-public async Task RefreshUser()
+// ICacheRefresh.cs
+public interface ICacheRefresh
 {
-    var key = "user";
-    var dic = await reader.GetUserList();
-    await AddOrUpdate(key, dic, _stime24);
+    Task RefreshEntity(long id);
+    Task RefreshEntity(EntityView model);
 }
-
-/// <summary>
-/// 刷新特定用户（使用模型）
-/// </summary>
-public async Task RefreshUser(UserView model)
-{
-    string key = $"user.{model.id}";
-    await AddOrUpdate(key, model, _stime8);
-}
-
-#endregion
 ```
 
-## TTL 选择指南
+## 分布式锁：RedisLock
 
-| TTL 变量      | 时长   | 适用场景                           |
-| ------------- | ------ | ---------------------------------- |
-| `_stime010` | 10分钟 | 临时会话数据                       |
-| `_stime2`   | 2小时  | 外部 API Token                     |
-| `_stime8`   | 8小时  | 用户相关数据（房屋、住户、积分）   |
-| `_stime24`  | 24小时 | 大部分参考数据（字典、配置、角色） |
+**命名空间**: `ThirdNet.Core.Common.redis`
+
+框架提供 `RedisLock` 分布式锁，基于 Redis `StringSet` + Lua 脚本实现原子加锁/解锁。
+
+### 使用方式
+
+```csharp
+// 注入 IDatabase（由 AddRedisExtensionService 注册）
+private readonly IDatabase _redis;
+
+// 使用 using 自动释放锁
+using (await new RedisLock(_redis, "order.123", TimeSpan.FromSeconds(30)).LockAsync())
+{
+    // 临界区逻辑：同一 key 只有一个请求能进入
+    await ProcessOrder(orderId);
+}
+```
+
+### 构造函数
+
+```csharp
+RedisLock(IDatabase redis, string key, TimeSpan expiry)
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `redis` | `IDatabase` | Redis 数据库实例（通过 DI 注入） |
+| `key` | `string` | 锁键名，遵循缓存键命名规范（小写、点号分隔） |
+| `expiry` | `TimeSpan` | 锁自动过期时间（防止死锁） |
+
+**注意事项**：
+- 同时实现 `IAsyncDisposable` 和 `IDisposable`，支持 `using` 自动释放
+- 解锁使用 Lua 脚本保证原子性（检查值匹配后才删除）
+- 锁过期时间应大于临界区预期执行时间
+- Redis 不可用时锁操作会失败，需在 `catch` 中处理降级逻辑
 
 ## 代码审查清单
 
@@ -250,102 +197,23 @@ public async Task RefreshUser(UserView model)
 ### 代码质量
 
 - [ ] 缓存键命名符合规范（小写、点号分隔）
+- [ ] `GetSingle` 使用 `TimeSpan?` 过期参数
+- [ ] `GetMultiple` 使用 `DateTimeOffset?` 过期参数
 - [ ] 使用了正确的 TTL（根据数据特性）
 - [ ] 所有查询使用了 `AsNoTracking()`
 - [ ] 多键场景更新了所有相关键
-- [ ] 添加了完整的 XML 注释
 
-### 性能优化
+## 重要规范
 
-- [ ] 批量查询使用了 PostgreSQL `ANY` 数组参数
-- [ ] 所有查询使用原生 SQL
-- [ ] 大批量数据考虑了分批处理
+1. **命名规范**：缓存键小写+点号分隔，View 类名以 `View` 结尾，属性小写与数据库一致
+2. **性能规范**：必须 `AsNoTracking()`，批量查询用 `ANY`，避免循环查询
+3. **一致性规范**：数据变更后立即刷新缓存，多键场景更新所有相关键
 
-## 使用示例
-
-### 调用技能
-
-```
-请添加缓存实体：
-- 实体名称：Department
-- 中文名称：部门
-- 主键类型：long
-- 数据库表名：t_department
-- 字段列表：
-  - name (string) - 部门名称
-  - state (int) - 状态
-  - add_time (DateTime) - 添加时间
-- TTL：24小时
-- 需要：单个查询、字典查询、批量查询
-```
-
-### 业务代码调用
-
-```csharp
-public class DepartmentService
-{
-    private readonly ICacheReader _cacheReader;
-    private readonly ICacheRefresh _cacheRefresh;
-
-    // 获取单个部门
-    public async Task<DepartmentView> GetDepartment(long id)
-    {
-        return await _cacheReader.GetDepartmentInfo(id);
-    }
-
-    // 获取所有部门字典
-    public async Task<Dictionary<long, DepartmentView>> GetAllDepartments()
-    {
-        return await _cacheReader.GetDepartmentDic();
-    }
-
-    // 批量获取部门
-    public async Task<Dictionary<long, DepartmentView>> GetDepartments(List<long> ids)
-    {
-        return await _cacheReader.GetDepartmentInfo(ids);
-    }
-
-    // 更新部门后刷新缓存
-    public async Task UpdateDepartment(DepartmentView dept)
-    {
-        // 1. 更新数据库
-        await _dbcontext.SaveChangesAsync();
-
-        // 2. 刷新缓存
-        await _cacheRefresh.RefreshDepartment(dept);
-    }
-}
-```
-
-## ⚠️ 重要注意事项
-
-### 禁止使用数据验证注解
-
-> 实体模型禁止使用数据注解，所有配置通过 Fluent API 实现。详见 **net-efcore-developer** 技能。
->
-> **例外**：`[DbBulk]` 特性是批量操作框架的特殊要求，**不是数据验证注解**，可以安全使用。
-
-### 必须遵循的规范
-
-1. **命名规范**
-
-   - 缓存键必须小写，使用点号分隔
-   - 类名以 `View` 结尾
-   - 属性名使用小写（与数据库一致）
-2. **性能规范**
-
-   - 必须使用 `AsNoTracking()`
-   - 批量查询使用 `ANY` 语句
-   - 避免循环查询
-3. **一致性规范**
-
-   - 数据变更后立即刷新缓存
-   - 多键场景更新所有相关键
-   - 使用正确的 TTL
+> 实体模型禁止使用数据注解（Fluent API 配置）。**例外**：`[DbBulk]` 特性是批量操作框架要求，可以使用。
 
 ## 详细示例
 
-完整的缓存实现示例（包括多键场景、树形结构等），请参阅：`references/cache-examples.md`
+完整的缓存实现示例（基础模式、多键场景、树形结构、Controller 调用），请参阅：`references/cache-examples.md`
 
 ## 相关技能
 

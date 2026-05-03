@@ -179,7 +179,7 @@ namespace MyApp.UserService
 | 3 | 配置限流 | `AddThirdNetIpAndApplicationPathRateLimiting` | IP + 路径限流 |
 | 4 | 配置认证 | `AddThirdNetDefaultRSAJwt` | RSA JWT 认证 |
 | 5 | 配置 Redis | `AddRedisExtensionService` | Redis 缓存（WebApiService） |
-| 6 | 配置 MVC | `AddThirdNetMvcWithPostgresql` | MVC + PostgreSQL |
+| 6 | 配置 MVC | `AddThirdNetMvcWithPostgresql` | MVC + 框架核心组件（详见下方） |
 | 7 | 配置帮助页面 | `AddThirdNetVersioningHelpPage` | Swagger 文档 |
 
 #### Configure 阶段（中间件配置）
@@ -208,6 +208,32 @@ namespace MyApp.UserService
 
 **注意**：不要在 `UseThirdNetMvc` 外部手动添加认证/授权中间件，会导致重复执行。
 
+## AddThirdNetMvcWithPostgresql 内部注册内容
+
+`AddThirdNetMvcWithPostgresql` 是框架核心注册方法，一次调用自动注册以下组件：
+
+| 分类 | 注册内容 | 说明 |
+|------|---------|------|
+| **MVC** | `CustomExceptionFilter` | 全局异常过滤器，`WebApiException` 返回对应 HTTP 状态码 |
+| **MVC** | `ValidateModelAttribute` | 自动校验 `ModelState`，无效时返回 400 |
+| **MVC** | JSON 序列化 | 小写策略（`JsonLowercasePolicy`）+ DateTime 转换器 |
+| **认证** | Basic + Bearer 认证 | 双层认证（应用级 Basic + 用户级 JWT） |
+| **授权** | 策略注册 | `Default`、`Logon`、`Basic`、`Both` 四个策略 |
+| **授权** | `ThirdNetAuthorizationHandler` | 基于角色的资源授权（支持通配符 `*`） |
+| **授权** | `ProviderPolicyProvider` + `ProviderAuthorizationHandler` | 基于 scope 的动态策略授权 |
+| **缓存** | `ApplicationInfoCache` | 应用配置内存缓存（`SessionRunner`） |
+| **缓存** | `IpWhiteListCache` / `IpBlackListCache` | IP 黑白名单内存缓存 |
+| **缓存** | `ApplicationAuthorityCache` / `RolesAuthorityCache` | 角色-权限映射缓存 |
+| **日志** | `NpgsqlVisitLogRunner`（`IVisitLogger`） | 访问日志批处理器（30秒批量写入） |
+| **日志** | `DatabaseBackgroundLogger`（`IBackgroundLogger`） | 后台任务日志（写入 `BackgroundLog` 表） |
+| **批量** | `PostgresqlAsyncBulk`（`IDbAsyncBulk`） | PostgreSQL 批量操作（Transient） |
+| **其他** | `DefaultCheckClient`（`ICheckClient`） | 应用认证验证（HMAC-SHA512 签名） |
+| **其他** | `HMacClientCryptography`（`IClientCryptography`） | 客户端签名生成 |
+| **其他** | `DefaultRolesProvider`（`IRolesProvider`） | 默认角色解析 |
+| **其他** | `IAccountTokenTimeCache` / `IGetAccountTokenKey` | Token 凭证变更检测 |
+
+> **Redis 不在此方法内注册**。Redis 需在步骤 5 通过 `AddRedisExtensionService` 单独注册，且必须在 `AddThirdNetMvcWithPostgresql` 之前调用。
+
 ## 数据库配置
 
 > 连接字符串配置（`DefaultConnectionString`、`ConnectionString` 等）请参阅 **net-efcore-developer** 技能。
@@ -233,18 +259,23 @@ services.AddRedisExtensionService(Configuration);
 
 ### 配置项
 
-在 `appsettings.json` 中配置：
+在 `appsettings.json` 中配置（配置节名称必须为 `RedisExtension`）：
 
 ```json
 {
-  "Redis": {
-    "Host": "localhost",
-    "Port": 6379,
-    "Password": "",
-    "InstanceName": "myapp"
+  "RedisExtension": {
+    "Connection": "192.168.1.178:63790,password=swkj@123",
+    "KeyPrefix": "myapp",
+    "DefaultDatabase": 0
   }
 }
 ```
+
+| 属性 | 类型 | 说明 |
+|------|------|------|
+| `Connection` | `string` | Redis 连接字符串（host:port,password=xxx） |
+| `KeyPrefix` | `string` | 缓存键前缀，用于多应用隔离 |
+| `DefaultDatabase` | `int` | 默认数据库编号 |
 
 ### 使用 Redis
 

@@ -1,6 +1,197 @@
 # 缓存实现详细示例
 
-本文档提供完整的缓存实现示例，涵盖各种常见场景。
+本文件包含完整的缓存实现代码示例，作为 SKILL.md 的补充参考。
+
+所有示例基于 `RedisCacheManager` 基类（`ThirdNet.Core.Common` 命名空间），该基类内置 Polly 熔断、SemaphoreSlim 防击穿、TTL 抖动等能力。
+
+## 目录
+
+- [基础模式：用户缓存](#基础模式用户缓存) — 单个/列表/批量查询的标准实现
+- [完整示例：部门缓存](#完整示例部门缓存) — 含树形查询的完整 CRUD
+- [多键场景：用户缓存（多索引）](#完整示例用户缓存带多键场景) — 多 key 索引同一数据
+- [树形结构：地区缓存](#树形结构示例地区缓存) — 扁平数据构建树
+- [批量操作：AddOrUpdateMultiple / RemoveMultiple](#批量操作示例使用-addorupdatemultiple-和-removemultiple) — 批量刷新/删除
+- [Controller 中使用缓存](#使用示例) — API 层调用示例
+
+---
+
+## 基础模式：用户缓存
+
+以下是最标准的缓存实现模式：View → RedisHandler → CacheManager（Reader + Refresh）→ 接口定义。
+
+### 1. 视图模型 (View/UserView.cs)
+
+```csharp
+namespace {项目名}.Cache.View
+{
+    /// <summary>
+    /// 用户视图模型
+    /// </summary>
+    public class UserView
+    {
+        public long id { get; set; }
+        public string user_name { get; set; }
+        public int state { get; set; }
+    }
+}
+```
+
+### 2. RedisHandler 查询方法
+
+```csharp
+/// <summary>
+/// 获取单个用户
+/// </summary>
+public async Task<UserView?> GetUser(long id)
+{
+    var sql = @"SELECT * FROM contract.t_user WHERE id = {0}";
+    return await _dbcontext.Database
+        .SqlQueryRaw<UserView>(sql, id)
+        .AsNoTracking()
+        .FirstOrDefaultAsync();
+}
+
+/// <summary>
+/// 获取用户列表（返回字典）
+/// </summary>
+public async Task<Dictionary<long, UserView>> GetUserList()
+{
+    var sql = @"SELECT * FROM contract.t_user";
+    var list = await _dbcontext.Database
+        .SqlQueryRaw<UserView>(sql)
+        .AsNoTracking()
+        .ToListAsync();
+    return list.ToDictionary(f => f.id, f => f);
+}
+
+/// <summary>
+/// 批量获取用户（用于 GetMultiple 的 func 回调）
+/// </summary>
+public async Task<List<UserView>> GetUsers(List<long> ids)
+{
+    var sql = @"SELECT * FROM contract.t_user WHERE id = ANY(@ids)";
+    return await _dbcontext.Database
+        .SqlQueryRaw<UserView>(sql, new NpgsqlParameter("ids", ids))
+        .AsNoTracking()
+        .ToListAsync();
+}
+```
+
+### 3. CacheManager 读取方法
+
+```csharp
+#region Reader - 用户相关
+
+/// <summary>
+/// 获取单个用户
+/// </summary>
+public async Task<UserView?> GetUserInfo(long id)
+{
+    string key = $"user.{id}";
+    return await GetSingle(key, () => reader.GetUser(id), _stime8);
+}
+
+/// <summary>
+/// 获取用户字典
+/// </summary>
+public async Task<Dictionary<long, UserView>> GetUserDic()
+{
+    var key = "user";
+    return await GetSingle(key, reader.GetUserList, _stime24);
+}
+
+/// <summary>
+/// 批量获取用户
+/// </summary>
+public async Task<Dictionary<long, UserView>> GetUserInfo(List<long> ids)
+{
+    if (ids == null || ids.Count == 0)
+        return new Dictionary<long, UserView>();
+
+    string key = "user.";
+    var dic = await GetMultiple(
+        ids.Distinct().Select(s => $"{key}{s}").ToArray(),
+        func,
+        DateTimeOffset.Now.Add(_stime8)
+    );
+    return dic.ToDictionary(f => long.Parse(f.Key.Replace(key, "")), v => v.Value);
+
+    async Task<IDictionary<string, UserView>> func(string[] keys)
+    {
+        var ids = keys.Select(s => long.Parse(s.Replace(key, ""))).ToList();
+        var list = await reader.GetUsers(ids);
+        return list.ToDictionary(f => $"{key}{f.id}");
+    }
+}
+
+#endregion
+```
+
+### 4. CacheManager 刷新方法
+
+```csharp
+#region Refresh - 用户相关
+
+/// <summary>
+/// 刷新单个用户
+/// </summary>
+public async Task RefreshUser(long id)
+{
+    string key = $"user.{id}";
+    var info = await reader.GetUser(id);
+    if (info != null)
+    {
+        await AddOrUpdate(key, info, _stime8);
+    }
+    else
+    {
+        await RemoveSingle(key);
+    }
+}
+
+/// <summary>
+/// 刷新整个用户集合
+/// </summary>
+public async Task RefreshUser()
+{
+    var key = "user";
+    var dic = await reader.GetUserList();
+    await AddOrUpdate(key, dic, _stime24);
+}
+
+/// <summary>
+/// 刷新特定用户（使用模型）
+/// </summary>
+public async Task RefreshUser(UserView model)
+{
+    string key = $"user.{model.id}";
+    await AddOrUpdate(key, model, _stime8);
+}
+
+#endregion
+```
+
+### 5. 接口定义
+
+```csharp
+// ICacheReader.cs
+public interface ICacheReader
+{
+    Task<UserView?> GetUserInfo(long id);
+    Task<Dictionary<long, UserView>> GetUserDic();
+    Task<Dictionary<long, UserView>> GetUserInfo(List<long> ids);
+}
+
+// ICacheRefresh.cs
+public interface ICacheRefresh
+{
+    Task RefreshUser(long id);
+    Task RefreshUser();
+    Task RefreshUser(UserView model);
+}
+```
+
+---
 
 ## 完整示例：部门缓存
 
@@ -44,13 +235,14 @@ namespace {项目名}.Cache.View
 
 ### 2. RedisHandler 查询方法
 
+RedisHandler 是 CacheManager 的内部依赖，负责从数据库查询原始数据：
+
 ```csharp
 /// <summary>
 /// 获取单个部门
 /// </summary>
 public async Task<DepartmentView?> GetDepartment(long id)
 {
-    // 注意：使用对应服务的 schema（如 contract）
     var sql = @"SELECT id, name, parent_id, state, sort
                 FROM contract.t_department
                 WHERE id = {0}";
@@ -111,6 +303,8 @@ public async Task<List<DepartmentView>> GetChildDepartments(long parentId)
 
 ### 3. CacheManager 读取方法
 
+注意 `GetSingle` 使用 `TimeSpan?` 过期参数，`GetMultiple` 使用 `DateTimeOffset?` 过期参数：
+
 ```csharp
 #region Reader - 部门相关
 
@@ -146,7 +340,7 @@ public async Task<Dictionary<long, DepartmentView>> GetDepartmentInfo(List<long>
     var dic = await GetMultiple(
         ids.Distinct().Select(s => $"{key}{s}").ToArray(),
         func,
-        _stime24
+        DateTimeOffset.Now.Add(_stime24)
     );
     return dic.ToDictionary(f => long.Parse(f.Key.Replace(key, "")), v => v.Value);
 
@@ -261,6 +455,8 @@ public interface ICacheRefresh
 ```
 
 ## 完整示例：用户缓存（带多键场景）
+
+用户缓存通过多个 key（ID、手机号、邮箱）索引同一份数据，刷新时需要处理字段变更导致的 key 迁移。
 
 ### 1. 视图模型
 
@@ -524,7 +720,55 @@ private void BuildChildren(RegionView parent, Dictionary<long, RegionView> all)
 #endregion
 ```
 
+## 批量操作示例：使用 AddOrUpdateMultiple 和 RemoveMultiple
+
+当需要一次性刷新大量缓存时，使用批量方法比循环调用单个方法更高效：
+
+```csharp
+/// <summary>
+/// 批量刷新部门缓存
+/// </summary>
+public async Task RefreshDepartments(List<DepartmentView> departments)
+{
+    if (departments == null || departments.Count == 0)
+        return;
+
+    var items = departments.Select(d =>
+        new Tuple<string, DepartmentView>($"department.{d.id}", d)).ToArray();
+
+    await AddOrUpdateMultiple(items, DateTimeOffset.Now.Add(_stime24));
+}
+
+/// <summary>
+/// 批量删除部门缓存
+/// </summary>
+public async Task RemoveDepartments(List<long> ids)
+{
+    if (ids == null || ids.Count == 0)
+        return;
+
+    var keys = ids.Select(id => $"department.{id}").ToArray();
+    await RemoveMultiple(keys);
+}
+```
+
 ## 使用示例
+
+### 调用技能时的信息提供方式
+
+```
+请添加缓存实体：
+- 实体名称：Department
+- 中文名称：部门
+- 主键类型：long
+- 数据库表名：t_department
+- 字段列表：
+  - name (string) - 部门名称
+  - state (int) - 状态
+  - add_time (DateTime) - 添加时间
+- TTL：24小时
+- 需要：单个查询、字典查询、批量查询
+```
 
 ### Controller 中使用缓存
 
