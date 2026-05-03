@@ -223,8 +223,56 @@ metadata:
 
 ## 项目特定规范
 
-- **按钮防连续点击**：涉及 API 调用的按钮须有 Loading/防抖/禁用机制
-- **并发错误去重**：多请求失败时错误提示只弹一次，禁止在 `Promise.all` catch 或独立 async catch 中各自弹出
+### 按钮防重复点击
+
+所有可交互按钮必须具备防重复点击机制，根据场景选择合适的策略：
+
+| 场景 | 推荐策略 | 说明 |
+| ---- | -------- | ---- |
+| 表单提交、删除确认等触发 API 的操作 | **Loading + disabled** | 首选方案，点击后立即 disable 并显示 loading，请求完成后恢复 |
+| 搜索输入、筛选切换 | **防抖（Debounce）** | 停止操作后才触发，连续操作只执行最后一次（300-500ms） |
+| 导出、下载等短时操作 | **节流（Throttle）** | 指定时间窗口内只允许触发一次（如 1000ms） |
+| 纯前端切换（展开/折叠、Tab 切换） | **节流（Throttle）** | 短时间内防止重复触发状态变更（300ms） |
+
+**Loading + disabled 模式（首选，适用于所有 API 调用按钮）：**
+
+Web 端（Element Plus）：
+```vue
+<el-button :loading="submitting" :disabled="submitting" @click="handleSubmit">
+  提交
+</el-button>
+
+<script setup lang="ts">
+const submitting = ref(false)
+
+async function handleSubmit() {
+  if (submitting.value) return
+  submitting.value = true
+  try {
+    await api.submit(formData)
+  } finally {
+    submitting.value = false
+  }
+}
+</script>
+```
+
+移动端（Vant）：
+```vue
+<van-button :loading="submitting" :disabled="submitting" loading-text="提交中..." @click="handleSubmit">
+  提交
+</van-button>
+```
+
+**强制规则：**
+- 涉及 API 调用的按钮，必须使用 Loading + disabled 模式，不允许仅靠防抖/节流替代
+- `loading` 和 `disabled` 应绑定同一个响应式变量，保持状态一致
+- `try/finally` 模式确保请求失败时也能恢复按钮状态
+- 禁止在按钮点击回调中不做任何保护直接调用 async 函数
+
+### 并发错误去重
+
+- 多请求失败时错误提示只弹一次，禁止在 `Promise.all` catch 或独立 async catch 中各自弹出
 - **移动端兼容**：使用 `uni.xxx` 替代 `window`/`document`，禁止 DOM 操作，H5 专有功能用 `#ifdef H5` 条件编译
 
 ### 错误处理
@@ -300,7 +348,8 @@ frontend/
 - [ ] 枚举使用 `enum` 关键字 + JSDoc，无 union type 或 const object
 - [ ] API 模块遵循策略工厂模式（`IXxxApi` + `RealXxxApi` + `MockXxxApi` + `createXxxApi()`）
 - [ ] 每个页面右上角有 HelpBubble，使用 `v-if` 而非 `v-show`
-- [ ] 涉及 API 调用的按钮有 Loading/防抖/禁用机制
+- [ ] 所有可交互按钮具备防重复点击机制（API 按钮：Loading + disabled；其他：防抖/节流）
+- [ ] API 调用按钮使用 `try/finally` 确保 loading 状态恢复
 - [ ] 多请求失败时错误提示只弹一次（并发错误去重）
 - [ ] 类型定义、函数有 JSDoc 中文注释
 - [ ] 核心业务逻辑有中文行内注释
