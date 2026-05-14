@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Thirdnet 全栈开发插件集",
-    "version": "0.17.0"
+    "version": "0.18.0"
   },
   "plugins": [
     {
@@ -41,6 +41,36 @@
       ],
       "category": "development",
       "strict": false
+    },
+    {
+      "name": "superpowers",
+      "description": "Agentic skills framework & software development methodology — brainstorming, TDD, systematic debugging, subagent-driven development, code review, and more",
+      "author": {
+        "name": "Jesse Vincent",
+        "url": "https://github.com/obra"
+      },
+      "category": "development",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/obra/superpowers.git",
+        "ref": "main"
+      },
+      "homepage": "https://github.com/obra/superpowers"
+    },
+    {
+      "name": "ui-ux-pro-max",
+      "description": "UI/UX design intelligence for web and mobile — 50+ styles, 161 color palettes, 57 font pairings, 99 UX guidelines across 10 stacks (React, Vue, Svelte, Flutter, Tailwind, shadcn/ui, etc.)",
+      "author": {
+        "name": "NextLevelBuilder",
+        "url": "https://github.com/nextlevelbuilder"
+      },
+      "category": "design",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill.git",
+        "ref": "main"
+      },
+      "homepage": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill"
     }
   ]
 }
