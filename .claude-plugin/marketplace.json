@@ -124,6 +124,21 @@
         "ref": "main"
       },
       "homepage": "https://github.com/nextlevelbuilder/ui-ux-pro-max-skill"
+    },
+    {
+      "name": "webapp-testing",
+      "description": "Web 应用测试工具包 — 使用 Playwright 交互测试本地 Web 应用，支持前端功能验证、UI 行为调试、浏览器截图和控制台日志查看",
+      "author": {
+        "name": "Anthropic",
+        "url": "https://github.com/anthropics"
+      },
+      "category": "testing",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/anthropics/skills.git",
+        "ref": "main"
+      },
+      "homepage": "https://github.com/anthropics/skills/tree/main/skills/webapp-testing"
     }
   ]
 }
