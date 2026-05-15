@@ -1,6 +1,6 @@
 ---
 name: net-crypto-keygen
-description: ThirdNet 加密密钥生成工具。生成 SM2、RSA、AES、SM4 等加密算法的密钥对，输出可直接复制粘贴到 appsettings.json 配置文件中。当用户需要生成密钥、配置 JWT 签名密钥、设置加密算法密钥、提到 SM2/RSA/AES/SM4 密钥生成、public_key/private_key 为空、或需要更换密钥时，必须使用此技能。也适用于用户说"帮我生成一对密钥"、"密钥怎么配"、"JWT 密钥"等场景。
+description: ThirdNet 加密密钥生成工具。生成 SM2、RSA、AES、SM4 等加密算法的密钥对，输出可直接复制粘贴到 appsettings.json 配置文件中。**主动用于**：生成密钥对、配置 JWT 签名密钥、设置加密算法密钥。当用户提到 SM2/RSA/AES/SM4 密钥生成、public_key/private_key 为空、需要更换密钥、或说"帮我生成一对密钥"、"密钥怎么配"、"JWT 密钥"、"加密密钥"时，必须使用此技能。
 ---
 
 # ThirdNet 加密密钥生成
