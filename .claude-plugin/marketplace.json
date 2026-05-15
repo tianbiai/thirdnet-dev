@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Thirdnet 全栈开发插件集",
-    "version": "0.18.0"
+    "version": "0.20.0"
   },
   "plugins": [
     {
@@ -44,7 +44,7 @@
     },
     {
       "name": "superpowers",
-      "description": "Agentic skills framework & software development methodology — brainstorming, TDD, systematic debugging, subagent-driven development, code review, and more",
+      "description": "智能技能框架与软件开发方法论 — 头脑风暴、TDD 测试驱动、系统化调试、子代理驱动开发、代码审查等",
       "author": {
         "name": "Jesse Vincent",
         "url": "https://github.com/obra"
@@ -58,8 +58,41 @@
       "homepage": "https://github.com/obra/superpowers"
     },
     {
+      "name": "md-to-word",
+      "source": "./skills/md-to-word",
+      "description": "将 Markdown 文件转换为 Word (.docx) 文件，支持标题、粗体、斜体、代码、列表、表格等格式",
+      "version": "0.1.0",
+      "author": {
+        "name": "thirdnet"
+      },
+      "keywords": [
+        "markdown",
+        "word",
+        "docx",
+        "convert",
+        "document"
+      ],
+      "category": "utility",
+      "strict": false
+    },
+    {
+      "name": "supabase-postgres-best-practices",
+      "description": "PostgreSQL 数据库最佳实践 — 涵盖 8 大类 30 条规则，包括架构设计、索引优化、查询调优、连接池配置等，帮助 AI 编写更高质量的 SQL",
+      "author": {
+        "name": "Supabase",
+        "url": "https://github.com/supabase"
+      },
+      "category": "database",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/supabase/agent-skills.git",
+        "ref": "main"
+      },
+      "homepage": "https://github.com/supabase/agent-skills/tree/main/skills/supabase-postgres-best-practices"
+    },
+    {
       "name": "ui-ux-pro-max",
-      "description": "UI/UX design intelligence for web and mobile — 50+ styles, 161 color palettes, 57 font pairings, 99 UX guidelines across 10 stacks (React, Vue, Svelte, Flutter, Tailwind, shadcn/ui, etc.)",
+      "description": "Web 和移动端 UI/UX 设计智能助手 — 50+ 设计风格、161 套配色方案、57 组字体搭配、99 条 UX 准则，覆盖 10 大技术栈（React、Vue、Svelte、Flutter、Tailwind、shadcn/ui 等）",
       "author": {
         "name": "NextLevelBuilder",
         "url": "https://github.com/nextlevelbuilder"

@@ -1,0 +1,30 @@
+{
+  "skill_name": "md-to-word",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "将 evals/files/sample.md 转换为 Word 文档",
+      "expected_output": "生成一个 .docx 文件，包含转换后的内容",
+      "files": ["evals/files/sample.md"],
+      "assertions": [
+        "输出文件已生成且不为空",
+        "文档包含标题 '测试文档'",
+        "文档包含 '基本格式' 章节",
+        "文档包含列表内容",
+        "文件扩展名为 .docx"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "把 evals/files/table_test.md 转换成 Word 文档",
+      "expected_output": "生成包含表格的 Word 文档",
+      "files": ["evals/files/table_test.md"],
+      "assertions": [
+        "输出文件已生成",
+        "文档包含表格结构",
+        "表格第一行作为表头加粗显示",
+        "表格内容正确转换"
+      ]
+    }
+  ]
+}
