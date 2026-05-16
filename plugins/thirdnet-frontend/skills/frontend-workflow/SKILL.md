@@ -74,7 +74,6 @@ metadata:
 | -------------- | ----------------------------------------------- |
 | Composable     | `thirdnet-frontend:create-adaptable-composable` |
 | JSX            | `thirdnet-frontend:vue-jsx-best-practices`      |
-| Options API    | `thirdnet-frontend:vue-options-api-best-practices` |
 
 ### 技能调用检查清单
 
