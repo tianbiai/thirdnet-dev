@@ -4,3 +4,7 @@
 # VS Code Local History
 .history/
 docs/
+
+# .NET build output
+bin/
+obj/

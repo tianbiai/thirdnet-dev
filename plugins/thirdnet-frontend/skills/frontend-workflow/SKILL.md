@@ -203,7 +203,7 @@ metadata:
 
 ## API 策略工厂架构
 
-所有 API 模块必须遵循接口契约策略工厂模式（`IXxxApi` + `RealXxxApi` + `MockXxxApi` + `createXxxApi()`），通过 `.env` 中 `VITE_MOCK` 无缝切换。详细规则见 `api-typescript-spec` 技能。
+所有 API 模块必须遵循接口契约策略工厂模式（`IXxxApi` + `RealXxxApi` + `MockXxxApi` + `createXxxApi()`），通过 `.env.*` 中 `VITE_MOCK_ENABLED` 无缝切换。详细规则见 `api-typescript-spec` 技能。
 
 ## 演示模式
 

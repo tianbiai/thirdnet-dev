@@ -298,18 +298,53 @@ export const mockOrderList: OrderItem[] = [
 
 ```typescript
 // src/config/index.ts
-export const MOCK_ENABLED = import.meta.env.VITE_MOCK === 'true'
+export const MOCK_ENABLED = import.meta.env.VITE_MOCK_ENABLED === 'true'
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 ```
 
-**环境文件**：
-```
-# .env（开发 — Mock 模式）     # .env.production（生产 — 真实 API）
-VITE_MOCK=true                  VITE_MOCK=false
-VITE_API_BASE_URL=/api          VITE_API_BASE_URL=https://api.example.com
+#### 环境文件
+
+| 文件 | 值 | 用途 |
+|------|-----|------|
+| `.env.development` | `VITE_MOCK_ENABLED=true` | 日常开发 |
+| `.env.prototype` | `VITE_MOCK_ENABLED=true` | 原型演示构建 |
+| `.env.production` | `VITE_MOCK_ENABLED=false` | 生产构建 |
+
+#### 构建模式
+
+| 命令 | mode | Mock 行为 | 构建优化 |
+|------|------|-----------|---------|
+| `dev` / `dev:h5` | development | 正常加载，使用 MockApi | 无 |
+| `build:proto` / `build:h5:proto` | prototype | 正常加载，使用 MockApi | 有 |
+| `build` / `build:h5` | production | 排除 mock 代码，使用 RealApi | 有 |
+
+#### 生产构建排除机制
+
+生产构建时，通过两步机制确保 Mock 代码不出现在最终产物中：
+
+**1. Vite alias 重定向**：在 `vite.config.js` 中根据 mode 条件配置 `resolve.alias`：
+
+```javascript
+resolve: {
+  alias: [
+    ...(mode === 'production'
+      ? [{ find: /^@\/mock.*/, replacement: 'src/mock_prod_stub.ts' }]
+      : []),
+    { find: '@', replacement: 'src' }
+  ]
+}
 ```
 
-**切换流程**：修改 `.env` 中 `VITE_MOCK` 值 → 重启开发服务器，无需修改任何业务代码。工厂函数在模块初始化时执行一次，运行期间不再切换。
+**2. Rollup 死代码消除**：配合 `MOCK_ENABLED` 静态为 `false`，工厂函数中 Mock 分支成为死代码被消除。
+
+```typescript
+// src/mock_prod_stub.ts — 空模块，仅在 production 构建时替代 @/mock/**
+export default {}
+```
+
+**原理**：生产构建时，所有 `@/mock/**` 的静态 import 被重定向到空模块 `mock_prod_stub.ts`（仅 `export default {}`）。配合 `MOCK_ENABLED` 静态为 `false`，工厂函数的 Mock 分支成为不可达代码，Rollup tree-shaking 移除整个 Mock 分支——Mock API 类、Mock 数据文件、Mock 工具函数均不会出现在最终包中。非 production 模式下 alias 不生效，Mock 模块正常参与构建。
+
+**切换流程**：通过不同构建命令自动选择对应 `.env.*` 文件，无需手动修改配置。工厂函数在模块初始化时执行一次，运行期间不再切换。
 
 ## 认证模块（`auth.ts`）
 
