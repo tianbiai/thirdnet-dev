@@ -4,7 +4,7 @@ Claude Code 全栈开发插件集合，为 .NET 后端和 Vue 前端提供专业
 
 ## 插件列表
 
-### thirdnet-backend (v0.10.0)
+### thirdnet-backend (v0.11.0)
 
 .NET 10 微服务后端开发助手。
 
@@ -20,7 +20,7 @@ Claude Code 全栈开发插件集合，为 .NET 后端和 Vue 前端提供专业
 
 **触发命令：** `/thirdnet-backend`
 
-### thirdnet-frontend (v0.19.0)
+### thirdnet-frontend (v0.21.0)
 
 Vue 3 前端开发助手，支持 Web 端和移动端。
 

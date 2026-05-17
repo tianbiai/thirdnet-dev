@@ -1,6 +1,7 @@
 ---
 name: md-to-word
 description: 将 Markdown 文件转换为 Word (.docx) 文件。当用户需要 md 转 word、markdown 转 docx、生成 word 文档、导出 docx 时使用此技能。
+version: 0.1.0
 ---
 
 # Markdown 转 Word 技能

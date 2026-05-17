@@ -7,8 +7,8 @@
 ```
 thirdnet-dev/
 ├── plugins/
-│   ├── thirdnet-backend/     # .NET 10 微服务后端开发插件 (v0.5.0)
-│   └── thirdnet-frontend/    # Vue 3 前端开发插件 (v0.13.0)
+│   ├── thirdnet-backend/     # .NET 10 微服务后端开发插件 (v0.11.0)
+│   └── thirdnet-frontend/    # Vue 3 前端开发插件 (v0.21.0)
 └── .claude-plugin/
     └── marketplace.json      # 插件集合注册清单
 ```
@@ -29,8 +29,8 @@ thirdnet-dev/
 
 每个插件通过 `skills/` 目录组织领域知识：
 
-- **Backend**：7 个技能覆盖微服务生成、API 开发、EF Core、认证、缓存、后台任务、批量操作
-- **Frontend**：9 个技能覆盖 Vue 3 最佳实践、设计规范、API TypeScript 规范、文档模板、Pinia、Router、JSX、Options API、Composable 设计
+- **Backend**：8 个技能覆盖微服务生成、API 开发、EF Core、认证、缓存、后台任务、批量操作、密钥生成
+- **Frontend**：9 个技能覆盖 Vue 3 最佳实践、设计规范、API TypeScript 规范、文档模板、Pinia、Router、JSX、Composable 设计、Apple 设计规范
 
 ## 插件说明
 
@@ -57,5 +57,5 @@ Vue 3 前端开发专家，支持双平台：
 ## 开发注意事项
 
 - 所有文档和 commit message 使用中文
-- 插件内的规则（rules/）和技能（skills/）定义了具体的开发规范
+- 插件内的技能（skills/）和钩子（hooks/）定义了具体的开发规范
 - 修改插件内容后，注意同步更新 `marketplace.json` 中的版本号

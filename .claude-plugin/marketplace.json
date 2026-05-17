@@ -58,26 +58,6 @@
       "homepage": "https://github.com/obra/superpowers"
     },
     {
-      "name": "net-crypto-keygen",
-      "source": "./skills/net-crypto-keygen",
-      "description": "ThirdNet 加密密钥生成工具 — 生成 SM2、RSA、AES、SM4 密钥对，输出可直接粘贴到 appsettings.json 的 JSON 配置片段",
-      "version": "0.1.0",
-      "author": {
-        "name": "thirdnet"
-      },
-      "keywords": [
-        "crypto",
-        "keygen",
-        "sm2",
-        "rsa",
-        "aes",
-        "sm4",
-        "jwt"
-      ],
-      "category": "utility",
-      "strict": false
-    },
-    {
       "name": "md-to-word",
       "source": "./skills/md-to-word",
       "description": "将 Markdown 文件转换为 Word (.docx) 文件，支持标题、粗体、斜体、代码、列表、表格等格式",

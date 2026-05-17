@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.21.0 - 2026-05-17
+
+### Changed
+- 移除 `vue-options-api-best-practices` 技能，全面推荐 Composition API
+- 清理构建产物，完善 Mock 配置规范
+
+## 0.20.0 - 2026-05-04
+
+### Added
+- 新增按钮防重复点击规范，按场景分策略并提供代码模板
+- Stop Hook 新增注释完整性检查：类型、函数、API、Store 需 JSDoc
+
+### Changed
+- 修复 markdown-viewer 图片路径和尺寸问题
+
 ## 0.19.0 - 2026-04-28
 
 ### Changed

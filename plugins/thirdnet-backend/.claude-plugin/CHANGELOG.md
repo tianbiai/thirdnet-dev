@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.0 - 2026-05-17
+
+### Added
+- 新增 `net-crypto-keygen` 密钥生成技能（SM2/RSA/AES/SM4），输出可直接粘贴到 appsettings.json 的 JSON 配置片段
+- Stop Hook 新增注释完整性检查：模型、控制器、枚举、Fluent API 配置需 XML doc comments
+
+### Changed
+- 后端技能优化：修正 ThirdNet.Core 框架源码偏差、精简缓存技能内容、补充 RedisLock 用法
+- 将密钥生成技能移入后端插件目录
+- 清理构建产物，完善 Mock 配置规范
+
 ## 0.10.0 - 2026-04-28
 
 ### Changed
