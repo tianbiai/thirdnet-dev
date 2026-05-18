@@ -224,11 +224,11 @@ metadata:
 
 ### 开发提示文案生产环境剥离
 
-帮助气泡文案、操作提示、开发辅助说明等仅用于演示/调试的文本，不能仅靠 `v-if` 隐藏——字符串本身仍会进入生产 JS bundle。必须通过 `import.meta.env.DEV` 条件守卫，让 Vite 在生产构建时通过 dead code elimination 彻底移除：
+帮助气泡文案、操作提示、开发辅助说明等仅用于演示/调试的文本，不能仅靠 `v-if` 隐藏——字符串本身仍会进入生产 JS bundle。必须通过 `MOCK_ENABLED` 条件守卫，让 Vite 在生产构建时通过 dead code elimination 彻底移除（`MOCK_ENABLED` 在生产环境为静态 `false`，触发 Rollup tree-shaking）：
 
 ```typescript
-// ✅ 正确：DEV 是 Vite 编译期常量，生产构建时整个分支被 tree-shake 掉
-const helpContent = import.meta.env.DEV
+// ✅ 正确：MOCK_ENABLED 生产构建时静态为 false，整个分支被 tree-shake 掉
+const helpContent = MOCK_ENABLED
   ? '本页面用于管理订单，支持筛选、导出和批量操作'
   : ''
 
@@ -365,7 +365,7 @@ frontend/
 - [ ] 枚举使用 `enum` 关键字 + JSDoc，无 union type 或 const object
 - [ ] API 模块遵循策略工厂模式（`IXxxApi` + `RealXxxApi` + `MockXxxApi` + `createXxxApi()`）
 - [ ] 每个页面右上角有 HelpBubble，使用 `v-if` 而非 `v-show`
-- [ ] 开发辅助文案（HelpBubble content、操作提示等）使用 `import.meta.env.DEV` 守卫，生产构建不含这些字符串
+- [ ] 开发辅助文案（HelpBubble content、操作提示等）使用 `MOCK_ENABLED` 守卫，生产构建不含这些字符串
 - [ ] 所有可交互按钮具备防重复点击机制（API 按钮：Loading + disabled；其他：防抖/节流）
 - [ ] API 调用按钮使用 `try/finally` 确保 loading 状态恢复
 - [ ] 多请求失败时错误提示只弹一次（并发错误去重）
