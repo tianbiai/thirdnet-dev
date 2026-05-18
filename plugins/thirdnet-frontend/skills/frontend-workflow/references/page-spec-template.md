@@ -36,6 +36,13 @@
 - **交互**：点击弹出帮助内容（气泡/Popover/Drawer）
 - **内容**：页面功能说明、业务流程、注意事项
 - **安全**：禁止使用 `v-show`，必须用 `v-if` 确保生产环境无信息泄露
+- **文案剥离**：帮助文案必须通过 `import.meta.env.DEV` 条件守卫定义，确保生产构建时字符串被 dead code elimination 彻底移除：
+  ```typescript
+  // ✅ 正确
+  const helpContent = import.meta.env.DEV ? '页面说明文字' : ''
+  // ❌ 错误：字符串会进入生产 bundle
+  const helpContent = '页面说明文字'
+  ```
 
 ### 交互要点
 

@@ -207,10 +207,12 @@ metadata:
 
 ## 演示模式
 
-| 模式 | MOCK_ENABLED | 帮助气泡                         | 数据来源  |
-| ---- | ------------ | -------------------------------- | --------- |
-| 演示 | `true`     | 右上角显示                       | Mock 数据 |
-| 生产 | `false`    | `v-if` 不渲染（禁 `v-show`） | 真实 API  |
+| 模式 | MOCK_ENABLED | 帮助气泡                         | Mock API 数据                     | 数据来源  |
+| ---- | ------------ | -------------------------------- | --------------------------------- | --------- |
+| 演示 | `true`     | 右上角显示                       | 正常加载                          | Mock 数据 |
+| 生产 | `false`    | `v-if` 不渲染（禁 `v-show`） | Vite alias 重定向至空模块，DCE 移除 | 真实 API  |
+
+> 生产构建通过 Vite alias 将 `@/mock/**` 重定向到空模块，配合 `MOCK_ENABLED` 静态为 `false` 触发 Rollup tree-shaking，Mock API 类、Mock 数据文件均不出现在最终产物中。详见 `api-typescript-spec` 技能的「生产构建排除机制」。
 
 ### HelpBubble
 
@@ -219,6 +221,22 @@ metadata:
 - **Props**：`content: string`（帮助内容）、`placement?: string`（弹出位置，默认 `'bottom-end'`）
 - **Web 端**：`ElPopover` + `ElIcon` + `QuestionFilled`，添加 `v-if="MOCK_ENABLED"`
 - **移动端**：`van-popup` 或 `uni.showModal`，添加 `v-if="MOCK_ENABLED"`
+
+### 开发提示文案生产环境剥离
+
+帮助气泡文案、操作提示、开发辅助说明等仅用于演示/调试的文本，不能仅靠 `v-if` 隐藏——字符串本身仍会进入生产 JS bundle。必须通过 `import.meta.env.DEV` 条件守卫，让 Vite 在生产构建时通过 dead code elimination 彻底移除：
+
+```typescript
+// ✅ 正确：DEV 是 Vite 编译期常量，生产构建时整个分支被 tree-shake 掉
+const helpContent = import.meta.env.DEV
+  ? '本页面用于管理订单，支持筛选、导出和批量操作'
+  : ''
+
+// ❌ 错误：字符串字面量会被直接打包进生产 bundle
+const helpContent = '本页面用于管理订单，支持筛选、导出和批量操作'
+```
+
+适用于所有仅面向开发/演示的辅助文本，包括但不限于 HelpBubble 的 `content` prop。
 
 ## 项目特定规范
 
@@ -347,6 +365,7 @@ frontend/
 - [ ] 枚举使用 `enum` 关键字 + JSDoc，无 union type 或 const object
 - [ ] API 模块遵循策略工厂模式（`IXxxApi` + `RealXxxApi` + `MockXxxApi` + `createXxxApi()`）
 - [ ] 每个页面右上角有 HelpBubble，使用 `v-if` 而非 `v-show`
+- [ ] 开发辅助文案（HelpBubble content、操作提示等）使用 `import.meta.env.DEV` 守卫，生产构建不含这些字符串
 - [ ] 所有可交互按钮具备防重复点击机制（API 按钮：Loading + disabled；其他：防抖/节流）
 - [ ] API 调用按钮使用 `try/finally` 确保 loading 状态恢复
 - [ ] 多请求失败时错误提示只弹一次（并发错误去重）
