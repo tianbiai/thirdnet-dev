@@ -259,18 +259,18 @@ public class ProductConfiguration : IEntityTypeConfiguration<ProductModel>
 **迁移文件统一放在 Database 项目中，与 DbContext 保持内聚。**
 
 ```
-✅ 正确位置：{ServiceName}.Database/Migrations/{YourDbContextName}/
+✅ 正确位置：{ServiceName}.Database/Migrations/{ShortName}/
 │   ├── 20250212_InitialCreate.cs
 │   ├── 20250212_InitialCreate.Designer.cs
-│   └── {YourDbContextName}ModelSnapshot.cs
+│   └── {DbContextName}ModelSnapshot.cs
 
 ❌ 错误位置：{ServiceName}.API/Data/Migrations/            ← 不要放在 API 项目！
 ❌ 错误位置：{ServiceName}.Database/Data/Migrations/       ← 目录结构不对
 ```
 
 **重要说明**：
-- 迁移文件按 DbContext 名称分目录存放
-- 例如：你创建了 `ContractDbContext`，迁移应放在 `Migrations/ContractDbContext/`
+- 迁移文件夹名使用 DbContext 名称的简写（去掉 `DbContext` 后缀）
+- 例如：`ContractDbContext` → `Migrations/Contract/`，`LogDbContext` → `Migrations/Log/`
 - 所有数据库相关代码（Model、Configuration、DbContext、Migration）统一在 Database 项目中管理
 
 ### 生成迁移文件命令
@@ -282,30 +282,30 @@ public class ProductConfiguration : IEntityTypeConfiguration<ProductModel>
 dotnet ef migrations add {MigrationName} \
   --project {ServiceName}.Database \
   --startup-project {ServiceName}.API \
-  --output-dir Migrations/{DbContextName}
+  --output-dir Migrations/{ShortName}
 
 # 示例：为 ContractDbContext 创建初始迁移
 # 当前目录：backend/contract/（包含 API 和 Database 子目录）
 dotnet ef migrations add InitialCreate \
   --project contract.Database \
   --startup-project contract.API \
-  --output-dir Migrations/ContractDbContext
+  --output-dir Migrations/Contract
 
 # 示例：为 LogDbContext 创建迁移
 dotnet ef migrations add AddLogTable \
   --project contract.Database \
   --startup-project contract.API \
-  --output-dir Migrations/LogDbContext
+  --output-dir Migrations/Log
 ```
 
 **参数说明**：
 | 参数 | 说明 | 示例 |
 |-----|------|------|
 | `{MigrationName}` | 迁移名称，PascalCase | `InitialCreate`、`AddUserTable` |
-| `{DbContextName}` | DbContext 类名（不含 DbContext 后缀时也行） | `ContractDbContext` → `ContractDbContext` |
+| `{ShortName}` | DbContext 类名去掉 `DbContext` 后缀 | `ContractDbContext` → `Contract` |
 | `--project` | Database 项目（DbContext 和迁移所在位置） | `contract.Database` |
 | `--startup-project` | API 项目（连接字符串配置） | `contract.API` |
-| `--output-dir` | 迁移输出目录（相对于 Database 项目） | `Migrations/ContractDbContext` |
+| `--output-dir` | 迁移输出目录（相对于 Database 项目） | `Migrations/Contract` |
 
 ## DbContext 模板
 

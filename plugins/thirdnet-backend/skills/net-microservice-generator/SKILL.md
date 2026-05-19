@@ -129,7 +129,7 @@ backend/
         ├── Models/                      # 实体模型
         ├── Configurations/              # Fluent API 配置
         └── Migrations/                  # 数据库迁移文件
-            └── {DbContextName}/         # 按 DbContext 分目录
+            └── {ShortName}/             # 按 DbContext 简名分目录（去掉 DbContext 后缀）
 ```
 
 **命名规范（均使用英文名）**：
