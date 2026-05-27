@@ -8,7 +8,7 @@
 thirdnet-dev/
 ├── plugins/
 │   ├── thirdnet-backend/     # .NET 10 微服务后端开发插件 (v0.12.0)
-│   └── thirdnet-frontend/    # Vue 3 前端开发插件 (v0.21.0)
+│   └── thirdnet-frontend/    # Vue 3 前端开发插件 (v0.22.0)
 └── .claude-plugin/
     └── marketplace.json      # 插件集合注册清单
 ```

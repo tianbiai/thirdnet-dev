@@ -2,19 +2,19 @@
 name: api-typescript-spec
 description: |
   前端 API 接口 TypeScript 全流程规范，基于接口契约的策略工厂模式（Strategy Factory Pattern with Interface Contract）。
-  指导创建：策略接口（IXxxApi）、真实实现（RealXxxApi 适配 HTTP）、Mock 实现（MockXxxApi 适配本地数据）、工厂函数（createXxxApi）、枚举类型（enum + JSDoc 注释）。
-  当用户需要创建 API 接口、添加接口模块、编写 Mock 数据、定义请求类型、设置 API 层架构、创建枚举类型、或任何涉及 api/modules/ 和 mock/data/ 目录的操作时，必须使用此 skill。
+  指导创建：类型定义（api/types/）、接口契约（api/interfaces/）、真实实现（RealXxxApi 适配 HTTP）、Mock 实现（mock/api/ 适配 mock/data/ 本地数据）、工厂函数（createXxxApi）。
+  当用户需要创建 API 接口、添加接口模块、编写 Mock 数据、定义请求类型、设置 API 层架构、创建枚举类型、或任何涉及 api/ 和 mock/ 目录的操作时，必须使用此 skill。
   关键触发词：API、接口、Mock、请求、adapter、request、类型定义、DTO、分页、认证、登录、token、枚举、enum、策略模式、工厂模式、接口契约、IXxxApi。
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "2.0.0"
   author: thirdnet
   compatibility: Vue 3 + TypeScript + Vite 项目，支持 Web（Element Plus）和移动端（uniapp + Vant，发布为微信小程序 mp-weixin）
 ---
 
 # 前端 API 接口 TypeScript 规范（策略工厂模式）
 
-API 层采用**接口契约的策略工厂模式**，通过 TypeScript 接口定义 API 契约，Real 和 Mock 作为可互换的策略实现，工厂函数根据 `.env` 配置自动选择具体实例。所有 API 模块与 Mock 数据文件严格 1:1 对应。
+API 层采用**接口契约的策略工厂模式**，通过 TypeScript 接口定义 API 契约，Real 和 Mock 作为可互换的策略实现，工厂函数根据 `.env` 配置自动选择具体实例。每个模块的职责拆分到独立文件：类型定义、接口契约、真实实现、Mock 数据、Mock 实现各占一个文件。
 
 ## 核心约定
 
@@ -24,7 +24,7 @@ API 层采用**接口契约的策略工厂模式**，通过 TypeScript 接口定
 2. **字段名强制 snake_case**：所有 API 入参、出参、Mock 数据的字段名必须使用 `snake_case`（如 `order_id`、`created_at`、`user_name`），与后端 DTO 保持一致，**禁止使用 camelCase**
 3. **响应无包装**：成功直接返回实体 JSON 或 `PaginatedResponse<T>`，不用 `{ code, message, data }` 包装
 4. **错误走 HTTP 状态码**：通过 401/403/404/500 等区分错误
-5. **API 与 Mock 1:1**：`api/modules/{endpoint}/{module}.ts` 对应 `mock/data/{endpoint}/{module}.ts`
+5. **API 与 Mock 文件对应**：`api/modules/{endpoint}/{module}.ts` 对应 `mock/api/{endpoint}/{module}.ts` + `mock/data/{endpoint}/{module}.ts`
 6. **全面 TypeScript**：所有前端代码必须使用 `.ts` 扩展名，Vue 组件必须使用 `<script setup lang="ts">`
 7. **枚举使用 enum**：所有枚举使用 `enum` 关键字（禁止 union type 或 const object），每个成员必须添加 JSDoc 注释
 
@@ -46,22 +46,42 @@ API 层组合运用三种设计模式：
                                           └─ MockOrderApi → mock/data/ → 内存
 ```
 
+## 文件职责分离
+
+每个 API 模块由 5 个文件组成，各司其职：
+
+| 文件 | 职责 | 内容 |
+|------|------|------|
+| `api/types/{module}.ts` | 类型定义 | 枚举 + 出入参 interface |
+| `api/interfaces/{endpoint}/{module}.ts` | 接口契约 | `IXxxApi` 接口定义 |
+| `api/modules/{endpoint}/{module}.ts` | 真实实现 | `RealXxxApi` + 工厂函数 + 单例 |
+| `mock/api/{endpoint}/{module}.ts` | Mock 实现 | `MockXxxApi` 类（从 mock/data/ 取数据） |
+| `mock/data/{endpoint}/{module}.ts` | Mock 数据 | 纯数据导出 |
+
 ## 目录结构
 
 ```
 src/
 ├── config/index.ts                    # MOCK_ENABLED、API_BASE_URL
 ├── api/
-│   ├── types/common.ts               # 基础类型
-│   ├── types/enums.ts                # 跨模块通用枚举
+│   ├── types/
+│   │   ├── common.ts                 # 基础类型（PaginationParams、PaginatedResponse<T> 等）
+│   │   ├── enums.ts                  # 跨模块通用枚举
+│   │   └── {module}.ts               # 模块专属：枚举 + 出入参类型
+│   ├── interfaces/
+│   │   └── {app|manager}/
+│   │       └── {module}.ts           # IXxxApi 接口契约
 │   ├── adapter.ts                     # RequestAdapter 接口
 │   ├── adapter.web.ts                 # Axios 实现
 │   ├── adapter.uni.ts                 # uni.request 实现
 │   ├── request.ts                     # 统一 request<T>() 导出
-│   └── modules/{app|manager}/         # API 模块（策略工厂模式）
-│       └── {module}.ts                # 枚举 + 类型 + IXxxApi + Real + Mock + 工厂
+│   └── modules/{app|manager}/
+│       └── {module}.ts               # RealXxxApi + 工厂函数 + 模块单例
 ├── mock/
-│   └── data/{app|manager}/            # 与 api/modules/ 1:1 对应
+│   ├── api/{app|manager}/
+│   │   └── {module}.ts               # MockXxxApi 实现（引用 mock/data/ 数据）
+│   └── data/{app|manager}/
+│       └── {module}.ts               # 纯 Mock 数据导出
 ├── utils/token.ts                     # Token 存取（双平台适配）
 ```
 
@@ -91,7 +111,7 @@ interface RequestConfig<TData = unknown> {
 interface ApiError { status: number; message: string }
 ```
 
-**枚举规范**：命名格式 `{Entity}{Property}Enum`，每个成员加 JSDoc。通用枚举放 `api/types/enums.ts`，模块专属枚举放 API 模块文件顶部。
+**枚举规范**：命名格式 `{Entity}{Property}Enum`，每个成员加 JSDoc。通用枚举放 `api/types/enums.ts`，模块专属枚举放 `api/types/{module}.ts`。
 
 ```typescript
 /** 订单状态枚举 */
@@ -142,9 +162,9 @@ export function request<TResponse>(config: RequestConfig): Promise<TResponse> {
 }
 ```
 
-### 步骤 3：API 模块文件
+### 步骤 3：创建模块文件（5 个文件）
 
-每个模块文件包含五个区域，按顺序：**枚举 → 类型定义 → 接口契约 → Real 实现 → Mock 实现 → 工厂函数 + 模块实例**。
+以 `order` 模块为例，按顺序创建 5 个文件。
 
 #### URL 命名规范
 
@@ -159,15 +179,12 @@ export function request<TResponse>(config: RequestConfig): Promise<TResponse> {
 
 #### DTO 命名：`{Entity}QueryParams`、`{Entity}CreateParams`、`{Entity}UpdateParams`、`{Entity}Item`
 
-#### 模块文件模板（以 `api/modules/app/order.ts` 为例）
+#### 3.1 类型定义 — `api/types/order.ts`
 
 ```typescript
-import { request } from '@/api/request'
-import { MOCK_ENABLED } from '@/config'
-import type { PaginationParams, PaginatedResponse } from '@/api/types/common'
-import { mockOrderList } from '@/mock/data/app/order'
+import type { PaginationParams } from './common'
 
-// ---- 枚举类型 ----
+// ---- 枚举 ----
 
 /** 订单状态枚举 */
 export enum OrderStatusEnum {
@@ -181,20 +198,20 @@ export enum OrderStatusEnum {
   Completed = 'completed',
 }
 
-// ---- 类型定义 ----
+// ---- 出入参类型 ----
 
-interface OrderQueryParams extends PaginationParams {
+export interface OrderQueryParams extends PaginationParams {
   status?: OrderStatusEnum
   order_no?: string
 }
 
-interface OrderCreateParams {
+export interface OrderCreateParams {
   product_id: number
   quantity: number
   remark?: string
 }
 
-interface OrderItem {
+export interface OrderItem {
   order_id: number
   order_no: string
   product_id: number
@@ -203,14 +220,39 @@ interface OrderItem {
   status: OrderStatusEnum
   created_at: string
 }
+```
 
-// ---- 接口契约（Strategy Interface）----
+**要点**：
+- 枚举和出入参类型集中在此文件，全部 `export`
+- `import type` 引入基础类型，`import` 引入其他模块的 enum（enum 是值）
+
+#### 3.2 接口契约 — `api/interfaces/app/order.ts`
+
+```typescript
+import type { OrderQueryParams, OrderCreateParams, OrderItem } from '@/api/types/order'
+import type { PaginatedResponse } from '@/api/types/common'
 
 export interface IOrderApi {
   getOrderList(params: OrderQueryParams): Promise<PaginatedResponse<OrderItem>>
   getOrderDetail(params: { id: number }): Promise<OrderItem>
   createOrder(data: OrderCreateParams): Promise<OrderItem>
 }
+```
+
+**要点**：
+- 只放接口定义，不放任何实现
+- 所有方法签名中的参数和返回值类型都引用 `api/types/` 中的类型
+- 导出接口供 Real 实现、Mock 实现、页面组件引用
+
+#### 3.3 Real 实现 + 工厂 — `api/modules/app/order.ts`
+
+```typescript
+import { request } from '@/api/request'
+import { MOCK_ENABLED } from '@/config'
+import type { IOrderApi } from '@/api/interfaces/app/order'
+import type { OrderQueryParams, OrderCreateParams, OrderItem } from '@/api/types/order'
+import type { PaginatedResponse } from '@/api/types/common'
+import { MockOrderApi } from '@/mock/api/app/order'
 
 // ---- Real 实现（适配 HTTP）----
 
@@ -228,9 +270,59 @@ class RealOrderApi implements IOrderApi {
   }
 }
 
-// ---- Mock 实现（适配本地数据）----
+// ---- 工厂函数（Simple Factory）----
 
-class MockOrderApi implements IOrderApi {
+export function createOrderApi(): IOrderApi {
+  return MOCK_ENABLED ? new MockOrderApi() : new RealOrderApi()
+}
+
+// ---- 模块实例（模块级单例）----
+
+export const orderApi = createOrderApi()
+```
+
+**要点**：
+- 文件只包含 Real 实现类、工厂函数、模块单例
+- 工厂函数返回接口类型：调用方只看到 `IXxxApi`，不知道具体实现
+- 模块实例是单例：`export const orderApi = createOrderApi()` 模块加载时执行一次
+- Mock 实现通过 `import { MockOrderApi } from '@/mock/api/...'` 引入
+
+#### 3.4 Mock 数据 — `mock/data/app/order.ts`
+
+```typescript
+import type { OrderItem } from '@/api/types/order'
+import { OrderStatusEnum } from '@/api/types/order'
+
+export const mockOrderList: OrderItem[] = [
+  {
+    order_id: 1, order_no: 'ORD202401001', product_id: 101,
+    quantity: 2, amount: 598.00, status: OrderStatusEnum.Paid,
+    created_at: '2024-01-15T10:30:00',
+  },
+  {
+    order_id: 2, order_no: 'ORD202401002', product_id: 205,
+    quantity: 1, amount: 299.00, status: OrderStatusEnum.Pending,
+    created_at: '2024-01-16T14:20:00',
+  },
+]
+```
+
+**要点**：
+- 只放纯数据导出，不放任何业务逻辑
+- `import type` 引入类型，`import` 引入枚举（enum 是值，不用 `import type`）
+- 枚举字段必须使用 enum 值（如 `OrderStatusEnum.Paid`），禁止硬编码字符串
+- 从 `@/api/types/` 导入类型和枚举（不依赖 api/modules 或 api/interfaces）
+
+#### 3.5 Mock 实现 — `mock/api/app/order.ts`
+
+```typescript
+import type { IOrderApi } from '@/api/interfaces/app/order'
+import type { OrderQueryParams, OrderCreateParams, OrderItem } from '@/api/types/order'
+import type { PaginatedResponse } from '@/api/types/common'
+import { OrderStatusEnum } from '@/api/types/order'
+import { mockOrderList } from '@/mock/data/app/order'
+
+export class MockOrderApi implements IOrderApi {
   async getOrderList(params: OrderQueryParams): Promise<PaginatedResponse<OrderItem>> {
     const { index = 1, size = 10 } = params
     const start = (index - 1) * size
@@ -248,53 +340,14 @@ class MockOrderApi implements IOrderApi {
     }
   }
 }
-
-// ---- 工厂函数（Simple Factory）----
-
-export function createOrderApi(): IOrderApi {
-  return MOCK_ENABLED ? new MockOrderApi() : new RealOrderApi()
-}
-
-// ---- 模块实例（模块级单例）----
-
-export const orderApi = createOrderApi()
 ```
 
 **要点**：
-- **接口契约是核心**：`IXxxApi` 定义所有方法签名，Real 和 Mock 必须完整实现
-- **类型定义集中在接口之前**：不导出（除非 Mock 或其他模块需要引用）
-- **工厂函数返回接口类型**：调用方只看到 `IXxxApi`，不知道具体实现
-- **模块实例是单例**：`export const orderApi = createOrderApi()` 模块加载时执行一次
+- 只放 Mock 实现类，不硬编码数据（数据从 `@/mock/data/` 导入）
+- 实现 `IXxxApi` 接口，方法签名与接口契约一致
+- 使用 `export class` 导出，供 `api/modules/` 中的工厂函数引用
 
-### 步骤 4：Mock 数据文件
-
-与 API 模块 1:1 对应，复用类型和枚举：
-
-```typescript
-// mock/data/app/order.ts
-import type { OrderItem } from '@/api/modules/app/order'
-import { OrderStatusEnum } from '@/api/modules/app/order'
-
-export const mockOrderList: OrderItem[] = [
-  {
-    order_id: 1, order_no: 'ORD202401001', product_id: 101,
-    quantity: 2, amount: 598.00, status: OrderStatusEnum.Paid,
-    created_at: '2024-01-15T10:30:00',
-  },
-  {
-    order_id: 2, order_no: 'ORD202401002', product_id: 205,
-    quantity: 1, amount: 299.00, status: OrderStatusEnum.Pending,
-    created_at: '2024-01-16T14:20:00',
-  },
-]
-```
-
-**要求**：
-- `import type` 引入类型，`import` 引入枚举（enum 是值，不用 `import type`）
-- 导出 `mock{Entity}List` + `mock{Entity}Detail`
-- 枚举字段必须使用 enum 值（如 `OrderStatusEnum.Paid`），禁止硬编码字符串
-
-### 步骤 5：配置
+### 步骤 4：配置
 
 ```typescript
 // src/config/index.ts
@@ -348,44 +401,59 @@ export default {}
 
 ## 认证模块（`auth.ts`）
 
-认证模块同样采用策略工厂模式，特殊点：
+认证模块同样采用策略工厂模式和文件拆分，特殊点：
 - 使用后端 IdentityServer Connect 端点（`/connect/token`）
 - Token 工具（`src/utils/token.ts`）：H5 用 `localStorage`，MP-WEIXIN 用 `uni.getStorageSync`
 - 导出 `getToken`、`setToken`、`getRefreshToken`、`setRefreshToken`、`clearToken`
 
+**`api/types/auth.ts`**：
 ```typescript
-// 认证模块接口契约示例
-interface LoginParams { username: string; password: string; scope?: string }
-interface TokenResponse { access_token: string; refresh_token: string }
+export interface LoginParams { username: string; password: string; scope?: string }
+export interface TokenResponse { access_token: string; refresh_token: string }
+export interface CurrentUserResponse { user_id: number; username: string; role: string }
+```
+
+**`api/interfaces/app/auth.ts`**：
+```typescript
+import type { LoginParams, TokenResponse, CurrentUserResponse } from '@/api/types/auth'
 
 export interface IAuthApi {
   login(data: LoginParams): Promise<TokenResponse>
   refreshToken(data: { refresh_token: string }): Promise<TokenResponse>
   getCurrentUser(): Promise<CurrentUserResponse>
 }
-
-// Real 实现调用 /connect/token，Mock 实现返回固定 token
-// 工厂函数 + 模块实例与普通模块相同
 ```
 
-## 1:1 对应同步检查
+**`api/modules/app/auth.ts`** — Real 实现调用 `/connect/token`，工厂函数 + 模块实例与普通模块相同。
 
-修改任一侧必须同步另一侧：
+**`mock/api/app/auth.ts`** — Mock 实现返回固定 token。
+
+**`mock/data/app/auth.ts`** — Mock 数据。
+
+## 文件对应关系
+
+每个 API 模块由 5 个文件组成，修改任一文件需检查关联文件是否需要同步：
 
 ```
-api/modules/app/order.ts      <--->  mock/data/app/order.ts
-api/modules/manager/user.ts   <--->  mock/data/manager/user.ts
+api/types/order.ts            ← 类型定义（枚举 + 出入参）
+api/interfaces/app/order.ts   ← 接口契约（IXxxApi）
+api/modules/app/order.ts      ← Real 实现 + 工厂 + 单例
+mock/api/app/order.ts         ← Mock 实现
+mock/data/app/order.ts        ← Mock 数据
 ```
 
-- 新增接口方法 → Mock 实现是否同步
-- 修改方法签名 → Real 和 Mock 是否同步更新
-- 修改枚举值 → Mock 数据引用是否同步
-- 新增模块文件 → Mock 数据文件是否存在
+同步检查项：
+- 新增接口方法 → `api/interfaces/` 增方法签名 → `api/modules/` Real 实现同步 → `mock/api/` Mock 实现同步
+- 修改方法签名（参数或返回值）→ `api/types/` 类型同步 → 所有引用该类型的文件同步
+- 修改枚举值 → `api/types/` 同步 → `mock/data/` 数据引用同步
+- 新增模块 → 5 个文件全部创建
 
 ## 页面调用
 
 ```typescript
-import { orderApi, OrderStatusEnum } from '@/api/modules/app/order'
+import { orderApi } from '@/api/modules/app/order'
+import { OrderStatusEnum } from '@/api/types/order'
+import type { OrderItem } from '@/api/types/order'
 
 const loading = ref(false)
 const orderList = ref<OrderItem[]>([])
@@ -400,3 +468,8 @@ async function loadOrders() {
   }
 }
 ```
+
+**要点**：
+- `orderApi` 从 `@/api/modules/` 导入（模块单例）
+- 类型和枚举从 `@/api/types/` 导入
+- 接口类型（`IOrderApi`）一般不在页面中使用，仅在实现层引用
