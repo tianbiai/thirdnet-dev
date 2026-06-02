@@ -98,6 +98,22 @@ await bulkCopy.MergeAndDeleteToServer(
 
 ## 选择指南
 
+### 第一步：选择批量操作模式
+
+```
+数据来源是什么？
+├── 数据在应用内存中（List<T>，来自 Excel/API/外部系统）
+│   └── → 使用本技能（net-database-bulkcopy）
+│       数据量 > 1000？
+│       ├── 是 → 使用 BulkCopy（COPY 二进制协议）
+│       └── 否 → 考虑 EF Core SaveChanges
+└── 数据已在数据库中（归档/清理/迁移/状态变更）
+    └── → 使用 net-efcore-developer 的 CTE 批量处理模式
+        （单次 SQL 往返，WITH 子句链式处理）
+```
+
+### 第二步：BulkCopy 方法选择（本技能内部）
+
 ```
 需要删除目标中多余的记录？
 ├── 是 → MergeAndDeleteToServer
@@ -193,6 +209,6 @@ public async Task SyncDataFromExternalSystem(List<ExternalData> externalData)
 ## 相关技能
 
 - **backend-workflow**: 文档驱动开发流程和交付标准
-- **net-efcore-developer**: 数据库实体开发（BulkCopy 基于实体进行映射）
+- **net-efcore-developer**: 数据库实体开发（BulkCopy 基于实体进行映射）+ CTE 批量 SQL 处理（数据已在数据库中的归档/清理/迁移场景，数据从应用内存导入时用本技能）
 - **net-api-developer**: API 接口开发（批量操作常通过 API 触发）
 - **net-cache-use**: 缓存功能集成（批量操作后需刷新相关缓存）

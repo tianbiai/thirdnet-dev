@@ -121,7 +121,10 @@
 
 ### 批量操作
 
-需要时使用 `net-database-bulkcopy` 技能。
+根据数据来源选择合适的批量操作方式：
+
+- **外部数据导入/同步**（>1000 条，数据来自 Excel/API/外部系统）：使用 `net-database-bulkcopy` 技能
+- **数据库内批量处理**（归档/级联清理/状态迁移，数据已在数据库中）：使用 `net-efcore-developer` 技能的 CTE 批量模式
 
 ---
 
