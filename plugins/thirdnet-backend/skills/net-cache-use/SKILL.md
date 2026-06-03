@@ -1,6 +1,6 @@
 ---
 name: net-cache-use
-version: 3.0.0
+version: 3.1.0
 description: 缓存功能开发专家，基于 RedisCacheManager 基类为业务实体添加完整的 Redis 缓存功能（CacheManager、RedisHandler、View 三层架构）及 RedisLock 分布式锁。**主动用于**：为实体添加缓存、字典数据缓存、配置信息缓存、高频查询缓存、缓存预热、性能优化、分布式锁。当用户提到"缓存"、"Cache"、"Redis"、"加缓存"、"缓存数据"、"字典缓存"、"配置缓存"、"高频查询"、"性能优化"、"预热"、"ICacheReader"、"ICacheRefresh"、"CacheManager"、"RedisCacheManager"、"分布式锁"、"RedisLock"、"并发控制"、"防重复"时，必须使用此技能。
 ---
 ## 使用场景
@@ -73,6 +73,60 @@ RedisCacheManager（框架基类，Polly 熔断 + SemaphoreSlim 防击穿 + TTL 
 - `GetSingle`、`AddOrUpdate`、`RemoveSingle` 使用 **`TimeSpan?`** 表示过期时长（如 `_stime8`）
 - `GetMultiple`、`AddOrUpdateMultiple` 使用 **`DateTimeOffset?`** 表示过期时间点（如 `DateTimeOffset.Now.Add(_stime8)`）
 
+## 缓存更新策略
+
+数据变更后，有两种方式保持缓存与数据库的一致性。两种策略都依赖 `GetSingle` 内置的 Read-Through 机制——缓存 miss 时自动调用 `func` 查询数据库并写回 Redis。
+
+### Cache Invalidation（推荐）
+
+数据变更时只删除缓存，下次读取时由 Read-Through 自动加载最新数据。
+
+```csharp
+// 数据变更后：只删除缓存
+await RemoveSingle($"user.{id}");
+
+// 下次调用 GetUserInfo(id) 时：
+// GetSingle → Redis miss → func() 查询数据库 → 写回 Redis → 返回最新数据
+```
+
+**为什么优先推荐**：
+- 代码更简洁——刷新方法只需一行 `RemoveSingle`
+- 避免竞态问题——不会在 DB 事务尚未提交时就把旧数据写入缓存
+- 减少刷新时的数据库压力——不需要额外查询
+
+**适用场景**：单键实体的普通 CRUD（大部分业务场景）
+
+### Write-Through Refresh（备选）
+
+数据变更后主动查询数据库获取最新数据，然后用 `AddOrUpdate` 更新缓存。
+
+```csharp
+var info = await reader.GetUser(id);
+if (info != null)
+    await AddOrUpdate(key, info, _stime8);
+else
+    await RemoveSingle(key);
+```
+
+**适用场景**：
+- 变更后需要立即返回最新数据（如后台管理界面修改后立即查看）
+- 多键场景（需要同步更新所有索引键）
+- 已有模型直接更新（`RefreshEntity(model)` 数据已在内存中）
+- 批量操作（`AddOrUpdateMultiple` 批量写入比逐条 Read-Through 更高效）
+- 字典/配置整体刷新（整体替换，避免逐条触发加载）
+
+### 选择原则
+
+| 场景 | 推荐策略 | 原因 |
+|------|---------|------|
+| 单键实体的普通 CRUD | Cache Invalidation | 简洁可靠，Read-Through 保证下次读取正确 |
+| 多键场景（ID + 索引键） | Write-Through | 需要同时更新所有索引键，避免索引不一致 |
+| 已有模型的 `RefreshEntity(model)` | Write-Through | 数据已在内存中，无需额外查询 |
+| 批量操作 | Write-Through（`AddOrUpdateMultiple`） | 批量删除后逐一 Read-Through 成本太高 |
+| 字典/配置整体刷新 | Write-Through | 整体替换，避免逐条触发加载 |
+
+> 完整的 Cache Invalidation vs Write-Through 代码对比见 `references/cache-examples.md`「缓存更新策略对比」章节
+
 ## TTL 选择指南
 
 | 字段名 | 值 | 适用场景 |
@@ -117,14 +171,16 @@ RedisCacheManager（框架基类，Polly 熔断 + SemaphoreSlim 防击穿 + TTL 
 
 ### 步骤 5：实现 CacheManager 刷新方法
 
-通过 `ICacheRefresh` 暴露刷新方法：
+通过 `ICacheRefresh` 暴露刷新方法。**优先使用 Cache Invalidation 模式**（详见「缓存更新策略」章节）：
 
-- **按 ID 刷新**：先查询最新数据，存在则 `AddOrUpdate`，不存在则 `RemoveSingle`
-- **按模型刷新**：直接 `AddOrUpdate(key, model, ttl)`
+- **按 ID 刷新（推荐 Cache Invalidation）**：直接 `RemoveSingle(key)`，下次读取时由 Read-Through 自动加载
+- **按 ID 刷新（备选 Write-Through）**：先查询最新数据，存在则 `AddOrUpdate`，不存在则 `RemoveSingle`
+- **按模型刷新**：直接 `AddOrUpdate(key, model, ttl)`（数据已在内存中，适合 Write-Through）
 - **整集刷新**：重新加载列表后 `AddOrUpdate`
 
-多键场景（如用户同时缓存 `user.{id}`、`user.phone.{phone}`、`user.email.{email}`）刷新时需处理 key 迁移——先删旧键再建新键。
+多键场景（如用户同时缓存 `user.{id}`、`user.phone.{phone}`、`user.email.{email}`）刷新时需处理 key 迁移——先删旧键再建新键。多键场景推荐使用 Write-Through 确保索引一致性。
 
+> Cache Invalidation 和 Write-Through 的完整对比示例见 `references/cache-examples.md`「缓存更新策略对比」章节
 > 多键场景完整示例见 `references/cache-examples.md`「多键场景」章节
 
 ### 步骤 6：定义接口
@@ -202,12 +258,15 @@ RedisLock(IDatabase redis, string key, TimeSpan expiry)
 - [ ] 使用了正确的 TTL（根据数据特性）
 - [ ] 所有查询使用了 `AsNoTracking()`
 - [ ] 多键场景更新了所有相关键
+- [ ] 刷新方法选择了正确的更新策略（Cache Invalidation 或 Write-Through）
+- [ ] Cache Invalidation 场景下只调用 `RemoveSingle`，没有多余的数据库查询
+- [ ] Read-Through 的 `func` 回调已正确定义（确保缓存 miss 时能加载正确数据）
 
 ## 重要规范
 
 1. **命名规范**：缓存键小写+点号分隔，View 类名以 `View` 结尾，属性小写与数据库一致
 2. **性能规范**：必须 `AsNoTracking()`，批量查询用 `ANY`，避免循环查询
-3. **一致性规范**：数据变更后立即刷新缓存，多键场景更新所有相关键
+3. **一致性规范**：数据变更后立即刷新缓存（优先 Cache Invalidation），多键场景更新所有相关键
 
 > 实体模型禁止使用数据注解（Fluent API 配置）。**例外**：`[DbBulk]` 特性是批量操作框架要求，可以使用。
 

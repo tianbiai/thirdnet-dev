@@ -7,6 +7,7 @@
 ## 目录
 
 - [基础模式：用户缓存](#基础模式用户缓存) — 单个/列表/批量查询的标准实现
+- [缓存更新策略对比：Cache Invalidation vs Write-Through](#缓存更新策略对比cache-invalidation-vs-write-through) — 两种模式的对比示例
 - [完整示例：部门缓存](#完整示例部门缓存) — 含树形查询的完整 CRUD
 - [多键场景：用户缓存（多索引）](#完整示例用户缓存带多键场景) — 多 key 索引同一数据
 - [树形结构：地区缓存](#树形结构示例地区缓存) — 扁平数据构建树
@@ -190,6 +191,112 @@ public interface ICacheRefresh
     Task RefreshUser(UserView model);
 }
 ```
+
+---
+
+## 缓存更新策略对比：Cache Invalidation vs Write-Through
+
+以下通过同一业务场景（刷新单个用户缓存）对比两种模式的实现差异。
+
+### Cache Invalidation 模式（推荐）
+
+数据变更时只删除缓存。`GetSingle` 内置 Read-Through 机制，缓存 miss 时自动调用 `func` 查询数据库并写回 Redis。
+
+```csharp
+#region Refresh - 用户相关（Cache Invalidation 模式）
+
+/// <summary>
+/// 刷新单个用户 — Cache Invalidation 模式
+/// 数据变更后只删除缓存，下次 GetUserInfo(id) 时自动触发 Read-Through 加载
+/// </summary>
+public async Task RefreshUser(long id)
+{
+    string key = $"user.{id}";
+    await RemoveSingle(key);
+}
+
+/// <summary>
+/// 刷新用户（使用模型）— Write-Through 模式
+/// 已有模型数据时直接更新，避免额外查询
+/// </summary>
+public async Task RefreshUser(UserView model)
+{
+    string key = $"user.{model.id}";
+    await AddOrUpdate(key, model, _stime8);
+}
+
+/// <summary>
+/// 删除用户缓存
+/// </summary>
+public async Task RemoveUser(long id)
+{
+    string key = $"user.{id}";
+    await RemoveSingle(key);
+}
+
+#endregion
+```
+
+**Read-Through 保障链路**：
+
+```
+数据变更 → RefreshUser(id) → RemoveSingle("user.123")
+                                         ↓
+下次请求 GetUserInfo(123)
+    → GetSingle("user.123", () => reader.GetUser(123), _stime8)
+    → Redis miss → 调用 func → reader.GetUser(123) → 查询数据库
+    → 将结果写入 Redis（带 TTL 抖动）
+    → 返回最新数据
+```
+
+### Write-Through Refresh 模式（备选）
+
+数据变更后主动查询数据库，获取最新数据后用 `AddOrUpdate` 更新缓存。
+
+```csharp
+#region Refresh - 用户相关（Write-Through 模式）
+
+/// <summary>
+/// 刷新单个用户 — Write-Through 模式
+/// 主动查询数据库获取最新数据，然后更新缓存
+/// </summary>
+public async Task RefreshUser(long id)
+{
+    string key = $"user.{id}";
+    var info = await reader.GetUser(id);
+    if (info != null)
+    {
+        await AddOrUpdate(key, info, _stime8);
+    }
+    else
+    {
+        await RemoveSingle(key);
+    }
+}
+
+/// <summary>
+/// 刷新用户（使用模型）— Write-Through 模式
+/// </summary>
+public async Task RefreshUser(UserView model)
+{
+    string key = $"user.{model.id}";
+    await AddOrUpdate(key, model, _stime8);
+}
+
+#endregion
+```
+
+### 对比总结
+
+| 维度 | Cache Invalidation | Write-Through |
+|------|-------------------|---------------|
+| 刷新操作 | `RemoveSingle(key)` | 查询 DB + `AddOrUpdate(key, data, ttl)` |
+| 数据库查询 | 刷新时不查询，读取时按需查询 | 刷新时立即查询 |
+| 代码复杂度 | 低（一行代码） | 中（需处理 null 判断） |
+| 实时性 | 下次读取时生效 | 立即生效 |
+| 适用场景 | 变更后不需要立即读取 | 变更后需要立即返回最新数据 |
+| 事务安全性 | 高（不依赖事务时序） | 需确保 DB 已提交后再刷新 |
+| 多键场景 | 不适合（索引键需同步处理） | 适合（可同时更新所有索引键） |
 
 ---
 
@@ -569,6 +676,10 @@ public async Task<UserView?> GetUserByEmail(string email)
 
 #region Refresh - 用户相关
 
+// 注意：多键场景推荐使用 Write-Through 模式（AddOrUpdate），因为需要同步更新所有索引键。
+// 如果使用 Cache Invalidation（RemoveSingle），删除某个索引键后，下次通过该索引键读取时
+// Read-Through 会触发查询，但其他索引键可能仍然持有旧数据，导致不一致。
+
 /// <summary>
 /// 刷新用户（刷新所有相关键）
 /// </summary>
@@ -844,7 +955,8 @@ public class DepartmentController : ControllerBase
         dept.sort = request.sort;
         await _dbContext.SaveChangesAsync();
 
-        // 刷新单个部门缓存
+        // Cache Invalidation 模式：删除缓存，下次读取时由 Read-Through 自动加载
+        // Refresh 方法内部调用 RemoveSingle，GetSingle 的 func 回调保证数据正确性
         await _cacheRefresh.RefreshDepartment(request.id);
 
         return Ok();
