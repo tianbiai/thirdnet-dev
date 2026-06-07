@@ -637,12 +637,12 @@ public class DepartmentController : ControllerBase
     /// 获取部门列表
     /// </summary>
     [HttpGet("list")]
-    [ProducesResponseType(typeof(IEnumerable<DepartmentResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IEnumerable<DepartmentMap>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetList()
     {
         var dic = await _departmentCache.GetDepartmentDic();
         // 缓存层返回的是 Entity（DepartmentModel），由 Service 层转换为 DTO 后再返回给 Controller
-        var response = dic.Values.Select(m => new DepartmentResponse
+        var response = dic.Values.Select(m => new DepartmentMap
         {
             id = m.id,
             name = m.name,
@@ -658,7 +658,7 @@ public class DepartmentController : ControllerBase
     /// 获取部门详情
     /// </summary>
     [HttpGet("{id}")]
-    [ProducesResponseType(typeof(DepartmentResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(DepartmentMap), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetById(long id)
     {
         var dept = await _departmentCache.GetDepartmentInfo(id);
@@ -666,8 +666,8 @@ public class DepartmentController : ControllerBase
         {
             throw new WebApiException(HttpStatusCode.NotFound, "部门不存在");
         }
-        // Entity（DepartmentModel）→ DTO（DepartmentResponse）转换
-        var response = new DepartmentResponse
+        // Entity（DepartmentModel）→ DTO（DepartmentMap）转换
+        var response = new DepartmentMap
         {
             id = dept.id,
             name = dept.name,
@@ -683,8 +683,8 @@ public class DepartmentController : ControllerBase
     /// 创建部门
     /// </summary>
     [HttpPost("create")]
-    [ProducesResponseType(typeof(DepartmentCreateResponse), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Create([FromBody] DepartmentCreateRequest request)
+    [ProducesResponseType(typeof(DepartmentCreateMap), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Create([FromBody] DepartmentCreateMap request)
     {
         var dept = new DepartmentModel
         {
@@ -700,7 +700,7 @@ public class DepartmentController : ControllerBase
         // 删除字典缓存，下次读取时由 Read-Through 自动加载
         await _departmentCache.RemoveDepartmentDic();
 
-        return Ok(new DepartmentCreateResponse { id = dept.id });
+        return Ok(new DepartmentCreateMap { id = dept.id });
     }
 
     /// <summary>
@@ -708,7 +708,7 @@ public class DepartmentController : ControllerBase
     /// </summary>
     [HttpPost("update")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> Update([FromBody] DepartmentUpdateRequest request)
+    public async Task<IActionResult> Update([FromBody] DepartmentUpdateMap request)
     {
         var dept = await _dbContext.Department.FindAsync(request.id);
         if (dept == null)
@@ -865,7 +865,7 @@ var displayName = userInfo?.user_name;
 
 // 详情页：使用全部字段
 var userInfo = await _userCache.GetUserInfo(id);
-return new UserDetailResponse
+return new UserDetailMap
 {
     user_name = userInfo.user_name,
     phone = userInfo.phone,
