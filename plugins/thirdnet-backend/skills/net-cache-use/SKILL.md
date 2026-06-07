@@ -1,6 +1,6 @@
 ---
 name: net-cache-use
-version: 3.1.0
+version: 3.2.0
 description: 缓存功能开发专家，基于 RedisCacheManager 基类为业务实体添加完整的 Redis 缓存功能（CacheManager、RedisHandler、View 三层架构）及 RedisLock 分布式锁。**主动用于**：为实体添加缓存、字典数据缓存、配置信息缓存、高频查询缓存、缓存预热、性能优化、分布式锁。当用户提到"缓存"、"Cache"、"Redis"、"加缓存"、"缓存数据"、"字典缓存"、"配置缓存"、"高频查询"、"性能优化"、"预热"、"ICacheReader"、"ICacheRefresh"、"CacheManager"、"RedisCacheManager"、"分布式锁"、"RedisLock"、"并发控制"、"防重复"时，必须使用此技能。
 ---
 ## 使用场景
@@ -261,12 +261,94 @@ RedisLock(IDatabase redis, string key, TimeSpan expiry)
 - [ ] 刷新方法选择了正确的更新策略（Cache Invalidation 或 Write-Through）
 - [ ] Cache Invalidation 场景下只调用 `RemoveSingle`，没有多余的数据库查询
 - [ ] Read-Through 的 `func` 回调已正确定义（确保缓存 miss 时能加载正确数据）
+- [ ] 同一实体没有为不同字段子集创建多个 View 或多个 key（应统一为一个 View + 一个 key）
+
+## 缓存对象复用
+
+### 核心原则
+
+同一实体的所有消费方应共享**一个 View + 一个 key**，View 包含所有场景需要的字段合集。消费方按需读取自己关心的字段，而不是为不同场景分别创建字段子集的缓存。
+
+这样做的好处是：
+- **消除冗余**：同一实体数据只存一份，减少 Redis 内存占用
+- **消除冗余查询**：只查询一次数据库即可填充缓存，而不是每个字段子集各查一次
+- **一致性保障**：刷新时只需处理一个 key，不会出现"刷新了 A 键却忘了 B 键"的问题
+
+### 反模式：按场景拆分字段子集
+
+```csharp
+// ❌ 反模式：同一实体拆成多个 View 和多个 key
+
+// 场景 A：列表页只需要基本信息，创建了 BriefView（3 个字段）
+public class UserBriefView
+{
+    public long id { get; set; }
+    public string user_name { get; set; }
+    public int state { get; set; }
+}
+
+// 场景 B：详情页需要更多信息，创建了 DetailView（8 个字段）
+public class UserDetailView
+{
+    public long id { get; set; }
+    public string user_name { get; set; }
+    public string phone { get; set; }
+    public string email { get; set; }
+    public int state { get; set; }
+    public long department_id { get; set; }
+    public DateTime create_time { get; set; }
+    public string avatar { get; set; }
+}
+
+// 结果：两个 View、两个 key（user.brief.123 和 user.detail.123），
+// 两套 RedisHandler 查询方法、两套刷新逻辑
+// 刷新时容易遗漏某个 key，导致数据不一致
+```
+
+### 正确做法：统一 View + 统一 key
+
+```csharp
+// ✅ 正确做法：一个 View 包含所有场景所需字段
+
+public class UserView
+{
+    public long id { get; set; }
+    public string user_name { get; set; }
+    public string phone { get; set; }
+    public string email { get; set; }
+    public int state { get; set; }
+    public long department_id { get; set; }
+    public DateTime create_time { get; set; }
+    public string avatar { get; set; }
+}
+
+// 列表页：只读取 id、user_name、state，其他字段忽略即可
+var userInfo = await _cacheReader.GetUserInfo(id);
+var displayName = userInfo?.user_name;
+
+// 详情页：使用全部字段
+var userInfo = await _cacheReader.GetUserInfo(id);
+```
+
+### 何时可以拆分缓存
+
+以下情况**可以**使用不同的 key 或 View，因为它们本质上不是"同一实体的字段子集"：
+
+| 场景 | 说明 |
+|------|------|
+| **不同实体** | `UserView` 和 `DepartmentView` 是不同实体，各自独立缓存 |
+| **不同生命周期** | 同一实体的高频数据（TTL 10 分钟）和低频数据（TTL 24 小时），且更新频率差异极大时，可以考虑拆分——但这属于例外情况，需有充分理由 |
+| **不同数据来源** | 缓存数据来自不同的数据库表或不同的查询逻辑（如聚合结果），不是同一行的不同列 |
+| **多键索引** | 同一 View 通过不同字段索引（如 `user.{id}`、`user.phone.{phone}`），这是索引复用，不是字段子集拆分 |
+
+> 完整的正反例对比见 `references/cache-examples.md`「缓存对象复用示例」章节
 
 ## 重要规范
 
 1. **命名规范**：缓存键小写+点号分隔，View 类名以 `View` 结尾，属性小写与数据库一致
 2. **性能规范**：必须 `AsNoTracking()`，批量查询用 `ANY`，避免循环查询
 3. **一致性规范**：数据变更后立即刷新缓存（优先 Cache Invalidation），多键场景更新所有相关键
+4. **复用规范**：同一实体统一使用一个 View + 一个 key，View 包含所有场景所需字段的合集，消费方按需读取字段而非创建字段子集缓存
 
 > 实体模型禁止使用数据注解（Fluent API 配置）。**例外**：`[DbBulk]` 特性是批量操作框架要求，可以使用。
 

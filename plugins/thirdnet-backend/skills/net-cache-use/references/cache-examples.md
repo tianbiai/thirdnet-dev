@@ -8,11 +8,12 @@
 
 - [基础模式：用户缓存](#基础模式用户缓存) — 单个/列表/批量查询的标准实现
 - [缓存更新策略对比：Cache Invalidation vs Write-Through](#缓存更新策略对比cache-invalidation-vs-write-through) — 两种模式的对比示例
-- [完整示例：部门缓存](#完整示例部门缓存) — 含树形查询的完整 CRUD
+- [扩展场景：部门缓存](#扩展场景部门缓存) — 子部门查询 + 联动刷新（基于基础模式的差异部分）
 - [多键场景：用户缓存（多索引）](#完整示例用户缓存带多键场景) — 多 key 索引同一数据
 - [树形结构：地区缓存](#树形结构示例地区缓存) — 扁平数据构建树
 - [批量操作：AddOrUpdateMultiple / RemoveMultiple](#批量操作示例使用-addorupdatemultiple-和-removemultiple) — 批量刷新/删除
 - [Controller 中使用缓存](#使用示例) — API 层调用示例
+- [缓存对象复用示例](#缓存对象复用示例) — 消除冗余查询与缓存键的正反例对比
 
 ---
 
@@ -300,7 +301,9 @@ public async Task RefreshUser(UserView model)
 
 ---
 
-## 完整示例：部门缓存
+## 扩展场景：部门缓存
+
+部门缓存在基础模式之上增加了两个独特能力：**子部门查询**（从字典中过滤子节点）和**联动刷新**（删除单个缓存时同时刷新整个字典）。View、RedisHandler 的标准查询方法、单个读取、批量读取、按模型刷新等与基础模式一致，此处只展示差异部分。
 
 ### 1. 视图模型 (View/DepartmentView.cs)
 
@@ -312,86 +315,20 @@ namespace {项目名}.Cache.View
     /// </summary>
     public class DepartmentView
     {
-        /// <summary>
-        /// 主键ID
-        /// </summary>
         public long id { get; set; }
-
-        /// <summary>
-        /// 部门名称
-        /// </summary>
         public string name { get; set; }
-
-        /// <summary>
-        /// 上级部门ID
-        /// </summary>
         public long? parent_id { get; set; }
-
-        /// <summary>
-        /// 部门状态（1:启用 0:禁用）
-        /// </summary>
         public int state { get; set; }
-
-        /// <summary>
-        /// 排序号
-        /// </summary>
         public int sort { get; set; }
     }
 }
 ```
 
-### 2. RedisHandler 查询方法
+### 2. RedisHandler 差异：子部门查询
 
-RedisHandler 是 CacheManager 的内部依赖，负责从数据库查询原始数据：
+除基础模式的三个标准查询方法（单个、列表、批量）外，部门需要额外的子部门查询：
 
 ```csharp
-/// <summary>
-/// 获取单个部门
-/// </summary>
-public async Task<DepartmentView?> GetDepartment(long id)
-{
-    var sql = @"SELECT id, name, parent_id, state, sort
-                FROM contract.t_department
-                WHERE id = {0}";
-    return await _dbcontext.Database
-        .SqlQueryRaw<DepartmentView>(sql, id)
-        .AsNoTracking()
-        .FirstOrDefaultAsync();
-}
-
-/// <summary>
-/// 获取部门列表
-/// </summary>
-public async Task<Dictionary<long, DepartmentView>> GetDepartmentList()
-{
-    var sql = @"SELECT id, name, parent_id, state, sort
-                FROM contract.t_department
-                WHERE state = 1
-                ORDER BY sort";
-    var list = await _dbcontext.Database
-        .SqlQueryRaw<DepartmentView>(sql)
-        .AsNoTracking()
-        .ToListAsync();
-    return list.ToDictionary(f => f.id, f => f);
-}
-
-/// <summary>
-/// 批量获取部门
-/// </summary>
-public async Task<List<DepartmentView>> GetDepartments(List<long> ids)
-{
-    if (ids == null || ids.Count == 0)
-        return new List<DepartmentView>();
-
-    var sql = @"SELECT id, name, parent_id, state, sort
-                FROM contract.t_department
-                WHERE id = ANY(@ids)";
-    return await _dbcontext.Database
-        .SqlQueryRaw<DepartmentView>(sql, new NpgsqlParameter("ids", ids))
-        .AsNoTracking()
-        .ToListAsync();
-}
-
 /// <summary>
 /// 获取子部门列表
 /// </summary>
@@ -408,68 +345,14 @@ public async Task<List<DepartmentView>> GetChildDepartments(long parentId)
 }
 ```
 
-### 3. CacheManager 读取方法
-
-注意 `GetSingle` 使用 `TimeSpan?` 过期参数，`GetMultiple` 使用 `DateTimeOffset?` 过期参数：
+### 3. CacheManager 差异：子部门读取 + 联动刷新
 
 ```csharp
-#region Reader - 部门相关
+#region Reader - 部门差异方法
 
 /// <summary>
-/// 获取单个部门
+/// 获取子部门列表（从字典缓存中过滤，无需额外 Redis key）
 /// </summary>
-/// <param name="id">部门ID</param>
-public async Task<DepartmentView?> GetDepartmentInfo(long id)
-{
-    string key = $"department.{id}";
-    return await GetSingle(key, () => reader.GetDepartment(id), _stime24);
-}
-
-/// <summary>
-/// 获取部门字典
-/// </summary>
-public async Task<Dictionary<long, DepartmentView>> GetDepartmentDic()
-{
-    var key = "department";
-    return await GetSingle(key, reader.GetDepartmentList, _stime24);
-}
-
-/// <summary>
-/// 批量获取部门
-/// </summary>
-/// <param name="ids">部门ID列表</param>
-public async Task<Dictionary<long, DepartmentView>> GetDepartmentInfo(List<long> ids)
-{
-    if (ids == null || ids.Count == 0)
-        return new Dictionary<long, DepartmentView>();
-
-    string key = "department.";
-    var dic = await GetMultiple(
-        ids.Distinct().Select(s => $"{key}{s}").ToArray(),
-        func,
-        DateTimeOffset.Now.Add(_stime24)
-    );
-    return dic.ToDictionary(f => long.Parse(f.Key.Replace(key, "")), v => v.Value);
-
-    async Task<IDictionary<string, DepartmentView>> func(string[] keys)
-    {
-        var ids = keys.Select(s => long.Parse(s.Replace(key, ""))).ToList();
-        using var dbcontext = new CacheViewDBContext(viewDbOp);
-        var sql = @"SELECT id, name, parent_id, state, sort
-                    FROM contract.t_department
-                    WHERE id = ANY(@ids)";
-        var list = await dbcontext.Database
-            .SqlQueryRaw<DepartmentView>(sql, new NpgsqlParameter("ids", ids))
-            .AsNoTracking()
-            .ToListAsync();
-        return list.ToDictionary(f => $"{key}{f.id}");
-    }
-}
-
-/// <summary>
-/// 获取子部门列表
-/// </summary>
-/// <param name="parentId">父部门ID</param>
 public async Task<List<DepartmentView>> GetChildDepartments(long parentId)
 {
     var allDepts = await GetDepartmentDic();
@@ -477,83 +360,38 @@ public async Task<List<DepartmentView>> GetChildDepartments(long parentId)
 }
 
 #endregion
-```
 
-### 4. CacheManager 刷新方法
-
-```csharp
-#region Refresh - 部门相关
+#region Refresh - 部门差异方法
 
 /// <summary>
-/// 刷新单个部门
+/// 删除部门缓存（联动刷新：同时删除单个缓存和刷新整个字典）
 /// </summary>
-/// <param name="id">部门ID</param>
-public async Task RefreshDepartment(long id)
-{
-    string key = $"department.{id}";
-    var info = await reader.GetDepartment(id);
-    if (info != null)
-    {
-        await AddOrUpdate(key, info, _stime24);
-    }
-    else
-    {
-        await RemoveSingle(key);
-    }
-}
-
-/// <summary>
-/// 刷新整个部门集合
-/// </summary>
-public async Task RefreshDepartment()
-{
-    var key = "department";
-    var dic = await reader.GetDepartmentList();
-    await AddOrUpdate(key, dic, _stime24);
-}
-
-/// <summary>
-/// 刷新特定部门（使用模型）
-/// </summary>
-/// <param name="model">部门视图模型</param>
-public async Task RefreshDepartment(DepartmentView model)
-{
-    string key = $"department.{model.id}";
-    await AddOrUpdate(key, model, _stime24);
-}
-
-/// <summary>
-/// 删除部门缓存
-/// </summary>
-/// <param name="id">部门ID</param>
 public async Task RemoveDepartment(long id)
 {
     string key = $"department.{id}";
     await RemoveSingle(key);
-    // 同时刷新整个字典
+    // 同时刷新整个字典，确保列表数据一致
     await RefreshDepartment();
 }
 
 #endregion
 ```
 
-### 5. 接口定义
+### 4. 接口定义
 
 ```csharp
-// ICacheReader.cs
+// ICacheReader.cs — 部门相关（包含基础模式的三个标准方法 + 子部门查询）
 public interface ICacheReader
 {
-    // 部门相关
     Task<DepartmentView?> GetDepartmentInfo(long id);
     Task<Dictionary<long, DepartmentView>> GetDepartmentDic();
     Task<Dictionary<long, DepartmentView>> GetDepartmentInfo(List<long> ids);
     Task<List<DepartmentView>> GetChildDepartments(long parentId);
 }
 
-// ICacheRefresh.cs
+// ICacheRefresh.cs — 部门相关（包含基础模式的三个标准方法 + 联动删除）
 public interface ICacheRefresh
 {
-    // 部门相关
     Task RefreshDepartment(long id);
     Task RefreshDepartment();
     Task RefreshDepartment(DepartmentView model);
@@ -984,3 +822,132 @@ public class DepartmentController : ControllerBase
     }
 }
 ```
+
+---
+
+## 缓存对象复用示例
+
+本节通过正反例对比，说明如何避免同一实体创建多个字段子集的缓存。
+
+### 反模式：按场景拆分字段子集
+
+假设系统中有两个场景需要用户数据：
+- **列表页**：只需要 `id`、`user_name`、`state`
+- **详情页**：需要 `id`、`user_name`、`phone`、`email`、`state`、`department_id`、`create_time`、`avatar`
+
+```csharp
+// ❌ 反模式：为每个场景创建不同的 View 和不同的缓存 key
+
+namespace {项目名}.Cache.View
+{
+    /// <summary>
+    /// 用户简要信息（列表页使用）
+    /// </summary>
+    public class UserBriefView
+    {
+        public long id { get; set; }
+        public string user_name { get; set; }
+        public int state { get; set; }
+    }
+
+    /// <summary>
+    /// 用户详细信息（详情页使用）
+    /// </summary>
+    public class UserDetailView
+    {
+        public long id { get; set; }
+        public string user_name { get; set; }
+        public string phone { get; set; }
+        public string email { get; set; }
+        public int state { get; set; }
+        public long department_id { get; set; }
+        public DateTime create_time { get; set; }
+        public string avatar { get; set; }
+    }
+}
+
+// RedisHandler 需要两套查询方法：
+public async Task<UserBriefView?> GetUserBrief(long id)
+{
+    var sql = @"SELECT id, user_name, state FROM contract.t_user WHERE id = {0}";
+    return await _dbcontext.Database
+        .SqlQueryRaw<UserBriefView>(sql, id)
+        .AsNoTracking()
+        .FirstOrDefaultAsync();
+}
+
+public async Task<UserDetailView?> GetUserDetail(long id)
+{
+    var sql = @"SELECT id, user_name, phone, email, state, department_id, create_time, avatar
+                FROM contract.t_user WHERE id = {0}";
+    return await _dbcontext.Database
+        .SqlQueryRaw<UserDetailView>(sql, id)
+        .AsNoTracking()
+        .FirstOrDefaultAsync();
+}
+
+// CacheManager 需要两套 Reader：
+public async Task<UserBriefView?> GetUserBriefInfo(long id)
+{
+    string key = $"user.brief.{id}";
+    return await GetSingle(key, () => reader.GetUserBrief(id), _stime8);
+}
+
+public async Task<UserDetailView?> GetUserDetailInfo(long id)
+{
+    string key = $"user.detail.{id}";
+    return await GetSingle(key, () => reader.GetUserDetail(id), _stime8);
+}
+
+// 刷新时需要维护两个 key：
+public async Task RefreshUser(long id)
+{
+    // 如果只刷新了一个 key，另一个 key 持有旧数据，导致不一致
+    await RemoveSingle($"user.brief.{id}");
+    await RemoveSingle($"user.detail.{id}");
+    // 维护成本随场景数量线性增长
+}
+```
+
+**问题总结**：
+- Redis 中同一用户存了两份数据（`user.brief.123` 和 `user.detail.123`），内存浪费
+- 数据库查询了两次（一次查 3 字段，一次查 8 字段），查询冗余
+- 刷新时需要维护多个 key，容易遗漏，导致数据不一致
+- 每增加一个场景，就要新增 View + RedisHandler 方法 + CacheManager 方法 + 接口
+
+### 正确做法：统一 View + 统一 key
+
+View 定义和 RedisHandler 查询方法与「基础模式」完全一致——只需一个 `UserView`（包含所有 8 个字段）和一套标准查询方法。差异仅在刷新和消费方式：
+
+```csharp
+// 刷新时只需处理一个 key（对比反模式需要维护多个 key）
+public async Task RefreshUser(long id)
+{
+    await RemoveSingle($"user.{id}");
+}
+
+// 消费方按需取字段——不需要为不同场景创建不同 View：
+// 列表页：只用 id、user_name、state
+var userInfo = await _cacheReader.GetUserInfo(id);
+var displayName = userInfo?.user_name;
+
+// 详情页：使用全部字段
+var userInfo = await _cacheReader.GetUserInfo(id);
+return new UserDetailResponse
+{
+    user_name = userInfo.user_name,
+    phone = userInfo.phone,
+    email = userInfo.email,
+    department_id = userInfo.department_id,
+    avatar = userInfo.avatar
+};
+```
+
+### 复用决策速查
+
+| 情况 | 做法 | 示例 |
+|------|------|------|
+| 同一实体，不同消费方需要不同字段 | 合并为一个 View，消费方按需取字段 | 用户缓存统一 `UserView` |
+| 同一实体，通过不同字段索引 | 同一个 View，多个 key 指向同一份数据 | `user.{id}` 和 `user.phone.{phone}` |
+| 不同实体 | 各自独立缓存 | `UserView` 和 `DepartmentView` |
+| 同一实体但 TTL 差异极大（如 10 分钟 vs 24 小时） | 可考虑拆分，但需有充分理由 | 高频变化的积分 vs 稳定的基本信息 |
