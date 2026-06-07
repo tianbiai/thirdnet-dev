@@ -8,7 +8,7 @@ description: >
   以保证代码与文档的一致性。
 license: MIT
 metadata:
-  version: "2.0.0"
+  version: "2.1.0"
   author: thirdnet
 ---
 
@@ -115,7 +115,21 @@ metadata:
 
 ### 代码注释规范
 
-所有代码应使用中文注释，确保代码的可读性和可维护性：
+所有代码应使用中文注释，确保代码的可读性和可维护性。
+
+**XML 注释格式**：类、方法、属性的 `<summary>` 注释必须使用多行格式：
+
+❌ 禁止（单行）：
+```csharp
+/// <summary>获取菜单树形结构（扁平列表缓存 + 内存构建树），TTL 24 小时。</summary>
+```
+
+✅ 要求（多行）：
+```csharp
+/// <summary>
+/// 获取菜单树形结构（扁平列表缓存 + 内存构建树），TTL 24 小时。
+/// </summary>
+```
 
 - **实体类（Model）**：每个属性必须添加 `/// <summary>` XML 文档注释，说明字段的业务含义
 - **Controller 方法**：每个 API 端点必须有 `/// <summary>` 注释，描述接口功能；参数必须有 `<param>` 注释
@@ -260,6 +274,7 @@ metadata:
 - [ ] EF Core 实体配置使用 Fluent API，禁止数据注解
 - [ ] 数据库字段命名遵循 `snake_case`，与 PostgreSQL 列名一致
 - [ ] 无占位代码或 TODO 注释残留
+- [ ] XML 文档注释使用多行 `<summary>` 格式（禁止单行 `/// <summary>text</summary>`）
 - [ ] 实体类属性有 `/// <summary>` XML 注释
 - [ ] Controller 方法有 `/// <summary>` + `<param>` XML 注释
 - [ ] 核心业务流程有中文行内注释
