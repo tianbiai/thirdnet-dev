@@ -1,7 +1,7 @@
 ---
 name: net-api-developer
-version: 1.0.0
-description: .NET API 接口开发专家，负责创建 Controller、定义 API 路由、编写 HTTP 端点方法（仅使用 GET/POST）。**主动用于**：创建新的 Controller、编写 API 接口方法、定义路由、处理 HTTP 请求响应。当用户提到"接口"、"API"、"Controller"、"端点"、"路由"、"写个接口"、"加个接口"、"增删改查"、"CRUD"、"HttpGet"、"HttpPost"、"接口开发"、"API开发"、"授权策略"、"Authorize"、"用户信息"、"HttpContext"时，必须使用此技能。
+version: 1.1.0
+description: .NET API 接口开发专家，负责创建 Controller、定义 API 路由、编写 HTTP 端点方法（仅使用 GET/POST），并强制规范 Controller 层的请求/响应 DTO（`Request`/`Response`）。**主动用于**：创建新的 Controller、编写 API 接口方法、定义路由、处理 HTTP 请求响应。当用户提到"接口"、"API"、"Controller"、"端点"、"路由"、"写个接口"、"加个接口"、"增删改查"、"CRUD"、"HttpGet"、"HttpPost"、"接口开发"、"API开发"、"授权策略"、"Authorize"、"用户信息"、"HttpContext"时，必须使用此技能。
 ---
 ## 使用场景
 
@@ -10,7 +10,7 @@ description: .NET API 接口开发专家，负责创建 Controller、定义 API 
 - 编写 API 接口方法（增删改查）
 - 配置认证授权策略
 - 处理请求参数绑定和响应格式
-- 设计 DTO 请求/响应模型
+- 设计 Request/Response 模型（请求/响应 DTO）
 - 配置 JWT Token 认证与授权
 - 实现 IAccountValidator 自定义账号验证
 - 在接口中获取用户身份信息
@@ -137,11 +137,11 @@ public class OrderController : ControllerBase { }      // 缺少端类型后缀
 
 ### 返回类型规范
 
-**核心原则**：API 默认直接返回实体 JSON，不包装状态码。状态码通过 HTTP 状态码返回。
+**核心原则**：API 默认直接返回 DTO（`Request`/`Response`）JSON，不包装状态码。状态码通过 HTTP 状态码返回。
 
 **响应格式要求**：
 
-- **成功响应**：直接返回实体对象 JSON，不包装任何结果状态码
+- **成功响应**：必须返回 DTO（`Request`/`Response`）对象 JSON，**禁止直接返回 EF Core 实体**
 - **错误响应**：通过 HTTP 状态码 + 异常消息返回
 - **状态码传递**：仅通过 HTTP 状态码传递请求结果状态
 
@@ -160,8 +160,9 @@ public class OrderController : ControllerBase { }      // 缺少端类型后缀
 
 | 返回方式 | 是否允许 | 说明 |
 |---------|---------|------|
-| `return Ok(typedResponse)` | ✅ 允许 | 返回类型化的 Response DTO |
-| `return Ok(entity)` | ✅ 允许 | 直接返回实体（查询详情场景） |
+| `return Ok(typedResponse)` | ✅ 允许 | 返回类型化的 Response DTO（`XXXResponse`） |
+| `return Ok(dto)` | ✅ 允许 | 返回由 Service / 映射层转换后的 DTO |
+| `return Ok(entity)` | ❌ 禁止 | 数据库实体含敏感字段，不得直接暴露给 API |
 | `return Ok()` | ✅ 允许 | 无返回内容的操作 |
 | `return Ok(new { ... })` | ❌ 禁止 | 匿名对象，无法生成类型文档 |
 | `return NotFound(new { ... })` | ❌ 禁止 | 应使用 WebApiException |
@@ -210,6 +211,92 @@ return Ok(new { userId, clientId, idp });
 return Ok(new { code = 200, data = user });
 ```
 
+### 禁止直接返回数据库实体模型（强制要求）
+
+**核心规则**：Controller 层**禁止直接返回 EF Core 实体（Entity）**。即使 Service 层从数据库读取数据，也必须在 Service 层或映射层将 Entity 转换为 DTO（`Response` 模型）后，再由 Controller 返回给前端。
+
+**原因**：
+
+- EF Core Entity 包含敏感字段（如 `password_hash`、API 密钥盐值、加密私钥片段等），直接序列化会泄露给 API 调用方
+- Entity 含 `navigation properties`（关联实体），未配置 `JsonIgnore` 或投影时会产生循环引用、加载多余数据、产生 N+1 查询
+- Entity 字段命名与数据库强绑定，DTO 才能按 API 契约自由裁剪字段
+- Entity 变更（如新增字段、修改映射）会直接破坏 API 向后兼容性，DTO 提供稳定的接口契约
+
+**允许与禁止的返回方式**：
+
+| 返回方式 | 是否允许 | 说明 |
+|---------|---------|------|
+| `return Ok(response)` 其中 `response` 由 Service 映射为 `XXXResponse` | ✅ 允许 | 标准做法：Service 返回 DTO，Controller 直接返回 |
+| `return Ok(entity)` | ❌ 禁止 | Entity 含敏感字段、navigation properties |
+| `return Ok(_dbContext.User.ToList())` | ❌ 禁止 | 控制器层直接查询并返回 Entity |
+| `return Ok(_mapper.Map<Dto>(entity))` 在 Controller 内映射 | ⚠️ 不推荐 | 映射应下沉到 Service 层；Controller 只做 HTTP 层职责 |
+| 内部 Service 方法返回 `List<Entity>` 给其他 Service 调用 | ✅ 允许 | Service 内部跨层调用不受此约束 |
+
+**正确示例**：
+
+```csharp
+// ✅ Service 层负责 Entity → DTO 转换
+public async Task<UserResponse> GetUserById(long id)
+{
+    var user = await _dbContext.User
+        .AsNoTracking()
+        .FirstOrDefaultAsync(u => u.id == id);
+
+    if (user == null)
+    {
+        return null;
+    }
+
+    return new UserResponse
+    {
+        id = user.id,
+        name = user.name,
+        email = user.email
+        // password_hash 等敏感字段不会出现在 DTO 中
+    };
+}
+
+// ✅ Controller 仅做 HTTP 层职责
+[HttpGet("{id}")]
+[ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
+public async Task<IActionResult> GetById(long id)
+{
+    var response = await _userService.GetUserById(id);
+    if (response == null)
+    {
+        throw new WebApiException(HttpStatusCode.NotFound, "用户不存在");
+    }
+    return Ok(response);
+}
+```
+
+**错误示例**：
+
+```csharp
+// ❌ 禁止：直接返回 EF Core Entity
+[HttpGet("{id}")]
+[ProducesResponseType(typeof(User), StatusCodes.Status200OK)]   // User 是 Entity，敏感字段会被序列化
+public async Task<IActionResult> GetById(long id)
+{
+    var user = await _dbContext.User.FindAsync(id);
+    return Ok(user);   // password_hash、navigation properties 一并返回
+}
+
+// ❌ 禁止：Controller 层做 DbContext 查询
+[HttpGet("list")]
+public async Task<IActionResult> GetList()
+{
+    var users = await _dbContext.User.ToListAsync();
+    return Ok(users);
+}
+```
+
+**映射策略**：
+
+- 简单映射：在 Service 层手写 `new XXXResponse { ... }`
+- 复杂映射：使用 `Mapster`，在 Service 注入 `IMapper`
+- 分页结果：使用框架自带的 `PageListInfo<T>` 包装类，不要直接返回 EF 的 `IPagedList`
+
 ### DTO 模型设计规范
 
 **命名规范**：
@@ -223,13 +310,18 @@ return Ok(new { code = 200, data = user });
 | 创建请求 | `{Entity}CreateRequest` | `UserCreateRequest` |
 | 更新请求 | `{Entity}UpdateRequest` | `UserUpdateRequest` |
 | 查询请求 | `{Entity}QueryRequest` | `UserQueryRequest` |
-| 响应模型 | `{Entity}Response` 或 `{Entity}Dto` | `UserResponse`、`UserDto` |
+| 响应模型 | `{Entity}Response` | `UserResponse` |
+
+**注意**：
+- 响应模型**必须**以 `Response` 结尾，**禁止使用 `Dto` 后缀**（如 `UserDto`）
+- 旧代码中已存在的 `Dto` 后缀类不在本次整改范围，新增代码必须遵守
+- `Request` / `Response` 一律单数结尾，不用复数（`List<UserResponse>`，不要 `List<UserResponses>`）
 
 
 ### 错误处理规范
 
 **核心原则**：
-- **成功响应**：直接返回实体 JSON，不包装
+- **成功响应**：直接返回 DTO JSON，不包装
 - **错误响应**：使用 `WebApiException` 抛出，由框架统一处理
 - **状态码传递**：仅通过 HTTP 状态码传递请求结果状态
 
@@ -237,7 +329,7 @@ return Ok(new { code = 200, data = user });
 
 | 状态码 | 说明 | 使用场景 |
 |--------|------|---------|
-| 200 | OK | 请求成功，返回实体或分页数据 |
+| 200 | OK | 请求成功，返回 DTO 或分页数据 |
 | 201 | Created | 资源创建成功 |
 | 204 | No Content | 操作成功无返回 |
 | 400 | Bad Request | 请求参数错误（必填参数缺失、格式错误） |
@@ -258,7 +350,7 @@ public async Task<IActionResult> GetUser(long id)
     {
         throw new WebApiException(HttpStatusCode.NotFound, "用户不存在");
     }
-    return Ok(user);  // 成功时直接返回实体
+    return Ok(user);  // 成功时返回 DTO
 }
 
 // ✅ 正确：参数验证失败
@@ -270,7 +362,7 @@ public async Task<IActionResult> UpdateUser(long id, UpdateUserRequest request)
         throw new WebApiException(HttpStatusCode.BadRequest, "无效的用户ID");
     }
     // ...
-    return Ok(updatedUser);  // 直接返回更新后的实体
+    return Ok(updatedUser);  // 返回 DTO
 }
 
 // ❌ 禁止：手动包装错误对象返回
@@ -366,12 +458,14 @@ public async Task<IActionResult> Delete(long id)
 
 ### DTO 设计
 
-- [ ] DTO 类名使用 PascalCase，以 `Request` 或 `Response` 结尾
+- [ ] DTO 类名使用 PascalCase，请求以 `Request` 结尾、响应以 `Response` 结尾
+- [ ] 响应模型**禁止**使用 `Dto` 后缀（新增代码强制，已用 `Dto` 后缀的存量类不在整改范围）
 - [ ] DTO 属性名使用 snake_case（与数据库字段一致）
 
 ### 响应与错误处理
 
-- [ ] 成功响应直接返回实体（不包装状态码）
+- [ ] 成功响应返回 DTO（`XXXResponse`），**禁止直接返回 EF Core Entity**
+- [ ] Entity → DTO 转换在 Service 层或映射层完成，Controller 不做 DbContext 查询
 - [ ] 错误使用 `WebApiException` 抛出（不手动包装错误对象）
 - [ ] 返回类型使用 `IActionResult`
 - [ ] 禁止返回匿名对象（`new { ... }`），必须使用类型化 Response DTO

@@ -637,18 +637,28 @@ public class DepartmentController : ControllerBase
     /// 获取部门列表
     /// </summary>
     [HttpGet("list")]
-    [ProducesResponseType(typeof(IEnumerable<DepartmentModel>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(IEnumerable<DepartmentResponse>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetList()
     {
         var dic = await _departmentCache.GetDepartmentDic();
-        return Ok(dic.Values);
+        // 缓存层返回的是 Entity（DepartmentModel），由 Service 层转换为 DTO 后再返回给 Controller
+        var response = dic.Values.Select(m => new DepartmentResponse
+        {
+            id = m.id,
+            name = m.name,
+            parent_id = m.parent_id,
+            state = m.state,
+            sort = m.sort,
+            add_time = m.add_time
+        });
+        return Ok(response);
     }
 
     /// <summary>
     /// 获取部门详情
     /// </summary>
     [HttpGet("{id}")]
-    [ProducesResponseType(typeof(DepartmentModel), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(DepartmentResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetById(long id)
     {
         var dept = await _departmentCache.GetDepartmentInfo(id);
@@ -656,7 +666,17 @@ public class DepartmentController : ControllerBase
         {
             throw new WebApiException(HttpStatusCode.NotFound, "部门不存在");
         }
-        return Ok(dept);
+        // Entity（DepartmentModel）→ DTO（DepartmentResponse）转换
+        var response = new DepartmentResponse
+        {
+            id = dept.id,
+            name = dept.name,
+            parent_id = dept.parent_id,
+            state = dept.state,
+            sort = dept.sort,
+            add_time = dept.add_time
+        };
+        return Ok(response);
     }
 
     /// <summary>
@@ -664,7 +684,7 @@ public class DepartmentController : ControllerBase
     /// </summary>
     [HttpPost("create")]
     [ProducesResponseType(typeof(DepartmentCreateResponse), StatusCodes.Status200OK)]
-    public async Task<IActionResult> Create([FromBody] CreateDepartmentRequest request)
+    public async Task<IActionResult> Create([FromBody] DepartmentCreateRequest request)
     {
         var dept = new DepartmentModel
         {
@@ -688,7 +708,7 @@ public class DepartmentController : ControllerBase
     /// </summary>
     [HttpPost("update")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<IActionResult> Update([FromBody] UpdateDepartmentRequest request)
+    public async Task<IActionResult> Update([FromBody] DepartmentUpdateRequest request)
     {
         var dept = await _dbContext.Department.FindAsync(request.id);
         if (dept == null)

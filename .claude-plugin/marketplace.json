@@ -13,7 +13,7 @@
       "name": "thirdnet-backend",
       "source": "./plugins/thirdnet-backend",
       "description": "后端开发助手 - .NET 10 微服务 API、数据库操作",
-      "version": "0.16.0",
+      "version": "0.17.0",
       "author": {
         "name": "thirdnet"
       },

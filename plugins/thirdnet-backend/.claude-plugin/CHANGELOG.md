@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.14.0 - 2026-06-07
+
+### Added
+- 新增强制规则：**API 必须返回 DTO，禁止直接返回数据库实体**。Controller 层禁止直接返回 EF Core Entity，必须由 Service 层或映射层将 Entity 转换为 DTO（`XXXResponse`）后再返回。原因：Entity 包含敏感字段（`password_hash` 等）和 `navigation properties`，直接序列化会泄露敏感数据并产生循环引用。
+- 新增强制规则：**DTO 命名规范统一**。请求对象必须以 `Request` 结尾（如 `UserCreateRequest`），响应对象必须以 `Response` 结尾（如 `UserResponse`），**完全禁止 `Dto` 后缀**。已使用 `Dto` 后缀的存量类不在本次整改范围。
+
+### Changed
+- `net-api-developer` 技能升级至 1.1.0：
+  - 修订"返回类型规范"措辞：API 默认返回 DTO JSON，不再默认返回实体
+  - "禁止匿名对象返回"表格删除"直接返回实体"允许行
+  - 新增章节"禁止直接返回数据库实体模型（强制要求）"，含原因、允许/禁止表、正确/错误示例
+  - DTO 命名规范表删除 `{Entity}Dto` 选项
+  - 代码审查清单新增"返回 DTO 而非 Entity"检查项
+- `net-cache-use` 技能冲突示例修复：Controller 示例中的 `DepartmentModel` 返回类型改为 `DepartmentResponse`；`CreateDepartmentRequest` / `UpdateDepartmentRequest` 重命名为 `DepartmentCreateRequest` / `DepartmentUpdateRequest`（与 `net-api-developer` 规范对齐）
+- `net-database-bulkcopy` 技能冲突示例修复：Excel 导入示例的入参类型 `UserImportDto` 重命名为 `UserImportRequest`
+
 ## 0.11.0 - 2026-05-17
 
 ### Added

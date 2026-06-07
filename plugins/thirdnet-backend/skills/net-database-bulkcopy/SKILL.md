@@ -153,7 +153,7 @@ public class User
 ### Excel 导入用户数据
 
 ```csharp
-public async Task<int> ImportUsersFromExcel(List<UserImportDto> excelData)
+public async Task<int> ImportUsersFromExcel(List<UserImportRequest> excelData)
 {
     var users = excelData.Select(d => new User
     {
