@@ -1,7 +1,7 @@
 ---
 name: net-cache-use
-version: 3.2.0
-description: 缓存功能开发专家，基于 RedisCacheManager 基类为业务实体添加完整的 Redis 缓存功能（CacheManager、RedisHandler、View 三层架构）及 RedisLock 分布式锁。**主动用于**：为实体添加缓存、字典数据缓存、配置信息缓存、高频查询缓存、缓存预热、性能优化、分布式锁。当用户提到"缓存"、"Cache"、"Redis"、"加缓存"、"缓存数据"、"字典缓存"、"配置缓存"、"高频查询"、"性能优化"、"预热"、"ICacheReader"、"ICacheRefresh"、"CacheManager"、"RedisCacheManager"、"分布式锁"、"RedisLock"、"并发控制"、"防重复"时，必须使用此技能。
+version: 4.1.0
+description: 缓存功能开发专家，基于 RedisCacheManager 基类为业务实体创建自包含的领域缓存类（{Domain}Cache），内含 DB 查询 + 缓存读取 + 缓存删除，以及 RedisLock 分布式锁。**主动用于**：为实体添加缓存、字典数据缓存、配置信息缓存、高频查询缓存、缓存预热、性能优化、分布式锁。当用户提到"缓存"、"Cache"、"Redis"、"加缓存"、"缓存数据"、"字典缓存"、"配置缓存"、"高频查询"、"性能优化"、"预热"、"UserCache"、"DepartmentCache"、"RedisCacheManager"、"分布式锁"、"RedisLock"、"并发控制"、"防重复"时，必须使用此技能。
 ---
 ## 使用场景
 
@@ -15,16 +15,18 @@ description: 缓存功能开发专家，基于 RedisCacheManager 基类为业务
 
 **命名空间**: `ThirdNet.Core.Common`
 
-框架提供 `RedisCacheManager` 抽象基类，业务层基于它构建三层缓存架构：
+框架提供 `RedisCacheManager` 抽象基类，每个业务领域创建独立的自包含缓存类：
 
 ```
 RedisCacheManager（框架基类，Polly 熔断 + SemaphoreSlim 防击穿 + TTL 抖动）
-  └── 业务 CacheManager（继承基类，组合 RedisHandler）
-        ├── ICacheReader 接口（业务读取接口）
-        ├── ICacheRefresh 接口（业务刷新接口）
-        ├── RedisHandler（数据查询层，原生 SQL 查询 PostgreSQL）
-        └── View/（视图模型目录）
+  └── {Domain}Cache（继承基类，自包含）
+        ├── Query 方法（private，DB 查询）
+        ├── Reader 方法（public，缓存读取）
+        ├── Remove 方法（public，缓存删除，Read-Through 自动回填）
+        └── View/{Entity}View.cs（视图模型）
 ```
+
+每个 `{Domain}Cache` 是一个完全自包含的类，直接注入 DbContext，包含从数据库查询到缓存读写的全部逻辑。Controller 直接注入具体的缓存类（如 `UserCache`），无需接口。
 
 ### RedisCacheManager 基类内置能力
 
@@ -39,7 +41,7 @@ RedisCacheManager（框架基类，Polly 熔断 + SemaphoreSlim 防击穿 + TTL 
 
 ## 基类方法签名
 
-以下是 `RedisCacheManager` 提供的完整方法。业务 CacheManager 子类直接调用这些方法，无需重写。
+以下是 `RedisCacheManager` 提供的完整方法。领域缓存类直接调用这些方法，无需重写。
 
 ### 读取方法
 
@@ -75,57 +77,28 @@ RedisCacheManager（框架基类，Polly 熔断 + SemaphoreSlim 防击穿 + TTL 
 
 ## 缓存更新策略
 
-数据变更后，有两种方式保持缓存与数据库的一致性。两种策略都依赖 `GetSingle` 内置的 Read-Through 机制——缓存 miss 时自动调用 `func` 查询数据库并写回 Redis。
+数据变更后，**原则只删除对应 key**，后续需要使用时由 `GetSingle` 内置的 Read-Through 机制自动从数据库加载最新数据并写回 Redis。
 
-### Cache Invalidation（推荐）
-
-数据变更时只删除缓存，下次读取时由 Read-Through 自动加载最新数据。
+### Cache Invalidation（推荐策略）
 
 ```csharp
 // 数据变更后：只删除缓存
 await RemoveSingle($"user.{id}");
 
 // 下次调用 GetUserInfo(id) 时：
-// GetSingle → Redis miss → func() 查询数据库 → 写回 Redis → 返回最新数据
+// GetSingle → Redis miss → QueryUser(id) 查询数据库 → 写回 Redis → 返回最新数据
 ```
 
-**为什么优先推荐**：
-- 代码更简洁——刷新方法只需一行 `RemoveSingle`
+**为什么这是默认策略**：
+- 代码最简洁——Remove 方法只需一行 `RemoveSingle`
 - 避免竞态问题——不会在 DB 事务尚未提交时就把旧数据写入缓存
-- 减少刷新时的数据库压力——不需要额外查询
+- 减少数据库压力——不需要额外查询
 
-**适用场景**：单键实体的普通 CRUD（大部分业务场景）
+### Write-Through（特殊场景备选）
 
-### Write-Through Refresh（备选）
+少数场景可能需要主动写入缓存（如多键场景需同步更新所有索引键、字典整体刷新需 `AddOrUpdate`）。这些场景的 Write-Through 逻辑直接写在 `{Domain}Cache` 的对应方法中。
 
-数据变更后主动查询数据库获取最新数据，然后用 `AddOrUpdate` 更新缓存。
-
-```csharp
-var info = await reader.GetUser(id);
-if (info != null)
-    await AddOrUpdate(key, info, _stime8);
-else
-    await RemoveSingle(key);
-```
-
-**适用场景**：
-- 变更后需要立即返回最新数据（如后台管理界面修改后立即查看）
-- 多键场景（需要同步更新所有索引键）
-- 已有模型直接更新（`RefreshEntity(model)` 数据已在内存中）
-- 批量操作（`AddOrUpdateMultiple` 批量写入比逐条 Read-Through 更高效）
-- 字典/配置整体刷新（整体替换，避免逐条触发加载）
-
-### 选择原则
-
-| 场景 | 推荐策略 | 原因 |
-|------|---------|------|
-| 单键实体的普通 CRUD | Cache Invalidation | 简洁可靠，Read-Through 保证下次读取正确 |
-| 多键场景（ID + 索引键） | Write-Through | 需要同时更新所有索引键，避免索引不一致 |
-| 已有模型的 `RefreshEntity(model)` | Write-Through | 数据已在内存中，无需额外查询 |
-| 批量操作 | Write-Through（`AddOrUpdateMultiple`） | 批量删除后逐一 Read-Through 成本太高 |
-| 字典/配置整体刷新 | Write-Through | 整体替换，避免逐条触发加载 |
-
-> 完整的 Cache Invalidation vs Write-Through 代码对比见 `references/cache-examples.md`「缓存更新策略对比」章节
+> 完整的代码示例见 `references/cache-examples.md`
 
 ## TTL 选择指南
 
@@ -150,57 +123,27 @@ else
 
 > 完整代码示例见 `references/cache-examples.md`「基础模式」章节
 
-### 步骤 3：实现 RedisHandler 查询方法
+### 步骤 3：生成自包含的 {Domain}Cache 类
 
-在 `RedisHandler.cs` 中添加三类查询方法：
+创建 `{Domain}Cache.cs`，一个文件包含全部缓存逻辑，分三个 region 组织：
+
+**Query（private）**— 数据库查询方法：
 - **单个查询**：`SqlQueryRaw` + `FirstOrDefaultAsync`，按主键查询
 - **列表查询**：`SqlQueryRaw` + `ToListAsync`，返回 `Dictionary<key, View>`
 - **批量查询**：`SqlQueryRaw` + `ANY(@ids)` + `NpgsqlParameter`，用于 `GetMultiple` 的 func 回调
 
-> 完整代码示例见 `references/cache-examples.md`「基础模式」章节
+**Reader（public）**— 缓存读取方法，供 Controller 调用：
+- **单个读取**：`GetSingle(key, () => QueryXxx(id), _stimeX)`
+- **字典读取**：`GetSingle("entity", QueryXxxList, _stime24)`
+- **批量读取**：`GetMultiple(keys, func, DateTimeOffset.Now.Add(_stimeX))`
 
-### 步骤 4：实现 CacheManager 读取方法
+**Remove（public）**— 缓存删除方法，数据变更后调用：
+- **单个删除**：`RemoveSingle(key)`，用于只涉及一个 key 的场景
+- **批量删除**：`RemoveMultiple(keys)`，当需要删除多个 key 时优先使用，减少 Redis 网络往返
+- **多键场景**：收集所有关联 key（主键 + 索引键），一次 `RemoveMultiple` 完成
+- **联动删除**：同时删除实体 key + 字典 key + 树形 key 时，收集后一次 `RemoveMultiple`
 
-业务 CacheManager 继承 `RedisCacheManager`，通过 `ICacheReader` 暴露读取方法：
-
-- **单个读取**：`GetSingle(key, () => reader.GetXxx(id), _stimeX)`
-- **字典读取**：`GetSingle("entity", reader.GetXxxList, _stime24)`，缓存整个字典
-- **批量读取**：`GetMultiple(keys, func, DateTimeOffset.Now.Add(_stimeX))`，func 内部解析缺失 key，查询后返回 `IDictionary<string, TResult>`
-
-> 完整代码示例（含批量查询 func 写法）见 `references/cache-examples.md`「基础模式」章节
-
-### 步骤 5：实现 CacheManager 刷新方法
-
-通过 `ICacheRefresh` 暴露刷新方法。**优先使用 Cache Invalidation 模式**（详见「缓存更新策略」章节）：
-
-- **按 ID 刷新（推荐 Cache Invalidation）**：直接 `RemoveSingle(key)`，下次读取时由 Read-Through 自动加载
-- **按 ID 刷新（备选 Write-Through）**：先查询最新数据，存在则 `AddOrUpdate`，不存在则 `RemoveSingle`
-- **按模型刷新**：直接 `AddOrUpdate(key, model, ttl)`（数据已在内存中，适合 Write-Through）
-- **整集刷新**：重新加载列表后 `AddOrUpdate`
-
-多键场景（如用户同时缓存 `user.{id}`、`user.phone.{phone}`、`user.email.{email}`）刷新时需处理 key 迁移——先删旧键再建新键。多键场景推荐使用 Write-Through 确保索引一致性。
-
-> Cache Invalidation 和 Write-Through 的完整对比示例见 `references/cache-examples.md`「缓存更新策略对比」章节
-> 多键场景完整示例见 `references/cache-examples.md`「多键场景」章节
-
-### 步骤 6：定义接口
-
-```csharp
-// ICacheReader.cs
-public interface ICacheReader
-{
-    Task<EntityView?> GetEntityInfo(long id);
-    Task<Dictionary<long, EntityView>> GetEntityDic();
-    Task<Dictionary<long, EntityView>> GetEntityInfo(List<long> ids);
-}
-
-// ICacheRefresh.cs
-public interface ICacheRefresh
-{
-    Task RefreshEntity(long id);
-    Task RefreshEntity(EntityView model);
-}
-```
+> 完整代码示例（含构造函数、Query、Reader、Remove）见 `references/cache-examples.md`「基础模式」章节
 
 ## 分布式锁：RedisLock
 
@@ -245,10 +188,7 @@ RedisLock(IDatabase redis, string key, TimeSpan expiry)
 ### 文件结构
 
 - [ ] 在 `View/` 创建了 `{Entity}View.cs`
-- [ ] 在 `RedisHandler.cs` 添加了查询方法
-- [ ] 在 `CacheManager.cs` 添加了 Reader 和 Refresh 方法
-- [ ] 在 `ICacheReader.cs` 添加了接口定义
-- [ ] 在 `ICacheRefresh.cs` 添加了接口定义
+- [ ] 创建了自包含的 `{Domain}Cache.cs`（含 Query + Reader + Remove）
 
 ### 代码质量
 
@@ -256,11 +196,12 @@ RedisLock(IDatabase redis, string key, TimeSpan expiry)
 - [ ] `GetSingle` 使用 `TimeSpan?` 过期参数
 - [ ] `GetMultiple` 使用 `DateTimeOffset?` 过期参数
 - [ ] 使用了正确的 TTL（根据数据特性）
-- [ ] 所有查询使用了 `AsNoTracking()`
-- [ ] 多键场景更新了所有相关键
-- [ ] 刷新方法选择了正确的更新策略（Cache Invalidation 或 Write-Through）
-- [ ] Cache Invalidation 场景下只调用 `RemoveSingle`，没有多余的数据库查询
-- [ ] Read-Through 的 `func` 回调已正确定义（确保缓存 miss 时能加载正确数据）
+- [ ] 所有 Query 方法使用了 `AsNoTracking()`
+- [ ] 多键场景 Remove 时删除了所有关联 key
+- [ ] Remove 方法只调用 `RemoveSingle`，没有多余的数据库查询
+- [ ] 涉及多个 key 的删除操作使用 `RemoveMultiple` 而非循环 `RemoveSingle`
+- [ ] 涉及多个 key 的读取操作使用 `GetMultiple` 而非循环 `GetSingle`
+- [ ] Read-Through 的 `func` 回调指向私有 Query 方法（确保缓存 miss 时能加载正确数据）
 - [ ] 同一实体没有为不同字段子集创建多个 View 或多个 key（应统一为一个 View + 一个 key）
 
 ## 缓存对象复用
@@ -272,7 +213,7 @@ RedisLock(IDatabase redis, string key, TimeSpan expiry)
 这样做的好处是：
 - **消除冗余**：同一实体数据只存一份，减少 Redis 内存占用
 - **消除冗余查询**：只查询一次数据库即可填充缓存，而不是每个字段子集各查一次
-- **一致性保障**：刷新时只需处理一个 key，不会出现"刷新了 A 键却忘了 B 键"的问题
+- **一致性保障**：删除缓存时只需处理一个 key，不会出现"删了 A 键却忘了 B 键"的问题
 
 ### 反模式：按场景拆分字段子集
 
@@ -301,8 +242,8 @@ public class UserDetailView
 }
 
 // 结果：两个 View、两个 key（user.brief.123 和 user.detail.123），
-// 两套 RedisHandler 查询方法、两套刷新逻辑
-// 刷新时容易遗漏某个 key，导致数据不一致
+// 两套 Query 方法、两套 Remove 逻辑
+// 删除时容易遗漏某个 key，导致数据不一致
 ```
 
 ### 正确做法：统一 View + 统一 key
@@ -322,12 +263,13 @@ public class UserView
     public string avatar { get; set; }
 }
 
-// 列表页：只读取 id、user_name、state，其他字段忽略即可
-var userInfo = await _cacheReader.GetUserInfo(id);
+// 消费方按需取字段——不需要为不同场景创建不同 View：
+// 列表页：只用 id、user_name、state
+var userInfo = await _userCache.GetUserInfo(id);
 var displayName = userInfo?.user_name;
 
 // 详情页：使用全部字段
-var userInfo = await _cacheReader.GetUserInfo(id);
+var userInfo = await _userCache.GetUserInfo(id);
 ```
 
 ### 何时可以拆分缓存
@@ -345,10 +287,11 @@ var userInfo = await _cacheReader.GetUserInfo(id);
 
 ## 重要规范
 
-1. **命名规范**：缓存键小写+点号分隔，View 类名以 `View` 结尾，属性小写与数据库一致
+1. **命名规范**：缓存键小写+点号分隔，View 类名以 `View` 结尾，属性小写与数据库一致，缓存类以 `Cache` 结尾（如 `UserCache`）
 2. **性能规范**：必须 `AsNoTracking()`，批量查询用 `ANY`，避免循环查询
-3. **一致性规范**：数据变更后立即刷新缓存（优先 Cache Invalidation），多键场景更新所有相关键
+3. **一致性规范**：数据变更后立即删除对应缓存 key，多键场景删除所有关联 key
 4. **复用规范**：同一实体统一使用一个 View + 一个 key，View 包含所有场景所需字段的合集，消费方按需读取字段而非创建字段子集缓存
+5. **批量优先规范**：涉及多个 key 的操作使用 `RemoveMultiple`/`GetMultiple`/`AddOrUpdateMultiple`，而非循环调用单个方法。每次循环调用都是一次 Redis 网络往返，批量操作将多次往返合并为一次，显著降低延迟
 
 > 实体模型禁止使用数据注解（Fluent API 配置）。**例外**：`[DbBulk]` 特性是批量操作框架要求，可以使用。
 
@@ -359,6 +302,6 @@ var userInfo = await _cacheReader.GetUserInfo(id);
 ## 相关技能
 
 - **backend-workflow**: 文档驱动开发流程和交付标准
-- **net-efcore-developer**: 数据库实体开发（缓存基于实体创建 View 和 RedisHandler）
-- **net-api-developer**: API 接口开发（缓存通过 API 层的 CacheManager 调用）
-- **net-database-bulkcopy**: 批量数据操作（批量导入后需刷新缓存）
+- **net-efcore-developer**: 数据库实体开发（缓存基于实体创建 View 和 Query 方法）
+- **net-api-developer**: API 接口开发（缓存通过 API 层注入 {Domain}Cache 调用）
+- **net-database-bulkcopy**: 批量数据操作（批量导入后需删除对应缓存）

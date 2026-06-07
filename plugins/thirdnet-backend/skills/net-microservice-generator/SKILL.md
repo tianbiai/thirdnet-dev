@@ -279,7 +279,7 @@ services.AddRedisExtensionService(Configuration);
 
 ### 使用 Redis
 
-注入 `ICacheReader` 和 `ICacheRefresh` 接口使用缓存功能，详见 **net-cache-use** 技能。
+注入领域缓存类（如 `UserCache`、`DepartmentCache`）使用缓存功能，详见 **net-cache-use** 技能。数据变更后调用缓存类的 `RemoveXxx` 方法删除对应 key，下次读取时由 Read-Through 自动加载。
 
 ## 解决方案引用关系
 

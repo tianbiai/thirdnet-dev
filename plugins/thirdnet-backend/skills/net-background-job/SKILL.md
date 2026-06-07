@@ -195,9 +195,9 @@ public class DataSyncBackgroundTask : BackgroundRunner
     {
         using var scope = _scopeFactory.CreateScope();
         var dbContext = scope.ServiceProvider.GetRequiredService<MyDbContext>();
-        var cacheReader = scope.ServiceProvider.GetRequiredService<ICacheReader>();
+        var userCache = scope.ServiceProvider.GetRequiredService<UserCache>();
 
-        // 使用 dbContext 和 cacheReader 进行业务操作
+        // 使用 dbContext 和 userCache 进行业务操作
         var pendingItems = await dbContext.TaskQueue
             .Where(t => t.status == 0)
             .ToListAsync(cancellationToken);
