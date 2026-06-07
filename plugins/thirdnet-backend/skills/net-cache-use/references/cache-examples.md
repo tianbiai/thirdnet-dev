@@ -637,6 +637,7 @@ public class DepartmentController : ControllerBase
     /// 获取部门列表
     /// </summary>
     [HttpGet("list")]
+    [ProducesResponseType(typeof(IEnumerable<DepartmentModel>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetList()
     {
         var dic = await _departmentCache.GetDepartmentDic();
@@ -647,6 +648,7 @@ public class DepartmentController : ControllerBase
     /// 获取部门详情
     /// </summary>
     [HttpGet("{id}")]
+    [ProducesResponseType(typeof(DepartmentModel), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetById(long id)
     {
         var dept = await _departmentCache.GetDepartmentInfo(id);
@@ -661,6 +663,7 @@ public class DepartmentController : ControllerBase
     /// 创建部门
     /// </summary>
     [HttpPost("create")]
+    [ProducesResponseType(typeof(DepartmentCreateResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> Create([FromBody] CreateDepartmentRequest request)
     {
         var dept = new DepartmentModel
@@ -677,13 +680,14 @@ public class DepartmentController : ControllerBase
         // 删除字典缓存，下次读取时由 Read-Through 自动加载
         await _departmentCache.RemoveDepartmentDic();
 
-        return Ok(new { id = dept.id });
+        return Ok(new DepartmentCreateResponse { id = dept.id });
     }
 
     /// <summary>
     /// 更新部门
     /// </summary>
     [HttpPost("update")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> Update([FromBody] UpdateDepartmentRequest request)
     {
         var dept = await _dbContext.Department.FindAsync(request.id);
@@ -706,6 +710,7 @@ public class DepartmentController : ControllerBase
     /// 删除部门
     /// </summary>
     [HttpPost("delete")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> Delete(long id)
     {
         var dept = await _dbContext.Department.FindAsync(id);

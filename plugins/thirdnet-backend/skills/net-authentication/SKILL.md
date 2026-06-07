@@ -309,7 +309,29 @@ Content-Type: application/x-www-form-urlencoded
 ### 使用示例
 
 ```csharp
+/// <summary>
+/// 用户身份信息响应
+/// </summary>
+public class UserProfileResponse
+{
+    /// <summary>
+    /// 用户 ID
+    /// </summary>
+    public string user_id { get; set; }
+
+    /// <summary>
+    /// 客户端应用 ID
+    /// </summary>
+    public string client_id { get; set; }
+
+    /// <summary>
+    /// 身份提供者
+    /// </summary>
+    public string idp { get; set; }
+}
+
 [HttpGet("profile")]
+[ProducesResponseType(typeof(UserProfileResponse), StatusCodes.Status200OK)]
 public async Task<IActionResult> GetProfile()
 {
     // 获取用户 ID
@@ -326,11 +348,8 @@ public async Task<IActionResult> GetProfile()
     // 获取身份提供者
     var idp = HttpContext.User.FindFirst("idp")?.Value;
 
-    // 判断是否已认证
-    var isAuthenticated = HttpContext.User.Identity?.IsAuthenticated ?? false;
-
     // ...
-    return Ok(new { userId, clientId, idp });
+    return Ok(new UserProfileResponse { user_id = userId, client_id = clientId, idp = idp });
 }
 ```
 

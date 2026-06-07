@@ -147,6 +147,69 @@ public class OrderController : ControllerBase { }      // 缺少端类型后缀
 
 统一使用 `IActionResult` 作为返回类型，便于灵活返回不同的 HTTP 状态码。
 
+### 禁止匿名对象返回（强制要求）
+
+**核心规则**：所有 API 接口的返回值必须使用**类型化的 Response DTO**，禁止返回匿名对象（`new { ... }`）。
+
+**原因**：
+- 匿名对象缺少类型定义，前端无法生成可复用的 TypeScript 类型
+- 无法在 Swagger/OpenAPI 中生成准确的 API 文档
+- `[ProducesResponseType]` 特性需要引用具体类型才能正确声明响应
+
+**允许与禁止的返回方式**：
+
+| 返回方式 | 是否允许 | 说明 |
+|---------|---------|------|
+| `return Ok(typedResponse)` | ✅ 允许 | 返回类型化的 Response DTO |
+| `return Ok(entity)` | ✅ 允许 | 直接返回实体（查询详情场景） |
+| `return Ok()` | ✅ 允许 | 无返回内容的操作 |
+| `return Ok(new { ... })` | ❌ 禁止 | 匿名对象，无法生成类型文档 |
+| `return NotFound(new { ... })` | ❌ 禁止 | 应使用 WebApiException |
+
+**正确示例**：
+
+```csharp
+// ✅ 创建操作 — 返回包含新建 ID 的类型化 DTO
+[HttpPost("create")]
+[ProducesResponseType(typeof(UserCreateResponse), StatusCodes.Status200OK)]
+public async Task<IActionResult> Create([FromBody] UserCreateRequest request)
+{
+    var user = await _userService.CreateUser(request);
+    return Ok(new UserCreateResponse { id = user.id });
+}
+
+// ✅ 查询操作 — 直接返回实体
+[HttpGet("{id}")]
+[ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
+public async Task<IActionResult> GetById(long id)
+{
+    var user = await _userService.GetUserById(id);
+    if (user == null)
+    {
+        throw new WebApiException(HttpStatusCode.NotFound, "用户不存在");
+    }
+    return Ok(user);
+}
+
+// ✅ 更新/删除操作 — 无返回内容
+[HttpPost("update")]
+[ProducesResponseType(StatusCodes.Status200OK)]
+public async Task<IActionResult> Update([FromBody] UserUpdateRequest request)
+{
+    await _userService.UpdateUser(request);
+    return Ok();
+}
+```
+
+**错误示例**：
+
+```csharp
+// ❌ 禁止：返回匿名对象
+return Ok(new { id = user.id });
+return Ok(new { userId, clientId, idp });
+return Ok(new { code = 200, data = user });
+```
+
 ### DTO 模型设计规范
 
 **命名规范**：
@@ -187,6 +250,7 @@ public class OrderController : ControllerBase { }      // 缺少端类型后缀
 
 ```csharp
 // ✅ 正确：使用 WebApiException 抛出错误
+[ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
 public async Task<IActionResult> GetUser(long id)
 {
     var user = await _userService.GetUserById(id);
@@ -198,6 +262,7 @@ public async Task<IActionResult> GetUser(long id)
 }
 
 // ✅ 正确：参数验证失败
+[ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
 public async Task<IActionResult> UpdateUser(long id, UpdateUserRequest request)
 {
     if (id <= 0)
@@ -216,9 +281,75 @@ public async Task<IActionResult> GetUser(long id)
     {
         return NotFound(new { code = 404, message = "用户不存在" });  // 禁止包装
     }
-    return Ok(new { code = 200, data = user });  // 禁止包装
+    return Ok(new { code = 200, data = user });  // 禁止包装 + 禁止匿名对象
 }
 ```
+
+### 响应类型声明规范（ProducesResponseType）
+
+**核心规则**：每个 API 端点方法必须添加 `[ProducesResponseType]` 特性，声明所有可能的响应类型。
+
+**原因**：
+- 为 Swagger/OpenAPI 文档提供准确的响应类型定义
+- 前端 TypeScript 代码生成依赖准确的类型信息
+- 明确接口契约，方便代码审查和维护
+
+**格式要求**：
+
+```csharp
+// 有返回值的操作 — 必须指定 typeof
+[ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
+
+// 无返回值的操作 — 不带 typeof
+[ProducesResponseType(StatusCodes.Status200OK)]
+```
+
+**完整示例**：
+
+```csharp
+/// <summary>
+/// 获取用户详情
+/// </summary>
+[HttpGet("{id}")]
+[ProducesResponseType(typeof(UserResponse), StatusCodes.Status200OK)]
+public async Task<IActionResult> GetById(long id)
+{
+    var user = await _userService.GetUserById(id);
+    if (user == null)
+    {
+        throw new WebApiException(HttpStatusCode.NotFound, "用户不存在");
+    }
+    return Ok(user);
+}
+
+/// <summary>
+/// 创建用户
+/// </summary>
+[HttpPost("create")]
+[ProducesResponseType(typeof(UserCreateResponse), StatusCodes.Status200OK)]
+public async Task<IActionResult> Create([FromBody] UserCreateRequest request)
+{
+    var user = await _userService.CreateUser(request);
+    return Ok(new UserCreateResponse { id = user.id });
+}
+
+/// <summary>
+/// 删除用户
+/// </summary>
+[HttpPost("delete")]
+[ProducesResponseType(StatusCodes.Status200OK)]
+public async Task<IActionResult> Delete(long id)
+{
+    await _userService.DeleteUser(id);
+    return Ok();
+}
+```
+
+**注意事项**：
+- 无返回值的操作使用 `ProducesResponseType(StatusCodes.Status200OK)` 不带 `typeof`
+- 有返回值的操作必须指定 `typeof(ResponseType)`
+- 错误响应（通过 `WebApiException` 抛出的）由框架统一处理，通常无需在特性中逐一声明 400/404/500
+- 禁止在特性中使用匿名类型，这也是禁止匿名对象返回的另一个原因
 
 ## 代码审查清单
 
@@ -243,6 +374,8 @@ public async Task<IActionResult> GetUser(long id)
 - [ ] 成功响应直接返回实体（不包装状态码）
 - [ ] 错误使用 `WebApiException` 抛出（不手动包装错误对象）
 - [ ] 返回类型使用 `IActionResult`
+- [ ] 禁止返回匿名对象（`new { ... }`），必须使用类型化 Response DTO
+- [ ] 每个端点方法已添加 `[ProducesResponseType]` 声明响应类型
 
 ### 授权
 
