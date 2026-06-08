@@ -153,7 +153,14 @@
 
 ### 配置管理
 
-- **配置源**：appsettings.json
+- **配置源**：`appsettings.json`（模板）+ `appsettings.Development.json`（本地开发）
+- **模板格式**：`appsettings.json` 使用说明性字符串标识字段用途，CI/CD 直接替换属性值
+- **详细规范**：参阅 `net-microservice-generator` 技能的 `references/appsettings-management.md`
+
+| 文件 | 提交 Git | 用途 |
+|------|---------|------|
+| `appsettings.json` | ✅ | 配置模板，`#{KEY}#` 占位符，定义所有配置节结构 |
+| `appsettings.Development.json` | ❌ | 本地开发真实值，覆盖模板中的对应项 |
 
 ### 日志策略
 

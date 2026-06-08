@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.16.0 - 2026-06-08
+
+### Added
+- 新增 `net-microservice-generator/references/appsettings-management.md`：配置文件管理规范（文件职责、说明性字符串模板格式、完整模板、结构一致性规则、版本控制规则、新成员入职指南、CI/CD 集成说明）
+
+### Changed
+- `net-microservice-generator` 技能升级至 1.1.0：
+  - 标准目录结构新增 `appsettings.Development.json`
+  - Redis 配置示例改用说明性字符串，移除硬编码真实值
+  - 新增"配置文件管理"章节，包含三文件模型说明、核心规则和参考链接
+  - 新增"参考文件索引"章节
+- `service-spec-template.md` "配置管理"章节由单行 stub 扩展为完整配置规范表格
+
 ## 0.14.0 - 2026-06-07
 
 ### Added

@@ -1,6 +1,6 @@
 ---
 name: net-microservice-generator
-version: 1.0.0
+version: 1.1.0
 description: .NET 微服务解决方案生成器，负责创建标准化的项目结构和代码骨架（Common、Cache、API、Database 分层）。**主动用于**：创建新的微服务项目、初始化项目架构、生成解决方案结构、搭建脚手架。当用户提到"创建项目"、"新建服务"、"新建微服务"、"项目结构"、"解决方案"、"sln"、"初始化项目"、"脚手架"、"scaffold"、"dotnet new"、"搭建框架"、"新建服务端"、"Startup"、"Program"、"中间件"、"配置"、"数据库连接"、"Redis"、"appsettings"时，必须使用此技能。
 ---
 
@@ -124,7 +124,8 @@ backend/
     │   │   ├── App/                     # 应用端 Controller
     │   │   └── Third/                   # 第三方端 Controller
     │   ├── Program.cs
-    │   └── appsettings.json
+    │   ├── appsettings.json               # 配置模板（#{KEY}# 占位符，提交到 Git）
+    │   └── appsettings.Development.json   # 本地开发配置（真实值，不提交）
     └── {ServiceName}.Database/
         ├── Models/                      # 实体模型
         ├── Configurations/              # Fluent API 配置
@@ -261,17 +262,19 @@ services.AddRedisExtensionService(Configuration);
 
 ### 配置项
 
-在 `appsettings.json` 中配置（配置节名称必须为 `RedisExtension`）：
+在 `appsettings.json` 中配置（配置节名称必须为 `RedisExtension`），敏感值使用说明性字符串标识用途：
 
 ```json
 {
   "RedisExtension": {
-    "Connection": "192.168.1.178:63790,password=swkj@123",
+    "Connection": "Redis连接地址（host:port,password=xxx）",
     "KeyPrefix": "myapp",
     "DefaultDatabase": 0
   }
 }
 ```
+
+> 完整配置模板和字段说明详见 `references/appsettings-management.md`
 
 | 属性 | 类型 | 说明 |
 |------|------|------|
@@ -282,6 +285,25 @@ services.AddRedisExtensionService(Configuration);
 ### 使用 Redis
 
 注入领域缓存类（如 `UserCache`、`DepartmentCache`）使用缓存功能，详见 **net-cache-use** 技能。数据变更后调用缓存类的 `RemoveXxx` 方法删除对应 key，下次读取时由 Read-Through 自动加载。
+
+## 配置文件管理
+
+微服务项目采用三层配置文件模型：
+
+| 文件 | 提交 Git | 内容 |
+|------|---------|------|
+| `appsettings.json` | ✅ | 配置模板，使用说明性字符串标识字段用途 |
+| `appsettings.Development.json` | ❌ | 本地开发真实值，覆盖模板中的对应项 |
+| 生产环境配置 | ❌ | CI/CD 部署时直接替换 JSON 属性值 |
+
+### 核心规则
+
+- 敏感值（密码、密钥、连接字符串）在 `appsettings.json` 中使用说明性字符串（如 `"数据库连接字符串"`），不使用占位符
+- 新增配置项时，先在 `appsettings.json` 添加模板版本，再在 `appsettings.Development.json` 添加开发值
+- 两个文件的配置节结构必须保持一致（顶层节名、属性名相同）
+- **禁止**将包含真实密码/密钥的文件提交至版本库
+
+完整规范、模板和入职指南详见 `references/appsettings-management.md`。
 
 ## 解决方案引用关系
 
@@ -302,6 +324,12 @@ services.AddRedisExtensionService(Configuration);
 - 目录结构必须符合标准规范
 - 不得添加未明确要求的额外功能
 - 保持技术栈严格一致
+
+## 参考文件索引
+
+| 文件 | 内容 | 何时读取 |
+|-----|------|---------|
+| `references/appsettings-management.md` | appsettings 配置文件管理规范、完整模板、占位符规则、入职指南 | 创建项目配置或修改 appsettings 时 |
 
 ## 相关技能
 
