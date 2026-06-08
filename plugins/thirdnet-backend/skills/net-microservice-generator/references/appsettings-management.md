@@ -63,11 +63,6 @@
     "type": "SM2"
   },
 
-  // 加密配置
-  "EncryptionOptions": {
-    "Key": "AES/SM4加密密钥"
-  },
-
   // Swagger 帮助页面
   "HelpPage": {
     "Title": "服务名称 API",
@@ -100,10 +95,6 @@
     "type": "SM2"
   },
 
-  "EncryptionOptions": {
-    "Key": "dev_encryption_key_1234567890abcdef"
-  },
-
   "HelpPage": {
     "Title": "MyApp API",
     "Description": "MyApp 开发环境 API 文档"
@@ -123,10 +114,9 @@
 
 | 规则 | 说明 |
 |------|------|
-| 顶层配置节名称一致 | 如 `RedisExtension`、`JwtOptions`、`HelpPage`、`Cors` 等必须完全相同 |
-| 属性名一致 | 每个配置节内的属性名必须完全相同，值类型必须匹配 |
 | 覆盖机制 | `appsettings.Development.json` 仅需包含需要覆盖的属性，未覆盖的属性自动继承 `appsettings.json` 的值 |
-| 同步修改 | 新增或删除配置项时，两个文件必须同步修改 |
+| 属性名匹配 | `appsettings.Development.json` 中出现的属性名必须与 `appsettings.json` 中的同名属性一致，值类型必须匹配 |
+| 新增配置项 | 在 `appsettings.json` 中新增配置项后，如需在开发环境使用不同值，再在 `appsettings.Development.json` 中添加覆盖 |
 
 ### 验证方式
 
@@ -182,7 +172,6 @@
 | `JwtOptions` | `public_key` | JWT 公钥 |
 | `JwtOptions` | `private_key` | JWT 私钥 |
 | `JwtOptions` | `type` | 密钥类型（SM2/RSA） |
-| `EncryptionOptions` | `Key` | 对称加密密钥（AES/SM4） |
 | `HelpPage` | `Title` | Swagger 文档标题 |
 | `HelpPage` | `Description` | Swagger 文档描述 |
 | `Cors` | `Origins` | 允许的跨域来源（逗号分隔） |
