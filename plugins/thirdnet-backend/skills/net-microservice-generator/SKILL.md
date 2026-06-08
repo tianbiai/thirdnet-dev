@@ -141,6 +141,8 @@ backend/
 | API 项目       | `{ServiceName}.API`         | `identity.API`              |
 | Database 项目  | `{ServiceName}.Database`    | `identity.Database`         |
 
+**文件组织规则**：每个 .cs 文件只定义一个 class、interface 或 enum。生成项目结构时，确保所有代码骨架遵循此规则。
+
 ## 服务启动配置
 
 ### Program.cs 模板

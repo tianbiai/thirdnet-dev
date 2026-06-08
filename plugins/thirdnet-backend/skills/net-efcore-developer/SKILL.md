@@ -52,6 +52,16 @@ public class UserModel
 - **不创建外键**，通过对应 id 关联
 - 迁移文件仅在用户明确要求时创建
 
+### 文件组织
+
+每个 .cs 文件只定义一个类型。实体 Model 和 Fluent API Configuration 各自独立成文件：
+
+- `Models/UserInfoModel.cs` → 仅包含 `UserInfoModel`
+- `Configurations/UserInfoConfiguration.cs` → 仅包含 `UserInfoConfiguration`
+- `Views/UserInfoView.cs` → 仅包含 `UserInfoView`
+
+禁止将多个 Model、Configuration 或 View 放在同一文件中。
+
 ## 实体模型模板
 
 ```csharp

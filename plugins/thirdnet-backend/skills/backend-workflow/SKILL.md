@@ -111,6 +111,7 @@ metadata:
 - EF Core 实体禁止使用数据注解，统一使用 Fluent API（`[DbBulk]` 除外）
 - API 仅允许 GET 和 POST 方法，禁止 DELETE/PUT/PATCH
 - API 参数和数据库字段均使用 snake_case 命名
+- 每个 .cs 文件只定义一个 class/enum/interface，禁止多类型共文件
 - 项目目录结构：后端服务创建在 `backend/<ServiceName>/` 下
 
 ### 代码注释规范
@@ -279,6 +280,7 @@ metadata:
 - [ ] Controller 方法有 `/// <summary>` + `<param>` XML 注释
 - [ ] 核心业务流程有中文行内注释
 - [ ] Fluent API 配置有字段约束说明注释
+- [ ] 每个 .cs 文件只包含一个 class/enum/interface 定义
 
 #### 编译与运行
 

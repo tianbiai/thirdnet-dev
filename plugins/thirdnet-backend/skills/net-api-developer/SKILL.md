@@ -317,6 +317,15 @@ public async Task<IActionResult> GetList()
 - 旧代码中已存在的 `Request` / `Response` / `Dto` 后缀类不在本次整改范围，新增代码必须遵守
 - `Map` 一律单数结尾，不用复数（`List<UserMap>`，不要 `List<UserMaps>`）
 
+**文件组织**：每个 Map DTO 类独立一个 .cs 文件。
+
+- `Maps/UserCreateMap.cs` → 仅包含 `UserCreateMap`
+- `Maps/UserUpdateMap.cs` → 仅包含 `UserUpdateMap`
+- `Maps/UserQueryMap.cs` → 仅包含 `UserQueryMap`
+- `Maps/UserMap.cs` → 仅包含 `UserMap`
+
+禁止将多个 Map 类放在同一文件中。Controller 类本身也遵循一文件一类。
+
 
 ### 错误处理规范
 
@@ -475,6 +484,10 @@ public async Task<IActionResult> Delete(long id)
 
 - [ ] 需要认证的接口已配置授权策略
 - [ ] 使用正确的策略名称（Default/Logon/Basic/Both）
+
+### 文件组织
+
+- [ ] 每个 .cs 文件只包含一个 class 定义（Controller、Map DTO 各自独立文件）
 
 ## 详细参考
 
