@@ -1,29 +1,20 @@
 ---
 name: net-authentication
-version: 1.0.0
-description: .NET 认证系统开发专家，负责配置 Basic/Bearer 认证、实现账号验证器、管理 Token 流程。**主动用于**：认证配置、IAccountValidator 实现、Token 获取/刷新、授权策略使用。当用户提到"认证"、"授权"、"登录"、"Token"、"JWT"、"Basic"、"Bearer"、"IAccountValidator"、"策略"、"Policy"、"用户验证"时，必须使用此技能。
+description: >
+  ThirdNet 认证系统开发规范。覆盖 Basic 认证（IP 白名单、HMAC-SM3 国密应用加密）、
+  Bearer/JWT 认证（SM2/RSA 签名）、IAccountValidator 实现、ICheckClient 客户端验证、
+  Token 获取/刷新端点、授权策略（Default/Logon/Basic/Both）、Token 过期检查、
+  AdminAccountValidator 模式。
+  当用户提到"认证"、"授权"、"登录"、"Token"、"JWT"、"Basic"、"Bearer"、
+  "IAccountValidator"、"ICheckClient"、"策略"、"Policy"、"用户验证"、"密码"、
+  "登录接口"、"刷新Token"、"AdminAccountValidator"时，必须使用此技能。
 ---
 
-## 使用场景
-
-- 配置服务端认证（Basic + Bearer）
-- 实现 `IAccountValidator` 自定义账号验证
-- 实现 `ICheckClient` 自定义客户端验证
-- 理解 Token 获取和刷新流程
-- 前后端认证对接参考
-
-## 角色定位
-
-你是一名**资深 .NET 认证系统开发工程师**，负责**按公司规范配置和实现认证授权功能**。你的代码必须**严格遵守框架规范**。
-
-## 相关技能
-
-- **net-api-developer**: API 接口开发
-- **net-microservice-generator**: 微服务项目生成
-- **net-efcore-developer**: 数据库实体开发（认证器常访问用户表）
-- **net-cache-use**: 缓存功能集成（Token 过期缓存可使用 Redis）
+# ThirdNet 认证系统
 
 ## 认证方式概览
+
+框架支持双层认证：Basic（应用级）+ Bearer/JWT（用户级）。
 
 ### Basic 认证
 
@@ -31,84 +22,36 @@ description: .NET 认证系统开发专家，负责配置 Basic/Bearer 认证、
 
 #### 1. IP 认证
 
-适用于有固定 IP 的应用。
+适用于有固定 IP 的应用：
 
-**请求头格式**：
 ```
 Authorization: Basic base64(application:)
 ```
 
-**说明**：
 - `application` 为管理员分配的应用标识
 - 冒号后为空（无密码）
 - 需要将调用方 IP 添加到白名单
 
-**示例**：
-```
-应用标识: swkj_web
-Basic 原文: swkj_web:
-Base64 编码: c3dral93ZWI6
-请求头: Authorization: Basic c3dral93ZWI6
-```
-
 #### 2. 应用加密认证
 
-适用于无固定 IP 的应用。
+适用于无固定 IP 的应用：
 
-**请求头格式**：
 ```
-Authorization: Basic base64(application:base64(HMacSHA512(url,key)))
+Authorization: Basic base64(application:base64(HMacSM3(url,key)))
 ```
 
-**说明**：
 - `url` 为当前请求的相对路径（含查询参数）
 - `key` 为 `prekey + 从服务端获取的密钥`
 - 必须包含 `timestamp` 参数，5分钟内有效
 
-**示例**：
-```
-应用标识: swkj_web
-加密前缀: swkj
-加密密钥: 1111
-完整密钥: swkj1111
-请求路径: /api/application/1?timestamp=1634719924
-
-步骤：
-1. 对相对路径进行 HMacSHA512 哈希
-2. 对哈希结果进行 Base64 编码得到密码
-3. 组合 application:password 进行 Base64 编码
-```
-
 ### Bearer 认证
 
-基于 JWT Token 的用户认证。
+基于 JWT Token 的用户认证。Admin 项目使用 SM2 算法签名 JWT，也支持 RSA。
 
-**使用流程**：
+使用流程：
 1. 获取 Token：`POST /connect/token`
 2. 刷新 Token：`POST /connect/token/refresh`
 3. 使用 Token：`Authorization: bearer {access_token}`
-
-## 服务端配置
-
-> 标准 Startup.cs 配置（服务注册顺序、中间件配置）请参阅 **net-microservice-generator** 技能。以下仅说明认证相关的额外配置。
-
-### IdentityService 认证专属配置
-
-在标准 Startup.cs 基础上，IdentityService 需额外注册以下服务：
-
-```csharp
-// ConfigureServices 中，在 AddThirdNetDefaultRSAJwt 之后添加：
-
-// 自定义 Token 过期时间缓存（可选，默认使用内存缓存）
-services.AddSingleton<IAccountTokenTimeCache, CustomAccountTokenTimeCache>();
-
-// 配置账号验证器（必须）
-services.AddScoped<IAccountValidator, DefaultAccountValidator>();
-```
-
-### WebApiService 认证专属配置
-
-WebApiService 仅需标准配置中的 `AddThirdNetDefaultRSAJwt`（验证 Token），无需额外认证注册。无需注册 `IAccountValidator`（仅 IdentityService 需要）。
 
 ## IAccountValidator 实现
 
@@ -117,159 +60,149 @@ WebApiService 仅需标准配置中的 `AddThirdNetDefaultRSAJwt`（验证 Token
 ### 接口定义
 
 ```csharp
-namespace ThirdNet.Core.AspNetCore
+namespace ThirdNet.Vibe.WebAPI
 {
     public interface IAccountValidator
     {
-        Task<List<Claim>> Validate(string account, string password, string[] scopes);
+        Task<List<Claim>> Validate(string account, string password);
     }
 }
 ```
 
-### 实现示例
+### AdminAccountValidator 示例
+
+Admin 项目中的实现查询 AdminDbContext，使用 PBKDF2 验证密码，包含账户锁定和原子 SQL 操作。
+
+> 完整源码参考：`backend/src/Admin/ThirdNet.Admin.APIService/Auth/AdminAccountValidator.cs`
 
 ```csharp
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Security.Claims;
-using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using ThirdNet.Core.AspNetCore;
-
-public class DefaultAccountValidator : IAccountValidator
+public class AdminAccountValidator : IAccountValidator
 {
-    private readonly MyDbContext _dbContext;
+    private readonly IDbContextFactory<AdminDbContext> _dbContextFactory;
+    private readonly IPasswordHasher _passwordHasher;
+    private readonly ConfigCache _configCache;
+    private readonly UserCache _userCache;
+    private readonly RoleCache _roleCache;
+    private readonly ILogger<AdminAccountValidator> _logger;
 
-    public DefaultAccountValidator(MyDbContext dbContext)
+    public AdminAccountValidator(
+        IDbContextFactory<AdminDbContext> dbContextFactory,
+        IPasswordHasher passwordHasher,
+        ConfigCache configCache,
+        UserCache userCache,
+        RoleCache roleCache,
+        ILogger<AdminAccountValidator> logger)
     {
-        _dbContext = dbContext;
+        _dbContextFactory = dbContextFactory;
+        _passwordHasher = passwordHasher;
+        _configCache = configCache;
+        _userCache = userCache;
+        _roleCache = roleCache;
+        _logger = logger;
     }
 
-    public async Task<List<Claim>> Validate(string account, string password, string[] scopes)
+    public async Task<List<Claim>> Validate(string account, string password)
     {
-        // 1. 根据 account 验证账号密码
-        var user = await _dbContext.Users
-            .FirstOrDefaultAsync(u => u.account == account);
+        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
 
-        if (user == null || !VerifyPassword(password, user.password_hash))
+        // 读取锁定策略配置
+        int maxAttempts = await _configCache.GetConfigInt(SystemConfigKeys.MaxLoginAttempts, 5);
+        int lockoutHours = await _configCache.GetConfigInt(SystemConfigKeys.LockoutDurationHours, 12);
+        bool showDetail = await _configCache.GetConfigBool(SystemConfigKeys.ShowLoginErrorDetail);
+
+        var user = await dbContext.SysUsers
+            .FirstOrDefaultAsync(u => u.user_name == account);
+
+        if (user == null)
+            throw new WebApiException(HttpStatusCode.BadRequest, "帐号密码错误");
+
+        if (user.status == StatusEnum.Disabled)
+            throw new WebApiException(HttpStatusCode.BadRequest,
+                showDetail ? "帐号已被禁用" : "帐号密码错误");
+
+        // 检查账户锁定状态（略，见完整源码）
+        // ...
+
+        // 密码验证
+        if (!_passwordHasher.Verify(password, user.password_hash))
         {
-            throw new WebApiException(HttpStatusCode.Unauthorized, "用户名或密码错误", "invalid_credentials");
+            // 原子递增失败次数（避免并发竞态）
+            var newAttempts = await AtomicIncrementFailedAttempts(
+                dbContext, user.id, maxAttempts, lockoutHours);
+
+            if (newAttempts >= maxAttempts)
+                throw new WebApiException(HttpStatusCode.BadRequest,
+                    showDetail ? $"连续登录失败{maxAttempts}次，账户已锁定{lockoutHours}小时" : "帐号密码错误");
+
+            throw new WebApiException(HttpStatusCode.BadRequest, "帐号密码错误");
         }
 
-        // 2. 创建自定义 claims（不应保存敏感信息，只保存标识信息）
-        var custom_claims = new List<Claim>();
+        // 密码正确：原子重置失败次数
+        await AtomicResetFailedAttempts(dbContext, user.id);
 
-        // 身份提供者（如：password、wechat、tourist、wechatapp）
-        custom_claims.Add(new Claim("idp", "password"));
+        // 从缓存查询用户关联的角色
+        var roleIds = await _userCache.GetUserRoleIds(user.id);
+        var roleDic = await _roleCache.GetRoleDic();
+        var roleKeys = roleIds
+            .Where(id => roleDic.TryGetValue(id, out var r) && r.status == 0)
+            .Select(id => roleDic[id].role_key)
+            .ToList();
 
-        // 用户唯一标识
-        custom_claims.Add(new Claim(ClaimTypes.NameIdentifier, user.id.ToString()));
+        // 构造 JWT Claims
+        var claims = new List<Claim>
+        {
+            new Claim("user_id", user.id.ToString()),
+            new Claim("dept_id", user.dept_id.ToString()),
+            new Claim("admin_roles", string.Join(",", roleKeys)),
+            new Claim("name", user.user_name)
+        };
 
-        // 可选：添加其他自定义 claims
-        custom_claims.Add(new Claim("user_name", user.user_name));
-
-        return custom_claims;
-    }
-
-    private bool VerifyPassword(string password, string hash)
-    {
-        // 实现密码验证逻辑（如使用 BCrypt）
-        return BCrypt.Net.BCrypt.Verify(password, hash);
+        return claims;
     }
 }
 ```
 
-### 注册服务
+### 注册方式
+
+**AdminService（Admin 主项目）**：必须注册 `IAccountValidator`：
 
 ```csharp
-// 在 Startup.ConfigureServices 中
-services.AddScoped<IAccountValidator, DefaultAccountValidator>();
+services.AddScoped<IAccountValidator, AdminAccountValidator>();
 ```
+
+**WebApiService（微服务）**：不需要注册，仅验证 Token 即可。
 
 ## ICheckClient 客户端验证
 
-`ICheckClient` 接口用于验证 Basic 认证中的客户端应用。
-
-### 接口定义
+`ICheckClient` 验证 Basic 认证中的客户端应用。框架提供 `DefaultCheckClient` 默认实现，从配置库中验证应用信息，支持两种 Basic 认证方式。
 
 ```csharp
-using Microsoft.AspNetCore.Http;
-using System.Threading.Tasks;
-
-namespace ThirdNet.Core.AspNetCore
+public interface ICheckClient
 {
-    /// <summary>
-    /// 应用验证接口
-    /// </summary>
-    public interface ICheckClient
-    {
-        /// <summary>
-        /// 验证用户名和密码
-        /// </summary>
-        Task<bool> Check(string name, string password, HttpRequest request);
-    }
+    Task<bool> Check(string name, string password, HttpRequest request);
 }
 ```
 
-### 框架默认实现
+自定义场景（特殊客户端验证逻辑）可实现此接口。
 
-- `DefaultCheckClient`：从配置库中验证应用信息
-- 支持两种 Basic 认证方式（IP 认证、应用加密认证）
-
-### 自定义实现场景
-
-当需要特殊的客户端验证逻辑时，可以实现自定义的 `ICheckClient`：
-
-```csharp
-public class CustomCheckClient : ICheckClient
-{
-    public async Task<bool> Check(string name, string password, HttpRequest request)
-    {
-        // 自定义验证逻辑
-        // name: 应用标识
-        // password: 认证密码（可能是空或 HMAC 签名）
-        // request: 当前 HTTP 请求
-        return true;
-    }
-}
-```
-
-## Token 端点规范
+## Token 端点
 
 ### 获取 Token
 
 **端点**：`POST /connect/token`
 
-**请求头**：
 ```
 Authorization: Basic base64(application:)
-Content-Type: application/x-www-form-urlencoded
-```
-
-**请求参数**（form-data）：
-
-| 参数 | 类型 | 必填 | 说明 |
-|-----|------|-----|------|
-| username | string | 是 | 用户名 |
-| password | string | 是 | 密码 |
-| scope | string | 否 | 权限范围，包含 `offline_access` 可获取 refresh_token |
-
-**请求示例**：
-```http
-POST /connect/token HTTP/1.1
-Authorization: Basic c3dral93ZWI6
 Content-Type: application/x-www-form-urlencoded
 
 username=test&password=123&scope=offline_access
 ```
 
-**响应示例**：
+响应：
 ```json
 {
-    "access_token": "eyJhbGciOiJSUzI1NiIs...",
-    "refresh_token": "eyJhbGciOiJSUzI1NiIs..."
+    "access_token": "eyJhbGciOi...",
+    "refresh_token": "eyJhbGciOi..."
 }
 ```
 
@@ -277,178 +210,62 @@ username=test&password=123&scope=offline_access
 
 **端点**：`POST /connect/token/refresh`
 
-**请求头**：
 ```
 Authorization: Basic base64(application:)
 Content-Type: application/x-www-form-urlencoded
+
+refresh_token=xxx
 ```
 
-**请求参数**：
+注意：refresh_token 只能使用一次，使用后失效，返回新的 access_token 和 refresh_token。
 
-| 参数 | 类型 | 必填 | 说明 |
-|-----|------|-----|------|
-| refresh_token | string | 是 | 之前获取的 refresh_token |
+## HttpContext 用户信息
 
-**注意事项**：
-- refresh_token 只能使用一次，使用后失效
-- 会返回新的 access_token 和 refresh_token
-
-## 在接口中获取用户信息
-
-框架提供了 `HttpContext` 扩展方法来获取用户信息。
-
-### 可用方法
-
-| 方法 | 返回类型 | 说明 |
-|-----|---------|------|
-| `HttpContext.GetCurrentClientId()` | string | 获取客户端应用 ID |
-| `HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value` | string | 获取用户 ID |
-| `HttpContext.User.FindFirst("idp")?.Value` | string | 获取身份提供者 |
-| `HttpContext.User.Identity?.IsAuthenticated` | bool | 判断是否已认证 |
-
-### 使用示例
-
-```csharp
-/// <summary>
-/// 用户身份信息响应
-/// </summary>
-public class UserProfileResponse
-{
-    /// <summary>
-    /// 用户 ID
-    /// </summary>
-    public string user_id { get; set; }
-
-    /// <summary>
-    /// 客户端应用 ID
-    /// </summary>
-    public string client_id { get; set; }
-
-    /// <summary>
-    /// 身份提供者
-    /// </summary>
-    public string idp { get; set; }
-}
-
-[HttpGet("profile")]
-[ProducesResponseType(typeof(UserProfileResponse), StatusCodes.Status200OK)]
-public async Task<IActionResult> GetProfile()
-{
-    // 获取用户 ID
-    var userId = HttpContext.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-    if (string.IsNullOrEmpty(userId))
-    {
-        throw new WebApiException(HttpStatusCode.Unauthorized, "未登录");
-    }
-
-    // 获取客户端应用 ID
-    var clientId = HttpContext.GetCurrentClientId();
-
-    // 获取身份提供者
-    var idp = HttpContext.User.FindFirst("idp")?.Value;
-
-    // ...
-    return Ok(new UserProfileResponse { user_id = userId, client_id = clientId, idp = idp });
-}
-```
+| 方法 | 说明 |
+|-----|------|
+| `User.FindFirst("user_id")?.Value` | 获取用户 ID（long） |
+| `User.FindFirst("dept_id")?.Value` | 获取用户部门 ID |
+| `User.FindFirst("admin_roles")?.Value` | 获取角色标识（逗号分隔） |
+| `User.FindFirst("name")?.Value` | 获取用户名 |
+| `HttpContext.GetCurrentClientId()` | 获取客户端应用 ID |
+| `HttpContext.User.Identity?.IsAuthenticated` | 判断是否已认证 |
 
 ## 授权策略
 
-框架内置以下授权策略（定义于 `ExtensionHelper.cs`）：
+框架内置四个策略：
 
 | 策略名 | 认证方式 | 说明 |
 |-------|---------|------|
-| Default | Basic + Bearer | 默认策略，支持两种认证 |
-| Logon | Bearer | 必须登录后使用 Token |
-| Basic | Basic | 仅允许 Basic 认证 |
-| Both | Basic + Bearer | 支持两种认证 |
-
-### 使用示例
+| Default | Basic + Bearer | 默认策略 |
+| Logon | Bearer | 必须登录 |
+| Basic | Basic | 仅应用调用 |
+| Both | Basic + Bearer | 两种都支持 |
 
 ```csharp
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-
-namespace MyApp.Service.Controllers
-{
-    // 使用默认策略（Basic + Bearer）
-    [Authorize]
-    public class UserController : ControllerBase { }
-
-    // 必须用户登录
-    [Authorize(Policy = "Logon")]
-    public class ProfileController : ControllerBase { }
-
-    // 仅应用调用
-    [Authorize(Policy = "Basic")]
-    public class CallbackController : ControllerBase { }
-}
+[Authorize]                          // Default 策略
+[Authorize(Policy = "Logon")]        // 必须用户登录
+[Authorize(Policy = "Basic")]        // 仅应用调用
 ```
 
-### 自定义策略
-
-如需自定义策略，参考框架的 `ProviderPolicyProvider` 和 `ProviderAuthorizationHandler` 实现。
+对于 PermissionAuthorize（权限码授权），详见 `net-rbac` 技能。
 
 ## Token 过期检查
 
 `IAccountTokenTimeCache` 接口用于控制 Token 的有效性检查。
 
-### 接口定义
-
-```csharp
-namespace ThirdNet.Core.AspNetCore
-{
-    /// <summary>
-    /// 账号对应 token 的更新时间缓存，用于判断 token 是否过期
-    /// </summary>
-    public interface IAccountTokenTimeCache
-    {
-        /// <summary>
-        /// 查找对应用户名 key 对应的时间
-        /// </summary>
-        bool TryGet(string key, out DateTime time);
-    }
-}
-```
-
 ### 工作原理
 
-1. 框架在 `AccountTokenCheckMiddleware` 中间件中检查 Token 的 `nbf` (Not Before) 时间
+1. `AccountTokenCheckMiddleware` 检查 Token 的 `nbf` (Not Before) 时间
 2. 如果缓存中存在该用户的时间，且大于 Token 的签发时间，则 Token 失效
-3. 框架默认使用 `DefaultAccountTokenTimeCache`（内存缓存）
-
-### 自定义实现（Redis 示例）
-
-```csharp
-using System;
-using StackExchange.Redis;
-using ThirdNet.Core.AspNetCore;
-
-public class RedisAccountTokenTimeCache : IAccountTokenTimeCache
-{
-    private readonly IConnectionMultiplexer _redis;
-
-    public RedisAccountTokenTimeCache(IConnectionMultiplexer redis)
-    {
-        _redis = redis;
-    }
-
-    public bool TryGet(string key, out DateTime time)
-    {
-        var db = _redis.GetDatabase();
-        var value = db.StringGet($"token_time:{key}");
-        if (value.HasValue)
-        {
-            time = DateTime.Parse(value!);
-            return true;
-        }
-        time = default;
-        return false;
-    }
-}
-```
+3. Admin 使用 `AccountTokenKeyProvider`（`IGetAccountTokenKey`），基于 Redis 实现
 
 ### 使用场景
 
-当用户信息（如密码、权限）变更后，在缓存中更新该用户的时间，可使之前的 Token 失效。
+当用户信息（如密码、权限）变更后，通过 `_tokenCache.SetTokenInvalidationTime(userId)` 更新时间戳，使之前的 Token 失效，强制用户重新登录。
+
+## 相关技能
+
+- **backend-workflow**: 完整工作流和 DI 管道
+- **net-rbac**: 权限体系（PermissionAuthorize 三层授权）
+- **net-api-developer**: API 接口开发
+- **net-efcore-developer**: 数据库实体（认证器访问用户表）

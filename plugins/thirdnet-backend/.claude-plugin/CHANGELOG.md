@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.20.0 - 2026-06-09
+
+### Added
+- PreToolUse Hook 新增 `net-enum-dict` 和 `net-rbac` 技能检查，确保枚举/权限代码写入前必须加载对应技能
+- PostToolUse/Stop Hook 模板引用从 `service-spec-template` 修正为 `project-spec-template`
+
+### Changed
+- `plugin.json` 版本号与 `marketplace.json` 对齐
+
+## 0.19.0 - 2026-06-09
+
+### Changed
+- 所有技能基于真实代码库重写：从通用模板示例改为引用实际项目文件路径和代码
+- 命名空间迁移：`ThirdNet.Core.Common` → `ThirdNet.Vibe.Common`，`ThirdNet.Core.AspNetCore` → `ThirdNet.Vibe.WebAPI`
+- `net-api-developer`：新增 AdminControllerBase 详情、完整端点模板、Service 层模板、DTO Map 命名规范
+- `net-efcore-developer`：新增 AdminDbContext 约束、IAuditableEntity + ConfigureAuditFields、中间表模式、树形结构实体
+- `net-authentication`：替换为真实 AdminAccountValidator（PBKDF2、原子 SQL 锁定、缓存角色查找）、HMAC-SM3
+- `net-background-job`：新增三行注册模式、Admin 内置任务文档、IServiceScopeFactory 作用域服务模式
+- `net-cache-use`：新增 CacheDbContext、AdminCacheKeys、View 模型指南、缓存域类模板、TTL 约定、Cache-Aside 策略
+- `net-database-bulkcopy`：新增决策流程图、方法选择决策树、批量操作与缓存章节
+- `net-microservice-generator`：完全重写为模板化创建（`dotnet new thirdnet-service`）、ServiceDbContext 自定义 schema
+- `backend-workflow`：新增项目创建命令、双数据库架构表、Program.cs 模式、10 步 DI 管道、8 步功能开发流程、代码规范速查表
+
+### Added
+- 新增 `net-enum-dict` 技能：系统枚举字典规范（[SystemDict]、[EnumMeta]、自动同步机制）
+- 新增 `net-rbac` 技能：RBAC 权限体系（权限字符串格式、三层授权、CachePermissionProvider、PermissionCatalog 自动同步、OperatorContext）
+- 新增 `net-efcore-developer/references/entity-examples.md`：真实代码实体示例
+- 新增 `net-api-developer/references/controller-service-examples.md`：真实代码 Controller/Service 示例
+- 新增 `backend-workflow/references/project-spec-template.md`：项目级规格说明书模板
+- 新增 `net-rbac/references/rbac-flow.md`：RBAC 完整请求生命周期图
+
+### Removed
+- 删除 `net-crypto-keygen` 技能（密钥生成工具，功能已由框架内置）
+- 删除 `backend-workflow/references/service-spec-template.md`（替换为 project-spec-template.md）
+
+## 0.17.0 - 2026-06-08
+
+### Changed
+- `net-microservice-generator` 新增 `appsettings-management.md` 参考文件
+- `service-spec-template.md` 配置管理章节扩展为完整配置规范表格
+
 ## 0.16.0 - 2026-06-08
 
 ### Added

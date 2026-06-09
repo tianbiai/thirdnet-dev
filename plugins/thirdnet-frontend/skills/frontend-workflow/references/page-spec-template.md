@@ -79,7 +79,7 @@
 > - Mock 数据（`mock/data/{endpoint}/*.ts`）使用 `import type` 保证类型一致，枚举使用 `import` 引入
 > - 路径 `/app/{模块名}/{操作}` 或 `/manager/{模块名}/{操作}`，直接返回数据或 `PaginatedResponse<T>`，禁止 `code` 字段
 > - **字段命名强制 snake_case**：所有 API 入参、出参、Mock 数据的字段名必须使用 `snake_case`（如 `order_id`、`created_at`、`user_name`），与后端 DTO 保持一致，禁止使用 `camelCase`
-> - 通过 `.env` 中 `VITE_MOCK=true/false` 无缝切换 Real/Mock，业务代码零修改
+> - 通过 `.env` 中 `VITE_MOCK_ENABLED=true/false` 无缝切换 Real/Mock，业务代码零修改
 
 | 接口 | 方法 | 路径 | 入参 | 出参 | Mock 数据文件 |
 |------|------|------|------|------|--------------|

@@ -12,8 +12,8 @@
     {
       "name": "thirdnet-backend",
       "source": "./plugins/thirdnet-backend",
-      "description": "后端开发助手 - .NET 10 微服务 API、数据库操作",
-      "version": "0.19.0",
+      "description": "后端开发助手 - .NET 10 微服务：API 开发、EF Core 数据库、Redis 缓存、RBAC 权限体系、枚举字典、后台任务、批量操作、认证授权、文档驱动开发",
+      "version": "0.20.0",
       "author": {
         "name": "thirdnet"
       },
@@ -21,7 +21,11 @@
         "backend",
         "dotnet",
         "api",
-        "database"
+        "database",
+        "rbac",
+        "cache",
+        "redis",
+        "efcore"
       ],
       "category": "development",
       "strict": false

@@ -1,28 +1,19 @@
 ---
 name: net-background-job
-version: 1.0.0
-description: 后台定时任务开发专家，基于 BackgroundRunner 框架生成循环执行的后台任务代码（使用 SleepTime 毫秒间隔，非 Cron 表达式）。**主动用于**：定时任务、后台作业、周期性数据处理、数据同步、定时检查。当用户提到"定时"、"周期"、"后台任务"、"Job"、"Worker"、"每隔"、"自动执行"、"BackgroundService"、"定时同步"、"后台处理"、"循环任务"时，必须使用此技能。
+description: >
+  ThirdNet 后台任务开发规范。基于 BackgroundRunner 框架创建循环执行的后台任务
+  （使用 SleepTime 毫秒间隔，非 Cron 表达式）。覆盖核心属性（SleepTime、Name、Check）、
+  开发步骤、Scoped 服务模式（IServiceScopeFactory）、常见场景示例。
+  当用户提到"定时"、"后台任务"、"Job"、"Worker"、"每隔"、"自动执行"、
+  "BackgroundRunner"、"BackgroundService"、"定时同步"、"后台处理"、"循环任务"、
+  "操作日志后台"、"心跳检测"时，必须使用此技能。
 ---
 
-## 使用场景
-
-- **定时数据同步**：从外部系统同步数据到本地数据库
-- **周期性数据处理**：生成统计报表、清理过期数据、归档历史记录
-- **后台作业执行**：批量发送通知、处理消息队列、异步任务处理
-- **定时检查和告警**：健康检查、异常监控、阈值告警
-- **数据预热**：缓存预热、索引重建、统计数据计算
-
-## 核心特性
-
-- 循环执行任务，可配置休眠间隔
-- 支持 ASP.NET Core 依赖注入
-- 内置异常捕获和日志记录
-- 支持优雅停止和取消操作
-- 可配置任务执行条件
+# ThirdNet 后台任务开发
 
 ## 核心类
 
-**命名空间**: `ThirdNet.Core.Common`
+**命名空间**: `ThirdNet.Vibe.Common`
 **基类**: `BackgroundRunner`
 
 ## 核心属性
@@ -33,154 +24,88 @@ description: 后台定时任务开发专家，基于 BackgroundRunner 框架生�
 | `Name` | string | null | 任务名称，用于日志标识 |
 | `Check` | bool | - | 抽象属性，判断是否执行任务 |
 | `Logger` | ILogger | - | 标准日志记录器 |
+| `BackgroundLogger` | IBackgroundLogger | - | 后台批量日志记录器（用于操作日志等批量写入场景） |
 
 ## 核心方法
 
 | 方法 | 类型 | 说明 |
 |-----|------|------|
-| `WorkAsync` | 抽象方法 | 需要子类实现，定义具体任务逻辑 |
+| `WorkAsync` | 抽象方法 | 子类实现，定义具体任务逻辑 |
 | `ExecuteAsync` | 重写方法 | 后台服务主执行逻辑 |
 | `StartAsync` | 重写方法 | 服务启动时的日志记录 |
 | `StopAsync` | 重写方法 | 服务停止时的日志记录 |
 
 ## 开发步骤
 
-### 1. 创建自定义任务类
+### 1. 创建任务类
 
 继承 `BackgroundRunner` 并实现抽象成员：
 
 ```csharp
-using Microsoft.Extensions.Logging;
-
-public class DataSyncBackgroundTask : BackgroundRunner
+public class DataSyncTask : BackgroundRunner
 {
     private readonly IDataSyncService _syncService;
 
-    public DataSyncBackgroundTask(
-        ILogger<DataSyncBackgroundTask> logger,
+    public DataSyncTask(
+        ILogger<DataSyncTask> logger,
         IDataSyncService syncService)
         : base(logger)
     {
         _syncService = syncService;
         Name = "数据同步任务";
-        SleepTime = 60000; // 1分钟执行一次
+        SleepTime = 60000; // 1分钟
     }
 
-    // 根据业务逻辑判断是否执行任务
-    // 例如：仅在工作时间执行
+    // 根据业务逻辑判断是否执行
     public override bool Check => DateTime.Now.Hour >= 9 && DateTime.Now.Hour <= 18;
 
     public override async Task WorkAsync(CancellationToken cancellationToken)
     {
-        Logger.LogInformation("开始执行数据同步任务");
-
-        try
-        {
-            await _syncService.SyncDataAsync(cancellationToken);
-            Logger.LogInformation("数据同步任务执行完成");
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "数据同步任务执行失败");
-            throw;
-        }
+        Logger.LogInformation("开始执行 {Name}", Name);
+        await _syncService.SyncDataAsync(cancellationToken);
+        Logger.LogInformation("{Name} 执行完成", Name);
     }
 }
 ```
 
 ### 2. 注册服务
 
-在 `Startup.cs` 的 `ConfigureServices` 方法中注册：
+在 `Startup.cs` 的 DI 管道中注册后台任务。根据是否需要暴露接口，分为两种模式：
+
+#### 两行注册（基础模式）
+
+大多数后台任务使用此模式——仅需要具体类型注入和托管服务生命周期：
 
 ```csharp
-services.AddHostedService<DataSyncBackgroundTask>();
+services.AddSingleton<DataSyncTask>();                                              // 1. 具体类注册（Singleton）
+services.AddHostedService(sp => sp.GetRequiredService<DataSyncTask>());             // 2. 托管服务（IHostedService）
 ```
 
-## 常见场景示例
+#### 三行注册（接口暴露模式）
 
-### 定时清理过期数据
+如果后台任务需要暴露接口供其他服务注入（如操作日志、心跳检测），则需增加接口转发：
 
 ```csharp
-public class CleanupBackgroundTask : BackgroundRunner
-{
-    private readonly ILogCleanupService _cleanupService;
-
-    public CleanupBackgroundTask(
-        ILogger<CleanupBackgroundTask> logger,
-        ILogCleanupService cleanupService)
-        : base(logger)
-    {
-        _cleanupService = cleanupService;
-        Name = "日志清理任务";
-        SleepTime = 86400000; // 24小时执行一次
-    }
-
-    public override bool Check => true; // 始终执行
-
-    public override async Task WorkAsync(CancellationToken cancellationToken)
-    {
-        var expireDays = 30;
-        await _cleanupService.DeleteOldLogsAsync(expireDays);
-        Logger.LogInformation("已清理 {Days} 天前的日志", expireDays);
-    }
-}
+services.AddSingleton<DataSyncTask>();                                              // 1. 具体类注册（Singleton）
+services.AddSingleton<IDataSyncService>(sp => sp.GetRequiredService<DataSyncTask>()); // 2. 接口转发（允许其他服务通过接口注入）
+services.AddHostedService(sp => sp.GetRequiredService<DataSyncTask>());             // 3. 托管服务（IHostedService）
 ```
 
-### 批量通知发送
+**为何共享同一个实例**：两种模式都确保 `AddSingleton`、接口转发、`AddHostedService` 三者共享同一个 Singleton 实例，分别满足三种角色——具体类型注入、接口类型注入、`IHostedService` 生命周期管理。如果只写 `AddHostedService`，其他服务将无法通过接口注入该后台任务实例。
+
+**DI 管道位置**：通常在 DI 管道的最后阶段注册（Admin 项目中，操作日志在第 7 步、心跳在第 8 步，自定义任务在第 9 步业务服务之前或之后均可）。
+
+## Scoped 服务模式
+
+`BackgroundRunner` 注册为 Singleton，无法直接注入 Scoped 服务（如 DbContext、缓存域）。必须通过 `IServiceScopeFactory` 创建作用域：
 
 ```csharp
-public class NotificationBackgroundTask : BackgroundRunner
-{
-    private readonly INotificationService _notificationService;
-
-    public NotificationBackgroundTask(
-        ILogger<NotificationBackgroundTask> logger,
-        INotificationService notificationService)
-        : base(logger)
-    {
-        _notificationService = notificationService;
-        Name = "通知发送任务";
-        SleepTime = 300000; // 5分钟执行一次
-    }
-
-    public override bool Check => true;
-
-    public override async Task WorkAsync(CancellationToken cancellationToken)
-    {
-        var pendingNotifications = await _notificationService.GetPendingAsync();
-
-        foreach (var notification in pendingNotifications)
-        {
-            if (cancellationToken.IsCancellationRequested)
-                break;
-
-            await _notificationService.SendAsync(notification);
-        }
-    }
-}
-```
-
-## 注意事项
-
-- **自动启动**：任务会在应用启动后自动开始执行
-- **优雅停止**：任务在应用关闭时会优雅停止
-- **异常恢复**：即使发生异常，任务也会继续循环执行
-- **永久停止**：如需永久停止任务，需要重新部署或修改 `Check` 属性返回 `false`
-- **异步处理**：确保在 `WorkAsync` 中正确处理异步操作
-- **取消令牌**：检查 `cancellationToken` 以响应停止请求
-- **资源释放**：长时间运行的任务注意释放资源，避免内存泄漏
-
-## 在后台任务中使用 Scoped 服务
-
-`BackgroundRunner` 注册为 Singleton，无法直接注入 Scoped 服务（如 DbContext）。需要通过 `IServiceScopeFactory` 创建作用域：
-
-```csharp
-public class DataSyncBackgroundTask : BackgroundRunner
+public class DataSyncTask : BackgroundRunner
 {
     private readonly IServiceScopeFactory _scopeFactory;
 
-    public DataSyncBackgroundTask(
-        ILogger<DataSyncBackgroundTask> logger,
+    public DataSyncTask(
+        ILogger<DataSyncTask> logger,
         IServiceScopeFactory scopeFactory)
         : base(logger)
     {
@@ -194,7 +119,7 @@ public class DataSyncBackgroundTask : BackgroundRunner
     public override async Task WorkAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<MyDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AdminDbContext>();
         var userCache = scope.ServiceProvider.GetRequiredService<UserCache>();
 
         // 使用 dbContext 和 userCache 进行业务操作
@@ -213,7 +138,94 @@ public class DataSyncBackgroundTask : BackgroundRunner
 }
 ```
 
-## SleepTime 常用值参考
+**关键**：每次 `WorkAsync` 执行时创建新的 scope，确保 DbContext 和 Scoped 服务正确释放。
+
+## Admin 内置后台任务
+
+Admin 项目的 DI 管道中已注册两个内置后台任务（源码位于 `OperLog/` 目录）：
+
+### 操作日志后台写入（DatabaseOperLogLogger）
+
+```csharp
+// DI 管道第 7 步 — 三行注册模式
+services.AddSingleton<DatabaseOperLogLogger>(sp =>
+    new DatabaseOperLogLogger(
+        sp.GetRequiredService<IDbAsyncBulk>(),
+        sp.GetRequiredService<IConfiguration>(),
+        sp.GetRequiredService<ILogger<DatabaseOperLogLogger>>(),
+        tableName: "admin.t_sys_oper_log"));
+services.AddSingleton<IOperLogLogger>(sp => sp.GetRequiredService<DatabaseOperLogLogger>());
+services.AddHostedService(sp => sp.GetRequiredService<DatabaseOperLogLogger>());
+```
+
+负责将 `[OperLog]` 标注的接口操作日志批量写入数据库。
+
+### 在线用户心跳（OnlineUserHeartbeatLogger）
+
+```csharp
+// DI 管道第 8 步 — 三行注册模式
+services.AddSingleton<OnlineUserHeartbeatLogger>();
+services.AddSingleton<IOnlineUserHeartbeatLogger>(sp => sp.GetRequiredService<OnlineUserHeartbeatLogger>());
+services.AddHostedService(sp => sp.GetRequiredService<OnlineUserHeartbeatLogger>());
+```
+
+负责维护在线用户状态（TTL 90 秒）。
+
+## 常见场景
+
+### 缓存刷新任务
+
+```csharp
+public class CacheRefreshTask : BackgroundRunner
+{
+    private readonly IServiceScopeFactory _scopeFactory;
+
+    public CacheRefreshTask(ILogger<CacheRefreshTask> logger,
+        IServiceScopeFactory scopeFactory) : base(logger)
+    {
+        _scopeFactory = scopeFactory;
+        Name = "缓存刷新任务";
+        SleepTime = 3600000; // 1小时
+    }
+
+    public override bool Check => true;
+
+    public override async Task WorkAsync(CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var configCache = scope.ServiceProvider.GetRequiredService<ConfigCache>();
+        await configCache.RemoveConfigDic(); // 删除缓存，下次读取时自动重新加载
+    }
+}
+```
+
+### 日志清理任务
+
+```csharp
+public class LogCleanupTask : BackgroundRunner
+{
+    private readonly IServiceScopeFactory _scopeFactory;
+
+    public LogCleanupTask(ILogger<LogCleanupTask> logger,
+        IServiceScopeFactory scopeFactory) : base(logger)
+    {
+        _scopeFactory = scopeFactory;
+        Name = "日志清理任务";
+        SleepTime = 86400000; // 24小时
+    }
+
+    public override bool Check => true;
+
+    public override async Task WorkAsync(CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AdminDbContext>();
+        // 清理 30 天前的操作日志
+    }
+}
+```
+
+## SleepTime 参考表
 
 | 场景 | 建议值 | 毫秒数 |
 |-----|-------|-------|
@@ -223,11 +235,17 @@ public class DataSyncBackgroundTask : BackgroundRunner
 | 低频任务（报表生成） | 1小时 | 3600000 |
 | 每日任务（日志清理） | 24小时 | 86400000 |
 
+## 注意事项
+
+- **自动启动**：应用启动后自动开始执行
+- **优雅停止**：应用关闭时优雅停止
+- **异常恢复**：即使发生异常，任务也会继续循环执行
+- **取消令牌**：在 `WorkAsync` 中检查 `cancellationToken` 以响应停止请求
+- **资源释放**：长时间运行的任务注意释放资源，避免内存泄漏
+
 ## 相关技能
 
-- **backend-workflow**: 文档驱动开发流程和交付标准
-- **net-microservice-generator**: 项目结构生成（后台任务注册于 Startup.cs）
-- **net-efcore-developer**: 数据库实体开发（后台任务常操作数据库）
-- **net-cache-use**: 缓存功能集成（后台任务常刷新缓存）
-- **net-api-developer**: API 接口开发（后台任务常与 API 配合使用）
-- **net-authentication**: 认证系统（后台任务可能需要服务间认证）
+- **backend-workflow**: 完整工作流和 DI 管道
+- **net-efcore-developer**: 数据库实体（后台任务常操作数据库）
+- **net-cache-use**: 缓存功能（后台任务常刷新缓存）
+- **net-api-developer**: API 接口开发

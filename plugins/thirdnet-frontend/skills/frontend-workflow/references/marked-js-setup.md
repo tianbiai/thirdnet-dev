@@ -41,13 +41,13 @@ cp node_modules/marked/marked.min.js static/
 
 ## 版本信息
 
-当前模板使用的 marked 版本：**v17.x**（通过 jsDelivr 获取的最新稳定版）
+当前模板使用的 marked 版本：**v18.x**（通过 jsDelivr 获取的最新稳定版，实际版本以 `npm view marked version` 输出为准）
 
 如需指定版本：
 
 ```bash
-# 指定版本，例如 v17.0.6
-curl -o public/marked.min.js https://cdn.jsdelivr.net/npm/marked@17.0.6/marked.min.js
+# 指定版本，例如 v18.0.5
+curl -o public/marked.min.js https://cdn.jsdelivr.net/npm/marked@18.0.5/marked.min.js
 ```
 
 ## 功能特性

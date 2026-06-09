@@ -1,198 +1,192 @@
 ---
 name: net-microservice-generator
-version: 1.1.0
-description: .NET 微服务解决方案生成器，负责创建标准化的项目结构和代码骨架（Common、Cache、API、Database 分层）。**主动用于**：创建新的微服务项目、初始化项目架构、生成解决方案结构、搭建脚手架。当用户提到"创建项目"、"新建服务"、"新建微服务"、"项目结构"、"解决方案"、"sln"、"初始化项目"、"脚手架"、"scaffold"、"dotnet new"、"搭建框架"、"新建服务端"、"Startup"、"Program"、"中间件"、"配置"、"数据库连接"、"Redis"、"appsettings"时，必须使用此技能。
+description: >
+  ThirdNet Service 微服务模板开发指南。覆盖 dotnet new thirdnet-service 创建微服务、
+  跨项目引用（Admin.Common、Admin.Cache）、ServiceDbContext 自定义 schema、
+  共享认证（CachePermissionProvider）、Startup.cs 配置详解、中间件执行顺序、
+  AddThirdNetMvcWithPostgresql 内部注册内容、Redis 配置、appsettings 配置文件管理、
+  健康检查、按 Admin 模式添加业务模块。
+  当用户提到"new service"、"微服务"、"thirdnet-service"、"ServiceDbContext"、
+  "跨项目引用"、"service template"、"创建微服务"、"新建服务"、"AddThirdNetMvc"、
+  "appsettings"、"中间件"时，必须使用此技能。
 ---
 
-## 使用场景
+# ThirdNet Service 微服务模板开发
 
-- 创建新的 .NET 微服务项目
-- 初始化项目架构和目录结构
-- 生成标准化解决方案文件
-- 搭建多服务项目框架
+## 概述
 
-## 文档生成
+Service 模板用于创建独立微服务，它与 Admin 项目共享认证和权限体系，但拥有独立的业务数据库。
 
-> 新建项目时的文档生成（plan.md、changelog.md、spec.md）由 **backend-workflow** 技能统一管理。
-> 本技能专注于项目结构生成。使用本技能前，确保已通过 `backend-workflow` 创建了必要的文档。
-
-### 前置条件
-
-在执行项目框架生成之前，必须确认以下文档已存在：
-
-- [ ] `backend/plan.md` — 全局开发计划
-- [ ] `backend/changelog.md` — 变更日志
-- [ ] `backend/<ServiceName>/spec.md` — 每个服务的功能说明书
-
-**文档不存在 → 停止 → 先通过 `backend-workflow` 技能生成文档**
-
-## 角色定位
-
-你是一名**资深 .NET 企业级解决方案架构师**，负责**按公司规范生成标准化微服务 API 解决方案结构与代码骨架**。你的输出必须**可直接落地**，不得自由发挥。
-
-## 技术栈（不可变）
-
-- **.NET 10**
-- **PostgreSQL**
-- **Entity Framework Core（Code First）**
-- **微服务架构**
-
-## ⚠️ 强禁止
-
-**在项目生成阶段（MVP 框架），不要添加以下功能：**
-
-- ❌ Minimal API
-- ❌ 合并 Api 与 Database
-- ❌ 省略 Database 项目
-- ❌ 擅自扩展技术栈
-
-## 工作流程
-
-当用户请求创建微服务项目时，按以下步骤执行：
-
-1. 确认项目名和服务列表
-2. 检查并安装必要的模板
-3. 创建项目根目录结构
-4. 创建工具类库（Common、Cache）
-5. 创建 IdentityService（如需要）
-6. 创建各业务微服务
-7. 配置解决方案引用关系
-8. 生成完整的目录结构说明
-
-## 模板安装
-
-通过 `dotnet new list` 判断是否存在 `ThirdNet.Core.WebApiService` 和 `ThirdNet.Core.IdentityService` 模板。
-
-若不存在，则先安装：
-
-```bash
-dotnet new --debug:reinit
-dotnet new install ThirdNet.Core.WebApiService --force
-dotnet new install ThirdNet.Core.IdentityService --force
+```
+Admin 项目                    Service 项目
+├── Admin.Common ──────────→ 引用（ProjectReference）
+├── Admin.Cache ───────────→ 引用（ProjectReference）
+├── Admin.Database              ├── Service.Database（独立 schema）
+└── Admin.APIService            └── Service.API（独立 Controllers/Services）
 ```
 
-**安装失败处理**：如果模板包不在本地 NuGet 缓存中，需要先确认模板包的 NuGet 源地址，然后通过 `dotnet new install <包路径或NuGet包ID>` 安装。安装后再次运行 `dotnet new list` 确认模板可用。
+## 创建微服务
 
-## 项目类型
+### 前提条件
 
-### 工具类库
+- 已安装 ThirdNet.Service.Template 模板
+- 已创建 Admin 项目（Service 需要引用 Admin.Common 和 Admin.Cache）
 
-在 `backend/` 下创建 `Tools` 作为根文件夹：
-
-```bash
-cd backend/Tools
-dotnet new classlib -n Common -o Common
-dotnet new classlib -n Cache -o Cache
-```
-
-### 认证服务（IdentityService）
+### 创建命令
 
 ```bash
-cd backend/identity
-dotnet new IdentityService -n identity.API -o identity.API
-dotnet new classlib -n identity.Database -o identity.Database
+# 安装模板
+dotnet new install ThirdNet.Service.Template --force
+
+# 创建微服务（在 backend/ 目录内）
+mkdir -p backend
+cd backend
+dotnet new thirdnet-service -n {ServiceName}
+
+# 如果 Admin 使用了自定义名称
+dotnet new thirdnet-service -n {ServiceName} --AdminName {ProjectName}.Admin
+
+# 可选：指定框架版本
+dotnet new thirdnet-service -n {ServiceName} \
+  --VibeCommonVersion 0.0.6 \
+  --VibeWebAPIVersion 0.0.6
 ```
 
-### 业务微服务
+### 解决方案文件管理
+
+创建微服务后，**必须**将生成的项目添加到解决方案文件中。
+
+#### 场景 A：添加到已有 Admin 解决方案（推荐）
+
+当 `backend/` 目录下已存在 Admin 的 `.slnx` 文件时，将 Service 项目添加进去：
 
 ```bash
-cd backend/{ServiceName}
-dotnet new WebApiService -n {ServiceName}.API -o {ServiceName}.API
-dotnet new classlib -n {ServiceName}.Database -o {ServiceName}.Database
+cd backend
+
+# 添加 Service 项目到已有解决方案
+dotnet sln {ProjectName}.Admin.slnx add \
+  {ServiceName}/Service/{ServiceName}.API/{ServiceName}.API.csproj \
+  {ServiceName}/Service/{ServiceName}.Database/{ServiceName}.Database.csproj \
+  -s /src/Service/
 ```
 
-## 标准目录结构
+#### 场景 B：创建独立解决方案
+
+当没有已有的 `.slnx` 文件时（独立 Service 项目），创建新的解决方案：
+
+```bash
+cd backend
+
+# 创建解决方案文件
+dotnet new sln -n {ServiceName} -o .
+
+# 添加 Service 项目
+dotnet sln {ServiceName}.slnx add \
+  {ServiceName}/Service/{ServiceName}.API/{ServiceName}.API.csproj \
+  {ServiceName}/Service/{ServiceName}.Database/{ServiceName}.Database.csproj \
+  -s /src/Service/
+```
+
+### 生成的项目结构
 
 ```
 backend/
-├── plan.md                              # 项目规划文档（全局）
-├── changelog.md                         # 变更日志（全局）
-├── Tools/
-│   ├── Common/                          # 通用工具类库
-│   └── Cache/                           # 缓存工具类库
-├── identity/                            # 认证服务（如需要）
-│   ├── spec.md                          # 服务功能说明书
-│   ├── identity.slnx
-│   ├── identity.API/
-│   └── identity.Database/
-└── {ServiceName}/                       # 业务服务
-    ├── spec.md                          # 服务功能说明书
-    ├── {ServiceName}.slnx
-    ├── {ServiceName}.API/
-    │   ├── Controllers/
-    │   │   ├── Manager/                 # 管理端 Controller
-    │   │   ├── App/                     # 应用端 Controller
-    │   │   └── Third/                   # 第三方端 Controller
-    │   ├── Program.cs
-    │   ├── appsettings.json               # 配置模板（#{KEY}# 占位符，提交到 Git）
-    │   └── appsettings.Development.json   # 本地开发配置（真实值，不提交）
-    └── {ServiceName}.Database/
-        ├── Models/                      # 实体模型
-        ├── Configurations/              # Fluent API 配置
-        └── Migrations/                  # 数据库迁移文件
-            └── {ShortName}/             # 按 DbContext 简名分目录（去掉 DbContext 后缀）
+├── plan.md
+├── changelog.md
+├── spec.md                              # 项目级规格说明书（全局唯一）
+├── Admin/                               ← 已有的 Admin 项目
+│   ├── {ProjectName}.Admin.APIService/
+│   └── {ProjectName}.Admin.Database/
+├── Tools/                               ← 已有的工具类库
+│   ├── {ProjectName}.Admin.Common/
+│   └── {ProjectName}.Admin.Cache/
+└── {ServiceName}/              ← 新创建的 Service 项目
+    └── Service/
+        ├── {ServiceName}.API/       # API 宿主
+        │   ├── Controllers/Manager/
+        │   │   └── HealthManagerController.cs
+        │   ├── Program.cs
+        │   ├── Startup.cs
+        │   └── appsettings.json
+        └── {ServiceName}.Database/  # 数据层
+            ├── DbContext/
+            │   └── ServiceDbContext.cs
+            └── Models/                     # 空，待开发
 ```
 
-**命名规范（均使用英文名）**：
+## ServiceDbContext
 
-| 层级           | 格式                        | 示例                        |
-| -------------- | --------------------------- | --------------------------- |
-| 服务文件夹     | `{ServiceName}`             | `identity`, `coin`          |
-| 解决方案文件   | `{ServiceName}.slnx`        | `identity.slnx`             |
-| API 项目       | `{ServiceName}.API`         | `identity.API`              |
-| Database 项目  | `{ServiceName}.Database`    | `identity.Database`         |
-
-**文件组织规则**：每个 .cs 文件只定义一个 class、interface 或 enum。生成项目结构时，确保所有代码骨架遵循此规则。
-
-## 服务启动配置
-
-### Program.cs 模板
+Service 使用独立的 DbContext 和 schema：
 
 ```csharp
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Hosting;
-
-namespace MyApp.UserService
+public class ServiceDbContext : DbContext
 {
-    public class Program
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        public static void Main(string[] args)
-        {
-            CreateHostBuilder(args).Build().Run();
-        }
+        // 自定义 schema（如 "order"、"inventory" 等）
+        modelBuilder.HasDefaultSchema("service");
 
-        public static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)
-                .ConfigureWebHostDefaults(webBuilder =>
-                {
-                    webBuilder.UseStartup<Startup>();
-                });
+        // 自动扫描配置类
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ServiceDbContext).Assembly);
+
+        // xmin 乐观并发
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            modelBuilder.Entity(entityType.ClrType, b =>
+                b.Property<uint>("xmin").IsRowVersion().ValueGeneratedOnAddOrUpdate());
+        }
     }
 }
 ```
 
-### Startup.cs 配置详解
+## Startup.cs 配置
 
-#### ConfigureServices 阶段（服务注册）
+Service 的 Startup.cs 复用 Admin 的基础设施层：
 
-| 序号 | 配置项 | 方法 | 说明 |
-|-----|-------|------|------|
-| 1 | 初始化配置库 | `AddInitDbWithPostgresql` | 连接框架配置数据库 |
-| 2 | 启用压缩 | `AddResponseCompression` | 启用响应压缩 |
-| 3 | 配置限流 | `AddThirdNetIpAndApplicationPathRateLimiting` | IP + 路径限流 |
-| 4 | 配置认证 | `AddThirdNetDefaultRSAJwt` | RSA JWT 认证 |
-| 5 | 配置 Redis | `AddRedisExtensionService` | Redis 缓存（WebApiService） |
-| 6 | 配置 MVC | `AddThirdNetMvcWithPostgresql` | MVC + 框架核心组件（详见下方） |
-| 7 | 配置帮助页面 | `AddThirdNetVersioningHelpPage` | Swagger 文档 |
+```csharp
+public void ConfigureServices(IServiceCollection services)
+{
+    // 1. 基础设施（与 Admin 完全一致）
+    services.AddResponseCompression(options => { options.EnableForHttps = true; });
+    services.AddThirdNetCors(Configuration);
+    services.AddAdminCommonInfrastructure(Configuration, assembly);
 
-#### Configure 阶段（中间件配置）
+    // 2. Service 数据库
+    services.AddPooledDbContextFactory<ServiceDbContext>(options =>
+    {
+        options.UseNpgsql(connectionString,
+            b => b.MigrationsAssembly("{ServiceName}.Database"));
+    });
 
-| 序号 | 配置项 | 方法 | 说明 |
-|-----|-------|------|------|
-| 1 | 初始化数据库 | `InitializeThirdNetDatabase` | 初始化框架数据库 |
-| 2 | 启用压缩 | `UseResponseCompression` | 启用响应压缩 |
-| 3 | 配置帮助页面 | `UseThirdNetVersioningHelpPage` | Swagger 文档页面 |
-| 4 | 启用 MVC | `UseThirdNetMvc` | 启用 MVC 中间件管道 |
+    // 3. 缓存上下文（使用 Admin 的 DefaultConnectionString）
+    services.AddPooledDbContextFactory<CacheDbContext>(options =>
+    {
+        options.UseNpgsql(defaultConnStr);
+    });
+
+    // 4. 健康检查
+    services.AddHealthChecks()
+        .AddNpgSql(...).AddRedisHealthCheck();
+
+    // 5. 认证授权（与 Admin 共享，无需 IAccountValidator）
+    services.AddAdminCacheServices();
+    services.AddScoped<OperatorContext>();
+    services.AddScoped<IPermissionProvider, CachePermissionProvider>();
+
+    // 6. 业务服务（按需添加）
+    // services.AddScoped<OrderService>();
+
+    // 7. 帮助页 + 控制器
+    services.AddAdminCommonHelpPage(Configuration);
+    services.AddAdminCommonControllers();
+}
+```
+
+**与 Admin 的区别**：
+- Service 不注册 `IAccountValidator`（用户认证由 Admin 处理）
+- Service 不注册 `OperLogFilter`（操作日志由 Admin 处理）
+- Service 使用 `ServiceDbContext` 而非 `AdminDbContext`
+- CacheDbContext 使用 Admin 的 `DefaultConnectionString`
 
 ## 中间件执行顺序
 
@@ -200,7 +194,7 @@ namespace MyApp.UserService
 
 | 序号 | 中间件 | 说明 |
 |-----|-------|------|
-| 1 | `UseForwardedHeaders` | 处理反向代理头（X-Forwarded-For 等） |
+| 1 | `UseForwardedHeaders` | 处理反向代理头 |
 | 2 | `UseThirdNetUseExceptionHandler` | 全局异常处理 |
 | 3 | `UseRouting` | 路由匹配 |
 | 4 | `RequestLoggerMiddleware` | 访问日志记录 |
@@ -211,48 +205,26 @@ namespace MyApp.UserService
 
 **注意**：不要在 `UseThirdNetMvc` 外部手动添加认证/授权中间件，会导致重复执行。
 
-## AddThirdNetMvcWithPostgresql 内部注册内容
+## AddThirdNetMvcWithPostgresql 内部注册
 
 `AddThirdNetMvcWithPostgresql` 是框架核心注册方法，一次调用自动注册以下组件：
 
 | 分类 | 注册内容 | 说明 |
 |------|---------|------|
-| **MVC** | `CustomExceptionFilter` | 全局异常过滤器，`WebApiException` 返回对应 HTTP 状态码 |
-| **MVC** | `ValidateModelAttribute` | 自动校验 `ModelState`，无效时返回 400 |
-| **MVC** | JSON 序列化 | 小写策略（`JsonLowercasePolicy`）+ DateTime 转换器 |
-| **认证** | Basic + Bearer 认证 | 双层认证（应用级 Basic + 用户级 JWT） |
-| **授权** | 策略注册 | `Default`、`Logon`、`Basic`、`Both` 四个策略 |
-| **授权** | `ThirdNetAuthorizationHandler` | 基于角色的资源授权（支持通配符 `*`） |
-| **授权** | `ProviderPolicyProvider` + `ProviderAuthorizationHandler` | 基于 scope 的动态策略授权 |
-| **缓存** | `ApplicationInfoCache` | 应用配置内存缓存（`SessionRunner`） |
-| **缓存** | `IpWhiteListCache` / `IpBlackListCache` | IP 黑白名单内存缓存 |
-| **缓存** | `ApplicationAuthorityCache` / `RolesAuthorityCache` | 角色-权限映射缓存 |
-| **日志** | `NpgsqlVisitLogRunner`（`IVisitLogger`） | 访问日志批处理器（30秒批量写入） |
-| **日志** | `DatabaseBackgroundLogger`（`IBackgroundLogger`） | 后台任务日志（写入 `BackgroundLog` 表） |
-| **批量** | `PostgresqlAsyncBulk`（`IDbAsyncBulk`） | PostgreSQL 批量操作（Transient） |
-| **其他** | `DefaultCheckClient`（`ICheckClient`） | 应用认证验证（HMAC-SHA512 签名） |
-| **其他** | `HMacClientCryptography`（`IClientCryptography`） | 客户端签名生成 |
-| **其他** | `DefaultRolesProvider`（`IRolesProvider`） | 默认角色解析 |
-| **其他** | `IAccountTokenTimeCache` / `IGetAccountTokenKey` | Token 凭证变更检测 |
+| MVC | `CustomExceptionFilter` | 全局异常，`WebApiException` 返回对应 HTTP 状态码 |
+| MVC | `ValidateModelAttribute` | 自动校验 ModelState |
+| MVC | JSON 序列化 | 小写策略 + DateTime 转换器 |
+| 认证 | Basic + Bearer | 双层认证 |
+| 授权 | 四个策略 | Default、Logon、Basic、Both |
+| 授权 | 通配符授权 | 支持角色通配符 `*` |
+| 缓存 | 应用/IP/角色缓存 | 内存缓存 |
+| 日志 | 访问日志 + 后台日志 | 批量写入 |
+| 批量 | `IDbAsyncBulk` | PostgreSQL 批量操作（Transient） |
+| 其他 | `ICheckClient`/`IAccountTokenTimeCache` 等 | 客户端签名、Token 检测 |
 
-> **Redis 不在此方法内注册**。Redis 需在步骤 5 通过 `AddRedisExtensionService` 单独注册，且必须在 `AddThirdNetMvcWithPostgresql` 之前调用。
-
-## 数据库配置
-
-> 连接字符串配置（`DefaultConnectionString`、`ConnectionString` 等）请参阅 **net-efcore-developer** 技能。
-
-### 多数据库支持
-
-| 方法 | 数据库 | NuGet 包 |
-|-----|-------|---------|
-| `AddThirdNetMvcWithPostgresql` | PostgreSQL | Npgsql.EntityFrameworkCore.PostgreSQL |
-| `AddThirdNetMvcWithMysql` | MySQL | Pomelo.EntityFrameworkCore.MySql |
-| `AddThirdNetMvcWithSqlServer` | SQL Server | Microsoft.EntityFrameworkCore.SqlServer |
-| `AddThirdNetMvcWithOpenGuass` | OpenGuass | 相应驱动包 |
+> **Redis 不在此方法内注册**。Redis 需通过 `AddRedisExtensionService` 单独注册，且必须在 `AddThirdNetMvcWithPostgresql` 之前调用。
 
 ## Redis 配置
-
-### 启用 Redis
 
 在 `Startup.ConfigureServices` 中配置：
 
@@ -260,9 +232,7 @@ namespace MyApp.UserService
 services.AddRedisExtensionService(Configuration);
 ```
 
-### 配置项
-
-在 `appsettings.json` 中配置（配置节名称必须为 `RedisExtension`），敏感值使用说明性字符串标识用途：
+`appsettings.json` 配置节：
 
 ```json
 {
@@ -274,21 +244,15 @@ services.AddRedisExtensionService(Configuration);
 }
 ```
 
-> 完整配置模板和字段说明详见 `references/appsettings-management.md`
-
-| 属性 | 类型 | 说明 |
-|------|------|------|
-| `Connection` | `string` | Redis 连接字符串（host:port,password=xxx） |
-| `KeyPrefix` | `string` | 缓存键前缀，用于多应用隔离 |
-| `DefaultDatabase` | `int` | 默认数据库编号 |
-
-### 使用 Redis
-
-注入领域缓存类（如 `UserCache`、`DepartmentCache`）使用缓存功能，详见 **net-cache-use** 技能。数据变更后调用缓存类的 `RemoveXxx` 方法删除对应 key，下次读取时由 Read-Through 自动加载。
+| 属性 | 说明 |
+|------|------|
+| `Connection` | Redis 连接字符串 |
+| `KeyPrefix` | 缓存键前缀，多应用隔离 |
+| `DefaultDatabase` | 默认数据库编号 |
 
 ## 配置文件管理
 
-微服务项目采用三层配置文件模型：
+采用三层配置文件模型：
 
 | 文件 | 提交 Git | 内容 |
 |------|---------|------|
@@ -296,47 +260,69 @@ services.AddRedisExtensionService(Configuration);
 | `appsettings.Development.json` | ❌ | 本地开发真实值，覆盖模板中的对应项 |
 | 生产环境配置 | ❌ | CI/CD 部署时直接替换 JSON 属性值 |
 
-### 核心规则
-
-- 敏感值（密码、密钥、连接字符串）在 `appsettings.json` 中使用说明性字符串（如 `"数据库连接字符串"`），不使用占位符
-- 新增配置项时，先在 `appsettings.json` 添加模板版本，再在 `appsettings.Development.json` 添加开发值
-- 两个文件的配置节结构必须保持一致（顶层节名、属性名相同）
+**核心规则**：
+- 敏感值在 `appsettings.json` 中使用说明性字符串，不使用占位符
+- 两个文件的配置节结构必须保持一致
 - **禁止**将包含真实密码/密钥的文件提交至版本库
 
-完整规范、模板和入职指南详见 `references/appsettings-management.md`。
+详细规范见 [appsettings-management.md](references/appsettings-management.md)。
 
-## 解决方案引用关系
+## Program.cs
 
-每个服务的 `.slnx` 文件需要引用：
-- 通用类库 Common + Cache
-- API 服务层 + Database 数据层
+> **关于 `BuildAdminWebHost` 命名**：虽然方法名包含"Admin"，但它是框架提供的通用构建方法，Admin 和 Service 项目均使用此方法。名称中的"Admin"是框架历史命名，不影响 Service 项目的功能。
 
-## 模板文件
+```csharp
+using {ProjectName}.Admin.Common.Hosting;
+using ThirdNet.Vibe.WebAPI;
 
-> 文档模板已迁移至 **backend-workflow** 技能的 references 目录。本技能保留项目结构模板。
+var host = AdminHostBuilder.BuildAdminWebHost<Startup>(args);
 
-- 服务规格模板：通过 `backend-workflow` 技能获取
-- 变更日志模板：通过 `backend-workflow` 技能获取
+await host.InitializeDatabasesAsync();
+await host.InitializeFunctionTableAsync();
+await host.InitializePermissionCatalogTableAsync();
 
-## 输出要求
+await host.RunAsync();
+```
 
-- 所有命令必须可直接复制执行
-- 目录结构必须符合标准规范
-- 不得添加未明确要求的额外功能
-- 保持技术栈严格一致
+## 添加业务模块
+
+在 Service 中添加业务模块的步骤与 Admin 一致，请参考以下技能：
+
+1. **实体** — `net-efcore-developer`（使用 ServiceDbContext 和自定义 schema）
+2. **缓存** — `net-cache-use`（在 CacheServiceExtensions 中注册）
+3. **API** — `net-api-developer`（Controller、Service、DTO）
+4. **权限** — `net-rbac`（使用 `module:entity:action` 格式的权限字符串）
+
+### 迁移命令
+
+```bash
+dotnet ef migrations add AddOrderEntity \
+  --project backend/{ServiceName}/Service/{ServiceName}.Database \
+  --startup-project backend/{ServiceName}/Service/{ServiceName}.API
+
+dotnet ef database update \
+  --project backend/{ServiceName}/Service/{ServiceName}.Database \
+  --startup-project backend/{ServiceName}/Service/{ServiceName}.API
+```
+
+## 连接字符串配置
+
+| 连接字符串 | 用途 |
+|-----------|------|
+| ConnectionString | Service 业务数据库（ServiceDbContext） |
+| DefaultConnectionString | 框架数据库（ThirdNetDbContext）+ 缓存回退查询 |
 
 ## 参考文件索引
 
 | 文件 | 内容 | 何时读取 |
 |-----|------|---------|
-| `references/appsettings-management.md` | appsettings 配置文件管理规范、完整模板、占位符规则、入职指南 | 创建项目配置或修改 appsettings 时 |
+| [appsettings-management.md](references/appsettings-management.md) | 配置文件管理规范、完整模板、入职指南 | 创建项目配置或修改 appsettings 时 |
 
 ## 相关技能
 
-- **backend-workflow**: 文档驱动开发流程、文档模板和交付标准
-- **net-authentication**: 认证系统配置
-- **net-api-developer**: API 接口开发
+- **backend-workflow**: 完整工作流和文档驱动开发
 - **net-efcore-developer**: 数据库实体开发
-- **net-cache-use**: 缓存功能集成
-- **net-background-job**: 后台任务开发
-- **net-database-bulkcopy**: 批量数据操作
+- **net-api-developer**: API 接口开发
+- **net-cache-use**: 缓存集成
+- **net-rbac**: 权限体系
+- **net-authentication**: 认证系统配置

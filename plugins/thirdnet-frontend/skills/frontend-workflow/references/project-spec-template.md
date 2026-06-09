@@ -112,7 +112,7 @@
 
 **默认版本**：
 - **移动端**：Vue 3.4.x、Vant 4.x、Vite 5.x、Pinia 2.x、Vue Router 4.x、Axios 1.x
-- **Web端**：Vue 3.5.x、Vite 8.x、Element Plus 2.x、Vue Router 4.x、Pinia 3.x、Axios 1.x
+- **Web端**：Vue 3.5.x、Vite 8.x、Element Plus 2.x、Vue Router 4.x、Pinia 3.x（以 npm 最新稳定版为准）、Axios 1.x
 
 ### 项目结构
 
@@ -179,7 +179,7 @@ frontend/[子系统名]/
 - **字段命名强制 snake_case**：所有 API 入参、出参、Mock 数据的字段名必须使用 `snake_case`（`user_name`, `order_id`, `created_at`），与后端 DTO 保持一致，**禁止使用 camelCase**
 - **响应**：直接返回数据或 `PaginatedResponse<T>`，HTTP 状态码表达结果，禁止 `code` 字段
 - **认证**：`api/modules/app/auth.ts` 使用 IdentityServer Connect 端点，`utils/token.ts` 双平台 Token 管理
-- **无缝切换**：`.env` 中 `VITE_MOCK=true/false` 控制，业务代码零修改
+- **无缝切换**：`.env` 中 `VITE_MOCK_ENABLED=true/false` 控制，业务代码零修改
 
 ### 演示模式控制
 

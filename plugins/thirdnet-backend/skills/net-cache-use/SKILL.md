@@ -1,32 +1,41 @@
 ---
 name: net-cache-use
-version: 4.1.0
-description: 缓存功能开发专家，基于 RedisCacheManager 基类为业务实体创建自包含的领域缓存类（{Domain}Cache），内含 DB 查询 + 缓存读取 + 缓存删除，以及 RedisLock 分布式锁。**主动用于**：为实体添加缓存、字典数据缓存、配置信息缓存、高频查询缓存、缓存预热、性能优化、分布式锁。当用户提到"缓存"、"Cache"、"Redis"、"加缓存"、"缓存数据"、"字典缓存"、"配置缓存"、"高频查询"、"性能优化"、"预热"、"UserCache"、"DepartmentCache"、"RedisCacheManager"、"分布式锁"、"RedisLock"、"并发控制"、"防重复"时，必须使用此技能。
+description: >
+  ThirdNet Redis 缓存域开发规范。覆盖缓存键命名、View 模型（轻量投影）、
+  CacheDbContext（原始 SQL 回退查询）、缓存域三区域结构（Reader/Remove/Query）、
+  RedisCacheManager 基类内置能力（熔断、防击穿、TTL 抖动）、完整方法签名、
+  分布式锁（RedisLock）、缓存对象复用原则、TTL 约定、缓存失效策略、
+  Singleton 注册、批量操作模式、代码审查清单。
+  当用户提到"cache"、"UserCache"、"RoleCache"、"CacheKeys"、"CacheDbContext"、
+  "cache view"、"cache domain"、"redis"、"缓存域"、"缓存开发"、"RedisCacheManager"、
+  "RedisLock"、"分布式锁"、"加缓存"、"缓存数据"时，必须使用此技能。
 ---
-## 使用场景
 
-- **字典数据缓存**：部门、角色、地区等参考数据
-- **配置信息缓存**：系统配置、业务参数
-- **高频查询数据**：用户信息、商品信息
-- **性能优化**：减少数据库查询、提升响应速度
-- **分布式锁**：防止并发重复操作、资源互斥访问
+# ThirdNet Redis 缓存域开发
 
-## 核心架构
+## 架构概览
 
-**命名空间**: `ThirdNet.Core.Common`
-
-框架提供 `RedisCacheManager` 抽象基类，每个业务领域创建独立的自包含缓存类：
+缓存层采用 Read-Through + DB 回退模式：
 
 ```
-RedisCacheManager（框架基类，Polly 熔断 + SemaphoreSlim 防击穿 + TTL 抖动）
+请求 → Cache.Reader → Redis 命中？
+                          ├─ 是 → 返回缓存数据
+                          └─ 否 → Cache.Query (原始 SQL → DB)
+                                   → 写入 Redis (TTL)
+                                   → 返回数据
+```
+
+### 核心架构
+
+框架提供 `RedisCacheManager` 抽象基类（命名空间 `ThirdNet.Vibe.Common`），每个业务领域创建独立的自包含缓存类：
+
+```
+RedisCacheManager（框架基类）
   └── {Domain}Cache（继承基类，自包含）
-        ├── Query 方法（private，DB 查询）
-        ├── Reader 方法（public，缓存读取）
-        ├── Remove 方法（public，缓存删除，Read-Through 自动回填）
-        └── View/{Entity}View.cs（视图模型）
+        ├── #region Query（private，DB 回退查询）
+        ├── #region Reader（public virtual，缓存读取）
+        └── #region Remove（public virtual，缓存失效）
 ```
-
-每个 `{Domain}Cache` 是一个完全自包含的类，直接注入 DbContext，包含从数据库查询到缓存读写的全部逻辑。Controller 直接注入具体的缓存类（如 `UserCache`），无需接口。
 
 ### RedisCacheManager 基类内置能力
 
@@ -40,8 +49,6 @@ RedisCacheManager（框架基类，Polly 熔断 + SemaphoreSlim 防击穿 + TTL 
 | **异常回退** | Redis 不可用时返回 `default_value`，不抛异常影响业务 |
 
 ## 基类方法签名
-
-以下是 `RedisCacheManager` 提供的完整方法。领域缓存类直接调用这些方法，无需重写。
 
 ### 读取方法
 
@@ -57,104 +64,184 @@ RedisCacheManager（框架基类，Polly 熔断 + SemaphoreSlim 防击穿 + TTL 
 | `AddOrUpdate` | `Task<bool> AddOrUpdate<TResult>(string key, TResult model, TimeSpan? timespan = null)` | 添加或更新单个缓存 |
 | `AddOrUpdateMultiple` | `Task<bool> AddOrUpdateMultiple<TResult>(Tuple<string, TResult>[] list, DateTimeOffset? offset = null)` | 批量添加或更新 |
 | `RemoveSingle` | `Task<bool> RemoveSingle(string key)` | 删除单个缓存 |
-| `RemoveMultiple` | `Task<bool> RemoveMultiple(string[] keys)` | 批量删除，全部删除返回 true |
-
-### 参数说明
-
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| `key` | `string` | 缓存键，必须小写、点号分隔（如 `user.123`） |
-| `func` | `Func<Task<TResult>>` | 缓存未命中时的数据加载回调 |
-| `timespan` | `TimeSpan?` | 单个操作的过期时间，null 表示永不过期。`GetSingle` 写入时自动加 ±10% 抖动 |
-| `offset` | `DateTimeOffset?` | 批量操作的过期时间点，null 表示永不过期 |
-| `refresh` | `bool` | 读取缓存后是否刷新 TTL，默认 false |
-| `default_value` | `TResult` | 缓存不存在或 Redis 异常时返回的默认值 |
+| `RemoveMultiple` | `Task<bool> RemoveMultiple(string[] keys)` | 批量删除 |
 
 ### TTL 参数类型规则
 
-- `GetSingle`、`AddOrUpdate`、`RemoveSingle` 使用 **`TimeSpan?`** 表示过期时长（如 `_stime8`）
-- `GetMultiple`、`AddOrUpdateMultiple` 使用 **`DateTimeOffset?`** 表示过期时间点（如 `DateTimeOffset.Now.Add(_stime8)`）
+- `GetSingle`、`AddOrUpdate`、`RemoveSingle` 使用 **`TimeSpan?`** 表示过期时长
+- `GetMultiple`、`AddOrUpdateMultiple` 使用 **`DateTimeOffset?`** 表示过期时间点
 
-## 缓存更新策略
+## 三区域结构
 
-数据变更后，**原则只删除对应 key**，后续需要使用时由 `GetSingle` 内置的 Read-Through 机制自动从数据库加载最新数据并写回 Redis。
+每个缓存域类包含三个区域：
 
-### Cache Invalidation（推荐策略）
+| 区域 | 可见性 | 职责 | 方法命名 |
+|------|--------|------|---------|
+| `#region Reader` | public virtual | 对外提供缓存读取 | `GetXxx`、`GetXxxDic` |
+| `#region Remove` | public virtual | 缓存失效（变更后调用） | `RemoveXxx` |
+| `#region Query` | private | DB 回退查询（原始 SQL） | `QueryXxx` |
+
+## 缓存键命名规范
+
+所有缓存键定义在 `AdminCacheKeys` 静态类中，格式为 `admin.{模块}.{标识}`：
 
 ```csharp
-// 数据变更后：只删除缓存
-await RemoveSingle($"user.{id}");
+public static class AdminCacheKeys
+{
+    // 单条缓存前缀（拼接 ID 使用）
+    public const string UserPrefix = "admin.user.";         // admin.user.{id}
+    public const string RolePrefix = "admin.role.";         // admin.role.{id}
 
-// 下次调用 GetUserInfo(id) 时：
-// GetSingle → Redis miss → QueryUser(id) 查询数据库 → 写回 Redis → 返回最新数据
+    // 全量/集合缓存
+    public const string UserDic = "admin.user.dic";         // 全量用户字典
+    public const string MenuTree = "admin.menu.tree";       // 菜单树
+}
 ```
 
-**为什么这是默认策略**：
-- 代码最简洁——Remove 方法只需一行 `RemoveSingle`
-- 避免竞态问题——不会在 DB 事务尚未提交时就把旧数据写入缓存
-- 减少数据库压力——不需要额外查询
+**新增缓存域时**，必须在 `AdminCacheKeys` 中添加对应的常量。缓存键必须小写、点号分隔。
 
-### Write-Through（特殊场景备选）
+## View 模型
 
-少数场景可能需要主动写入缓存（如多键场景需同步更新所有索引键、字典整体刷新需 `AddOrUpdate`）。这些场景的 Write-Through 逻辑直接写在 `{Domain}Cache` 的对应方法中。
+View 是实体的轻量投影，只包含缓存需要的字段：
 
-> 完整的代码示例见 `references/cache-examples.md`
+```csharp
+public class UserView
+{
+    public long id { get; set; }
+    public string user_name { get; set; }
+    public string nick_name { get; set; }
+    public long dept_id { get; set; }
+    public StatusEnum status { get; set; }
+    // 注意：不含 password_hash 等敏感字段
+}
+```
 
-## TTL 选择指南
+**原则**：View 只包含非敏感、高频访问的字段。密码哈希、详细联系方式等不应放入缓存。
 
-| 字段名 | 值 | 适用场景 |
-|--------|------|------|
-| `_stime010` | 10 分钟 | 临时会话数据 |
-| `_stime2` | 2 小时 | 外部 API Token |
-| `_stime8` | 8 小时 | 用户相关数据（房屋、住户、积分） |
-| `_stime24` | 24 小时 | 大部分参考数据（字典、配置、角色） |
+### 缓存对象复用原则
 
-## 执行步骤
+同一实体的所有消费方应共享**一个 View + 一个 key**，View 包含所有场景需要的字段合集。消费方按需读取自己关心的字段，而不是为不同场景分别创建字段子集的缓存。
 
-### 步骤 1：收集实体信息
+**反模式**：同一实体拆成 BriefView + DetailView，各用不同的 key → 删除时容易遗漏，数据不一致。
 
-**必需**：实体英文名、主键类型、数据库表名、字段列表
+**何时可以拆分**：不同实体、不同数据来源、多键索引（如 `user.{id}` + `user.phone.{phone}`）。
 
-**可选**：唯一索引字段（手机号/账号等）、TTL 时长、是否需要树形结构、自定义查询条件
+## CacheDbContext
 
-### 步骤 2：生成 View 视图模型
+CacheDbContext 是专门用于缓存回退查询的轻量 DbContext，与业务 DbContext 共享同一连接字符串但独立注册：
 
-在 `View/` 目录下创建 `{Entity}View.cs`，类名以 `View` 结尾，属性小写与数据库字段一致，必须包含 `id`。
+- 不定义 DbSet（所有查询使用原始 SQL）
+- 不需要迁移
+- 注册为 PooledDbContextFactory
 
-> 完整代码示例见 `references/cache-examples.md`「基础模式」章节
+## 缓存域类模板
 
-### 步骤 3：生成自包含的 {Domain}Cache 类
+```csharp
+public class XxxCache : RedisCacheManager
+{
+    private readonly IDbContextFactory<CacheDbContext> _dbFactory;
+    private static readonly TimeSpan _ttl8 = TimeSpan.FromHours(8);
+    private static readonly TimeSpan _ttl24 = TimeSpan.FromHours(24);
 
-创建 `{Domain}Cache.cs`，一个文件包含全部缓存逻辑，分三个 region 组织：
+    public XxxCache(IRedisDatabase redis, ILogger<XxxCache> log,
+        IDbContextFactory<CacheDbContext> dbFactory)
+        : base(redis, log)
+    {
+        _dbFactory = dbFactory;
+    }
 
-**Query（private）**— 数据库查询方法：
-- **单个查询**：`SqlQueryRaw` + `FirstOrDefaultAsync`，按主键查询
-- **列表查询**：`SqlQueryRaw` + `ToListAsync`，返回 `Dictionary<key, View>`
-- **批量查询**：`SqlQueryRaw` + `ANY(@ids)` + `NpgsqlParameter`，用于 `GetMultiple` 的 func 回调
+    #region Reader
 
-**Reader（public）**— 缓存读取方法，供 Controller 调用：
-- **单个读取**：`GetSingle(key, () => QueryXxx(id), _stimeX)`
-- **字典读取**：`GetSingle("entity", QueryXxxList, _stime24)`
-- **批量读取**：`GetMultiple(keys, func, DateTimeOffset.Now.Add(_stimeX))`
+    /// <summary>
+    /// 根据ID获取单条缓存，TTL 8 小时。
+    /// </summary>
+    public virtual Task<XxxView?> GetXxx(long id)
+        => GetSingle<XxxView?>($"{AdminCacheKeys.XxxPrefix}{id}",
+            () => QueryXxx(id), _ttl8);
 
-**Remove（public）**— 缓存删除方法，数据变更后调用：
-- **单个删除**：`RemoveSingle(key)`，用于只涉及一个 key 的场景
-- **批量删除**：`RemoveMultiple(keys)`，当需要删除多个 key 时优先使用，减少 Redis 网络往返
-- **多键场景**：收集所有关联 key（主键 + 索引键），一次 `RemoveMultiple` 完成
-- **联动删除**：同时删除实体 key + 字典 key + 树形 key 时，收集后一次 `RemoveMultiple`
+    /// <summary>
+    /// 获取全量字典，TTL 24 小时。
+    /// </summary>
+    public virtual async Task<Dictionary<long, XxxView>> GetXxxDic()
+        => await GetSingle(AdminCacheKeys.XxxDic,
+            () => QueryXxxList(), _ttl24) ?? new();
 
-> 完整代码示例（含构造函数、Query、Reader、Remove）见 `references/cache-examples.md`「基础模式」章节
+    #endregion
+
+    #region Remove
+
+    public virtual Task RemoveXxx(long id)
+        => RemoveSingle($"{AdminCacheKeys.XxxPrefix}{id}");
+
+    public virtual Task RemoveXxxDic()
+        => RemoveSingle(AdminCacheKeys.XxxDic);
+
+    #endregion
+
+    #region Query
+
+    private async Task<XxxView?> QueryXxx(long id)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var sql = @"SELECT id, field1, field2
+                    FROM admin.t_xxx_xxx WHERE id = {0} AND status = 0";
+        return await db.Database.SqlQueryRaw<XxxView>(sql, id)
+            .FirstOrDefaultAsync();
+    }
+
+    private async Task<Dictionary<long, XxxView>> QueryXxxList()
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync();
+        var sql = @"SELECT id, field1, field2
+                    FROM admin.t_xxx_xxx WHERE status = 0";
+        var list = await db.Database.SqlQueryRaw<XxxView>(sql).ToListAsync();
+        return list.ToDictionary(x => x.id);
+    }
+
+    #endregion
+}
+```
+
+## TTL 约定
+
+| 数据类型 | TTL | 原因 |
+|---------|-----|------|
+| 临时会话数据 | 10 分钟 | 短时有效 |
+| 外部 API Token | 2 小时 | Token 有效期 |
+| 用户相关（信息、权限、角色） | 8 小时 | 变更较频繁 |
+| 引用数据（角色字典、菜单树、配置） | 24 小时 | 变更较少 |
+| Token 时间 | 7 天 | 与 JWT 有效期匹配 |
+| 验证码 | 5 分钟 | 安全要求 |
+| 在线状态 | 90 秒 | 心跳驱动 |
+
+## 缓存失效策略
+
+采用"变更后删除"策略（Cache-Aside），而非"变更后更新"：
+
+```csharp
+// 在 Service 的变更方法中
+public async Task<IdResult> Update(XxxUpdateMap dto, long operatorId)
+{
+    // ... 数据库更新操作 ...
+    await db.SaveChangesAsync();
+
+    // 变更后删除相关缓存
+    await _xxxCache.RemoveXxx(dto.id);      // 单条缓存
+    await _xxxCache.RemoveXxxDic();          // 全量字典
+}
+```
+
+**原则**：
+1. 数据库变更成功后，再删除缓存
+2. 删除所有相关的缓存键（单条 + 字典 + 关联缓存）
+3. 下次读取时 Read-Through 自动从 DB 加载
+4. 多个 key 使用 `RemoveMultiple` 一次完成，减少 Redis 网络往返
 
 ## 分布式锁：RedisLock
 
-**命名空间**: `ThirdNet.Core.Common.redis`
-
-框架提供 `RedisLock` 分布式锁，基于 Redis `StringSet` + Lua 脚本实现原子加锁/解锁。
-
-### 使用方式
+**命名空间**: `ThirdNet.Vibe.Common`
 
 ```csharp
-// 注入 IDatabase（由 AddRedisExtensionService 注册）
 private readonly IDatabase _redis;
 
 // 使用 using 自动释放锁
@@ -165,23 +252,35 @@ using (await new RedisLock(_redis, "order.123", TimeSpan.FromSeconds(30)).LockAs
 }
 ```
 
-### 构造函数
+**注意事项**：
+- 解锁使用 Lua 脚本保证原子性
+- 锁过期时间应大于临界区预期执行时间
+
+## DI 注册
+
+所有缓存域注册为 **Singleton**：
 
 ```csharp
-RedisLock(IDatabase redis, string key, TimeSpan expiry)
+// 在 CacheServiceExtensions.AddAdminCacheServices() 中添加
+services.AddSingleton<XxxCache>();
+
+// 在 Startup.cs 中调用
+services.AddAdminCacheServices();  // 一行注册所有缓存域
 ```
 
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| `redis` | `IDatabase` | Redis 数据库实例（通过 DI 注入） |
-| `key` | `string` | 锁键名，遵循缓存键命名规范（小写、点号分隔） |
-| `expiry` | `TimeSpan` | 锁自动过期时间（防止死锁） |
+## 批量查询模式
 
-**注意事项**：
-- 同时实现 `IAsyncDisposable` 和 `IDisposable`，支持 `using` 自动释放
-- 解锁使用 Lua 脚本保证原子性（检查值匹配后才删除）
-- 锁过期时间应大于临界区预期执行时间
-- Redis 不可用时锁操作会失败，需在 `catch` 中处理降级逻辑
+```csharp
+// 并行批量获取
+public virtual async Task<List<XxxView>> GetXxxList(List<long> ids)
+{
+    var tasks = ids.Select(id => GetXxx(id));
+    var results = await Task.WhenAll(tasks);
+    return results.Where(r => r != null).ToList();
+}
+```
+
+对于需要一次 SQL 查全量的场景，使用 `GetMultiple` 或全量字典模式。
 
 ## 代码审查清单
 
@@ -198,110 +297,17 @@ RedisLock(IDatabase redis, string key, TimeSpan expiry)
 - [ ] 使用了正确的 TTL（根据数据特性）
 - [ ] 所有 Query 方法使用了 `AsNoTracking()`
 - [ ] 多键场景 Remove 时删除了所有关联 key
-- [ ] Remove 方法只调用 `RemoveSingle`，没有多余的数据库查询
-- [ ] 涉及多个 key 的删除操作使用 `RemoveMultiple` 而非循环 `RemoveSingle`
-- [ ] 涉及多个 key 的读取操作使用 `GetMultiple` 而非循环 `GetSingle`
-- [ ] Read-Through 的 `func` 回调指向私有 Query 方法（确保缓存 miss 时能加载正确数据）
-- [ ] 同一实体没有为不同字段子集创建多个 View 或多个 key（应统一为一个 View + 一个 key）
+- [ ] 多个 key 的删除使用 `RemoveMultiple` 而非循环 `RemoveSingle`
+- [ ] 多个 key 的读取使用 `GetMultiple` 而非循环 `GetSingle`
+- [ ] 同一实体没有为不同字段子集创建多个 View 或多个 key
 
-## 缓存对象复用
+## 完整示例
 
-### 核心原则
-
-同一实体的所有消费方应共享**一个 View + 一个 key**，View 包含所有场景需要的字段合集。消费方按需读取自己关心的字段，而不是为不同场景分别创建字段子集的缓存。
-
-这样做的好处是：
-- **消除冗余**：同一实体数据只存一份，减少 Redis 内存占用
-- **消除冗余查询**：只查询一次数据库即可填充缓存，而不是每个字段子集各查一次
-- **一致性保障**：删除缓存时只需处理一个 key，不会出现"删了 A 键却忘了 B 键"的问题
-
-### 反模式：按场景拆分字段子集
-
-```csharp
-// ❌ 反模式：同一实体拆成多个 View 和多个 key
-
-// 场景 A：列表页只需要基本信息，创建了 BriefView（3 个字段）
-public class UserBriefView
-{
-    public long id { get; set; }
-    public string user_name { get; set; }
-    public int state { get; set; }
-}
-
-// 场景 B：详情页需要更多信息，创建了 DetailView（8 个字段）
-public class UserDetailView
-{
-    public long id { get; set; }
-    public string user_name { get; set; }
-    public string phone { get; set; }
-    public string email { get; set; }
-    public int state { get; set; }
-    public long department_id { get; set; }
-    public DateTime create_time { get; set; }
-    public string avatar { get; set; }
-}
-
-// 结果：两个 View、两个 key（user.brief.123 和 user.detail.123），
-// 两套 Query 方法、两套 Remove 逻辑
-// 删除时容易遗漏某个 key，导致数据不一致
-```
-
-### 正确做法：统一 View + 统一 key
-
-```csharp
-// ✅ 正确做法：一个 View 包含所有场景所需字段
-
-public class UserView
-{
-    public long id { get; set; }
-    public string user_name { get; set; }
-    public string phone { get; set; }
-    public string email { get; set; }
-    public int state { get; set; }
-    public long department_id { get; set; }
-    public DateTime create_time { get; set; }
-    public string avatar { get; set; }
-}
-
-// 消费方按需取字段——不需要为不同场景创建不同 View：
-// 列表页：只用 id、user_name、state
-var userInfo = await _userCache.GetUserInfo(id);
-var displayName = userInfo?.user_name;
-
-// 详情页：使用全部字段
-var userInfo = await _userCache.GetUserInfo(id);
-```
-
-### 何时可以拆分缓存
-
-以下情况**可以**使用不同的 key 或 View，因为它们本质上不是"同一实体的字段子集"：
-
-| 场景 | 说明 |
-|------|------|
-| **不同实体** | `UserView` 和 `DepartmentView` 是不同实体，各自独立缓存 |
-| **不同生命周期** | 同一实体的高频数据（TTL 10 分钟）和低频数据（TTL 24 小时），且更新频率差异极大时，可以考虑拆分——但这属于例外情况，需有充分理由 |
-| **不同数据来源** | 缓存数据来自不同的数据库表或不同的查询逻辑（如聚合结果），不是同一行的不同列 |
-| **多键索引** | 同一 View 通过不同字段索引（如 `user.{id}`、`user.phone.{phone}`），这是索引复用，不是字段子集拆分 |
-
-> 完整的正反例对比见 `references/cache-examples.md`「缓存对象复用示例」章节
-
-## 重要规范
-
-1. **命名规范**：缓存键小写+点号分隔，View 类名以 `View` 结尾，属性小写与数据库一致，缓存类以 `Cache` 结尾（如 `UserCache`）
-2. **性能规范**：必须 `AsNoTracking()`，批量查询用 `ANY`，避免循环查询
-3. **一致性规范**：数据变更后立即删除对应缓存 key，多键场景删除所有关联 key
-4. **复用规范**：同一实体统一使用一个 View + 一个 key，View 包含所有场景所需字段的合集，消费方按需读取字段而非创建字段子集缓存
-5. **批量优先规范**：涉及多个 key 的操作使用 `RemoveMultiple`/`GetMultiple`/`AddOrUpdateMultiple`，而非循环调用单个方法。每次循环调用都是一次 Redis 网络往返，批量操作将多次往返合并为一次，显著降低延迟
-
-> 实体模型禁止使用数据注解（Fluent API 配置）。**例外**：`[DbBulk]` 特性是批量操作框架要求，可以使用。
-
-## 详细示例
-
-完整的缓存实现示例（基础模式、多键场景、树形结构、Controller 调用），请参阅：`references/cache-examples.md`
+参考 [cache-examples.md](references/cache-examples.md) 查看 UserCache 和 MenuCache 的完整代码。
 
 ## 相关技能
 
-- **backend-workflow**: 文档驱动开发流程和交付标准
-- **net-efcore-developer**: 数据库实体开发（缓存基于实体创建 View 和 Query 方法）
-- **net-api-developer**: API 接口开发（缓存通过 API 层注入 {Domain}Cache 调用）
+- **backend-workflow**: 完整工作流和文档驱动开发
+- **net-efcore-developer**: 数据库实体开发（缓存基于实体创建 View 和 Query）
+- **net-api-developer**: API 接口开发（缓存通过 Service 层注入调用）
 - **net-database-bulkcopy**: 批量数据操作（批量导入后需删除对应缓存）

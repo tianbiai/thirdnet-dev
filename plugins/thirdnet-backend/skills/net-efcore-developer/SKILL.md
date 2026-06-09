@@ -1,12 +1,18 @@
 ---
 name: net-efcore-developer
-version: 2.0.0
-description: EF Core 数据库开发专家，覆盖实体建模到迁移管理的完整流程。当涉及数据库实体设计、表结构定义、新增字段、FluentAPI 配置、DbContext 创建、生成迁移、SQL 视图查询、数据归档或批量数据清理等场景时使用此技能。即使用户只是提到"加个字段"、"建张表"、"数据库迁移"、"写个查询"等日常数据库操作，也应激活此技能。
+description: >
+  ThirdNet 数据库实体开发规范。覆盖 DbContext 约定（schema、t_ 前缀、long id 主键、
+  xmin 乐观并发、ApplyConfigurationsFromAssembly）、实体建模（IAuditableEntity、
+  ConfigureAuditFields）、EntityConfiguration 模式、Pooled DbContextFactory、迁移命令、
+  双数据库上下文、Fluent API 配置（禁止 Data Annotations）、CTE 批量数据处理、
+  原生 SQL 查询模式、复杂类型（JSONB/数组）配置。
+  当用户提到"实体"、"数据库"、"DbContext"、"t_sys_"、"IAuditableEntity"、
+  "ConfigureAuditFields"、"migration"、"xmin"、"schema"、"创建实体"、"新建表"、
+  "EF Core 配置"、"加个字段"、"建张表"、"数据库迁移"、"写个查询"、"CTE"、
+  "批量数据处理"时，必须使用此技能。
 ---
 
-## 角色
-
-你是一名**资深 .NET 后端开发工程师**，负责按公司规范开发 EF Core 数据库实体和迁移文件。
+# ThirdNet 数据库实体开发
 
 ## 核心规则
 
@@ -34,14 +40,10 @@ public class UserModel
 
 | 类型 | 规范 | 示例 |
 |-----|------|------|
-| 实体类 | `Model` 后缀 | `UserInfoModel` |
-| 属性/字段 | 小写字母 | `user_name` |
-| 表名 | `t_` 前缀 + 小写下划线 | `t_user_info` |
+| 实体类 | `Model` 后缀 | `SysUserModel`、`SysRoleModel` |
+| 属性/字段 | snake_case | `user_name` |
+| 表名 | `t_` 前缀 + snake_case | `t_sys_user`、`t_sys_role` |
 | 主键 | `long` 类型 | `public long id` |
-
-### Schema 隔离
-
-每个微服务使用独立 schema，以服务名命名：合同服务 → `contract`，用户服务 → `user`，订单服务 → `order`，认证服务 → `identity`。
 
 ### 字符串映射
 
@@ -51,93 +53,171 @@ public class UserModel
 
 - **不创建外键**，通过对应 id 关联
 - 迁移文件仅在用户明确要求时创建
+- **每个 .cs 文件只定义一个类型**（Model、Configuration、View 各自独立成文件）
 
-### 文件组织
+### Schema 隔离
 
-每个 .cs 文件只定义一个类型。实体 Model 和 Fluent API Configuration 各自独立成文件：
+每个微服务使用独立 schema：Admin 项目 → `admin`，自定义微服务 → 自定义 schema。
 
-- `Models/UserInfoModel.cs` → 仅包含 `UserInfoModel`
-- `Configurations/UserInfoConfiguration.cs` → 仅包含 `UserInfoConfiguration`
-- `Views/UserInfoView.cs` → 仅包含 `UserInfoView`
+## DbContext 核心约定
 
-禁止将多个 Model、Configuration 或 View 放在同一文件中。
+### AdminDbContext
 
-## 实体模型模板
-
-```csharp
-public class UserInfoModel
-{
-    public long id { get; set; }
-    public string user_name { get; set; }
-    public string email { get; set; }
-    public DateTime create_time { get; set; }
-}
-```
-
-## Fluent API 配置模板
+参考文件：`backend/src/Admin/{ProjectName}.Admin.Database/DbContext/AdminDbContext.cs`
 
 ```csharp
-public class UserInfoConfiguration : IEntityTypeConfiguration<UserInfoModel>
+protected override void OnModelCreating(ModelBuilder modelBuilder)
 {
-    public void Configure(EntityTypeBuilder<UserInfoModel> builder)
+    // 所有表放在 admin schema 下
+    modelBuilder.HasDefaultSchema("admin");
+
+    // 自动扫描当前程序集中所有 IEntityTypeConfiguration<T> 实现
+    modelBuilder.ApplyConfigurationsFromAssembly(typeof(AdminDbContext).Assembly);
+
+    // 乐观并发：PostgreSQL xmin 列（对所有实体自动注册）
+    foreach (var entityType in modelBuilder.Model.GetEntityTypes())
     {
-        // ToTable(表名, schema, 配置动作)
-        builder.ToTable("t_user_info", "contract", t => t.HasComment("用户信息表"));
-        builder.HasKey(x => x.id);
-        builder.Property(x => x.id).HasComment("主键ID");
-
-        builder.Property(x => x.user_name)
-            .IsRequired()
-            .HasComment("用户名");
-
-        builder.Property(x => x.email)
-            .IsRequired()
-            .HasComment("邮箱地址");
-
-        builder.Property(x => x.create_time)
-            .HasDefaultValueSql("now()")
-            .HasComment("创建时间");
-
-        builder.HasIndex(x => x.user_name).HasDatabaseName("idx_user_name");
-        builder.HasIndex(x => x.email).IsUnique().HasDatabaseName("idx_email");
+        modelBuilder.Entity(entityType.ClrType, b =>
+            b.Property<uint>("xmin").IsRowVersion().ValueGeneratedOnAddOrUpdate());
     }
 }
 ```
 
-> **复杂类型**（JSONB 拥有类型、字典、数组）的配置模式，详见 `references/complex-types.md`。
+关键点：
+- `HasDefaultSchema("admin")` — 所有表在 admin schema 下，无需在每个配置中重复声明
+- `ApplyConfigurationsFromAssembly` — 新增实体只需创建 Configuration 类，无需手动注册
+- xmin 并发令牌 — 自动对所有实体注册，新增实体无需手动添加
 
-## 项目结构与迁移
+### 注册方式
 
-所有数据库代码（Model、Configuration、DbContext、Migration）统一在 `.Database` 项目中。
+使用 Pooled DbContextFactory（非直接注入 DbContext）：
 
-### 迁移文件位置
+```csharp
+// 在 Startup.cs 中注册
+services.AddPooledDbContextFactory<AdminDbContext>(options =>
+{
+    options.UseNpgsql(connectionString,
+        b => b.MigrationsAssembly("{ProjectName}.Admin.Database"));
+});
 
-```
-{ServiceName}.Database/Migrations/{ShortName}/
-├── 20250212_InitialCreate.cs
-├── 20250212_InitialCreate.Designer.cs
-└── {DbContextName}ModelSnapshot.cs
-```
-
-- 文件夹名 = DbContext 类名去掉 `DbContext` 后缀（如 `ContractDbContext` → `Contract`）
-
-### 生成迁移命令
-
-在**服务根目录**（`backend/{ServiceName}/`）执行：
-
-```bash
-dotnet ef migrations add {MigrationName} \
-  --project {ServiceName}.Database \
-  --startup-project {ServiceName}.API \
-  --output-dir Migrations/{ShortName}
+// 在 Service 中使用
+await using var db = await _dbFactory.CreateDbContextAsync();
 ```
 
-| 参数 | 说明 | 示例 |
-|-----|------|------|
-| `{MigrationName}` | PascalCase 迁移名 | `InitialCreate`、`AddUserTable` |
-| `{ShortName}` | DbContext 名去掉 `DbContext` | `ContractDbContext` → `Contract` |
+为什么不直接注入 DbContext？因为 Pooled Factory 性能更好，且避免长生命周期的 DbContext 导致的问题。
 
-> **DbContext 模板、注册、连接字符串、自动迁移配置**，详见 `references/dbcontext-and-queries.md`。
+### ServiceDbContext
+
+自定义微服务使用 `ServiceDbContext`，与 AdminDbContext 模式相同但使用自定义 schema。详见 `net-microservice-generator` 技能。
+
+## 实体建模规范
+
+### 完整实体模板
+
+```csharp
+using {ProjectName}.Admin.Common.Enums;
+using {ProjectName}.Admin.Common.Interfaces;
+
+namespace {ProjectName}.Admin.Database.Models
+{
+    /// <summary>
+    /// 实体描述。
+    /// <para>对应数据库表：t_xxx_xxx。</para>
+    /// </summary>
+    public class XxxModel : IAuditableEntity
+    {
+        /// <summary>主键（bigint 自增）</summary>
+        public long id { get; set; }
+
+        // 业务字段...
+
+        /// <summary>创建人</summary>
+        public string created_by { get; set; }
+        /// <summary>创建时间</summary>
+        public DateTime created_time { get; set; }
+        /// <summary>更新人</summary>
+        public string? updated_by { get; set; }
+        /// <summary>更新时间</summary>
+        public DateTime? updated_time { get; set; }
+        /// <summary>备注</summary>
+        public string remark { get; set; }
+    }
+}
+```
+
+### IAuditableEntity 审计字段
+
+大部分实体实现 `IAuditableEntity` 接口，提供 5 个标准审计字段：`created_by`、`created_time`、`updated_by`、`updated_time`、`remark`。
+
+**不适用 IAuditableEntity 的实体**：日志表（本身就是审计记录）、中间关联表。
+
+## EntityConfiguration 规范
+
+### 配置模板
+
+```csharp
+public class XxxConfiguration : IEntityTypeConfiguration<XxxModel>
+{
+    public void Configure(EntityTypeBuilder<XxxModel> builder)
+    {
+        // 表名（t_ 前缀 + snake_case）
+        builder.ToTable("t_xxx_xxx");
+
+        // 主键
+        builder.HasKey(x => x.id);
+
+        // 唯一索引
+        builder.HasIndex(x => x.field).IsUnique();
+
+        // 字段配置
+        builder.Property(x => x.id).HasComment("主键");
+        builder.Property(x => x.field).IsRequired().HasComment("字段描述");
+
+        // 审计字段（一行搞定 5 个字段）
+        builder.ConfigureAuditFields();
+    }
+}
+```
+
+### 关键约定
+
+| 约定 | 说明 |
+|------|------|
+| 表名前缀 | `t_` 开头（如 `t_sys_user`） |
+| 主键 | `long id`（bigint 自增） |
+| 审计字段 | `ConfigureAuditFields()` 一行配置 |
+| 默认时间 | `HasDefaultValueSql("now()")` 在 ConfigureAuditFields 中已包含 |
+| 索引命名 | `HasDatabaseName("idx_xxx_field")` |
+| 唯一索引 | `HasIndex(x => x.field).IsUnique()` |
+| 复合唯一索引 | `HasIndex(x => new { x.a, x.b }).IsUnique()` |
+
+## 中间关联表
+
+多对多关系使用独立的关联实体（不使用 EF Core 导航属性）：
+
+```csharp
+public class SysUserRoleModel
+{
+    public long id { get; set; }      // 自增主键
+    public long user_id { get; set; } // 用户 ID
+    public long role_id { get; set; } // 角色 ID
+}
+
+// 配置
+builder.ToTable("t_sys_user_role");
+builder.HasKey(x => x.id);
+builder.HasIndex(x => new { x.user_id, x.role_id }).IsUnique(); // 复合唯一
+```
+
+## 树形结构实体
+
+菜单和部门使用 `parent_id` 实现树形结构：
+
+```csharp
+public long? parent_id { get; set; }  // 可空，顶级节点 parent_id = null
+```
+
+树形数据在缓存层通过 `TreeBuilder.BuildForest()` 构建树形结构。
 
 ## Model 与 View 的区别
 
@@ -148,7 +228,35 @@ dotnet ef migrations add {MigrationName} \
 | 配置 | 需要 Fluent API | 无需配置 |
 | 操作 | 增删改查 | 仅查询 |
 
-> **原生 SQL 查询模式**（单条、列表、批量 ANY、JOIN、字典），详见 `references/dbcontext-and-queries.md`。
+## 迁移命令
+
+```bash
+# 添加迁移
+dotnet ef migrations add AddXxxEntity \
+  --project backend/src/Admin/{ProjectName}.Admin.Database \
+  --startup-project backend/src/Admin/{ProjectName}.Admin.APIService
+
+# 应用迁移
+dotnet ef database update \
+  --project backend/src/Admin/{ProjectName}.Admin.Database \
+  --startup-project backend/src/Admin/{ProjectName}.Admin.APIService
+
+# 回滚到指定迁移
+dotnet ef database update <MigrationName> \
+  --project backend/src/Admin/{ProjectName}.Admin.Database \
+  --startup-project backend/src/Admin/{ProjectName}.Admin.APIService
+```
+
+## 双数据库上下文区别
+
+| 特性 | ThirdNetDbContext | AdminDbContext |
+|------|-------------------|----------------|
+| 来源 | Vibe.WebAPI 框架 | 业务项目 |
+| Schema | public | admin |
+| 用途 | Token、权限目录、API 配置 | 用户、角色、菜单、部门等 |
+| 连接字符串 | DefaultConnectionString | ConnectionString |
+| 迁移程序集 | APIService | Database |
+| 注册方式 | 框架内部注册 | 手动 AddPooledDbContextFactory |
 
 ## CTE 批量数据处理
 
@@ -160,7 +268,6 @@ dotnet ef migrations add {MigrationName} \
 数据来源是什么？
 ├── 数据在应用内存中（Excel/API/外部系统）
 │   └── → net-database-bulkcopy（COPY 二进制协议）
-│       数据量 > 1000？是 → BulkCopy，否 → EF Core SaveChanges
 └── 数据已在数据库中（归档/清理/迁移/状态变更）
     ├── 多步骤组合（查询 → 写入 → 删除）
     │   └── → CTE 批量模式（本章节）
@@ -170,20 +277,18 @@ dotnet ef migrations add {MigrationName} \
 
 ### 核心模式
 
-将 SELECT → INSERT INTO...SELECT → DELETE 封装在一条 `WITH` 语句中：
-
 ```sql
 WITH
   matched AS (
-    SELECT id, column_a FROM contract.t_target WHERE status = @Status
+    SELECT id, column_a FROM admin.t_target WHERE status = @Status
   ),
   archived AS (
-    INSERT INTO contract.t_history (id, column_a, archived_at)
+    INSERT INTO admin.t_history (id, column_a, archived_at)
     SELECT id, column_a, NOW() FROM matched
     RETURNING id
   ),
   removed AS (
-    DELETE FROM contract.t_target WHERE id IN (SELECT id FROM archived)
+    DELETE FROM admin.t_target WHERE id IN (SELECT id FROM archived)
     RETURNING id
   )
 SELECT COUNT(*) AS removed_count FROM removed;
@@ -193,34 +298,33 @@ SELECT COUNT(*) AS removed_count FROM removed;
 
 ```csharp
 // 需要返回结果 → SqlQueryRaw + View 模型
-var result = await _dbcontext.Database.SqlQueryRaw<BatchResultView>(sql, param)
+var result = await db.Database.SqlQueryRaw<BatchResultView>(sql, param)
     .AsNoTracking().FirstOrDefaultAsync();
 
 // 仅执行操作 → ExecuteSqlInterpolated
-await _dbcontext.Database.ExecuteSqlInterpolatedAsync($@"WITH ... DELETE ...");
+await db.Database.ExecuteSqlInterpolatedAsync($@"WITH ... DELETE ...");
 ```
 
 ### 约束
 
 - 禁止将 CTE 逻辑拆解为多次 `SaveChanges()` 调用
 - 参数使用 `$""` 内插语法或 `NpgsqlParameter`，严禁字符串拼接 SQL
-- 超过 5 个 CTE 节点时应评估拆分或改用存储过程
 - SQL 中表名必须带 schema 前缀
-
-> **4 种典型场景的完整代码示例**（归档、同步、级联清理、状态迁移），详见 `references/cte-batch-patterns.md`。
 
 ## 参考文件索引
 
 | 文件 | 内容 | 何时读取 |
 |-----|------|---------|
-| `references/complex-types.md` | JSONB、数组类型的配置模式 | 遇到嵌套对象或数组字段时 |
-| `references/dbcontext-and-queries.md` | DbContext 模板、注册、连接字符串、自动迁移、原生 SQL 查询 | 需要创建/配置 DbContext 或编写 SQL 查询时 |
-| `references/cte-batch-patterns.md` | CTE 批量处理的 4 种完整场景示例 | 实现数据归档、同步、清理、迁移时 |
+| [entity-examples.md](references/entity-examples.md) | SysUserModel、SysRoleModel、SysMenuModel 完整示例 | 创建新实体时参考 |
+| [cte-batch-patterns.md](references/cte-batch-patterns.md) | CTE 批量处理的 4 种完整场景示例 | 实现数据归档、同步、清理时 |
+| [complex-types.md](references/complex-types.md) | JSONB、数组类型的配置模式 | 遇到嵌套对象或数组字段时 |
+| [dbcontext-and-queries.md](references/dbcontext-and-queries.md) | DbContext 模板、注册、原生 SQL 查询 | 配置 DbContext 或编写 SQL 查询时 |
 
 ## 相关技能
 
-- **backend-workflow**: 文档驱动开发流程
-- **net-microservice-generator**: 项目结构生成和 Startup.cs 配置
+- **backend-workflow**: 完整工作流和文档驱动开发
+- **net-microservice-generator**: 微服务项目结构
 - **net-api-developer**: API 接口开发
-- **net-cache-use**: 缓存集成
-- **net-database-bulkcopy**: 应用内存数据批量导入数据库（COPY 协议）
+- **net-cache-use**: 缓存集成（View 模型与缓存配合）
+- **net-database-bulkcopy**: 应用内存数据批量导入（COPY 协议）
+- **net-enum-dict**: 枚举字典管理（实体中的状态/类型枚举字段）

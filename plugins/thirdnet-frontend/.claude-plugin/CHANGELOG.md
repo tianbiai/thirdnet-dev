@@ -66,7 +66,7 @@
 
 ### Changed
 - **架构升级**：适配器模式 + Mock 路由拦截层 → 接口契约的策略工厂模式，Mock 逻辑从适配器层移入 `MockXxxApi` 类
-- **无缝切换**：通过 `.env` 中 `VITE_MOCK=true/false` 控制，工厂函数自动选择策略，业务代码零修改
+- **无缝切换**：通过 `.env` 中 `VITE_MOCK_ENABLED=true/false` 控制，工厂函数自动选择策略，业务代码零修改
 - 重写 `skills/api-typescript-spec/SKILL.md`：完整策略工厂模式规范，包含设计模式说明、枚举规范、认证模块示例
 - 更新 `agents/frontend-developer.md`：规则2 新增 TypeScript 强制和枚举规范，规则9 从"API-Mock 一一对应"改为"API 策略工厂架构"
 - 更新 `rules/skills-checklist.md`：API-Mock 章节改为"API 策略工厂架构"，新增接口契约、策略实现、工厂函数、枚举规范等要点

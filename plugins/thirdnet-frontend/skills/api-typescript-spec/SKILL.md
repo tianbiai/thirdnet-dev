@@ -105,7 +105,7 @@ interface RequestConfig<TData = unknown> {
   method: 'GET' | 'POST'
   data?: TData
   params?: Record<string, unknown>
-  endpoint?: Endpoint
+  endpoint?: Endpoint  // 可选，当 url 为相对路径时由适配器拼接为 /api/{endpoint}{url}；当 url 已包含完整前缀时忽略此字段
 }
 
 interface ApiError { status: number; message: string }
@@ -143,9 +143,78 @@ interface RequestAdapter {
 - 401 处理：尝试 refreshToken，失败则 clearToken 并跳转登录页
 - uni.request 需手动拼接 query string，错误判断用 `statusCode >= 400`
 
-**uniapp 项目适配器选择**：对于 uniapp 项目，H5 和 MP-WEIXIN 均使用 `UniAdapter`，无需条件编译选择适配器。条件编译仅在 `token.ts` 等需要区分 `localStorage` 和 `uni.getStorageSync` 的场景中使用。
+**`adapter.uni.ts` 参考实现**：
+```typescript
+import type { RequestAdapter, RequestConfig } from './adapter'
+import type { ApiError } from '@/api/types/common'
+import { getToken, clearToken } from '@/utils/token'
 
-**统一导出** — `request.ts`（条件编译选择平台适配器）：
+export class UniAdapter implements RequestAdapter {
+  async request<TResponse>(config: RequestConfig): Promise<TResponse> {
+    const token = getToken()
+    const header: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `bearer ${token}` } : {}),
+    }
+
+    // 拼接 URL（处理 GET 请求的 query string）
+    let url = config.url
+    if (config.method === 'GET' && config.params) {
+      const qs = Object.entries(config.params)
+        .filter(([, v]) => v !== undefined && v !== null)
+        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
+        .join('&')
+      if (qs) url += (url.includes('?') ? '&' : '?') + qs
+    }
+
+    return new Promise<TResponse>((resolve, reject) => {
+      uni.request({
+        url,
+        method: config.method,
+        data: config.data,
+        header,
+        success: (res) => {
+          if (res.statusCode === 401) {
+            clearToken()
+            uni.reLaunch({ url: '/pages/login/index' })
+            reject({ status: 401, message: '登录已过期' } as ApiError)
+            return
+          }
+          if ((res.statusCode ?? 0) >= 400) {
+            reject({ status: res.statusCode, message: `请求失败: ${res.statusCode}` } as ApiError)
+            return
+          }
+          resolve(res.data as TResponse)
+        },
+        fail: (err) => {
+          reject({ status: 0, message: err.errMsg || '网络请求失败' } as ApiError)
+        },
+      })
+    })
+  }
+}
+```
+
+**要点**：
+- `uni.request` 不像 Axios 自动处理 query string，GET 请求需要手动拼接
+- 错误通过 `statusCode` 判断（不是 Axios 的 `response.status`）
+- 401 处理使用 `uni.reLaunch` 跳转登录页（不能用 `router.push`，小程序端无 window/router）
+
+**uniapp 项目适配器选择**：对于纯 uniapp 项目（同时编译 H5 和 MP-WEIXIN），两个平台均使用 `UniAdapter`，无需条件编译选择适配器。条件编译仅在 `token.ts` 等需要区分 `localStorage` 和 `uni.getStorageSync` 的场景中使用。
+
+**统一导出** — `request.ts`（根据项目类型选择）：
+
+**场景 A：纯 uniapp 项目**（H5 + 小程序均走 uni.request）：
+```typescript
+import { UniAdapter } from './adapter.uni'
+const adapter: RequestAdapter = new UniAdapter()
+
+export function request<TResponse>(config: RequestConfig): Promise<TResponse> {
+  return adapter.request<TResponse>(config)
+}
+```
+
+**场景 B：双平台项目**（Web 端用 Axios，小程序端用 uni.request）：
 ```typescript
 // #ifdef H5
 import { AxiosAdapter } from './adapter.web'
@@ -392,10 +461,15 @@ resolve: {
 
 ```typescript
 // src/mock_prod_stub.ts — 空模块，仅在 production 构建时替代 @/mock/**
+// 此文件不需要导出任何内容，因为：
+// 1. Vite alias 将所有 @/mock/** 的 import 重定向到此文件
+// 2. MOCK_ENABLED 静态为 false，工厂函数中 Mock 分支（import { MockXxxApi }）不可达
+// 3. Rollup tree-shaking 移除整个不可达分支，命名 import 在最终产物中不存在
+// 因此 TypeScript 编译阶段的 import 语句会被完全消除，不会触发解析错误
 export default {}
 ```
 
-**原理**：生产构建时，所有 `@/mock/**` 的静态 import 被重定向到空模块 `mock_prod_stub.ts`（仅 `export default {}`）。配合 `MOCK_ENABLED` 静态为 `false`，工厂函数的 Mock 分支成为不可达代码，Rollup tree-shaking 移除整个 Mock 分支——Mock API 类、Mock 数据文件、Mock 工具函数均不会出现在最终包中。非 production 模式下 alias 不生效，Mock 模块正常参与构建。
+**原理**：生产构建时，所有 `@/mock/**` 的静态 import 被 Vite alias 重定向到空模块 `mock_prod_stub.ts`。由于 `MOCK_ENABLED` 静态为 `false`，工厂函数中 `new MockXxxApi()` 所在的 `if (MOCK_ENABLED)` 分支成为不可达代码。Rollup 在 tree-shaking 阶段会移除整个不可达分支，包括对 `MockXxxApi` 的 `import` 语句本身，因此命名导入不会触发运行时解析错误——Mock API 类、Mock 数据文件、Mock 工具函数均不会出现在最终包中。非 production 模式下 alias 不生效，Mock 模块正常参与构建。
 
 **切换流程**：通过不同构建命令自动选择对应 `.env.*` 文件，无需手动修改配置。工厂函数在模块初始化时执行一次，运行期间不再切换。
 
@@ -424,11 +498,95 @@ export interface IAuthApi {
 }
 ```
 
-**`api/modules/app/auth.ts`** — Real 实现调用 `/connect/token`，工厂函数 + 模块实例与普通模块相同。
+**`api/modules/app/auth.ts`** — Real 实现调用 `/connect/token`，工厂函数 + 模块实例与普通模块相同：
+```typescript
+import { request } from '@/api/request'
+import { MOCK_ENABLED } from '@/config'
+import type { IAuthApi } from '@/api/interfaces/app/auth'
+import type { LoginParams, TokenResponse, CurrentUserResponse } from '@/api/types/auth'
+import { MockAuthApi } from '@/mock/api/app/auth'
 
-**`mock/api/app/auth.ts`** — Mock 实现返回固定 token。
+// ---- Real 实现（调用 IdentityServer Connect 端点）----
 
-**`mock/data/app/auth.ts`** — Mock 数据。
+class RealAuthApi implements IAuthApi {
+  async login(data: LoginParams): Promise<TokenResponse> {
+    // IdentityServer /connect/token 端点要求 form-urlencoded
+    const body = new URLSearchParams()
+    body.append('username', data.username)
+    body.append('password', data.password)
+    body.append('grant_type', 'password')
+    if (data.scope) body.append('scope', data.scope)
+    return request<TokenResponse>({
+      url: '/connect/token', method: 'POST', data: Object.fromEntries(body),
+    })
+  }
+  async refreshToken(data: { refresh_token: string }): Promise<TokenResponse> {
+    const body = new URLSearchParams()
+    body.append('refresh_token', data.refresh_token)
+    body.append('grant_type', 'refresh_token')
+    return request<TokenResponse>({
+      url: '/connect/token', method: 'POST', data: Object.fromEntries(body),
+    })
+  }
+  async getCurrentUser(): Promise<CurrentUserResponse> {
+    return request<CurrentUserResponse>({ url: '/app/auth/current-user', method: 'GET' })
+  }
+}
+
+// ---- 工厂函数（Simple Factory）----
+
+export function createAuthApi(): IAuthApi {
+  return MOCK_ENABLED ? new MockAuthApi() : new RealAuthApi()
+}
+
+// ---- 模块实例（模块级单例）----
+
+export const authApi = createAuthApi()
+```
+
+**要点**：
+- IdentityServer `/connect/token` 端点要求 `application/x-www-form-urlencoded` 格式，Real 实现使用 `URLSearchParams` 构建
+- `login` 和 `refreshToken` 都走同一个 `/connect/token` 端点，通过 `grant_type` 区分
+- 工厂函数和模块单例结构与普通模块完全一致
+
+**`mock/api/app/auth.ts`** — Mock 实现返回固定 token：
+```typescript
+import type { IAuthApi } from '@/api/interfaces/app/auth'
+import type { TokenResponse, CurrentUserResponse } from '@/api/types/auth'
+import { mockCurrentUser } from '@/mock/data/app/auth'
+
+export class MockAuthApi implements IAuthApi {
+  async login(): Promise<TokenResponse> {
+    // Mock 模式直接返回固定 token，无需校验用户名密码
+    return { access_token: 'mock_access_token_12345', refresh_token: 'mock_refresh_token_12345' }
+  }
+  async refreshToken(): Promise<TokenResponse> {
+    return { access_token: 'mock_access_token_refreshed', refresh_token: 'mock_refresh_token_refreshed' }
+  }
+  async getCurrentUser(): Promise<CurrentUserResponse> {
+    return mockCurrentUser
+  }
+}
+```
+
+**要点**：
+- Mock 登录不校验凭据，直接返回固定 token，开发阶段无需真实账号
+- 实现 `IAuthApi` 接口，方法签名与接口契约一致
+
+**`mock/data/app/auth.ts`** — Mock 数据：
+```typescript
+import type { CurrentUserResponse } from '@/api/types/auth'
+
+export const mockCurrentUser: CurrentUserResponse = {
+  user_id: 1,
+  username: 'admin',
+  role: 'Administrator',
+}
+```
+
+**要点**：
+- 只导出 Mock 数据，不包含任何逻辑
+- `import type` 引入类型保持一致性
 
 ## 文件对应关系
 

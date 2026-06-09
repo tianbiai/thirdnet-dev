@@ -4,7 +4,7 @@
 
 `PostgresqlAsyncBulk` 是一个针对 PostgreSQL 数据库的高性能批量操作类。基于 Npgsql 的 `COPY` 命令实现，支持二进制格式导入，提供高效的数据插入、更新、合并及同步功能。
 
-**命名空间**: `ThirdNet.Core.Common`
+**命名空间**: `ThirdNet.Vibe.Common`
 **核心接口**: `IDbAsyncBulk`
 
 ## 初始化
@@ -477,7 +477,7 @@ using (var connection = new NpgsqlConnection(connectionString))
 ### 使用示例
 
 ```csharp
-using ThirdNet.Core.Common;
+using ThirdNet.Vibe.Common;
 using NpgsqlTypes;
 
 public class User

@@ -2,6 +2,8 @@
 
 本文档提供 4 种典型 CTE 批量处理场景的完整代码示例和参数绑定模式。
 
+> **关于 schema 前缀**：以下示例使用 `contract.`、`product.`、`order_.`、`application.` 等 schema，均来自不同的**微服务项目**（Service 项目各自拥有独立 schema）。Admin 项目的表使用 `admin.` 前缀。实际开发中请替换为你所开发项目的 schema 名称。
+
 ## 目录
 
 1. [数据归档](#1-数据归档)

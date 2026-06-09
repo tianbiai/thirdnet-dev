@@ -7,7 +7,7 @@
 ```
 thirdnet-dev/
 ├── plugins/
-│   ├── thirdnet-backend/     # .NET 10 微服务后端开发插件 (v0.13.0)
+│   ├── thirdnet-backend/     # .NET 10 微服务后端开发插件 (v0.20.0)
 │   └── thirdnet-frontend/    # Vue 3 前端开发插件 (v0.22.0)
 └── .claude-plugin/
     └── marketplace.json      # 插件集合注册清单
@@ -29,7 +29,7 @@ thirdnet-dev/
 
 每个插件通过 `skills/` 目录组织领域知识：
 
-- **Backend**：8 个技能覆盖微服务生成、API 开发、EF Core、认证、缓存、后台任务、批量操作、密钥生成
+- **Backend**：10 个技能覆盖微服务生成、API 开发、EF Core、认证、RBAC 权限、缓存、后台任务、批量操作、枚举字典、后端工作流
 - **Frontend**：9 个技能覆盖 Vue 3 最佳实践、设计规范、API TypeScript 规范、文档模板、Pinia、Router、JSX、Composable 设计、Apple 设计规范
 
 ## 插件说明
@@ -39,7 +39,7 @@ thirdnet-dev/
 .NET 10 微服务后端开发专家，技术栈：
 
 - .NET 10 + PostgreSQL + EF Core
-- ThirdNet.Core 框架（自定义模板）
+- ThirdNet.Vibe 框架（自定义模板）
 - Redis 缓存 + JWT 认证
 - 仅允许 GET/POST 方法（网关限制）
 

@@ -1,21 +1,33 @@
-# [服务名称]
+# [项目名称]
 
-> 服务级规格说明。编写前必须阅读相关技能文档。
+> 项目级规格说明。覆盖项目中所有服务的功能、数据模型和接口设计。编写前必须阅读相关技能文档。
 
 ---
 
-## 业务与功能
+## 项目概述
 
-### 服务概述
+**项目名称**：[ProjectName]
 
-**服务名称**：[ServiceName]
+**核心目标**：
+- [目标1]
+- [目标2]
 
-**服务职责**：
+**技术栈**：.NET 10 + PostgreSQL + EF Core + Redis + ThirdNet 框架
+
+---
+
+## 服务 [ServiceName]
+
+> 每个服务作为一个独立的二级章节，可按需复制此模板块。
+
+### 服务职责
+
 - [职责1]
 - [职责2]
 
-**依赖服务**：
-- IdentityService - 认证授权服务
+### 依赖服务
+
+- AdminService — 认证授权（ThirdNet 框架）
 - [其他依赖服务]
 
 ### 功能模块
@@ -35,7 +47,7 @@
 
 ### API 接口清单
 
-> ⚠️ **API 接口规范请参阅 **net-api-developer** 技能**（路径规范、HTTP 方法限制、响应格式、Controller 命名规则等）。
+> ⚠️ **API 接口规范请参阅 net-api-developer 技能**（路径规范、HTTP 方法限制、响应格式、Controller 命名规则等）。
 
 | 方法 | 路由 | Controller | 功能 | 优先级 | 认证 |
 |------|------|------------|------|--------|------|
@@ -44,41 +56,14 @@
 | POST | `/api/[module]/[resource]/delete` | `[Resource]ManagerController` | 删除资源 | P0 | ✅ |
 | GET | `/api/[module]/[resource]` | `[Resource]ManagerController` | 获取资源 | P0 | ✅ |
 
----
+### 数据模型
 
-## 数据模型
-
-### 数据库表
-
-| 表名 | 说明 | 主键类型 |
-|------|------|----------|
-| `t_table1` | [说明] | `long` |
-| `t_table2` | [说明] | `long` |
-
-### 字段配置规范
+| 表名 | Schema | 说明 | 主键类型 |
+|------|--------|------|----------|
+| `t_table1` | [schema] | [说明] | `long` |
+| `t_table2` | [schema] | [说明] | `long` |
 
 > 字段配置、命名规范、主键要求等请遵循 **net-efcore-developer** 技能的 Fluent API 配置规范。
-
----
-
-## 架构设计
-
-### 项目结构
-
-> 项目结构请参阅 **net-microservice-generator** 技能中的"标准目录结构"章节。
-
-### 分层架构
-
-- **Api 层**：Controller、路由、认证授权
-- **Database 层**：实体模型、Fluent API 配置、DbContext
-
-### 依赖注入
-
-| 生命周期 | 适用场景 |
-|----------|----------|
-| Transient | 轻量级无状态服务 |
-| Scoped | DbContext、业务服务 |
-| Singleton | 配置、缓存、HTTP 客户端 |
 
 ---
 
@@ -86,12 +71,12 @@
 
 ### 认证机制
 
-- **认证方式**：[Bearer Token / Basic Auth / 无需认证]
-- **认证服务**：[IdentityService]
+- **认证方式**：Basic Auth + Bearer Token（JWT）
+- **认证服务**：Admin（IAccountValidator）
 
 ### 授权策略
 
-使用 ThirdNet 框架自定义授权。
+使用 ThirdNet 框架自定义授权（`[PermissionAuthorize]`）。
 
 ### 安全防护
 
@@ -159,7 +144,7 @@
 
 | 文件 | 提交 Git | 用途 |
 |------|---------|------|
-| `appsettings.json` | ✅ | 配置模板，`#{KEY}#` 占位符，定义所有配置节结构 |
+| `appsettings.json` | ✅ | 配置模板，使用说明性字符串，定义所有配置节结构 |
 | `appsettings.Development.json` | ❌ | 本地开发真实值，覆盖模板中的对应项 |
 
 ### 日志策略

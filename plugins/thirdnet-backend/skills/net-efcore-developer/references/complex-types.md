@@ -2,6 +2,8 @@
 
 JSONB 和数组类型的实体模型与 Fluent API 配置模式。
 
+> **关于 schema 前缀**：以下示例使用 `builder.ToTable("t_order", "order", ...)` 格式（带显式 schema）。这适用于**微服务项目**（自定义 schema）。**Admin 项目**使用 `HasDefaultSchema("admin")`，无需在 `ToTable` 中指定 schema，写法为 `builder.ToTable("t_order", t => t.HasComment("订单表"))`。详见 `net-efcore-developer` 主技能文档。
+
 ## JSONB 类型
 
 用于存储 JSON 格式的复杂数据（嵌套对象或字典结构）。

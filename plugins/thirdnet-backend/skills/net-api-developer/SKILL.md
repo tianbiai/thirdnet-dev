@@ -1,496 +1,334 @@
 ---
 name: net-api-developer
-version: 1.1.0
-description: .NET API 接口开发专家，负责创建 Controller、定义 API 路由、编写 HTTP 端点方法（仅使用 GET/POST），并强制规范 Controller 层的请求/响应 DTO（`Map`）。**主动用于**：创建新的 Controller、编写 API 接口方法、定义路由、处理 HTTP 请求响应。当用户提到"接口"、"API"、"Controller"、"端点"、"路由"、"写个接口"、"加个接口"、"增删改查"、"CRUD"、"HttpGet"、"HttpPost"、"接口开发"、"API开发"、"授权策略"、"Authorize"、"用户信息"、"HttpContext"时，必须使用此技能。
+description: >
+  ThirdNet API 接口开发规范。覆盖 AdminControllerBase（CurrentUserId/Name/DeptId、
+  自动 OperatorContext 初始化）、Controller 目录组织（Manager/App/Three）、
+  GET/POST-only 约定、DTO 命名（{Entity}{Action}Map）、PermissionAuthorize 属性、
+  OperLog 操作日志、WebApiException 错误处理、PageListInfo 分页、
+  Service 层完整模式（IDbContextFactory + 缓存注入 + OperatorContext + 部门过滤 + 缓存失效）。
+  禁止匿名对象返回、禁止直接返回 EF Core 实体、ProducesResponseType 声明要求。
+  当用户提到"controller"、"AdminControllerBase"、"service"、"DTO"、
+  "PermissionAuthorize"、"OperLog"、"API"、"snake_case API"、"端点"、
+  "写接口"、"创建接口"、"接口开发"、"CRUD"、"HttpGet"、"HttpPost"时，必须使用此技能。
 ---
-## 使用场景
 
-- 创建新的 Controller 类
-- 定义 API 路由和 HTTP 方法
-- 编写 API 接口方法（增删改查）
-- 配置认证授权策略
-- 处理请求参数绑定和响应格式
-- 设计 Map 模型（请求/响应 DTO，统一以 `Map` 结尾）
-- 配置 JWT Token 认证与授权
-- 实现 IAccountValidator 自定义账号验证
-- 在接口中获取用户身份信息
+# ThirdNet API 接口开发
 
-## 相关技能
+## Controller 规范
 
-- **net-authentication**: 认证系统开发，包含完整的认证配置和实现指南
-- **net-efcore-developer**: 数据库实体开发
-- **net-cache-use**: 缓存功能集成
+### AdminControllerBase
 
-## 角色定位
+所有管理端 Controller **必须继承 AdminControllerBase**（而非 ControllerBase）：
 
-你是一名**资深 .NET 后端开发工程师**，负责**按公司规范开发标准化 API 接口**。你的代码必须**严格遵守规范**，不得偏离。
+```csharp
+[Route("api/manager/notice")]
+public class NoticeManagerController : AdminControllerBase
+{
+    private readonly NoticeService _noticeService;
 
-## ⚠️ HTTP 方法限制（强制要求）
+    public NoticeManagerController(NoticeService noticeService)
+    {
+        _noticeService = noticeService;
+    }
+}
+```
 
-**重要约束**：本项目 API 接口**仅允许使用 GET 和 POST 方法**，**禁止使用其他 HTTP 方法**。
+AdminControllerBase 提供：
+- `CurrentUserId` — 当前登录用户 ID（从 JWT 提取）
+- `CurrentUserName` — 当前登录用户名
+- `CurrentDeptId` — 当前用户部门 ID
+- 自动初始化 `IOperatorContext`（在 OnActionExecuting 中调用）
+- 内置 `[ApiController]` 和 `[Authorize]`
 
-| 允许的方法     | 用途说明         | 示例路由                           |
-| -------------- | ---------------- | ---------------------------------- |
-| **GET**  | 查询、获取资源   | `GET /api/manager/users`         |
-| **POST** | 创建、更新、删除 | `POST /api/manager/users/create` |
-| DELETE         | ❌ 禁止使用      | -                                  |
-| PUT            | ❌ 禁止使用      | -                                  |
-| PATCH          | ❌ 禁止使用      | -                                  |
+> **例外**：当 Controller 包含不经过 JWT 认证的端点（如登录、刷新 Token 使用 Basic Auth）时，应直接继承 `ControllerBase`，而非 `AdminControllerBase`。原因是 `AdminControllerBase.OnActionExecuting` 会从 JWT Claims 提取 `user_id` 来初始化 `OperatorContext`，在 Basic Auth 请求中会导致 401 错误。典型示例：`AuthManagerController`。
 
-**原因**：项目网关会将 DELETE、PUT、PATCH 等方法作为危险操作进行屏蔽。
-
-**实现建议**：
-
-- 查询操作使用 GET 方法
-- 创建、更新、删除操作统一使用 POST 方法
-- 在路由中明确操作类型：`/create`、`/update`、`/delete`
-
-## 路由定义规范
-
-API 接口路径必须使用 `api` 开头，格式为：`api/{端标识}/{模块名}`
-
-**⚠️ 重要约束**：
-
-- **禁止在 API 路径中包含版本号**（如 `v1`、`v2` 等）
-- ❌ 错误示例：`api/v1/manager/user`、`api/manager/v1/user`
-- ✅ 正确示例：`api/manager/user`
-
-**端标识规则**：端标识与 Controllers 子目录对应，使用小写命名：
-
-| Controllers 子目录 | 端标识      | 说明     |
-| ------------------ | ----------- | -------- |
-| `Manager/`       | `manager` | 管理端   |
-| `App/`           | `app`     | 应用端   |
-| `Third/`         | `third`   | 第三方端 |
-
-**示例**：
-
-- 管理端用户管理：`api/manager/user`
-- 应用端订单管理：`api/app/order`
-- 第三方端回调接口：`api/third/callback`
-
-## Controllers 目录组织与命名规范
+### Controllers 目录组织
 
 ```
 {ServiceName}.API/
-├── Controllers/              # 所有 Controller 的根目录
-│   ├── Manager/              # 管理端 Controller（管理后台）
+├── Controllers/
+│   ├── Manager/              # 管理端（管理后台）
 │   │   └── UserManagerController.cs
-│   ├── App/                  # 应用端 Controller（C 端用户应用）
+│   ├── App/                  # 应用端（C 端用户）
 │   │   └── OrderAppController.cs
-│   └── Third/                # 第三方端 Controller（开放 API）
+│   └── Third/                # 第三方端（开放 API）
 │       └── CallbackThirdController.cs
-├── Program.cs
-└── appsettings.json
 ```
 
-**按调用方分类**：
+Controller 类名必须以端类型作为后缀：`{Module}ManagerController`、`{Module}AppController`、`{Module}ThirdController`。
 
-| 子目录       | 调用方   | 说明                                  |
-| ------------ | -------- | ------------------------------------- |
-| `Manager/` | 管理端   | 内部管理后台，运营人员使用            |
-| `App/`     | 应用端   | 面向 C 端用户（Web、H5、小程序、App） |
-| `Third/`   | 第三方端 | 开放 API，供第三方系统对接            |
+### HTTP 方法限制
 
-### Controller 类命名规范
+| 方法 | 用途 | 示例路由 |
+|------|------|---------|
+| **GET** | 查询、获取资源 | `GET /api/manager/notice/list` |
+| **POST** | 创建、更新、删除 | `POST /api/manager/notice/create` |
+| DELETE/PUT/PATCH | **禁止** | 网关会屏蔽这些方法 |
 
-Controller 类名必须以调用方类型作为后缀，格式为 `{模块名}{端类型}Controller`：
+### 路由模式
 
-| 端类型     | 命名格式                     | 示例                          | 路由前缀              |
-| ---------- | ---------------------------- | ----------------------------- | --------------------- |
-| 管理端     | `{Module}ManagerController`  | `UserManagerController`       | `api/manager/user`    |
-| 应用端     | `{Module}AppController`      | `OrderAppController`          | `api/app/order`       |
-| 第三方端   | `{Module}ThirdController`    | `CallbackThirdController`     | `api/third/callback`  |
-
-**示例**：
-
-```csharp
-// ✅ 管理端用户管理 Controller
-[ApiController]
-[Route("api/manager/user")]
-public class UserManagerController : ControllerBase { }
-
-// ✅ 应用端订单管理 Controller
-[ApiController]
-[Route("api/app/order")]
-public class OrderAppController : ControllerBase { }
-
-// ✅ 第三方端回调 Controller
-[ApiController]
-[Route("api/third/callback")]
-public class CallbackThirdController : ControllerBase { }
-
-// ❌ 禁止：不区分端类型的通用命名
-public class UserController : ControllerBase { }      // 缺少端类型后缀
-public class OrderController : ControllerBase { }      // 缺少端类型后缀
+```
+格式：api/{端标识}/{模块名}/{操作}
+端标识：manager / app / third
+禁止在路由中包含版本号（v1、v2）
 ```
 
-## 授权策略使用
-
-> 授权策略的完整说明、配置方法和使用示例请参阅 **net-authentication** 技能。
-
-## 获取用户信息
-
-> 完整的用户信息获取方法和 HttpContext 扩展请参阅 **net-authentication** 技能。
-
-## API 接口方法规范
-
-### 返回类型规范
-
-**核心原则**：API 默认直接返回 DTO（`Map`）JSON，不包装状态码。状态码通过 HTTP 状态码返回。
-
-**响应格式要求**：
-
-- **成功响应**：必须返回 DTO（`Map`）对象 JSON，**禁止直接返回 EF Core 实体**
-- **错误响应**：通过 HTTP 状态码 + 异常消息返回
-- **状态码传递**：仅通过 HTTP 状态码传递请求结果状态
-
-统一使用 `IActionResult` 作为返回类型，便于灵活返回不同的 HTTP 状态码。
-
-### 禁止匿名对象返回（强制要求）
-
-**核心规则**：所有 API 接口的返回值必须使用**类型化的 Map DTO**，禁止返回匿名对象（`new { ... }`）。
-
-**原因**：
-- 匿名对象缺少类型定义，前端无法生成可复用的 TypeScript 类型
-- 无法在 Swagger/OpenAPI 中生成准确的 API 文档
-- `[ProducesResponseType]` 特性需要引用具体类型才能正确声明响应
-
-**允许与禁止的返回方式**：
-
-| 返回方式 | 是否允许 | 说明 |
-|---------|---------|------|
-| `return Ok(typedMap)` | ✅ 允许 | 返回类型化的 Map DTO（`XXXMap`） |
-| `return Ok(dto)` | ✅ 允许 | 返回由 Service / 映射层转换后的 DTO |
-| `return Ok(entity)` | ❌ 禁止 | 数据库实体含敏感字段，不得直接暴露给 API |
-| `return Ok()` | ✅ 允许 | 无返回内容的操作 |
-| `return Ok(new { ... })` | ❌ 禁止 | 匿名对象，无法生成类型文档 |
-| `return NotFound(new { ... })` | ❌ 禁止 | 应使用 WebApiException |
-
-**正确示例**：
+## 端点模板
 
 ```csharp
-// ✅ 创建操作 — 返回包含新建 ID 的类型化 Map DTO
-[HttpPost("create")]
-[ProducesResponseType(typeof(UserCreateMap), StatusCodes.Status200OK)]
-public async Task<IActionResult> Create([FromBody] UserCreateMap request)
+// ====== 列表查询 ======
+[ProducesResponseType(typeof(PageListInfo<List<XxxItemMap>>), 200)]
+[PermissionAuthorize("module:xxx:list")]
+[HttpGet("list")]
+public async Task<IActionResult> GetList([FromQuery] XxxQueryMap query)
 {
-    var user = await _userService.CreateUser(request);
-    return Ok(new UserCreateMap { id = user.id });
+    var result = await _xxxService.GetList(query, CurrentUserId);
+    return Ok(result);
 }
 
-// ✅ 查询操作 — Service 返回 Map DTO，Controller 直接返回
+// ====== 详情查询 ======
+[ProducesResponseType(typeof(XxxDetailMap), 200)]
+[PermissionAuthorize("module:xxx:query")]
 [HttpGet("{id}")]
-[ProducesResponseType(typeof(UserMap), StatusCodes.Status200OK)]
 public async Task<IActionResult> GetById(long id)
 {
-    var user = await _userService.GetUserById(id);
-    if (user == null)
-    {
-        throw new WebApiException(HttpStatusCode.NotFound, "用户不存在");
-    }
-    return Ok(user);
+    var result = await _xxxService.GetById(id, CurrentUserId);
+    return Ok(result);
 }
 
-// ✅ 更新/删除操作 — 无返回内容
-[HttpPost("update")]
-[ProducesResponseType(StatusCodes.Status200OK)]
-public async Task<IActionResult> Update([FromBody] UserUpdateMap request)
+// ====== 新增 ======
+[ProducesResponseType(200)]
+[PermissionAuthorize("module:xxx:add")]
+[OperLog(Title = "Xxx管理", BusinessType = BusinessTypeEnum.Create)]
+[HttpPost("create")]
+public async Task<IActionResult> Add([FromBody] XxxCreateMap dto)
 {
-    await _userService.UpdateUser(request);
+    await _xxxService.Add(dto, CurrentUserId, CurrentUserName);
+    return Ok();
+}
+
+// ====== 更新 ======
+[ProducesResponseType(typeof(IdResult), 200)]
+[PermissionAuthorize("module:xxx:edit")]
+[OperLog(Title = "Xxx管理", BusinessType = BusinessTypeEnum.Update)]
+[HttpPost("update")]
+public async Task<IActionResult> Update([FromBody] XxxUpdateMap dto)
+{
+    var result = await _xxxService.Update(dto, CurrentUserId, CurrentUserName);
+    return Ok(result);
+}
+
+// ====== 删除单个 ======
+[ProducesResponseType(200)]
+[PermissionAuthorize("module:xxx:remove")]
+[OperLog(Title = "Xxx管理", BusinessType = BusinessTypeEnum.Delete)]
+[HttpPost("delete/{id}")]
+public async Task<IActionResult> Delete(long id)
+{
+    await _xxxService.Delete(id, CurrentUserId);
+    return Ok();
+}
+
+// ====== 批量删除 ======
+[ProducesResponseType(200)]
+[PermissionAuthorize("module:xxx:remove")]
+[OperLog(Title = "Xxx管理", BusinessType = BusinessTypeEnum.Delete)]
+[HttpPost("delete-batch")]
+public async Task<IActionResult> DeleteBatch([FromBody] List<long> ids)
+{
+    await _xxxService.DeleteBatch(ids, CurrentUserId);
     return Ok();
 }
 ```
 
-**错误示例**：
+### 权限 + 操作日志组合
 
-```csharp
-// ❌ 禁止：返回匿名对象
-return Ok(new { id = user.id });
-return Ok(new { userId, clientId, idp });
-return Ok(new { code = 200, data = user });
-```
+所有变更端点（create/update/delete）必须同时标注 `[PermissionAuthorize]` + `[OperLog]`。仅查询端点只需 `[PermissionAuthorize]`。
 
-### 禁止直接返回数据库实体模型（强制要求）
+## 返回类型规范
 
-**核心规则**：Controller 层**禁止直接返回 EF Core 实体（Entity）**。即使 Service 层从数据库读取数据，也必须在 Service 层或映射层将 Entity 转换为 DTO（`Map` 模型）后，再由 Controller 返回给前端。
+### 禁止匿名对象返回
 
-**原因**：
+所有 API 返回值必须使用**类型化的 Map DTO**，禁止返回匿名对象（`new { ... }`）。
 
-- EF Core Entity 包含敏感字段（如 `password_hash`、API 密钥盐值、加密私钥片段等），直接序列化会泄露给 API 调用方
-- Entity 含 `navigation properties`（关联实体），未配置 `JsonIgnore` 或投影时会产生循环引用、加载多余数据、产生 N+1 查询
-- Entity 字段命名与数据库强绑定，DTO 才能按 API 契约自由裁剪字段
-- Entity 变更（如新增字段、修改映射）会直接破坏 API 向后兼容性，DTO 提供稳定的接口契约
+**原因**：匿名对象缺少类型定义，前端无法生成 TypeScript 类型，Swagger 无法生成准确文档。
 
-**允许与禁止的返回方式**：
+### 禁止直接返回 EF Core 实体
 
-| 返回方式 | 是否允许 | 说明 |
-|---------|---------|------|
-| `return Ok(map)` 其中 `map` 由 Service 映射为 `XXXMap` | ✅ 允许 | 标准做法：Service 返回 DTO，Controller 直接返回 |
-| `return Ok(entity)` | ❌ 禁止 | Entity 含敏感字段、navigation properties |
-| `return Ok(_dbContext.User.ToList())` | ❌ 禁止 | 控制器层直接查询并返回 Entity |
-| `return Ok(_mapper.Map<Dto>(entity))` 在 Controller 内映射 | ⚠️ 不推荐 | 映射应下沉到 Service 层；Controller 只做 HTTP 层职责 |
-| 内部 Service 方法返回 `List<Entity>` 给其他 Service 调用 | ✅ 允许 | Service 内部跨层调用不受此约束 |
+Controller 层**禁止直接返回 EF Core 实体**。Entity → DTO 转换必须在 Service 层完成。
 
-**正确示例**：
+**原因**：实体含敏感字段（password_hash）、导航属性（循环引用）、字段命名与 API 契约不匹配。
 
-```csharp
-// ✅ Service 层负责 Entity → DTO 转换
-public async Task<UserMap> GetUserById(long id)
-{
-    var user = await _dbContext.User
-        .AsNoTracking()
-        .FirstOrDefaultAsync(u => u.id == id);
+| 返回方式 | 是否允许 |
+|---------|---------|
+| `return Ok(typedMap)` | ✅ |
+| `return Ok(entity)` | ❌ 禁止 |
+| `return Ok(new { ... })` | ❌ 禁止 |
+| `return Ok()` | ✅ 无返回内容 |
 
-    if (user == null)
-    {
-        return null;
-    }
+### 映射策略
 
-    return new UserMap
-    {
-        id = user.id,
-        name = user.name,
-        email = user.email
-        // password_hash 等敏感字段不会出现在 DTO 中
-    };
-}
+- 所有映射均手写：Service 层使用 `new XxxMap { ... }` 构造 DTO
+- 复杂映射：将映射逻辑封装为私有方法或扩展方法，保持手写风格
+- 分页结果：使用 `PageListInfo<T>`
+- **禁止引入 AutoMapper、Mapster 等映射框架**
 
-// ✅ Controller 仅做 HTTP 层职责
-[HttpGet("{id}")]
-[ProducesResponseType(typeof(UserMap), StatusCodes.Status200OK)]
-public async Task<IActionResult> GetById(long id)
-{
-    var map = await _userService.GetUserById(id);
-    if (map == null)
-    {
-        throw new WebApiException(HttpStatusCode.NotFound, "用户不存在");
-    }
-    return Ok(map);
-}
-```
+### ProduceProducesResponseType 声明
 
-**错误示例**：
+每个端点方法必须添加 `[ProducesResponseType]`，有返回值时指定 `typeof`，无返回值时不带 `typeof`。
 
-```csharp
-// ❌ 禁止：直接返回 EF Core Entity
-[HttpGet("{id}")]
-[ProducesResponseType(typeof(User), StatusCodes.Status200OK)]   // User 是 Entity，敏感字段会被序列化
-public async Task<IActionResult> GetById(long id)
-{
-    var user = await _dbContext.User.FindAsync(id);
-    return Ok(user);   // password_hash、navigation properties 一并返回
-}
+## DTO 规范
 
-// ❌ 禁止：Controller 层做 DbContext 查询
-[HttpGet("list")]
-public async Task<IActionResult> GetList()
-{
-    var users = await _dbContext.User.ToListAsync();
-    return Ok(users);
-}
-```
+### 命名约定
 
-**映射策略**：
-
-- 简单映射：在 Service 层手写 `new XXXMap { ... }`
-- 复杂映射：使用 `Mapster`，在 Service 注入 `IMapper`
-- 分页结果：使用框架自带的 `PageListInfo<T>` 包装类，不要直接返回 EF 的 `IPagedList`
-
-### DTO 模型设计规范
-
-**命名规范**：
-- **类名**：使用 PascalCase，统一以 `Map` 结尾
-- **属性名**：使用 snake_case，与数据库字段命名保持一致
-
-**命名约定**：
+所有 DTO **必须以 `Map` 结尾**，**禁止使用 Request/Response/Dto 后缀**：
 
 | 类型 | 命名格式 | 示例 |
 |-----|---------|------|
-| 创建请求 | `{Entity}CreateMap` | `UserCreateMap` |
-| 更新请求 | `{Entity}UpdateMap` | `UserUpdateMap` |
-| 查询请求 | `{Entity}QueryMap` | `UserQueryMap` |
-| 响应模型 | `{Entity}Map` | `UserMap` |
+| 创建请求 | `{Entity}CreateMap` | `NoticeCreateMap` |
+| 更新请求 | `{Entity}UpdateMap` | `NoticeUpdateMap` |
+| 查询请求 | `{Entity}QueryMap` | `NoticeQueryMap` |
+| 列表项响应 | `{Entity}ItemMap` | `NoticeItemMap` |
+| 详情响应 | `{Entity}DetailMap` | `NoticeDetailMap` |
+| 通用响应 | `{Entity}Map` | `UserMap`、`TokenMap` |
 
-**注意**：
-- 所有 API DTO **必须**以 `Map` 结尾，**禁止使用 `Request` / `Response` / `Dto` 后缀**
-- 旧代码中已存在的 `Request` / `Response` / `Dto` 后缀类不在本次整改范围，新增代码必须遵守
-- `Map` 一律单数结尾，不用复数（`List<UserMap>`，不要 `List<UserMaps>`）
+> **注**：少量简单场景的响应 DTO 也使用 `Item` 或 `Detail` 后缀（如 `CacheKeyItem`、`OnlineUserItem`），但同样禁止 `Request/Response/Dto` 后缀。
 
-**文件组织**：每个 Map DTO 类独立一个 .cs 文件。
+所有字段使用 snake_case，与前端 JSON 格式一致。每个 Map DTO 类独立一个 .cs 文件。
 
-- `Maps/UserCreateMap.cs` → 仅包含 `UserCreateMap`
-- `Maps/UserUpdateMap.cs` → 仅包含 `UserUpdateMap`
-- `Maps/UserQueryMap.cs` → 仅包含 `UserQueryMap`
-- `Maps/UserMap.cs` → 仅包含 `UserMap`
-
-禁止将多个 Map 类放在同一文件中。Controller 类本身也遵循一文件一类。
-
-
-### 错误处理规范
-
-**核心原则**：
-- **成功响应**：直接返回 DTO JSON，不包装
-- **错误响应**：使用 `WebApiException` 抛出，由框架统一处理
-- **状态码传递**：仅通过 HTTP 状态码传递请求结果状态
-
-**常用 HTTP 状态码**：
-
-| 状态码 | 说明 | 使用场景 |
-|--------|------|---------|
-| 200 | OK | 请求成功，返回 DTO 或分页数据 |
-| 201 | Created | 资源创建成功 |
-| 204 | No Content | 操作成功无返回 |
-| 400 | Bad Request | 请求参数错误（必填参数缺失、格式错误） |
-| 401 | Unauthorized | 未认证（Token 无效、未登录） |
-| 403 | Forbidden | 无权限（权限不足） |
-| 404 | Not Found | 资源不存在（用户/订单不存在） |
-| 500 | Server Error | 服务器内部错误（业务异常、数据库错误） |
-
-**使用示例**：
+### QueryMap
 
 ```csharp
-// ✅ 正确：使用 WebApiException 抛出错误
-[ProducesResponseType(typeof(UserMap), StatusCodes.Status200OK)]
-public async Task<IActionResult> GetUser(long id)
+public class XxxQueryMap : PageQueryDto
 {
-    var user = await _userService.GetUserById(id);
-    if (user == null)
-    {
-        throw new WebApiException(HttpStatusCode.NotFound, "用户不存在");
-    }
-    return Ok(user);  // 成功时返回 DTO
-}
-
-// ✅ 正确：参数验证失败
-[ProducesResponseType(typeof(UserMap), StatusCodes.Status200OK)]
-public async Task<IActionResult> UpdateUser(long id, UpdateUserMap request)
-{
-    if (id <= 0)
-    {
-        throw new WebApiException(HttpStatusCode.BadRequest, "无效的用户ID");
-    }
-    // ...
-    return Ok(updatedUser);  // 返回 Map DTO
-}
-
-// ❌ 禁止：手动包装错误对象返回
-public async Task<IActionResult> GetUser(long id)
-{
-    var user = await _userService.GetUserById(id);
-    if (user == null)
-    {
-        return NotFound(new { code = 404, message = "用户不存在" });  // 禁止包装
-    }
-    return Ok(new { code = 200, data = user });  // 禁止包装 + 禁止匿名对象
+    public string? field_name { get; set; }
+    public int? status { get; set; }
 }
 ```
 
-### 响应类型声明规范（ProducesResponseType）
+`PageQueryDto` 基类提供 `page_index`（默认 1）和 `page_size`（默认 20，范围 1-1000）。
 
-**核心规则**：每个 API 端点方法必须添加 `[ProducesResponseType]` 特性，声明所有可能的响应类型。
+### CreateMap / UpdateMap
 
-**原因**：
-- 为 Swagger/OpenAPI 文档提供准确的响应类型定义
-- 前端 TypeScript 代码生成依赖准确的类型信息
-- 明确接口契约，方便代码审查和维护
+验证使用 DataAnnotations：`[Required]`、`[StringLength]`、`[Range]`、`[OptionalEmail]`、`[OptionalPhone]`。
 
-**格式要求**：
+## 错误处理
+
+使用 `WebApiException`，不使用 NotFound/BadRequest：
 
 ```csharp
-// 有返回值的操作 — 必须指定 typeof
-[ProducesResponseType(typeof(UserMap), StatusCodes.Status200OK)]
-
-// 无返回值的操作 — 不带 typeof
-[ProducesResponseType(StatusCodes.Status200OK)]
+throw new WebApiException(HttpStatusCode.NotFound, "记录不存在");
+throw new WebApiException(HttpStatusCode.BadRequest, "参数无效");
+throw new WebApiException(HttpStatusCode.Forbidden, "无权操作");
 ```
 
-**完整示例**：
+## Service 层规范
+
+### Service 模板
 
 ```csharp
-/// <summary>
-/// 获取用户详情
-/// </summary>
-[HttpGet("{id}")]
-[ProducesResponseType(typeof(UserMap), StatusCodes.Status200OK)]
-public async Task<IActionResult> GetById(long id)
+public class XxxService
 {
-    var user = await _userService.GetUserById(id);
-    if (user == null)
+    private readonly IDbContextFactory<AdminDbContext> _dbFactory;
+    private readonly XxxCache _xxxCache;
+    private readonly OperatorContext _operatorContext;
+
+    public XxxService(
+        IDbContextFactory<AdminDbContext> dbFactory,
+        XxxCache xxxCache,
+        OperatorContext operatorContext)
     {
-        throw new WebApiException(HttpStatusCode.NotFound, "用户不存在");
+        _dbFactory = dbFactory;
+        _xxxCache = xxxCache;
+        _operatorContext = operatorContext;
     }
-    return Ok(user);
-}
-
-/// <summary>
-/// 创建用户
-/// </summary>
-[HttpPost("create")]
-[ProducesResponseType(typeof(UserCreateMap), StatusCodes.Status200OK)]
-public async Task<IActionResult> Create([FromBody] UserCreateMap request)
-{
-    var user = await _userService.CreateUser(request);
-    return Ok(new UserCreateMap { id = user.id });
-}
-
-/// <summary>
-/// 删除用户
-/// </summary>
-[HttpPost("delete")]
-[ProducesResponseType(StatusCodes.Status200OK)]
-public async Task<IActionResult> Delete(long id)
-{
-    await _userService.DeleteUser(id);
-    return Ok();
 }
 ```
 
-**注意事项**：
-- 无返回值的操作使用 `ProducesResponseType(StatusCodes.Status200OK)` 不带 `typeof`
-- 有返回值的操作必须指定 `typeof(MapType)`
-- 错误响应（通过 `WebApiException` 抛出的）由框架统一处理，通常无需在特性中逐一声明 400/404/500
-- 禁止在特性中使用匿名类型，这也是禁止匿名对象返回的另一个原因
+### 核心模式
+
+**1. 获取 DbContext**：每次方法调用 `await _dbFactory.CreateDbContextAsync()`，绝不直接注入。
+
+**2. 初始化 OperatorContext**：`_operatorContext.Initialize(operatorId)`（幂等）。需要权限校验的增删改方法必须调用。
+
+**3. 查询模式**：`AsNoTracking()` + 条件筛选 + 部门数据过滤 + `Select` 投影 + `ToPageListAsync` 分页。绝不返回实体。
+
+**4. 变更模式**：验证 → 创建实体 → `SaveChangesAsync` → 缓存失效。
+
+**5. 事务（安全关键操作）**：使用 `Serializable` 隔离级别。
+
+### 部门数据过滤
+
+```csharp
+var visibleDeptIds = await DeptFilterHelper.GetVisibleDeptIds(
+    user.dept_id, user.include_sub_depts,
+    id => _deptCache.GetDeptChildren(id));
+queryable = queryable.Where(x => visibleDeptIds.Contains(x.dept_id));
+```
+
+### 缓存失效
+
+变更操作完成后，删除所有相关缓存键：单条 + 字典 + 关联缓存。如果涉及权限变更，还需要 `RemovePermissionCache` 和 `SetTokenInvalidationTime`。
+
+## DI 注册
+
+在 Startup.cs 第 9 步添加：`services.AddScoped<XxxService>();`
 
 ## 代码审查清单
 
 ### 路由与 HTTP 方法
-
-- [ ] 仅使用 GET 和 POST 方法（无 DELETE/PUT/PATCH）
+- [ ] 仅使用 GET 和 POST 方法
 - [ ] 路由以 `api/` 开头，无版本号
-- [ ] 端标识正确（manager/app/third）
+- [ ] Controller 按端类型分目录（Manager/App/Third）
 
-### Controller 命名
-
-- [ ] Controller 类名包含端类型后缀（`ManagerController`/`AppController`/`ThirdController`）
-- [ ] Controller 位于正确的子目录（`Manager/`、`App/`、`Third/`）
-
-### DTO 设计
-
-- [ ] DTO 类名使用 PascalCase，统一以 `Map` 结尾（如 `UserCreateMap`、`UserMap`）
-- [ ] 禁止使用 `Request` / `Response` / `Dto` 后缀（新增代码强制，已用旧后缀的存量类不在整改范围）
-- [ ] DTO 属性名使用 snake_case（与数据库字段一致）
+### 命名
+- [ ] Controller 类名包含端类型后缀
+- [ ] DTO 类名以 `Map` 结尾，属性使用 snake_case
+- [ ] 禁止使用 Request/Response/Dto 后缀
 
 ### 响应与错误处理
-
-- [ ] 成功响应返回 Map DTO（`XXXMap`），**禁止直接返回 EF Core Entity**
-- [ ] Entity → DTO 转换在 Service 层或映射层完成，Controller 不做 DbContext 查询
-- [ ] 错误使用 `WebApiException` 抛出（不手动包装错误对象）
-- [ ] 返回类型使用 `IActionResult`
-- [ ] 禁止返回匿名对象（`new { ... }`），必须使用类型化 Map DTO
-- [ ] 每个端点方法已添加 `[ProducesResponseType]` 声明响应类型
+- [ ] 返回 Map DTO，禁止匿名对象和 EF Core 实体
+- [ ] Entity → DTO 转换在 Service 层完成
+- [ ] 使用 WebApiException 抛出错误
+- [ ] 每个端点有 `[ProducesResponseType]`
 
 ### 授权
-
-- [ ] 需要认证的接口已配置授权策略
-- [ ] 使用正确的策略名称（Default/Logon/Basic/Both）
+- [ ] 变更端点标注 `[PermissionAuthorize]` + `[OperLog]`
+- [ ] 查询端点标注 `[PermissionAuthorize]`
 
 ### 文件组织
+- [ ] 每个 .cs 文件只包含一个 class 定义
 
-- [ ] 每个 .cs 文件只包含一个 class 定义（Controller、Map DTO 各自独立文件）
+## 框架类型速查
 
-## 详细参考
+以下类型在 ThirdNet.Vibe 框架中定义，在 Controller 和 Service 开发中频繁使用：
 
-- 认证系统完整指南：**net-authentication** 技能
-- 数据库实体开发：**net-efcore-developer** 技能
-- 缓存功能集成：**net-cache-use** 技能
+| 类型 | 命名空间 | 说明 |
+|------|----------|------|
+| `AdminControllerBase` | `{ProjectName}.Admin.Common.Controllers` | Admin 控制器基类，提供 `CurrentUserId`、`CurrentUserName`、`HttpContext` 等 |
+| `WebApiException` | `ThirdNet.Vibe.WebAPI` | 业务异常类，构造参数 `(HttpStatusCode, string message)` |
+| `PageQueryDto` | `{ProjectName}.Admin.Common.DTOs` | 分页查询基类，含 `page_index`、`page_size` 属性 |
+| `PageListInfo<T>` | `ThirdNet.Vibe.Common` | 分页返回类型，含 `List`、`Total`、`Index`、`Pages` 属性 |
+| `IdResult` | `ThirdNet.Vibe.Common` | 新增/更新操作的返回类型，含 `id` 属性 |
+| `IPasswordHasher` | `ThirdNet.Vibe.WebAPI` | 密码哈希接口，提供 `Hash(plainPassword)` 方法 |
+| `PermissionAuthorizeAttribute` | `ThirdNet.Vibe.WebAPI` | 权限授权特性，参数为权限字符串（如 `"sys:user:list"`） |
+| `OperLogAttribute` | `{ProjectName}.Admin.Common.OperLog` | 操作日志特性，参数 `Title`、`BusinessType` |
+| `BusinessTypeEnum` | `{ProjectName}.Admin.Common.Enums` | 操作日志业务类型枚举（`Create`、`Update`、`Delete` 等） |
+| `OperatorContext` | `ThirdNet.Vibe.WebAPI` | 操作者上下文（Scoped），用于请求级数据范围缓存 |
+| `DeptFilterHelper` | `{ProjectName}.Admin.Common.Extensions` | 部门数据范围过滤工具，`GetVisibleDeptIds()` 方法 |
+| `TreeBuilder` | `{ProjectName}.Admin.Common.Extensions` | 树形数据构建工具，`BuildForest()` / `BuildNameMap()` 方法 |
+| `StatusEnum` | `{ProjectName}.Admin.Common.Enums` | 状态枚举（`Normal = 0`、`Disabled = 1`） |
+
+> `{ProjectName}` 是创建项目时指定的名称前缀，如 `ThirdNet`。
+
+## 完整示例
+
+参考 [controller-service-examples.md](references/controller-service-examples.md) 查看 UserManagerController + SysUserService 的完整代码。
+
+## 相关技能
+
+- **backend-workflow**: 完整工作流和文档驱动开发
+- **net-efcore-developer**: 数据库实体开发
+- **net-cache-use**: 缓存集成
+- **net-rbac**: 权限体系
+- **net-authentication**: 认证系统

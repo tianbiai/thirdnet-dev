@@ -3,7 +3,8 @@ name: frontend-workflow
 description: >
   前端开发完整工作流程与规范。定义了强制执行规则、需求澄清流程、项目结构检查、文档驱动开发流程、
   技术栈版本、API 策略工厂架构、演示模式控制、项目目录结构、文档模板（spec/changelog/viewer）
-  和开发完成校验清单。当执行前端开发任务时必须使用，尤其是：新建前端项目、创建页面规格、
+  和开发完成校验清单。管理后台 Web 项目默认使用 admin-template-setup 模板创建，用户端和小程序
+  项目走常规手动初始化流程。当执行前端开发任务时必须使用，尤其是：新建前端项目、创建页面规格、
   编写前端代码、生成 changelog/viewer、校验交付物。即使任务看起来简单，也需要遵循此工作流
   以保证代码与文档的一致性。
 license: MIT
@@ -20,6 +21,8 @@ metadata:
 所有前端任务按以下顺序执行：
 
 1. **需求澄清**（AskUserQuestion）—— 明确平台、范围、数据来源、交互流程
+
+> **说明**：`AskUserQuestion` 指 Claude Code Agent 内置的用户交互能力——通过向用户输出结构化问题列表（含选项）并等待回复来实现需求澄清。在 Claude Code 环境中直接使用 `AskUserQuestion` 工具，在其他环境中通过等价的用户提问机制实现。
 2. **项目结构检查** —— 确认 frontend/ 目录和子系统布局
 3. **调用路由技能** —— 根据技能路由表加载所有适用的编码规范
 4. **文档先行** —— 生成/更新 changelog.md、spec.md、specs/{页面名}.md
@@ -32,6 +35,16 @@ metadata:
 - **简单优先** —— 最少代码、无推测设计，不为假设的未来需求预留扩展
 - **精准修改** —— 只改必须改的，匹配现有风格，不做附带清理
 - **目标驱动执行** —— 定义成功标准，每步验证是否向目标推进
+- **模板功能代码保护** —— 通过 admin 模板创建的项目，禁止修改模板内置系统管理和 API 管理模块的**业务逻辑代码**。这些模块由模板统一维护，修改业务逻辑会导致后续模板升级冲突。
+  - **受保护的文件范围**：
+    - `src/views/system/` 和 `src/views/api/` 中的 `<script setup>` 逻辑、组件嵌套关系、事件处理
+    - 对应的 API 模块 `src/api/modules/manager/`
+    - 对应的 Mock 数据 `src/mock/data/manager/`
+    - 核心路由框架 `src/router/`
+    - 认证相关 `src/stores/auth.ts`、`src/utils/token.ts`、`src/api/adapter.web.ts`
+  - **允许的修改**：模板页面的样式调整（`<style scoped>` 中的 CSS/SCSS、布局间距、配色、字体等纯视觉表现）
+  - **正确的业务扩展方式**：在 `src/views/` 下新建业务目录、在 `src/api/modules/` 下新建业务 API 模块、通过后端菜单配置注册新页面路由
+  - **当用户请求修改模板模块的业务逻辑时**：说明保护规则，建议替代方案（如通过后端配置扩展、或在新建的业务模块中封装扩展逻辑）
 
 ## 代码注释规范
 
@@ -61,6 +74,7 @@ metadata:
 
 | 执行此操作前...                                   | 必须调用此技能                                  |
 | ------------------------------------------------- | ----------------------------------------------- |
+| 新建 Admin 管理后台前端项目（脚手架安装）           | `thirdnet-frontend:admin-template-setup`        |
 | 创建或修改任何 `.vue` / `.ts` / `.tsx` 文件       | `thirdnet-frontend:vue-best-practices`          |
 | 创建或修改任何 API 模块（`api/**/*.ts`）          | `thirdnet-frontend:api-typescript-spec`         |
 | 创建或修改任何 Pinia Store（`stores/**/*.ts`）    | `thirdnet-frontend:vue-pinia-best-practices`    |
@@ -121,7 +135,8 @@ metadata:
 2. **检查根目录是否有零散的前端项目文件**（如 `package.json`、`vite.config.ts`、`src/` 等直接出现在工作区根目录）：
    - 如果存在零散文件，使用 AskUserQuestion 确认：是整合到 `frontend/` 目录结构中，还是在当前位置继续工作
 
-3. **确认目标子系统目录**（如 `frontend/web/`、`frontend/minigram/`、`frontend/admin/`）是否存在
+3. **确认目标子系统目录**（如 `frontend/web/`、`frontend/minigram/`）是否存在
+   - 管理后台项目由模板安装时自动创建，无需手动创建子系统目录
 
 ## 文档驱动开发
 
@@ -141,6 +156,15 @@ metadata:
 6. **spec 不存在 → 停止 → 先生成规格文档**
 
 ### 新建项目初始化流程
+
+**前置判断——按项目类型选择初始化路径**：
+
+| 项目类型 | 初始化方式 | 说明 |
+|----------|-----------|------|
+| 管理后台 Web（Admin） | **调用 `admin-template-setup` 技能**，使用 `npm exec --registry http://192.168.1.207:4873/ -- create-thirdnet-admin` 创建 | 模板已实现完整后台功能（用户/角色/菜单/权限等），采用真实 API + Mock 数据并行模式，禁止手动搭建 |
+| 用户端 / 小程序（Client / Minigram） | 继续执行以下手动初始化步骤 | 使用 uniapp + Vant 开发，面向 C 端用户的移动端项目（H5 + 微信小程序） |
+
+**判断依据**：如果项目需要登录认证、RBAC 权限管理、后台菜单管理等管理后台特征，则为 Admin 类型；面向终端用户的移动应用（无论 H5 还是小程序）均为用户端，使用 uniapp 开发。
 
 当项目结构检查发现 `frontend/` 不存在且任务为新建项目时，**严格按以下步骤顺序执行**：
 
@@ -196,7 +220,7 @@ metadata:
 | **移动端（uniapp）** | Vue 3.4.x、Vant 4.x、Vite 5.x、Pinia 2.x、Axios 1.x                         |
 | **Web 端**           | Vue 3.5.x、Vite 8.x、Element Plus 2.x、Vue Router 4.x、Pinia 3.x、Axios 1.x |
 
-- **Pinia 版本选择**：Vue 3.5+ / Vite 8+ 项目使用 Pinia 3.x；Vue 3.4 / uniapp 项目使用 Pinia 2.x
+- **Pinia 版本选择**：Vue 3.5+ / Vite 8+ 项目使用 Pinia 3.x（以 npm 最新稳定版为准，如 3.x 尚未发布则使用 2.x）；Vue 3.4 / uniapp 项目使用 Pinia 2.x
 - **TypeScript 强制**：所有代码 `.ts` 扩展名，Vue 组件 `<script setup lang="ts">`，禁止 `.js`
 - **枚举规范**：`enum` 关键字 + JSDoc 注释，禁止 union type 或 const object
 - **移动端**：开发用 H5 模式，最终发布微信小程序，代码须兼容 H5 + 小程序
@@ -296,7 +320,8 @@ async function handleSubmit() {
 
 | 场景             | 处理方式           |
 | ---------------- | ------------------ |
-| 技能文档不存在   | 继续工作，记录警告 |
+| 技能文档不存在   | 停止，提示用户检查技能插件安装 |
+| 参考文档不存在   | 继续工作，记录警告 |
 | spec.md 无法创建 | 询问用户           |
 | 设计需求不明确   | AskUserQuestion    |
 
@@ -358,6 +383,7 @@ frontend/
 - [ ] changelog.md 已记录本次变更
 - [ ] 涉及的页面均有对应的 `specs/{页面名}.md`
 - [ ] 编码前已调用所有相关技能
+- [ ] 未修改模板内置模块的业务逻辑代码（admin 模板项目：system/、api/ 视图的 script 逻辑及对应 API/Mock 文件保持原样）
 
 ### 代码规范
 
