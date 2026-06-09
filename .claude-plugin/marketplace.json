@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Thirdnet 全栈开发插件集",
-    "version": "0.26.0"
+    "version": "0.27.0"
   },
   "plugins": [
     {
@@ -34,7 +34,7 @@
       "name": "thirdnet-frontend",
       "source": "./plugins/thirdnet-frontend",
       "description": "前端开发助手 - Vue 3 页面、组件、样式开发，支持 TypeScript API 策略工厂模式（接口契约 + Real/Mock 可互换策略）、枚举规范（enum + JSDoc）、.env 无缝切换与演示模式控制",
-      "version": "0.22.0",
+      "version": "0.23.0",
       "author": {
         "name": "thirdnet"
       },
@@ -42,6 +42,24 @@
         "frontend",
         "vue",
         "development"
+      ],
+      "category": "development",
+      "strict": false
+    },
+    {
+      "name": "admin-fullstack-coordination",
+      "source": "./skills/admin-fullstack-coordination",
+      "description": "全栈 Admin 功能开发协调 — 前端先行开发顺序、前后端类型映射、RBAC 权限桥接、共享 API 约定同步。需同时安装 thirdnet-backend 和 thirdnet-frontend 插件",
+      "version": "1.0.0",
+      "author": {
+        "name": "thirdnet"
+      },
+      "keywords": [
+        "fullstack",
+        "coordination",
+        "admin",
+        "rbac",
+        "api-contract"
       ],
       "category": "development",
       "strict": false

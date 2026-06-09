@@ -16,6 +16,16 @@ metadata:
 
 本技能定义了前端开发的完整工作流程、技术规范和交付标准。
 
+## 相关技能
+
+当同时涉及前后端开发时，配合以下技能使用：
+
+| 场景 | 相关技能 | 说明 |
+|------|---------|------|
+| 全栈功能开发 | `thirdnet-backend:backend-workflow` | 后端开发工作流入口，定义实体/API/权限 |
+| 全栈协调 | `admin-fullstack-coordination` | 后端 DTO → 前端类型的映射规则、RBAC 桥接、开发顺序 |
+| 后端 API 项目创建 | `thirdnet-backend:backend-workflow` | `dotnet new thirdnet-admin` 创建后端项目 |
+
 ## 工作流步骤概览
 
 所有前端任务按以下顺序执行：

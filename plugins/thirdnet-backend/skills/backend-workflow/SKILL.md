@@ -14,6 +14,17 @@ description: >
 
 本技能是 ThirdNet 后端开发的入口和路由器，定义工作流步骤、项目创建、架构概览、文档驱动开发流程和技能路由。
 
+## 相关技能
+
+当同时涉及前后端开发时，配合以下技能使用：
+
+| 场景 | 相关技能 | 说明 |
+|------|---------|------|
+| 全栈功能开发 | `thirdnet-frontend:frontend-workflow` | 前端开发工作流入口，页面/组件/路由/API 模块开发 |
+| 全栈协调 | `admin-fullstack-coordination` | 后端 DTO → 前端 TypeScript 类型的映射规则、RBAC 前后端桥接、全栈开发顺序 |
+| 前端 Admin 项目创建 | `thirdnet-frontend:admin-template-setup` | `create-thirdnet-admin` 创建前端管理后台项目 |
+| 前端 API 规范 | `thirdnet-frontend:api-typescript-spec` | 前端消费后端 API 的策略工厂模式规范 |
+
 ## 工作流步骤
 
 所有后端任务按以下顺序执行：

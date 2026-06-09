@@ -176,24 +176,24 @@ src/
 
 | 模块 | 文件 | 对应后端 Controller |
 |------|------|---------------------|
-| auth | `auth.ts` | AuthController |
-| user | `user.ts` | SysUserController |
-| role | `role.ts` | SysRoleController |
-| menu | `menu.ts` | SysMenuController |
-| dept | `dept.ts` | SysDeptController |
-| dict | `dict.ts` | SysDictController |
-| config | `config.ts` | SysConfigController |
-| permission | `permission.ts` | SysPermissionController |
-| oper-log | `oper-log.ts` | SysOperLogController |
-| cache | `cache.ts` | SysCacheController |
-| online-user | `online-user.ts` | SysOnlineUserController |
-| api-application | `api-application.ts` | ApiApplicationController |
-| api-service | `api-service.ts` | ApiServiceController |
-| api-action | `api-action.ts` | ApiActionController |
-| api-blacklist | `api-blacklist.ts` | ApiBlacklistController |
-| api-whitelist | `api-whitelist.ts` | ApiWhitelistController |
-| api-role | `api-role.ts` | ApiRoleController |
-| api-visitlog | `api-visitlog.ts` | ApiVisitLogController |
+| auth | `auth.ts` | AuthManagerController |
+| user | `user.ts` | SysUserManagerController |
+| role | `role.ts` | SysRoleManagerController |
+| menu | `menu.ts` | SysMenuManagerController |
+| dept | `dept.ts` | SysDeptManagerController |
+| dict | `dict.ts` | SysDictManagerController |
+| config | `config.ts` | SysConfigManagerController |
+| permission | `permission.ts` | SysPermissionManagerController |
+| oper-log | `oper-log.ts` | SysOperLogManagerController |
+| cache | `cache.ts` | SysCacheManagerController |
+| online-user | `online-user.ts` | SysOnlineUserManagerController |
+| api-application | `api-application.ts` | ApiApplicationManagerController |
+| api-service | `api-service.ts` | ApiServiceManagerController |
+| api-action | `api-action.ts` | ApiActionManagerController |
+| api-blacklist | `api-blacklist.ts` | ApiBlacklistManagerController |
+| api-whitelist | `api-whitelist.ts` | ApiWhitelistManagerController |
+| api-role | `api-role.ts` | ApiRoleManagerController |
+| api-visitlog | `api-visitlog.ts` | ApiVisitLogManagerController |
 
 ## Composable 清单（11 个）
 

@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.22.0 - 2026-06-09
+
+### Added
+- 新增 `admin-fullstack-coordination` 技能：全栈 Admin 功能开发协调指南，包含后端到前端的完整开发顺序（8 步后端 + 7 步前端）、DTO → TypeScript 映射规则、RBAC 前后端桥接、共享 API 约定同步检查清单、18 个 Admin 模块前后端对照表
+
+### Changed
+- `frontend-workflow` 技能新增「相关技能」段落，交叉引用 `thirdnet-backend:backend-workflow` 和 `admin-fullstack-coordination`
+- `backend-workflow` 技能新增「相关技能」段落，交叉引用 `thirdnet-frontend:frontend-workflow`、`admin-fullstack-coordination`、`admin-template-setup`、`api-typescript-spec`
+
+### Removed
+- `admin-fullstack-coordination` 技能迁移为顶层独立插件（`skills/admin-fullstack-coordination/`），不再归属于前端插件
+
+### Removed
+- 删除废弃的 `net-crypto-keygen` 技能目录（仅剩构建产物，v0.19.0 已从注册表移除）
+
 ## 0.21.0 - 2026-05-17
 
 ### Changed
