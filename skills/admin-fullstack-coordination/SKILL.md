@@ -2,20 +2,24 @@
 name: admin-fullstack-coordination
 description: >
   全栈 Admin 功能开发协调指南。当同时开发前端页面和后端 API 时使用此技能，
-  提供从前端页面到后端 API 的完整开发顺序（前端先行）、前后端类型映射规则、
+  提供从前端页面到后端 API 的完整开发顺序（前端先行）、Admin 模板 CRUD 页面开发模式
+  （useCrudTable + PaginationBar + validators）、前后端类型映射规则、
   RBAC 权限前后端桥接、以及共享 API 约定的同步检查清单。适用于：
   新增一个完整 Admin 模块（前端 + 后端）、修改跨前后端的 API 契约、
   理解前端类型与后端 DTO 的映射关系、排查前后端数据格式不一致的问题。
   本技能在执行前会检查 thirdnet-backend 和 thirdnet-frontend 插件是否已安装，缺少任一插件时会阻止执行并提示安装方式。
+  也提供任务路由（全栈 vs 仅前端/仅后端）与全新 Admin 全栈项目创建的协调路径。
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "1.3.0"
   author: thirdnet
 ---
 
 # 全栈 Admin 功能开发协调指南
 
 本技能是前后端协同开发的桥梁，定义全栈功能开发顺序、类型映射规则、权限桥接和约定同步机制。需要 `thirdnet-backend` 和 `thirdnet-frontend` 插件同时安装。
+
+> 后端可复用的框架/模板能力（命名空间 + 用途）见 `thirdnet-backend` 的 [framework-and-template-catalog](../../plugins/thirdnet-backend/skills/backend-workflow/references/framework-and-template-catalog.md)；后端真实的契约与范例代码见参考仓库 `code/backend/`（`plan.md`、`specs/`、`src/Admin/ThirdNetVibe.Admin.*`）。
 
 ## 前置条件检查
 
@@ -32,6 +36,30 @@ metadata:
 
 不要在缺少插件的情况下继续执行，否则产出的代码可能不符合两端约定。
 
+## 任务路由（何时用本技能）
+
+接到请求后先判断范围，再决定用本技能还是直接委派单侧工作流：
+
+| 任务特征 | 走法 |
+|---------|------|
+| **全新 Admin 全栈项目**（后端 + 前端从零创建） | 见下文「全栈项目创建（Admin 模板）」，两端各自走模板创建例外流程 |
+| **同时改前端页面 + 后端 API**（新增模块、改跨端契约） | 用本技能的「全栈功能开发流程」（前端先行） |
+| **仅后端**（实体/接口/权限/缓存/任务） | 委派 `thirdnet-backend:backend-workflow`，不必进本技能 |
+| **仅前端**（页面/组件/路由/类型） | 委派 `thirdnet-frontend:frontend-workflow`，不必进本技能 |
+| **新建 Service 微服务** | 委派 `thirdnet-backend:net-microservice-generator`，不必进本技能 |
+| **排查前后端数据/格式/权限不一致** | 用本技能的「类型映射」「RBAC 桥接」「共享 API 约定」对照排查 |
+
+本技能与 `backend-workflow`、`frontend-workflow` 互为入口：单侧任务直接用对应工作流，跨端协同用本技能协调。
+
+## 全栈项目创建（Admin 模板）
+
+当任务是**从零创建一个 Admin 全栈项目**（用户说"创建 admin""新建管理后台"等），**不要**套用下面的模块开发流程——两端模板都已内置完整功能，走各自的「模板创建例外流程」（仅确认必要参数、跳过需求澄清）：
+
+1. **后端**（`backend-workflow` 例外流程）：用一次 `AskUserQuestion` 确认项目名 `{ProjectName}`，然后 `dotnet new thirdnet-admin -n {ProjectName}.Admin` 创建，跳过需求澄清直接进入项目框架阶段（NuGet 源、连接串用默认配置）。
+2. **前端**（`frontend-workflow` 例外流程）：确认品牌参数（项目名、`--brand`、`--initial`、`--abbr`，可用默认值），调用 `admin-template-setup` 技能经 `create-thirdnet-admin` 创建前端项目（后端 API 地址默认 `http://localhost:5000`）。
+
+模板内置 18 个模块（用户/角色/菜单/部门/字典/配置/权限/操作日志/缓存/在线用户 + API 管理 + 认证授权），功能固定无需澄清。创建后如需新增**业务模块**，再进入下面的全栈功能开发流程。
+
 ## 全栈功能开发流程
 
 新增一个完整 Admin 模块（如"通知管理"）的推荐开发顺序——**前端先行，后端跟随**：
@@ -47,9 +75,22 @@ metadata:
 | 3 | Mock 数据 | `api-typescript-spec` | `mock/data/manager/{module}.ts` |
 | 4 | Mock 实现 | `api-typescript-spec` | `mock/api/manager/{module}.ts` |
 | 5 | Real 实现 + 工厂函数 | `api-typescript-spec` | `api/modules/manager/{module}.ts` |
-| 6 | 页面开发 | `vue-best-practices` + `design-apple` | `src/views/{module}/index.vue` 等 |
+| 6 | CRUD 页面开发 | `admin-template-setup`（CRUD 指南） + `vue-best-practices` | `src/views/{module}/index.vue` 等 |
 
 前端阶段完成后，页面已可通过 Mock 数据独立运行和验证交互。
+
+**步骤 6 详细指引**：Admin 模板提供了完整的 CRUD 页面开发基础设施，新增页面时必须复用：
+
+- **useCrudTable\<T, Q\>**（`src/composables/useCrudTable.ts`）：分页 + 搜索 + 防抖 + 加载 + 删除一体化，禁止手写 `usePagination + useActionLoading + debounced search` 样板
+- **PaginationBar**（`src/components/PaginationBar.vue`）：统一分页栏组件，禁止直接使用 `el-pagination`
+- **useDialogFocus**（`src/composables/useDialogFocus.ts`）：弹窗焦点管理
+- **validators**（`src/utils/validators.ts`）：`requiredRule`、`requiredSelectRule` 等表单验证规则工厂
+- **confirmAction**（`src/utils/confirm.ts`）：二次确认对话框（`useCrudTable.remove()` 已内置）
+- **formatDateTime**（`src/utils/format.ts`）：日期时间格式化
+
+完整开发指南参见 `admin-template-setup` 技能的 [crud-page-development-guide](../plugins/thirdnet-frontend/skills/admin-template-setup/references/crud-page-development-guide.md)。
+
+**标准参考实现**：`src/views/api/blacklist/index.vue`
 
 ### 后端阶段（跟随前端契约）
 
@@ -61,7 +102,7 @@ metadata:
 | 8 | 缓存视图 + 缓存域 | `net-cache-use` | View 模型 + Cache 域 |
 | 9 | Service + DTO + Controller | `net-api-developer` | 按前端契约实现 API，DTO 字段与前端类型一一对应 |
 | 10 | 权限定义 + DI 注册 | `net-rbac` | 权限字符串（如 `sys:notice:list/add/edit/remove`）+ `Startup.cs` 第 9 步注册 |
-| 11 | 路由 + 菜单配置 | 后端管理面板 | 在后端 Admin 系统中添加菜单项 |
+| 11 | 菜单/路由数据配置 | `net-rbac`（菜单树设计）+ 运行中的 Admin | 在 `t_sys_menu` 插入目录/页面/按钮三级菜单条目（含 `permission`），启动后经 `PermissionCatalog` 自动同步；可写种子数据或用运行中的 `SysMenuManagerController` 维护。**这不是一个技能，而是数据配置** |
 
 后端 API 开发完成后，前端切换 `VITE_MOCK_ENABLED=false` 即可对接真实 API。
 
@@ -114,17 +155,18 @@ public async Task<PageListInfo<NoticeItemMap>> GetList([FromQuery] NoticeQueryMa
 ### 前端层
 
 ```vue
-<!-- 模板中的按钮级权限控制 -->
-<el-button v-permission="'sys:notice:add'" @click="handleAdd">新增</el-button>
+<!-- 模板中的按钮级权限控制（接收数组，支持 OR 逻辑） -->
+<el-button v-permission="['sys:notice:add']" @click="handleAdd">新增</el-button>
 
 <!-- 组合式 API 中的权限判断 -->
 <script setup lang="ts">
 import { usePermission } from '@/composables/usePermission'
 
-const { hasPermission } = usePermission()
+const { hasPermi, hasPermiOr } = usePermission()
 
 // 编程式权限检查
-const canEdit = computed(() => hasPermission('sys:notice:edit'))
+const canEdit = computed(() => hasPermi('sys:notice:edit'))
+const canModify = computed(() => hasPermiOr(['sys:notice:edit', 'sys:notice:update']))
 </script>
 ```
 
@@ -194,3 +236,5 @@ const canEdit = computed(() => hasPermission('sys:notice:edit'))
 | 访问日志 | `ApiVisitLogManagerController` | `api/modules/manager/api-visitlog.ts` |
 
 新增业务模块时，参考此对照表的命名模式。
+
+> 上述 Controller 与权限字符串的权威定义在参考仓库 `code/backend/src/Admin/ThirdNetVibe.Admin.APIService/Controllers/Manager/`；若对照表与源码不一致，以源码为准。

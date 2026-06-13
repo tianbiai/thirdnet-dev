@@ -173,7 +173,7 @@ Controller 层**禁止直接返回 EF Core 实体**。Entity → DTO 转换必�
 - 分页结果：使用 `PageListInfo<T>`
 - **禁止引入 AutoMapper、Mapster 等映射框架**
 
-### ProduceProducesResponseType 声明
+### ProducesResponseType 声明
 
 每个端点方法必须添加 `[ProducesResponseType]`，有返回值时指定 `typeof`，无返回值时不带 `typeof`。
 
@@ -251,7 +251,7 @@ public class XxxService
 
 **2. 初始化 OperatorContext**：`_operatorContext.Initialize(operatorId)`（幂等）。需要权限校验的增删改方法必须调用。
 
-**3. 查询模式**：`AsNoTracking()` + 条件筛选 + 部门数据过滤 + `Select` 投影 + `ToPageListAsync` 分页。绝不返回实体。
+**3. 查询模式**：`AsNoTracking()` + 条件筛选 + 部门数据过滤 + `Select` 投影 + `ToPageListAsync` 分页（`ThirdNet.Vibe.WebAPI.ThirdNetWebApiExtensions` 扩展，框架提供，勿自写分页）。绝不返回实体。
 
 **4. 变更模式**：验证 → 创建实体 → `SaveChangesAsync` → 缓存失效。
 
@@ -268,7 +268,9 @@ queryable = queryable.Where(x => visibleDeptIds.Contains(x.dept_id));
 
 ### 缓存失效
 
-变更操作完成后，删除所有相关缓存键：单条 + 字典 + 关联缓存。如果涉及权限变更，还需要 `RemovePermissionCache` 和 `SetTokenInvalidationTime`。
+变更操作完成后，删除所有相关缓存键：单条 + 字典 + 关联缓存。
+
+**涉及用户/角色权限变更时，统一调用** `UserCacheInvalidation.InvalidateUserAuthAsync(_userCache, _tokenCache, userId)`（`{ProjectName}.Admin.APIService.Services`，模板生成层提供）——它一次清掉用户权限缓存 + 角色缓存，并设置 Token 失效时间（`TokenCache.SetTokenInvalidationTime`），使对应用户下次请求被 `AccountTokenCheckMiddleware` 拦截重签。不要手写散落的 `RemovePermissionCache`/`SetTokenInvalidationTime`。
 
 ## DI 注册
 
@@ -301,25 +303,29 @@ queryable = queryable.Where(x => visibleDeptIds.Contains(x.dept_id));
 
 ## 框架类型速查
 
-以下类型在 ThirdNet.Vibe 框架中定义，在 Controller 和 Service 开发中频繁使用：
+下列类型在本技能涉及的 Controller/Service 开发中频繁使用。**更完整的可复用类清单（命名空间 + 文件 + 用途）见 [framework-and-template-catalog](../backend-workflow/references/framework-and-template-catalog.md)**。
 
 | 类型 | 命名空间 | 说明 |
 |------|----------|------|
-| `AdminControllerBase` | `{ProjectName}.Admin.Common.Controllers` | Admin 控制器基类，提供 `CurrentUserId`、`CurrentUserName`、`HttpContext` 等 |
+| `AdminControllerBase` | `{ProjectName}.Admin.Common.Controllers` | Admin 控制器基类，提供 `CurrentUserId`/`CurrentUserName`/`CurrentDeptId`，自动初始化 `IOperatorContext` |
 | `WebApiException` | `ThirdNet.Vibe.WebAPI` | 业务异常类，构造参数 `(HttpStatusCode, string message)` |
-| `PageQueryDto` | `{ProjectName}.Admin.Common.DTOs` | 分页查询基类，含 `page_index`、`page_size` 属性 |
-| `PageListInfo<T>` | `ThirdNet.Vibe.Common` | 分页返回类型，含 `List`、`Total`、`Index`、`Pages` 属性 |
-| `IdResult` | `ThirdNet.Vibe.Common` | 新增/更新操作的返回类型，含 `id` 属性 |
-| `IPasswordHasher` | `ThirdNet.Vibe.WebAPI` | 密码哈希接口，提供 `Hash(plainPassword)` 方法 |
+| `PageQueryDto` | `{ProjectName}.Admin.Common.DTOs` | 分页查询基类，含 `page_index`、`page_size` |
+| `PageListInfo<T>` | `ThirdNet.Vibe.WebAPI` | 分页返回类型，含 `List`、`Total`、`Index`、`Pages` |
+| `ToPageListAsync` | `ThirdNet.Vibe.WebAPI.ThirdNetWebApiExtensions` | **分页扩展**：`IQueryable<T>.ToPageListAsync(page_index, page_size) → Task<PageListInfo<List<T>>>`，勿自写分页 |
+| `IdResult` | `{ProjectName}.Admin.Common.DTOs` | 新增/更新操作的返回类型，含 `id` |
+| `UploadResult` | `{ProjectName}.Admin.Common.DTOs` | 文件上传响应，含 `file_name`（GUID 文件名 + 扩展名）和 `url`（相对路径如 `/uploads/xxx.jpg`） |
+| `IPasswordHasher` | `ThirdNet.Vibe.Common.Algorithm.Abstractions` | 密码哈希接口，`Hash(plainPassword)` / `Verify(...)`；经 `AddCrypto` 注册 |
 | `PermissionAuthorizeAttribute` | `ThirdNet.Vibe.WebAPI` | 权限授权特性，参数为权限字符串（如 `"sys:user:list"`） |
 | `OperLogAttribute` | `{ProjectName}.Admin.Common.OperLog` | 操作日志特性，参数 `Title`、`BusinessType` |
 | `BusinessTypeEnum` | `{ProjectName}.Admin.Common.Enums` | 操作日志业务类型枚举（`Create`、`Update`、`Delete` 等） |
-| `OperatorContext` | `ThirdNet.Vibe.WebAPI` | 操作者上下文（Scoped），用于请求级数据范围缓存 |
-| `DeptFilterHelper` | `{ProjectName}.Admin.Common.Extensions` | 部门数据范围过滤工具，`GetVisibleDeptIds()` 方法 |
-| `TreeBuilder` | `{ProjectName}.Admin.Common.Extensions` | 树形数据构建工具，`BuildForest()` / `BuildNameMap()` 方法 |
+| `IOperatorContext` / `OperatorContext` | `{ProjectName}.Admin.Common.Interfaces` / `{ProjectName}.Admin.Cache.Context` | 操作者上下文（Scoped）。`Initialize(operatorId)`（幂等）、`HasWildcardPermission()`、`GetUserInfo()`、`GetUserRoleIds()`、`GetVisibleDeptIds()`——同一请求内懒加载缓存，避免重复读 Redis |
+| `DeptFilterHelper` | `{ProjectName}.Admin.Common.Extensions` | 部门数据范围过滤，`GetVisibleDeptIds()` |
+| `TreeBuilder` | `ThirdNet.Vibe.Common` | 扁平列表 → 树，`BuildForest()`（**仅此方法**） |
+| `TreeHelper` | `ThirdNet.Vibe.Common` | 树操作：`FlattenTree()` / `BuildNameMap()` / `ValidateNoCircularReference()`（与 `TreeBuilder` 是两个类，勿混淆） |
+| `UserCacheInvalidation` | `{ProjectName}.Admin.APIService.Services` | `InvalidateUserAuthAsync(userCache, tokenCache, userId)`，权限/角色变更后统一失效 |
 | `StatusEnum` | `{ProjectName}.Admin.Common.Enums` | 状态枚举（`Normal = 0`、`Disabled = 1`） |
 
-> `{ProjectName}` 是创建项目时指定的名称前缀，如 `ThirdNet`。
+> `{ProjectName}` 是创建项目时指定的名称前缀（参考仓库中为 `ThirdNetVibe`）。`ThirdNet.Vibe.*` 命名空间来自框架 NuGet 库，`{ProjectName}.Admin.*` 命名空间来自模板生成层。
 
 ## 完整示例
 

@@ -14,9 +14,9 @@
 
 ## SysUserModel + SysUserConfiguration
 
-**源文件**：
-- `backend/src/Admin/ThirdNet.Admin.Database/Models/SysUserModel.cs`
-- `backend/src/Admin/ThirdNet.Admin.Database/EntityConfigurations/SysUserConfiguration.cs`
+**源文件**（参考仓库）：
+- `code/backend/src/Admin/ThirdNetVibe.Admin.Database/Models/SysUserModel.cs`
+- `code/backend/src/Admin/ThirdNetVibe.Admin.Database/EntityConfigurations/SysUserConfiguration.cs`
 
 ### SysUserModel
 
@@ -296,7 +296,7 @@ namespace {ProjectName}.Admin.Database.Models
 
 ## 审计字段配置详解
 
-`ConfigureAuditFields()` 扩展方法（`backend/src/Admin/ThirdNet.Admin.Database/EntityConfigurations/AuditPropertyExtensions.cs`）：
+`ConfigureAuditFields()` 扩展方法（参考仓库 `code/backend/src/Admin/ThirdNetVibe.Admin.Database/EntityConfigurations/AuditPropertyExtensions.cs`）：
 
 ```csharp
 public static void ConfigureAuditFields<T>(this EntityTypeBuilder<T> builder)

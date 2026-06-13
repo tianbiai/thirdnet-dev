@@ -16,6 +16,8 @@ description: >
 
 了解认证系统基础，建议同时加载 `net-authentication`。
 
+> 授权相关类（`[PermissionAuthorize]`/`[ProviderAuthorize]`/`PermissionMatcher`/`IPermissionProvider`）命名空间均在框架库 `ThirdNet.Vibe.WebAPI`；`OperatorContext`/`CachePermissionProvider` 在模板生成层 `{ProjectName}.Admin.Cache.*`。完整清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md)「授权」小节。
+
 ## RBAC 数据模型
 
 ```
@@ -97,13 +99,17 @@ Admin 项目使用三层授权机制：
 
 基于 JWT 中的 role claims 进行角色匹配。较少使用。
 
-### 第二层：范围授权
+### 第二层：范围授权（`[ProviderAuthorize]`）
+
+`[ProviderAuthorize("scope")]`（`ThirdNet.Vibe.WebAPI`，`Authorization/Provider/ProviderAuthorizeAttribute.cs`）基于 JWT 的 **scope claim** 做范围授权，常用于 API Key / 第三方接口的 scope 控制（如 `[ProviderAuthorize("order:read")]`）。多个 scope 逗号分隔（`"order:read,order:write"`），命中任一即通过。策略路由由 `ProviderPolicyProvider` 完成：`Permission*` 策略走权限授权、`Provider*` 策略走范围授权。
 
 ```csharp
-[ProviderAuthorize("scope-name")]
+[ProviderAuthorize("order:read")]   // 要求 Token 的 scope claim 含 order:read
+[HttpGet("list")]
+public async Task<IActionResult> GetList() { ... }
 ```
 
-用于 API 网关/第三方接口的范围控制。
+> 与 `[PermissionAuthorize]` 的区别：权限授权读 `admin_roles` claim → 经 `CachePermissionProvider` 查角色权限；范围授权直接读 `scope` claim，不查角色，适合无用户身份的 API Key 场景（`AdminControllerBase` 对 ApiKey 鉴权会跳过 `OperatorContext` 初始化）。
 
 ### 第三层：权限 + 通配符授权（最常用）
 
@@ -128,7 +134,7 @@ Admin 项目使用三层授权机制：
 
 ### CachePermissionProvider
 
-参考文件：`backend/src/Tools/ThirdNet.Admin.Cache/Auth/CachePermissionProvider.cs`
+参考文件：生成项目 `Tools/{ProjectName}.Admin.Cache/Auth/CachePermissionProvider.cs`；参考仓库 `code/backend/src/Tools/ThirdNetVibe.Cache/Auth/CachePermissionProvider.cs`。
 
 ```csharp
 public class CachePermissionProvider(RoleCache roleCache) : IPermissionProvider
@@ -218,7 +224,7 @@ var visibleDeptIds = await _operatorContext.GetVisibleDeptIds();
 
 ## OperatorContext 详解
 
-参考文件：`backend/src/Tools/ThirdNet.Admin.Cache/Context/OperatorContext.cs`
+参考文件：生成项目 `Tools/{ProjectName}.Admin.Cache/Context/OperatorContext.cs`；参考仓库 `code/backend/src/Tools/ThirdNetVibe.Cache/Context/OperatorContext.cs`。命名空间 `{ProjectName}.Admin.Cache.Context`，实现 `IOperatorContext`（`{ProjectName}.Admin.Common.Interfaces`）。
 
 OperatorContext 是请求级别的 Memoization 容器（Scoped 生命周期），避免同一请求内重复的 Redis 查询：
 

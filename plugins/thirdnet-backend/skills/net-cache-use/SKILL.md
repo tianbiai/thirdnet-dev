@@ -27,7 +27,7 @@ description: >
 
 ### 核心架构
 
-框架提供 `RedisCacheManager` 抽象基类（命名空间 `ThirdNet.Vibe.Common`），每个业务领域创建独立的自包含缓存类：
+框架提供 `RedisCacheManager` 基类（**非抽象**，命名空间 `ThirdNet.Vibe.Common`，直接继承即可），每个业务领域创建独立的自包含缓存类：
 
 ```
 RedisCacheManager（框架基类）
@@ -54,7 +54,7 @@ RedisCacheManager（框架基类）
 
 | 方法 | 签名 | 说明 |
 |------|------|------|
-| `GetSingle` | `Task<TResult> GetSingle<TResult>(string key, Func<Task<TResult>> func, TimeSpan? timespan = null, bool refresh = false, TResult default_value = default)` | 获取单个缓存。不存在时通过 `func` 加载并写入，带击穿防护和 TTL 抖动 |
+| `GetSingle` | `Task<TResult> GetSingle<TResult>(string key, Func<Task<TResult>> func, TimeSpan? timespan = null, TResult default_value = default)` | 获取单个缓存。不存在时通过 `func` 加载并写入，带击穿防护和 TTL 抖动 |
 | `GetMultiple` | `Task<IDictionary<string, TResult>> GetMultiple<TResult>(string[] keys, Func<string[], Task<IDictionary<string, TResult>>> func, DateTimeOffset? offset = null, TResult default_value = default)` | 批量获取。自动识别缺失 key，只对缺失的调用 `func` 查询并回写 |
 
 ### 写入/删除方法
@@ -204,15 +204,7 @@ public class XxxCache : RedisCacheManager
 
 ## TTL 约定
 
-| 数据类型 | TTL | 原因 |
-|---------|-----|------|
-| 临时会话数据 | 10 分钟 | 短时有效 |
-| 外部 API Token | 2 小时 | Token 有效期 |
-| 用户相关（信息、权限、角色） | 8 小时 | 变更较频繁 |
-| 引用数据（角色字典、菜单树、配置） | 24 小时 | 变更较少 |
-| Token 时间 | 7 天 | 与 JWT 有效期匹配 |
-| 验证码 | 5 分钟 | 安全要求 |
-| 在线状态 | 90 秒 | 心跳驱动 |
+TTL 根据数据特性选取，范围从 90 秒（在线状态）到 7 天（Token 时间）。完整的 TTL 对照表见 [admin-cache-domains](references/admin-cache-domains.md)。
 
 ## 缓存失效策略
 
@@ -237,24 +229,26 @@ public async Task<IdResult> Update(XxxUpdateMap dto, long operatorId)
 3. 下次读取时 Read-Through 自动从 DB 加载
 4. 多个 key 使用 `RemoveMultiple` 一次完成，减少 Redis 网络往返
 
+> **涉及用户/角色权限变更**：不要手写散落的 `UserCache`/`RoleCache` 失效 + `TokenCache.SetTokenInvalidationTime`。统一调用 `UserCacheInvalidation.InvalidateUserAuthAsync(_userCache, _tokenCache, userId)`（`{ProjectName}.Admin.APIService.Services`），一次清权限+角色缓存并写 Token 失效时间。详见 `net-api-developer`「缓存失效」。
+
 ## 分布式锁：RedisLock
 
-**命名空间**: `ThirdNet.Vibe.Common`
+**命名空间**: `ThirdNet.Vibe.Common`。构造函数 `RedisLock(IDatabase database, ILogger<RedisLock>? log = null)`；`Lock(key, timespan)` 返回 `bool`（是否抢到），`UnLock()` 释放，实现 `IAsyncDisposable`——用 `await using` 自动释放。`IDatabase` 由 `AddRedisExtensionService` 注册到 DI。
 
 ```csharp
-private readonly IDatabase _redis;
-
-// 使用 using 自动释放锁
-using (await new RedisLock(_redis, "order.123", TimeSpan.FromSeconds(30)).LockAsync())
+// 抢锁：StringSet When.NotExists；超时未抢到返回 false，需自行处理
+await using var redisLock = new RedisLock(_database);
+if (await redisLock.Lock("order.123", TimeSpan.FromSeconds(30)))
 {
-    // 临界区逻辑：同一 key 只有一个请求能进入
+    // 临界区：同一 key 同时只有一个请求进入
     await ProcessOrder(orderId);
-}
+} // await using 退出时自动 UnLock（Lua 脚本原子释放，校验 lock_id）
 ```
 
 **注意事项**：
-- 解锁使用 Lua 脚本保证原子性
-- 锁过期时间应大于临界区预期执行时间
+- `RedisLock` 实例**持有所抢的 key 状态**，每次抢锁新建实例（不要跨请求复用同一实例并发抢多个锁）
+- 解锁用 Lua 脚本保证原子性（比对 `lock_id` 再 `del`，不会误删别人的锁）
+- `timespan` 是锁的自动过期时间，应大于临界区预期执行时间，避免业务未完锁先失效
 
 ## DI 注册
 
@@ -295,11 +289,17 @@ public virtual async Task<List<XxxView>> GetXxxList(List<long> ids)
 - [ ] `GetSingle` 使用 `TimeSpan?` 过期参数
 - [ ] `GetMultiple` 使用 `DateTimeOffset?` 过期参数
 - [ ] 使用了正确的 TTL（根据数据特性）
-- [ ] 所有 Query 方法使用了 `AsNoTracking()`
+- [ ] Query 方法用 `SqlQueryRaw` 原生 SQL（本身即 no-tracking，无需 `AsNoTracking()`）；若改用 LINQ 查询则必须加 `AsNoTracking()`
 - [ ] 多键场景 Remove 时删除了所有关联 key
 - [ ] 多个 key 的删除使用 `RemoveMultiple` 而非循环 `RemoveSingle`
 - [ ] 多个 key 的读取使用 `GetMultiple` 而非循环 `GetSingle`
 - [ ] 同一实体没有为不同字段子集创建多个 View 或多个 key
+
+## Admin 内置缓存域
+
+Admin 项目已提供 9 个缓存域（UserCache、RoleCache、MenuCache、DeptCache、ConfigCache、DictCache、TokenCache、OnlineCache、ApiKeyCache）。新增业务缓存前先确认能否复用，参考实现见 `code/backend/src/Tools/ThirdNetVibe.Cache/Domain/`。
+
+完整的缓存域清单、方法列表和用途说明见 [admin-cache-domains](references/admin-cache-domains.md)。
 
 ## 完整示例
 

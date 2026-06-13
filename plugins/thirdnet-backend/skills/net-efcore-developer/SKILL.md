@@ -14,6 +14,8 @@ description: >
 
 # ThirdNet 数据库实体开发
 
+> 复杂的分组/聚合/动态条件查询，框架提供「分组查询构建器」（见文末），不要手拼 SQL 字符串。完整的可复用类清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md)。
+
 ## 核心规则
 
 ### 禁止数据注解
@@ -63,7 +65,7 @@ public class UserModel
 
 ### AdminDbContext
 
-参考文件：`backend/src/Admin/{ProjectName}.Admin.Database/DbContext/AdminDbContext.cs`
+参考文件：生成项目 `Admin/{ProjectName}.Admin.Database/DbContext/AdminDbContext.cs`；参考仓库 `code/backend/src/Admin/ThirdNetVibe.Admin.Database/DbContext/AdminDbContext.cs`。
 
 ```csharp
 protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -230,21 +232,23 @@ public long? parent_id { get; set; }  // 可空，顶级节点 parent_id = null
 
 ## 迁移命令
 
+在 `backend/` 目录下执行（路径相对 `backend/`，生成项目无 `src/`）：
+
 ```bash
 # 添加迁移
 dotnet ef migrations add AddXxxEntity \
-  --project backend/src/Admin/{ProjectName}.Admin.Database \
-  --startup-project backend/src/Admin/{ProjectName}.Admin.APIService
+  --project Admin/{ProjectName}.Admin.Database \
+  --startup-project Admin/{ProjectName}.Admin.APIService
 
 # 应用迁移
 dotnet ef database update \
-  --project backend/src/Admin/{ProjectName}.Admin.Database \
-  --startup-project backend/src/Admin/{ProjectName}.Admin.APIService
+  --project Admin/{ProjectName}.Admin.Database \
+  --startup-project Admin/{ProjectName}.Admin.APIService
 
 # 回滚到指定迁移
 dotnet ef database update <MigrationName> \
-  --project backend/src/Admin/{ProjectName}.Admin.Database \
-  --startup-project backend/src/Admin/{ProjectName}.Admin.APIService
+  --project Admin/{ProjectName}.Admin.Database \
+  --startup-project Admin/{ProjectName}.Admin.APIService
 ```
 
 ## 双数据库上下文区别
@@ -310,6 +314,20 @@ await db.Database.ExecuteSqlInterpolatedAsync($@"WITH ... DELETE ...");
 - 禁止将 CTE 逻辑拆解为多次 `SaveChanges()` 调用
 - 参数使用 `$""` 内插语法或 `NpgsqlParameter`，严禁字符串拼接 SQL
 - SQL 中表名必须带 schema 前缀
+
+## 分组查询构建器（query 框架）
+
+需要**分组/聚合/动态多条件**查询（如按时间/地区/类目多维分组统计、运行时拼装筛选条件）时，框架提供分组查询构建器，避免手拼 SQL 字符串或写大量条件分支。命名空间 `ThirdNet.Vibe.Common`（`code/backend/Library/ThirdNet.Vibe.Common/query/`）。
+
+| 类/接口 | 用途 |
+|---------|------|
+| `ISqlGroupHandler` / `DefaultSqlGroupHandler` | 从分组类型 + 查询数据构建 WHERE/JOIN/GROUP BY/ORDER BY |
+| `NpgsqlGroupHandler` | PostgreSQL 方言特化（分组键保留为独立列） |
+| `WhereQueryType` | 条件类型枚举：`Equals/Between/In/NotIn/Greater/GreaterEquals/Less/LessEquals/Like/NotLike/StartsWith/EndsWith/Contains/NotContains` |
+| `GroupQueryData` / `SqlGroup` | 输入（GroupType/QueryType/Values）/ 输出（GroupKey/Where/Join/OrderBy/参数列表） |
+| `DefaultQueryHandlerFactory` + 各 `IQueryHandler` | 按 `WhereQueryType` 生成条件片段（Between/In/Like/SingleSymbol） |
+
+**何时用**：维度分组统计、报表聚合、查询条件需运行时动态组合（前端传任意筛选组合）。**何时不用**：简单单表 CRUD、固定的 1-2 个条件查询（直接 LINQ `Where` 更清晰）。配合 CTE 批量模式可处理"分组统计 → 写回"场景。完整方法签名见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md)「分组查询构建器」。
 
 ## 参考文件索引
 

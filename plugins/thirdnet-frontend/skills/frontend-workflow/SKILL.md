@@ -9,7 +9,7 @@ description: >
   以保证代码与文档的一致性。
 license: MIT
 metadata:
-  version: "2.1.0"
+  version: "2.2.0"
   author: thirdnet
 ---
 # 前端开发工作流
@@ -89,6 +89,7 @@ metadata:
 | 执行此操作前...                                   | 必须调用此技能                                  |
 | ------------------------------------------------- | ----------------------------------------------- |
 | 新建 Admin 管理后台前端项目（脚手架安装）           | `thirdnet-frontend:admin-template-setup`        |
+| 开发 Admin 模板中的新 CRUD 页面                     | `thirdnet-frontend:admin-template-setup`（阅读 CRUD 指南） |
 | 创建或修改任何 `.vue` / `.ts` / `.tsx` 文件       | `thirdnet-frontend:vue-best-practices`          |
 | 创建或修改任何 API 模块（`api/**/*.ts`）          | `thirdnet-frontend:api-typescript-spec`         |
 | 创建或修改任何 Pinia Store（`stores/**/*.ts`）    | `thirdnet-frontend:vue-pinia-best-practices`    |
@@ -260,12 +261,12 @@ metadata:
 
 ## 演示模式
 
-| 模式 | MOCK_ENABLED | 帮助气泡                         | Mock API 数据                     | 数据来源  |
-| ---- | ------------ | -------------------------------- | --------------------------------- | --------- |
-| 演示 | `true`     | 右上角显示                       | 正常加载                          | Mock 数据 |
-| 生产 | `false`    | `v-if` 不渲染（禁 `v-show`） | Vite alias 重定向至空模块，DCE 移除 | 真实 API  |
+`VITE_MOCK_ENABLED` 控制开发/演示模式，生产构建自动排除 Mock 代码（详见 `api-typescript-spec` 的「生产构建排除机制」）。
 
-> 生产构建通过 Vite alias 将 `@/mock/**` 重定向到空模块，配合 `MOCK_ENABLED` 静态为 `false` 触发 Rollup tree-shaking，Mock API 类、Mock 数据文件均不出现在最终产物中。详见 `api-typescript-spec` 技能的「生产构建排除机制」。
+| 模式 | MOCK_ENABLED | 帮助气泡 | 数据来源 |
+| ---- | ------------ | -------- | -------- |
+| 演示 | `true` | 右上角显示 | Mock 数据 |
+| 生产 | `false` | `v-if` 不渲染（禁 `v-show`） | 真实 API |
 
 ### HelpBubble
 
@@ -294,6 +295,8 @@ const helpContent = '本页面用于管理订单，支持筛选、导出和批�
 ## 项目特定规范
 
 ### 按钮防重复点击
+
+> **Admin 模板项目优先使用 useCrudTable / useActionLoading**：模板内置的 `useCrudTable` 和 `useActionLoading` 已封装操作锁机制（`isLoading` / `isAnyLoading` / `withLoading`）。在 Admin 模板中开发 CRUD 页面时，使用 `useCrudTable` 返回的操作锁替代手动管理 loading 状态。以下手动模式适用于非 Admin 模板项目或 Admin 模板中非 CRUD 场景。
 
 所有可交互按钮必须具备防重复点击机制，根据场景选择合适的策略：
 
@@ -427,6 +430,9 @@ frontend/
 - [ ] 类型定义、函数有 JSDoc 中文注释
 - [ ] 核心业务逻辑有中文行内注释
 - [ ] API 方法和 Store State/Action 有注释说明
+- [ ] Admin 模板项目：CRUD 页面使用了 useCrudTable 而非手写分页/搜索/删除样板（非 CRUD 页面除外）
+- [ ] Admin 模板项目：弹窗使用了 useDialogFocus 焦点管理
+- [ ] Admin 模板项目：表单验证使用了 validators.ts 规则工厂（有匹配规则时）
 
 ### 移动端额外检查（仅 minigram / uniapp 项目）
 
@@ -441,6 +447,26 @@ frontend/
 - [ ] Store 在 `src/stores/`，路由在 `src/router/`
 
 **发现不合规项时，先修正再交付，不要遗留问题。**
+
+### E2E 测试参考
+
+参考仓库 `code/frontend/e2e-tests/` 包含 48 个 Playwright E2E 测试，覆盖 Admin 模板全部主要模块，可作为新页面测试的参考模式：
+
+| 测试目录 | 覆盖模块 |
+|---------|---------|
+| `01-auth/` | 登录、密码过期、Token 生命周期 |
+| `02-user-lifecycle/` | 密码修改、密码重置、用户 CRUD |
+| `03-role-lifecycle/` | 角色 CRUD、角色权限分配 |
+| `04-menu-management/` | 菜单树管理 |
+| `05-dept-management/` | 部门树管理 |
+| `06-config-management/` | 配置 CRUD、配置生效 |
+| `07-dict-management/` | 字典 CRUD |
+| `08-gateway/` | 应用管理 |
+| `09-permission-matrix/` | 权限访问、权限视图 |
+| `12-security/` | 注入防护、上传安全 |
+| `13-api-management/` | API 端点列表、API 角色、应用、黑白名单、访问日志 |
+
+新增业务页面后，可参照上述测试目录的模式编写对应的 E2E 测试。
 
 ## 文件存放位置
 

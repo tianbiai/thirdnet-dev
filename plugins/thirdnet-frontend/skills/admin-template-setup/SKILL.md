@@ -11,7 +11,7 @@ description: >
   项目脚手架、模板安装、品牌定制、初始化 admin 项目。
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   author: thirdnet
 ---
 # Admin 管理后台前端模板安装指南
@@ -24,7 +24,7 @@ metadata:
   - 系统管理：用户管理、角色管理（含权限分配）、菜单管理、部门管理、字典管理、配置管理、操作日志、缓存管理
   - API 管理：应用管理、IP 黑白名单、角色权限、访问日志
   - 认证授权：登录/登出、Token 自动刷新、RBAC 三层权限（角色/范围/权限码）、动态菜单路由
-- 前端采用**真实 API + Mock 数据并行**开发模式——每个 API 模块同时有 RealXxxApi（Axios HTTP）和 MockXxxApi（本地数据）两套实现，通过 `VITE_MOCK_ENABLED` 环境变量切换。开发阶段无需后端即可完整运行，后端就绪后仅需改配置即可接入真实 API
+- 前端采用**真实 API + Mock 数据并行**开发模式——通过 `VITE_MOCK_ENABLED` 环境变量切换，开发阶段无需后端即可完整运行。API 策略工厂的完整规范（5 文件模块结构、Real/Mock 实现、生产构建排除机制）详见 `api-typescript-spec` 技能
 - **模板内置模块的业务逻辑受保护，安装后不可修改**——模板已实现的系统管理（用户、角色、菜单、部门、权限、操作日志、配置、字典、缓存）和 API 管理（应用、角色权限、IP 黑白名单、访问日志、接口列表、服务管理）功能模块的**业务逻辑代码**（script 部分、API 调用、组件嵌套关系、事件处理）属于模板资产，安装后禁止修改。页面样式（CSS/SCSS、布局、配色）可以自由调整。如需调整功能逻辑或扩展功能，应通过后端菜单配置新增页面，或新建独立的业务模块来实现。这条规则的目的是保证模板升级时不会与用户定制代码冲突。
 - 后端 API 服务需单独安装（参见 `thirdnet-backend:backend-workflow` 技能），本技能仅负责前端
 
@@ -112,6 +112,8 @@ my-admin/
 
 详细的项目结构、页面清单、API 模块列表和 Composable 列表参见 [frontend-template-structure](references/frontend-template-structure.md)。
 
+CRUD 页面开发详细指南（Composable 使用、页面布局模板、工具函数）参见 [crud-page-development-guide](references/crud-page-development-guide.md)。
+
 ## 安装后验证清单
 
 模板安装完成后，逐项验证：
@@ -161,3 +163,38 @@ my-admin/
 
 1. 检查 `src/config/brand.ts` 中的常量值是否已替换
 2. 若值仍为 `__BRAND_NAME__`，说明替换未生效，重新执行模板安装命令
+
+## CRUD 页面开发
+
+安装模板后，新增业务页面是主要开发任务。模板提供了完整的 Composable、组件和工具函数来消除样板代码。
+
+**开发新页面时，必须阅读**：[crud-page-development-guide](references/crud-page-development-guide.md)
+
+该指南涵盖：
+- 页面布局结构（page-container / page-header / search-bar / toolbar / pagination-bar）
+- 核心 Composable（useCrudTable / useDialogFocus / useActionLoading / usePermission）
+- 公共组件（PaginationBar / HelpBubble / TableEmpty / TableSkeleton）
+- 工具函数（validators / confirmAction / formatDateTime）
+- 权限系统三层架构（v-permission 指令 / usePermission composable / matchPermission 工具函数）
+- CSS 变量（对话框尺寸、表单标签宽度）
+- 弹窗表单完整代码模板
+
+**标准参考实现**：`src/views/api/blacklist/index.vue` — 展示了 useCrudTable + PaginationBar + useDialogFocus + validators + confirmAction 的完整组合。
+
+**关键原则**：
+- **禁止重复造轮子** — 使用模板已有的 Composable 和组件
+- 所有列表页使用 `useCrudTable` 管理分页、搜索、加载、删除（禁止手写 `usePagination + useActionLoading + debounced search` 样板）
+- 所有弹窗使用 `useDialogFocus` 管理焦点
+- 所有表单验证使用 `validators.ts` 的规则工厂（`requiredRule`、`requiredSelectRule` 等）
+- 所有删除确认使用 `confirmAction()`（`useCrudTable.remove()` 已内置）
+- 所有分页使用 `PaginationBar` 组件（禁止直接使用 `el-pagination`）
+
+## 参考代码
+
+参考仓库 `code/frontend/` 包含前端相关的源码和测试，可供深入学习：
+
+| 目录 | 内容 | 用途 |
+|------|------|------|
+| `code/frontend/create-thirdnet-admin/` | npm 模板包源码（`template/` + `overrides/`） | 了解模板生成逻辑、自定义模板内容 |
+| `code/frontend/web/` | 在线 Admin Web 应用（Vue 3 + Element Plus + Vite） | 参考真实页面实现、API 模块写法 |
+| `code/frontend/e2e-tests/` | Playwright E2E 测试套件（48 个测试文件） | 验证新页面功能、学习测试模式 |

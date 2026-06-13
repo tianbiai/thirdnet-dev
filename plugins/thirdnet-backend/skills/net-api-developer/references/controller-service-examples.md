@@ -11,7 +11,7 @@
 
 ## UserManagerController
 
-**源文件**：`backend/Admin/ThirdNet.Admin.APIService/Controllers/Manager/UserManagerController.cs`
+**源文件**（参考仓库）：`code/backend/src/Admin/ThirdNetVibe.Admin.APIService/Controllers/Manager/UserManagerController.cs`
 
 展示所有常见端点模式：列表、详情、新增、更新、删除、批量删除、特殊操作。
 
@@ -143,7 +143,7 @@ namespace {ProjectName}.Admin.APIService.Controllers.Manager
 
 ## SysUserService
 
-**源文件**：`backend/Admin/ThirdNet.Admin.APIService/Services/SysUserService.cs`
+**源文件**（参考仓库）：`code/backend/src/Admin/ThirdNetVibe.Admin.APIService/Services/SysUserService.cs`
 
 展示 Service 层的核心模式：IDbContextFactory、缓存注入、OperatorContext、部门过滤、缓存失效、事务。
 

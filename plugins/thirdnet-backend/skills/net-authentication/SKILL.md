@@ -1,20 +1,22 @@
 ---
 name: net-authentication
 description: >
-  ThirdNet 认证系统开发规范。覆盖 Basic 认证（IP 白名单、HMAC-SM3 国密应用加密）、
-  Bearer/JWT 认证（SM2/RSA 签名）、IAccountValidator 实现、ICheckClient 客户端验证、
+  ThirdNet 认证系统开发规范。覆盖三层认证：Basic 认证（IP 白名单、HMAC-SM3 国密应用加密）、
+  Bearer/JWT 认证（SM2/RSA 签名）、API Key 认证（X-API-Key 请求头、IApiKeyValidator、
+  CachedApiKeyValidator）、IAccountValidator 实现、ICheckClient 客户端验证、
   Token 获取/刷新端点、授权策略（Default/Logon/Basic/Both）、Token 过期检查、
   AdminAccountValidator 模式。
   当用户提到"认证"、"授权"、"登录"、"Token"、"JWT"、"Basic"、"Bearer"、
-  "IAccountValidator"、"ICheckClient"、"策略"、"Policy"、"用户验证"、"密码"、
-  "登录接口"、"刷新Token"、"AdminAccountValidator"时，必须使用此技能。
+  "ApiKey"、"X-API-Key"、"IApiKeyValidator"、"IAccountValidator"、"ICheckClient"、
+  "策略"、"Policy"、"用户验证"、"密码"、"登录接口"、"刷新Token"、
+  "AdminAccountValidator"时，必须使用此技能。
 ---
 
 # ThirdNet 认证系统
 
 ## 认证方式概览
 
-框架支持双层认证：Basic（应用级）+ Bearer/JWT（用户级）。
+框架支持三层认证：Basic（应用级）+ Bearer/JWT（用户级）+ API Key（外部调用级）。
 
 ### Basic 认证
 
@@ -53,6 +55,104 @@ Authorization: Basic base64(application:base64(HMacSM3(url,key)))
 2. 刷新 Token：`POST /connect/token/refresh`
 3. 使用 Token：`Authorization: bearer {access_token}`
 
+### API Key 认证
+
+适用于外部应用通过密钥调用 API 的场景（如开放平台、第三方集成），无需用户登录流程。
+
+#### 请求方式
+
+```
+X-API-Key: {api_key}
+```
+
+- 请求头名称：`X-API-Key`（`ApiKeyAuthenticationHandler.HeaderName`）
+- 值为明文 API Key（如 `sk-a1b2c3d4...`），框架自动进行 SHA256 哈希后验证
+- 不包含 `X-API-Key` 头时返回 `NoResult`，不阻断其他认证方式（Basic/Bearer 可正常使用）
+
+#### 验证流程
+
+```
+请求 X-API-Key 头
+  → ApiKeyAuthenticationHandler（Scheme: "ApiKey"）
+  → IApiKeyValidator.ValidateAsync(明文Key)
+  → CachedApiKeyValidator（Admin 层实现）
+      → SHA256 哈希明文 Key
+      → ApiKeyCache.GetByHash(哈希值)
+      → Redis 查找（未命中 → DB 回退 SQL 查 admin.t_sys_api_key）
+      → 检查 status（0=启用）+ expires_at（未过期）
+      → 解析 scopes（逗号分隔）
+  → 验证通过：创建 ClaimsIdentity（client_id + scope Claims）
+  → 验证失败：返回 null → 401
+```
+
+#### 核心接口与实现
+
+| 组件 | 命名空间 | 说明 |
+|------|---------|------|
+| `IApiKeyValidator` | `ThirdNet.Vibe.WebAPI` | 验证接口：`ValidateAsync(apiKeyPlain) -> ApiKeyValidationResult?` |
+| `DefaultApiKeyValidator` | `ThirdNet.Vibe.WebAPI` | 框架默认实现（始终返回 null，占位用） |
+| `CachedApiKeyValidator` | `{ProjectName}.Admin.Cache.Auth` | Admin 层实现：SHA256 哈希 → Redis 缓存 → DB 回退 |
+| `ApiKeyCache` | `{ProjectName}.Admin.Cache.Domain` | 缓存域：key `admin.apikey.hash.{hash[:16]}`，TTL 8h |
+| `ApiKeyAuthenticationHandler` | `ThirdNet.Vibe.WebAPI` | 认证处理器（Scheme "ApiKey"，读取 `X-API-Key` 头） |
+
+#### 注册方式
+
+`CachedApiKeyValidator` 在 Admin Startup.cs 第 6 步（认证授权层）注册：
+
+```csharp
+// Admin Startup.cs — 注册缓存版 API Key 验证器（替换框架默认的 no-op 实现）
+services.AddAdminCacheServices();  // 注册 ApiKeyCache（Singleton）
+services.AddSingleton<IApiKeyValidator>(sp =>
+    sp.GetRequiredService<CachedApiKeyValidator>());
+```
+
+Service 微服务**不需要**单独注册，共享 Admin 的认证体系即可。
+
+#### API Key 管理
+
+Admin 项目内置完整的 API Key 管理功能（`ApiKeyService` + `ApiKeyManagerController`），支持：
+- 创建 / 更新 / 删除 API Key
+- 设置 Key 名称、scope 权限范围、过期时间
+- 启用 / 禁用 Key
+- Key 的 secret 只在创建时返回一次，之后只存储 SHA256 哈希
+
+> API Key 的 scope Claims 与 JWT 的 scope Claim 使用相同的类型名称，因此 `[ProviderAuthorize("scope1")]` 对 API Key 和 JWT 用户同样生效，无需区分。详见 `net-rbac`。
+
+## 加密算法框架（AddCrypto）
+
+本系统的密码哈希、JWT 签名、应用 HMAC 都建立在框架的加密套件上——**国密（GM）与国际双标准统一通过 DI 注册，不要手写加密算法**。
+
+### 一次性注册整套算法
+
+`ThirdNet.Vibe.Common.Algorithm.CryptoServiceExtensions.AddCrypto(...)`（`code/backend/Library/ThirdNet.Vibe.Common/algorithm/CryptoServiceExtensions.cs`）：
+
+```csharp
+// 选标准即注册全部 5 个算法接口：IHashAlgorithm / IHmacAlgorithm / ISymmetricAlgorithm / IAsymmetricAlgorithm / IPasswordHasher
+services.AddCrypto(CryptoStandard.NationalStandard);   // 国密：SM3/SM4/SM2，密码用 Pbkdf2SM3
+services.AddCrypto(CryptoStandard.International);      // 国际：SHA512/AES/RSA，密码用 BCrypt（可选 usePbkdf2:true 用 PBKDF2）
+// 可选参数：bcryptWorkFactor=11、usePbkdf2=false、pbkdf2Iterations=100000
+```
+
+需要混搭或单独替换某一项时，用构建器：`services.AddCrypto(b => b.UseHash<...>().UsePasswordHasher<...>())`。
+
+### 算法族对应
+
+| 接口 | 国际（International） | 国密（NationalStandard） |
+|------|---------------------|------------------------|
+| `IHashAlgorithm` | SHA512 | SM3 |
+| `IHmacAlgorithm` | HMACSHA512 | HMACSM3（Basic 应用加密认证用） |
+| `ISymmetricAlgorithm` | AES-128-CBC | SM4-CBC |
+| `IAsymmetricAlgorithm` | RSA | SM2 |
+| `IPasswordHasher` | BCrypt / PBKDF2(HMAC-SHA512) | PBKDF2(HMAC-SM3) |
+
+> `IPasswordHasher` 命名空间 `ThirdNet.Vibe.Common.Algorithm.Abstractions`，方法 `Hash(plain)` / `Verify(plain, hash)`。`AdminAccountValidator` 即注入它来校验密码。
+
+### JWT 签名
+
+签名算法由 `JwtSignType`（枚举 `RSA`/`SM2`）配置，框架经 `ISigner` 抽象派发到 `RSASigner`/`SM2Signer`（`ThirdNet.Vibe.WebAPI.Authentication.Bearer.Signing`）。切换签名算法只改配置，不改业务代码。
+
+完整的算法类与签名类清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md) 的「加密算法」「认证」小节。
+
 ## IAccountValidator 实现
 
 `IAccountValidator` 接口用于验证用户账号密码并返回自定义 Claims。
@@ -73,7 +173,7 @@ namespace ThirdNet.Vibe.WebAPI
 
 Admin 项目中的实现查询 AdminDbContext，使用 PBKDF2 验证密码，包含账户锁定和原子 SQL 操作。
 
-> 完整源码参考：`backend/src/Admin/ThirdNet.Admin.APIService/Auth/AdminAccountValidator.cs`
+> 完整源码参考：生成项目 `Admin/{ProjectName}.Admin.APIService/Auth/AdminAccountValidator.cs`；参考仓库 `code/backend/src/Admin/ThirdNetVibe.Admin.APIService/Auth/AdminAccountValidator.cs`。
 
 ```csharp
 public class AdminAccountValidator : IAccountValidator
@@ -162,6 +262,8 @@ public class AdminAccountValidator : IAccountValidator
 }
 ```
 
+> 上例用到的 `SystemConfigKeys`（`{ProjectName}.Admin.Common.Constants`）是系统配置键常量，对应 `t_sys_config.config_key`，避免硬编码字符串。常用键：`MaxLoginAttempts`（默认 5）、`LockoutDurationHours`（默认 12）、`SessionTimeoutMinutes`、`PasswordExpiryDays`、`ShowLoginErrorDetail`、`CaptchaEnabled`、`UploadAllowedExtensions`、`HeartbeatIntervalSeconds`。配置值经 `ConfigCache.GetConfigInt/GetConfigBool` 读取。完整清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md)。
+
 ### 注册方式
 
 **AdminService（Admin 主项目）**：必须注册 `IAccountValidator`：
@@ -236,10 +338,10 @@ refresh_token=xxx
 
 | 策略名 | 认证方式 | 说明 |
 |-------|---------|------|
-| Default | Basic + Bearer | 默认策略 |
-| Logon | Bearer | 必须登录 |
+| Default | Basic + Bearer + ApiKey | 默认策略，三种方式任一即可 |
+| Logon | Bearer | 必须用户登录 |
 | Basic | Basic | 仅应用调用 |
-| Both | Basic + Bearer | 两种都支持 |
+| Both | Basic + Bearer | Basic 或 Bearer |
 
 ```csharp
 [Authorize]                          // Default 策略
@@ -249,19 +351,19 @@ refresh_token=xxx
 
 对于 PermissionAuthorize（权限码授权），详见 `net-rbac` 技能。
 
-## Token 过期检查
+## Token 过期检查（失效链路）
 
-`IAccountTokenTimeCache` 接口用于控制 Token 的有效性检查。
+用户信息（密码、权限、角色）变更后需要让旧 Token 失效，框架提供完整链路（命名空间均在 `ThirdNet.Vibe.WebAPI`）：
 
-### 工作原理
+| 组件 | 角色 |
+|------|------|
+| `AccountTokenCheckMiddleware` | 每次请求比对 Token 的 `nbf`（签发时间）与缓存中的失效时间；若失效时间更新则抛 `WebApiException(Unauthorized, "token_need_change")`。 |
+| `IGetAccountTokenKey` / `AccountTokenKeyProvider` | 从 `HttpContext` 生成缓存 key（Admin 基于 Redis 实现，模板生成层）。 |
+| `IAccountTokenTimeCache` | 存取失效时间戳（`DefaultAccountTokenTimeCache` 为内存实现）。 |
 
-1. `AccountTokenCheckMiddleware` 检查 Token 的 `nbf` (Not Before) 时间
-2. 如果缓存中存在该用户的时间，且大于 Token 的签发时间，则 Token 失效
-3. Admin 使用 `AccountTokenKeyProvider`（`IGetAccountTokenKey`），基于 Redis 实现
+### 触发失效
 
-### 使用场景
-
-当用户信息（如密码、权限）变更后，通过 `_tokenCache.SetTokenInvalidationTime(userId)` 更新时间戳，使之前的 Token 失效，强制用户重新登录。
+业务侧**不要直接调用** `_tokenCache.SetTokenInvalidationTime(userId)`——改用统一助手 `UserCacheInvalidation.InvalidateUserAuthAsync(_userCache, _tokenCache, userId)`（`{ProjectName}.Admin.APIService.Services`）：一次清掉用户权限缓存 + 角色缓存，并写入 Token 失效时间，用户下次请求即被中间件拦截重签。详见 `net-api-developer` 的「缓存失效」。
 
 ## 相关技能
 

@@ -27,9 +27,19 @@ description: >
 
 ## 核心类
 
-**命名空间**: `ThirdNet.Vibe.Common`
-**核心接口**: `IDbAsyncBulk`
-**实现类**: `PostgresqlAsyncBulk`（由框架自动注册为 Transient）
+**命名空间**: `ThirdNet.Vibe.Common`（框架库，`code/backend/Library/ThirdNet.Vibe.Common/database/`）
+
+| 类/接口 | 用途 |
+|---------|------|
+| `IDbAsyncBulk` | 批量操作核心接口，注入它即可 |
+| `PostgresqlAsyncBulk` | 实现（基于 `NpgsqlBinaryImport` COPY 二进制协议），框架自动注册为 Transient |
+| `[DbBulk]` | 字段映射特性（见下，实体唯一允许的 Data Annotation） |
+| `NpgMappingInfo` / `DbBulkExtension` | 列映射 POCO 与 `ToNpgsqlType(this Type)` 扩展 |
+| `ExpressionExtensions` | `And<T>`/`Or<T>`/`Compose<T>`——动态拼 `Expression<Func<T,bool>>` where 条件，配合按条件筛选批量源数据 |
+| `PostgresqlToCsvExporter` | 反向导出：`TableToCsv`/`SelectToCsv`（`COPY ... TO STDOUT`） |
+| `BulkCopyException` | 批量操作异常 |
+
+> 完整类清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md)「数据库批量与工具」。
 
 ## 方法速查表
 
@@ -63,13 +73,18 @@ description: >
 public class MyService
 {
     private readonly IDbAsyncBulk _bulkCopy;
+    private readonly string _connectionString;
 
-    public MyService(IDbAsyncBulk bulkCopy)
+    public MyService(IDbAsyncBulk bulkCopy, IConfiguration configuration)
     {
         _bulkCopy = bulkCopy;
+        // 连接字符串来自配置：业务库取 ConnectionString，框架库取 DefaultConnectionString
+        _connectionString = configuration.GetConnectionString("ConnectionString")!;
     }
 }
 ```
+
+> `IDbAsyncBulk` 的方法接受**连接字符串**或 `DbConnection`。业务库连接串来自 appsettings 的 `ConnectionString`，框架库（ThirdNetDbContext 表）用 `DefaultConnectionString`。
 
 ### 批量插入
 

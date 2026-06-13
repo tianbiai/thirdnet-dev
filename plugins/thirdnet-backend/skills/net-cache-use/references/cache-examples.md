@@ -12,7 +12,7 @@
 
 ## UserCache
 
-**源文件**：`backend/Tools/ThirdNet.Admin.Cache/Domain/UserCache.cs`
+**源文件**（参考仓库）：`code/backend/src/Tools/ThirdNetVibe.Cache/Domain/UserCache.cs`
 
 UserCache 是最典型的缓存域示例，展示了所有核心模式：单条缓存、全量字典、关联查询、批量操作。
 
@@ -181,7 +181,7 @@ namespace {ProjectName}.Admin.Cache.Domain
 
 ## MenuCache
 
-**源文件**：`backend/Tools/ThirdNet.Admin.Cache/Domain/MenuCache.cs`
+**源文件**（参考仓库）：`code/backend/src/Tools/ThirdNetVibe.Cache/Domain/MenuCache.cs`
 
 MenuCache 展示了树形数据的缓存模式：缓存扁平列表，在内存中构建树。
 

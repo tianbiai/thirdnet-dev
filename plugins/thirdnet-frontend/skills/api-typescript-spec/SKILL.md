@@ -7,7 +7,7 @@ description: |
   关键触发词：API、接口、Mock、请求、adapter、request、类型定义、DTO、分页、认证、登录、token、枚举、enum、策略模式、工厂模式、接口契约、IXxxApi。
 license: MIT
 metadata:
-  version: "2.0.0"
+  version: "2.1.0"
   author: thirdnet
   compatibility: Vue 3 + TypeScript + Vite 项目，支持 Web（Element Plus）和移动端（uniapp + Vant，发布为微信小程序 mp-weixin）
 ---
@@ -607,6 +607,39 @@ mock/data/app/order.ts        ← Mock 数据
 - 新增模块 → 5 个文件全部创建
 
 ## 页面调用
+
+### Admin 模板项目：使用 useCrudTable（推荐）
+
+Admin 模板项目提供了 `useCrudTable` composable，封装了分页、搜索、加载、删除等全部 CRUD 列表页样板逻辑，禁止手写 `usePagination + useActionLoading + debounced search` 模式。
+
+```typescript
+import { orderApi } from '@/api/modules/app/order'
+import type { OrderItem, OrderQueryParams } from '@/api/types/order'
+import { useCrudTable } from '@/composables/useCrudTable'
+
+const {
+  loading, tableData, queryParams, pagination,
+  handleCurrentChange, handleSizeChange,
+  isLoading, isAnyLoading, withLoading,
+  loadTable, search, reset, remove,
+} = useCrudTable<OrderItem, OrderQueryParams>({
+  fetch: (p) => orderApi.getOrderList(p),
+  defaultQuery: { status: undefined, order_no: '' },
+})
+
+// 删除（内置 confirmAction 确认 + 操作锁 + 成功提示 + 刷新）
+async function handleDelete(row: OrderItem) {
+  await remove(row, {
+    id: row.id,
+    confirmMessage: `确认删除订单「${row.order_no}」？`,
+    api: orderApi.remove,
+  })
+}
+```
+
+> **完整 CRUD 页面开发指南**参见 `admin-template-setup` 技能的 [crud-page-development-guide](../admin-template-setup/references/crud-page-development-guide.md)。
+
+### 非 Admin 模板项目：手动调用
 
 ```typescript
 import { orderApi } from '@/api/modules/app/order'

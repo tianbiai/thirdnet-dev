@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.22.0 - 2026-06-13
+
+### Added
+- `net-authentication`：新增 API Key 认证章节（`X-API-Key` 请求头、`ApiKeyAuthenticationHandler`、`IApiKeyValidator`/`CachedApiKeyValidator`/`ApiKeyCache`、注册方式、API Key 管理功能），认证概览从"双层"更新为"三层"
+- `net-authentication`：授权策略表 Default 行更新为 Basic + Bearer + ApiKey
+- `net-cache-use`：Admin 内置缓存域表补全 `ApiKeyCache`（SHA256 哈希验证）和 `DictCache`（字典数据缓存）
+- `net-background-job`：新增 `VisitLogCleanupRunner` 章节（每日清理、Delete/Archive/None 策略、appsettings 配置项）
+- `net-api-developer`：Framework Types Quick Reference 补充 `UploadResult`（文件上传响应 DTO）
+- `framework-and-template-catalog.md`：缓存域表补全 ApiKeyCache 和 DictCache，业务层失效助手表补充 CachedApiKeyValidator
+
+## 0.21.0 - 2026-06-13
+
+### Added
+- 新增集中式参考文档 `backend-workflow/references/framework-and-template-catalog.md`：三层能力目录（框架库 ThirdNet.Vibe.Common/WebAPI + 模板生成层 + 项目结构校准），各技能统一引用，引导复用而非重复造轮子
+- `backend-workflow`：新增「架构三层」概览与「框架内置能力」速查（限流、multipart 上传、CIDR IP、ThirdNet.Migrate 模板升级工具）
+- `net-authentication`：折叠覆盖加密框架（`AddCrypto`/国密 SM2-SM4/国际 RSA-AES/`IPasswordHasher`/JWT 签名）、`SystemConfigKeys` 文档、Token 失效链路（`AccountTokenCheckMiddleware`/`AccountTokenKeyProvider`）
+- `net-efcore-developer`：折叠覆盖分组查询构建器（`ISqlGroupHandler`/`NpgsqlGroupHandler`/`WhereQueryType`）
+- `net-cache-use`：新增 Admin 内置缓存域速查（UserCache/RoleCache/MenuCache/DeptCache/ConfigCache/TokenCache/OnlineCache）
+
+### Changed
+- 修正跨技能路径错误：统一为生成项目路径 `Admin/{ProjectName}.*`（去掉错误的 `backend/src/`），`code/backend/src/` 标注为只读参考仓库
+- `net-api-developer`：修正 `TreeBuilder`/`TreeHelper` 命名混淆、`OperatorContext`/`IdResult`/`IPasswordHasher` 命名空间，补 `ToPageListAsync`/`UserCacheInvalidation` 文档，修拼写 `ProduceProducesResponseType`
+- `net-cache-use`：修正 `GetSingle` 签名（去掉不存在的 `refresh` 参数）、`RedisLock` 正确用法（`Lock`/`UnLock`/`await using`）、AsNoTracking 误导说明
+- `net-rbac`：补全 `[ProviderAuthorize]`（JWT scope 范围授权）文档与三层授权说明
+- `net-background-job`：补充 `SessionRunner`/`AsyncMemo`/`IBackgroundLogger` 框架类
+- `net-microservice-generator`：新增 `ThirdNet.Migrate` 模板升级工具文档，修迁移命令路径
+- PreToolUse Hook：`net-authentication` 映射覆盖加密签名文件、`net-efcore-developer` 映射覆盖分组查询文件
+- `admin-fullstack-coordination` 升至 1.3.0：新增任务路由、全栈项目创建（Admin 模板例外流程）、`code/backend` 引用，修正第 11 步「后端管理面板」幽灵技能
+
 ## 0.20.0 - 2026-06-09
 
 ### Added

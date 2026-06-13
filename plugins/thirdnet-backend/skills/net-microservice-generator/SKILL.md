@@ -17,6 +17,8 @@ description: >
 
 Service 模板用于创建独立微服务，它与 Admin 项目共享认证和权限体系，但拥有独立的业务数据库。
 
+> 创建/维护微服务时，可复用的框架与模板类清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md)。
+
 ```
 Admin 项目                    Service 项目
 ├── Admin.Common ──────────→ 引用（ProjectReference）
@@ -113,6 +115,18 @@ backend/
             │   └── ServiceDbContext.cs
             └── Models/                     # 空，待开发
 ```
+
+## 模板升级（ThirdNet.Migrate）
+
+`ThirdNet.Migrate` 是随模板提供的**模板升级 CLI**（**不是数据库迁移工具**），用于让已生成的项目跟进模板的新版本——避免模板修复了 bug 或改进了结构后，旧项目无法同步。源码 `code/backend/Template/ThirdNet.Migrate/`。
+
+```bash
+thirdnet-migrate check                       # 检查 NuGet 源上模板是否有新版本
+thirdnet-migrate diff                        # 下载最新模板、替换 sourceName、预览与当前项目的差异
+thirdnet-migrate apply                       # 应用差异到当前项目（支持 --dry-run / --force / --non-interactive）
+```
+
+内部经 `ProjectScanner`→`TemplateExtractor`→`SourceNameReplacer`→`FileDiffer`→`MigrationPreparer` 完成「扫描→下载→替换项目前缀→三方 diff→应用」。**先用 `diff` 预览、确认无误再 `apply`**；生产项目务必先提交 Git 以便回滚。
 
 ## ServiceDbContext
 
@@ -295,14 +309,16 @@ await host.RunAsync();
 
 ### 迁移命令
 
+在 `backend/` 目录下执行（路径相对 `backend/`）：
+
 ```bash
 dotnet ef migrations add AddOrderEntity \
-  --project backend/{ServiceName}/Service/{ServiceName}.Database \
-  --startup-project backend/{ServiceName}/Service/{ServiceName}.API
+  --project {ServiceName}/Service/{ServiceName}.Database \
+  --startup-project {ServiceName}/Service/{ServiceName}.API
 
 dotnet ef database update \
-  --project backend/{ServiceName}/Service/{ServiceName}.Database \
-  --startup-project backend/{ServiceName}/Service/{ServiceName}.API
+  --project {ServiceName}/Service/{ServiceName}.Database \
+  --startup-project {ServiceName}/Service/{ServiceName}.API
 ```
 
 ## 连接字符串配置

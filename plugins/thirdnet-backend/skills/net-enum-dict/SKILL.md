@@ -13,6 +13,8 @@ description: >
 
 # ThirdNet 系统枚举字典
 
+> 命名空间：`[SystemDict]`、`[EnumMeta]`、`SystemEnumRegistry` 在 `{ProjectName}.Admin.Common.Enums`；同步器 `SystemEnumDictSync` 在 `{ProjectName}.Admin.APIService.Data`。完整类清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md)「枚举字典」。
+
 ## 决策指南：系统枚举 vs 前端手动字典
 
 在创建下拉选项前，先判断属于哪种类型：
@@ -34,7 +36,7 @@ description: >
 
 ### 一个文件一个枚举
 
-在 `backend/src/Tools/{ProjectName}.Admin.Common/Enums/` 下新建 `.cs` 文件，每个文件只包含一个枚举定义。
+在 `Tools/{ProjectName}.Admin.Common/Enums/` 下新建 `.cs` 文件（参考仓库 `code/backend/src/Tools/ThirdNetVibe.Common/Enums/`），每个文件只包含一个枚举定义。
 
 ### 枚举必须标注 [SystemDict]
 

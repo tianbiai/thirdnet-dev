@@ -14,6 +14,46 @@ description: >
 
 本技能是 ThirdNet 后端开发的入口和路由器，定义工作流步骤、项目创建、架构概览、文档驱动开发流程和技能路由。
 
+## 架构三层与能力目录
+
+写任何后端代码前，先认清代码落在这三层中的哪一层，并**优先复用框架已有的能力**：
+
+| 层 | 位置 | 说明 |
+|----|------|------|
+| **① 框架库** | NuGet 包 `ThirdNet.Vibe.Common` / `ThirdNet.Vibe.WebAPI` | 加密、分组查询、Redis 缓存/锁、批量、限流、multipart、CIDR、JWT、RBAC、操作日志、访问日志、分页等——**最优先复用**。源码只读参考：`code/backend/Library/`。 |
+| **② 模板生成层** | 生成项目的 `Tools/{ProjectName}.Admin.Common` / `.Admin.Cache` / `Admin/{ProjectName}.Admin.APIService` | `AdminControllerBase`、`OperatorContext`、`SystemConfigKeys`、`[OperLog]`、`[SystemDict]`、各缓存域等。随 `dotnet new thirdnet-admin` 生成。参考：`code/backend/src/`。 |
+| **③ 业务代码** | 生成项目的 `Admin/{ProjectName}.Admin.APIService`（Controllers/Services/DTOs）与 `.Database`（Models/EntityConfigurations） | 你自己写的实体、Service、Controller。 |
+
+**完整的可复用类清单（命名空间 + 文件 + 用途）见 [framework-and-template-catalog](references/framework-and-template-catalog.md)**。不确定「框架是否已提供某个能力」时，先查目录，不要重复造轮子。
+
+> 命名校准：参考仓库里 `ThirdNetVibe.*` 是当前实现，`ThirdNet.*`（无 Vibe）是空的历史壳项目——**不要往 `ThirdNet.*` 里写代码**。生成项目结构**没有 `src/`**（`src/` 只在 `code/backend/` 参考仓库）；描述文件位置时一律用生成路径 `Admin/{ProjectName}.Admin.APIService/...`。
+
+## 框架内置能力（开箱即用，无需自研）
+
+下列能力已由框架提供，遇到对应需求**直接用**，不要自己实现：
+
+| 能力 | 入口 | 简述 |
+|------|------|------|
+| 分页 | `IQueryable<T>.ToPageListAsync(page_index, page_size)` | `ThirdNet.Vibe.WebAPI.ThirdNetWebApiExtensions` 扩展，返回 `PageListInfo<List<T>>`。 |
+| 限流 | `services.AddThirdNetIpRateLimiting()`（及 IP+应用、IP+应用+路径 变体） | 基于 ASP.NET Core `RateLimiter` 固定窗口/分钟，超限 429；配置 `"RateLimiting":{"Times":500}`。 |
+| 文件上传 | `MultipartData`（`Files` + `DataList`） | `ThirdNet.Vibe.WebAPI` 的 multipart 解析模型。 |
+| IP 黑/白名单 | `BlackIpMiddleware` + `CidrMatcher` | 支持 CIDR，黑名单 403；数据经 `ThirdNetDbContext` 的 `IpBlackList`/`IpWhiteList`。 |
+| 访问日志 | `RequestLoggerMiddleware` + `IVisitLogger`（`DatabaseVisitLogger`/`NpgsqlVisitLogRunner`） | 自动批量写访问日志。 |
+| 分布式锁 | `RedisLock.Lock(key, timespan)`（`using` 自动释放，Lua 原子解锁） | `ThirdNet.Vibe.Common`，`AddRedisExtensionService` 已注册。 |
+| 模板升级 | `thirdnet-migrate check / diff / apply` | `ThirdNet.Migrate` 工具，让已生成项目跟进模板更新（**非数据库迁移工具**）。 |
+
+各项的命名空间与签名详见 [能力目录](references/framework-and-template-catalog.md)。
+
+### 框架过滤器（由 `AddThirdNetDefaultMvc` 自动注册）
+
+开发者无需手动注册或调用以下过滤器，框架已自动处理：
+
+| 过滤器 | 行为 |
+|--------|------|
+| `ValidateModelAttribute` | 自动校验 `[FromBody]` DTO，`ModelState` 无效时抛 `WebApiException(400, 拼接的错误信息)`。**Controller 方法中无需手动检查 `ModelState.IsValid`**。 |
+| `CustomExceptionFilter` | 捕获 `WebApiException` 返回 `{code, error, error_description}` JSON + 对应 HTTP 状态码；未处理异常返回 500 + 通用消息。 |
+| `DefaultResultHeaderFilter` | 所有响应自动添加 `X-Content-Type-Options: nosniff` + `X-Frame-Options: deny` 安全头。 |
+
 ## 相关技能
 
 当同时涉及前后端开发时，配合以下技能使用：
@@ -114,6 +154,8 @@ backend/
     └── {ProjectName}.Admin.Cache/            # Redis 缓存域
 ```
 
+> 需要看每个目录里**真实的范例代码**（完整 Controller/Service/Cache 实现）时，参考仓库 `code/backend/src/Admin/ThirdNetVibe.Admin.*` 与 `code/backend/src/Tools/ThirdNetVibe.*`（只读）。生成项目本身不含 `src/`。
+
 ### 创建 Service 微服务项目
 
 参考 `net-microservice-generator` 技能获取完整指南。
@@ -140,74 +182,11 @@ Admin 项目使用两个独立的 PostgreSQL 数据库，各自拥有独立的 D
 - `AdminDbContext` 迁移文件存放在 Database 项目
 - Service 项目使用 `ServiceDbContext` 替代 `AdminDbContext`，自定义 schema
 
-## Program.cs 模式
+## Program.cs 与 Startup.cs DI 管道
 
-```csharp
-using {ProjectName}.Admin.Common.Hosting;
-using ThirdNet.Vibe.WebAPI;
+Admin 项目的 Program.cs 和 Startup.cs 遵循固定的启动模式和 10 步 DI 注册顺序（不可调换）。新增模块时只需在第 9 步添加 `services.AddScoped<YourService>();`。
 
-var host = AdminHostBuilder.BuildAdminWebHost<Startup>(args);
-
-await host.InitializeDatabasesAsync();           // 框架数据库自动迁移
-await host.InitializeFunctionTableAsync();        // 功能表初始化
-await host.InitializePermissionCatalogTableAsync(); // 权限目录自动同步
-
-await host.RunAsync();
-```
-
-## Startup.cs DI 管道（10 步注册顺序）
-
-以下顺序不可调换，每一步依赖前一步的注册结果：
-
-```csharp
-public void ConfigureServices(IServiceCollection services)
-{
-    // 第 1 步：响应压缩 + CORS
-    services.AddResponseCompression(options => { options.EnableForHttps = true; });
-    services.AddThirdNetCors(Configuration);
-
-    // 第 2 步：基础设施（框架DB、JWT、Redis、限流、加密、MVC）
-    services.AddAdminCommonInfrastructure(Configuration, "{ProjectName}.Admin.APIService");
-
-    // 第 3 步：业务数据库（AdminDbContext）
-    services.AddPooledDbContextFactory<AdminDbContext>(...);
-
-    // 第 4 步：缓存专用数据库上下文（CacheDbContext，共享连接字符串）
-    services.AddPooledDbContextFactory<CacheDbContext>(...);
-
-    // 第 5 步：健康检查
-    services.AddHealthChecks().AddNpgSql(...).AddRedisHealthCheck();
-
-    // 第 6 步：认证授权层
-    services.AddScoped<IAccountValidator, AdminAccountValidator>();
-    services.AddAdminCacheServices();                              // 所有缓存域（Singleton）
-    services.AddScoped<IPermissionProvider, CachePermissionProvider>();
-    services.AddSingleton<IGetAccountTokenKey, AccountTokenKeyProvider>();
-    services.AddScoped<OperatorContext>();
-    services.AddScoped<IOperatorContext>(sp => sp.GetRequiredService<OperatorContext>());
-
-    // 第 7 步：操作日志
-    services.AddSingleton<DatabaseOperLogLogger>(...);
-    services.AddSingleton<IOperLogLogger>(sp => sp.GetRequiredService<DatabaseOperLogLogger>());
-    services.AddHostedService(sp => sp.GetRequiredService<DatabaseOperLogLogger>());
-    services.AddScoped<OperLogFilter>();
-
-    // 第 8 步：在线用户心跳
-    services.AddSingleton<OnlineUserHeartbeatLogger>();
-    services.AddSingleton<IOnlineUserHeartbeatLogger>(sp => sp.GetRequiredService<OnlineUserHeartbeatLogger>());
-    services.AddHostedService(sp => sp.GetRequiredService<OnlineUserHeartbeatLogger>());
-
-    // 第 9 步：业务服务（Scoped）
-    services.AddScoped<SysUserService>();
-    services.AddScoped<SysRoleService>();
-
-    // 第 10 步：帮助页 + 控制器
-    services.AddAdminCommonHelpPage(Configuration);
-    services.AddAdminCommonControllers(options => { options.Filters.Add<OperLogFilter>(); });
-}
-```
-
-**新增模块时**：只需在第 9 步添加 `services.AddScoped<YourService>();`。
+完整的代码模板和每一步的详细说明见 [di-pipeline-and-startup](references/di-pipeline-and-startup.md)。
 
 ## 功能开发流程
 

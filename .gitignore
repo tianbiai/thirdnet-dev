@@ -8,3 +8,4 @@ docs/
 # .NET build output
 bin/
 obj/
+code/

@@ -273,6 +273,10 @@ mock/data/manager/{module}.ts  → 纯数据导出
 
 ### 权限系统
 
-- **声明式**：`v-permission` 指令，移除无权限的 DOM 元素
-- **编程式**：`usePermission()` composable，返回 `hasPermission()` 函数
+- **声明式**：`v-permission` 指令（接收数组，如 `v-permission="['sys:user:add']"`），隐藏无权限元素
+- **编程式**：`usePermission()` composable，返回 `hasPermi()` 和 `hasPermiOr()` 函数
 - **通配符**：支持 `*`（所有权限）、`sys:*`（模块级）、`sys:user:add`（精确匹配）
+
+## CRUD 页面开发
+
+新增业务页面时，参见 [crud-page-development-guide](crud-page-development-guide.md) 获取完整的代码模板、Composable 使用说明和标准参考实现。

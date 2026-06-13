@@ -13,8 +13,18 @@ description: >
 
 ## 核心类
 
-**命名空间**: `ThirdNet.Vibe.Common`
-**基类**: `BackgroundRunner`
+**命名空间**: `ThirdNet.Vibe.Common`（框架库，`code/backend/Library/ThirdNet.Vibe.Common/async/`）
+
+框架提供一组后台任务相关类，**按需求选用，不要自造**：
+
+| 类 | 用途 |
+|----|------|
+| `BackgroundRunner` | 循环执行的后台任务基类（本技能主用）。设 `SleepTime`/`Check`，实现 `WorkAsync`。 |
+| `SessionRunner<Key,Value>` | **字典缓存型**后台任务（继承 `BackgroundRunner`）。实现 `ISessionReader<Key,Value>` + `ISessionRefresh`，周期性刷新一个内存字典供高频读取（`TryGet`/`GetAll`/`RefreshAsync`）。适合「热数据定期预热、请求时零延迟读取」场景，而非每次查库/查 Redis。 |
+| `AsyncMemo<T>` | 轻量异步记忆化：`GetOrFetchAsync(fetchFunc)`，请求级懒加载缓存。`OperatorContext` 即基于它。 |
+| `IBackgroundLogger` / `BackgroundLog` | 后台任务日志接口与日志条目 POCO。`DatabaseBackgroundLogger`（框架 `ThirdNet.Vibe.WebAPI`）为写库实现。 |
+
+> 完整类清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md)「后台任务与异步缓存」小节。
 
 ## 核心属性
 
@@ -170,6 +180,46 @@ services.AddHostedService(sp => sp.GetRequiredService<OnlineUserHeartbeatLogger>
 ```
 
 负责维护在线用户状态（TTL 90 秒）。
+
+### 访问日志清理（VisitLogCleanupRunner）
+
+框架内置的访问日志定期清理任务（`ThirdNet.Vibe.WebAPI.Logging`），由 `AddThirdNetMvcWithPostgresql` 自动注册为 `IHostedService`，**不需要手动注册**。
+
+**执行条件**：
+- `CleanupEnabled` 为 `true`（默认）
+- `CleanupStrategy` 不为 `"None"`
+- 当前小时为 1 点（即每日凌晨 1 点执行一次）
+- SleepTime = 3600000（1 小时检查周期）
+
+**清理策略**：
+
+| 策略 | 说明 |
+|------|------|
+| `"Delete"` | 直接删除过期记录（`DELETE FROM t_visitlog WHERE time < @cutoff`） |
+| `"Archive"` | 先归档到 `t_visitloghistory` 再删除（CTE: `DELETE ... RETURNING *` → `INSERT INTO t_visitloghistory`） |
+| `"None"` | 不执行清理（等同于禁用） |
+
+**配置**（`appsettings.json` → `"DefaultOptions"` → `"VisitLog"` 节）：
+
+```json
+{
+  "DefaultOptions": {
+    "VisitLog": {
+      "CleanupEnabled": true,
+      "CleanupStrategy": "Archive",
+      "CleanupRetentionDays": 30
+    }
+  }
+}
+```
+
+| 配置项 | 类型 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `CleanupEnabled` | bool | true | 是否启用清理（设 false 完全跳过 Check） |
+| `CleanupStrategy` | string | "Archive" | 清理策略：Delete / Archive / None |
+| `CleanupRetentionDays` | int | 30 | 保留天数（删除早于此天数的记录） |
+
+> 日志清理使用框架数据库连接（`DefaultConnectionString`，即 `ThirdNetDbContext` 所在库），而非业务数据库。
 
 ## 常见场景
 
