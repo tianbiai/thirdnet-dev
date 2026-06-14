@@ -39,7 +39,7 @@ description: >
 | 文件上传 | `MultipartData`（`Files` + `DataList`） | `ThirdNet.Vibe.WebAPI` 的 multipart 解析模型。 |
 | IP 黑/白名单 | `BlackIpMiddleware` + `CidrMatcher` | 支持 CIDR，黑名单 403；数据经 `ThirdNetDbContext` 的 `IpBlackList`/`IpWhiteList`。 |
 | 访问日志 | `RequestLoggerMiddleware` + `IVisitLogger`（`DatabaseVisitLogger`/`NpgsqlVisitLogRunner`） | 自动批量写访问日志。 |
-| 分布式锁 | `RedisLock.Lock(key, timespan)`（`using` 自动释放，Lua 原子解锁） | `ThirdNet.Vibe.Common`，`AddRedisExtensionService` 已注册。 |
+| 分布式锁 | `RedisLock.Lock(key, timespan)`（`await using` 自动释放，Lua 原子解锁） | `ThirdNet.Vibe.Common`，`AddRedisExtensionService` 已注册。 |
 | 模板升级 | `thirdnet-migrate check / diff / apply` | `ThirdNet.Migrate` 工具，让已生成项目跟进模板更新（**非数据库迁移工具**）。 |
 
 各项的命名空间与签名详见 [能力目录](references/framework-and-template-catalog.md)。

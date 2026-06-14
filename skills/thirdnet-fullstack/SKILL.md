@@ -15,6 +15,10 @@ metadata:
   author: thirdnet
 ---
 
+> **结构约定**：本技能以 skill 形式被 marketplace 直接加载（`source: ./skills/thirdnet-fullstack`），不单独维护 `.claude-plugin/plugin.json`。版本号以本文件 frontmatter `metadata.version` 与根目录 `marketplace.json` 中的 `thirdnet-fullstack` 条目为准。
+
+---
+
 # 全栈 Admin 功能开发协调指南
 
 本技能是前后端协同开发的桥梁，定义全栈功能开发顺序、类型映射规则、权限桥接和约定同步机制。需要 `thirdnet-backend` 和 `thirdnet-frontend` 插件同时安装。

@@ -51,8 +51,8 @@ Authorization: Basic base64(application:base64(HMacSM3(url,key)))
 基于 JWT Token 的用户认证。Admin 项目使用 SM2 算法签名 JWT，也支持 RSA。
 
 使用流程：
-1. 获取 Token：`POST /connect/token`
-2. 刷新 Token：`POST /connect/token/refresh`
+1. 获取 Token：`POST /api/manager/auth/login`
+2. 刷新 Token：`POST /api/manager/auth/refresh`
 3. 使用 Token：`Authorization: bearer {access_token}`
 
 ### API Key 认证
@@ -291,14 +291,9 @@ public interface ICheckClient
 
 ### 获取 Token
 
-**端点**：`POST /connect/token`
+**端点**：`POST /api/manager/auth/login`
 
-```
-Authorization: Basic base64(application:)
-Content-Type: application/x-www-form-urlencoded
-
-username=test&password=123&scope=offline_access
-```
+请求使用 Basic Auth + HMAC-SM3 签名（完整登录流程见 `net-rbac` 的 rbac-flow.md）。
 
 响应：
 ```json
@@ -310,14 +305,9 @@ username=test&password=123&scope=offline_access
 
 ### 刷新 Token
 
-**端点**：`POST /connect/token/refresh`
+**端点**：`POST /api/manager/auth/refresh`
 
-```
-Authorization: Basic base64(application:)
-Content-Type: application/x-www-form-urlencoded
-
-refresh_token=xxx
-```
+请求携带 `refresh_token`，使用与登录一致的 Basic Auth + HMAC-SM3 签名。
 
 注意：refresh_token 只能使用一次，使用后失效，返回新的 access_token 和 refresh_token。
 
@@ -367,7 +357,7 @@ refresh_token=xxx
 
 ## 相关技能
 
-- **backend-workflow**: 完整工作流和 DI 管道
+- **backend-workflow**：后端开发入口与文档驱动开发流程（**编码前确认 `backend/spec.md` 已存在并已阅读**，否则文档驱动流程会被跳过）
 - **net-rbac**: 权限体系（PermissionAuthorize 三层授权）
 - **net-api-developer**: API 接口开发
 - **net-efcore-developer**: 数据库实体（认证器访问用户表）

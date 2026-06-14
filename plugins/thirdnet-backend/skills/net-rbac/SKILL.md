@@ -267,7 +267,7 @@ var visibleDeptIds = await _operatorContext.GetVisibleDeptIds();
 
 ## 相关技能
 
-- **backend-workflow** — 后端开发总入口，需求分析和文档驱动开发流程
+- **backend-workflow**：后端开发入口与文档驱动开发流程（**编码前确认 `backend/spec.md` 已存在并已阅读**，否则文档驱动流程会被跳过）
 - **net-authentication** — 认证机制（Basic Auth + JWT），RBAC 的前置依赖
 - **net-api-developer** — Controller 和 Service 开发规范，`[PermissionAuthorize]` 的使用位置
 - **net-cache-use** — 缓存域开发，`CachePermissionProvider` 基于缓存层的权限加载

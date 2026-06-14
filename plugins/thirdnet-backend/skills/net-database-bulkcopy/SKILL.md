@@ -237,7 +237,7 @@ await _xxxCache.RemoveXxx(id);
 
 ## 相关技能
 
-- **backend-workflow**: 完整工作流
+- **backend-workflow**：后端开发入口与文档驱动开发流程（**编码前确认 `backend/spec.md` 已存在并已阅读**，否则文档驱动流程会被跳过）
 - **net-efcore-developer**: 数据库实体 + CTE 批量 SQL（数据已在数据库中的场景）
 - **net-cache-use**: 缓存功能（批量操作后需删除相关缓存）
 - **net-api-developer**: API 接口开发（批量操作常通过 API 触发）

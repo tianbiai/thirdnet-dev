@@ -227,7 +227,7 @@ builder.HasIndex(x => new { x.user_id, x.role_id }).IsUnique(); // 复合唯一
 菜单和部门使用 `parent_id` 实现树形结构：
 
 ```csharp
-public long? parent_id { get; set; }  // 可空，顶级节点 parent_id = null
+public long parent_id { get; set; }  // 顶级节点 parent_id = 0
 ```
 
 树形数据在缓存层通过 `TreeBuilder.BuildForest()` 构建树形结构。
@@ -373,7 +373,7 @@ await db.Database.ExecuteSqlInterpolatedAsync($@"WITH ... DELETE ...");
 
 ## 相关技能
 
-- **backend-workflow**: 完整工作流和文档驱动开发
+- **backend-workflow**：后端开发入口与文档驱动开发流程（**编码前确认 `backend/spec.md` 已存在并已阅读**，否则文档驱动流程会被跳过）
 - **net-microservice-generator**: 微服务项目结构
 - **net-api-developer**: API 接口开发
 - **net-cache-use**: 缓存集成（View 模型与缓存配合）

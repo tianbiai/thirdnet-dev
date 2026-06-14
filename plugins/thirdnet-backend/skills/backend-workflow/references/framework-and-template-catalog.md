@@ -81,7 +81,7 @@
 | 类 | 文件 | 用途 |
 |----|------|------|
 | `RedisCacheManager` | `.../redis/RedisCacheManager.cs` | 缓存域基类（**非抽象**）。构造 `(IRedisDatabase redis, ILogger log)`。内置：Polly 熔断（`ExceptionAllowed` 默认 3、`Duration` 默认 5 分钟，熔断期返回默认值）、防击穿（每 key `SemaphoreSlim` + double-check）、TTL ±10% 抖动防雪崩。方法：`GetSingle<TResult>(key, func, timespan?, default_value)`、`GetMultiple<TResult>(keys, func, offset?, default_value)`、`RemoveSingle(key)`、`RemoveMultiple(keys)`、`AddOrUpdate<TResult>(key, model, timespan?)`、`AddOrUpdateMultiple<TResult>(Tuple<string,TResult>[], offset?)`。 |
-| `RedisLock` | `.../redis/RedisLock.cs` | 分布式锁，`IAsyncDisposable`。`Lock(key, timespan)`/`UnLock()`，`StringSet When.NotExists` + Lua 原子释放，using 自动释放。 |
+| `RedisLock` | `.../redis/RedisLock.cs` | 分布式锁，`IAsyncDisposable`。`Lock(key, timespan)`/`UnLock()`，`StringSet When.NotExists` + Lua 原子释放，`await using` 自动释放。 |
 | `RedisExtension` | `.../redis/RedisExtension.cs` | DI：`AddRedisExtensionService(services, config)` 注册 `RedisLock`/`IRedisClient`/`IRedisDatabase`/`RedisOptions` 等；`AddRedisHealthCheck()`。配置节 `"RedisExtension"`。 |
 | `RedisOptions` / `RedisHealthCheck` | 同目录 | `Connection`/`KeyPrefix`/`DefaultDatabase`；健康检查。 |
 

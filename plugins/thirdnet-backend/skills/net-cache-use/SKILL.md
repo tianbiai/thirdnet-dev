@@ -307,7 +307,7 @@ Admin 项目已提供 9 个缓存域（UserCache、RoleCache、MenuCache、DeptC
 
 ## 相关技能
 
-- **backend-workflow**: 完整工作流和文档驱动开发
+- **backend-workflow**：后端开发入口与文档驱动开发流程（**编码前确认 `backend/spec.md` 已存在并已阅读**，否则文档驱动流程会被跳过）
 - **net-efcore-developer**: 数据库实体开发（缓存基于实体创建 View 和 Query）
 - **net-api-developer**: API 接口开发（缓存通过 Service 层注入调用）
 - **net-database-bulkcopy**: 批量数据操作（批量导入后需删除对应缓存）

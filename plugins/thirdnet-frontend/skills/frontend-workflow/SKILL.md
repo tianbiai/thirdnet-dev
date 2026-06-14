@@ -32,7 +32,7 @@ metadata:
 
 1. **需求澄清**（AskUserQuestion）—— 明确平台、范围、数据来源、交互流程
 
-   > **例外：Admin 模板项目创建** —— 如果任务明确为"创建 Admin 管理后台前端项目"（使用 `create-thirdnet-admin`），模板已内置全部功能页面（系统管理 8 个模块 + API 管理 6 个模块 + 认证授权），功能范围固定、无需澄清。此时跳过需求澄清的多轮提问，仅用一次 AskUserQuestion 确认品牌参数（项目名称、`--brand` 品牌名称、`--initial` 首字母、`--abbr` 缩写，均可使用默认值）后直接进入步骤 2。后端 API 地址使用默认 `http://localhost:5000`，无需确认。
+   > **例外：Admin 模板项目创建** —— 如果任务明确为"创建 Admin 管理后台前端项目"（使用 `create-thirdnet-admin`），模板已内置全部功能页面（系统管理、API 管理、认证授权共 19 个模块），功能范围固定、无需澄清。此时跳过需求澄清的多轮提问，仅用一次 AskUserQuestion 确认品牌参数（项目名称、`--brand` 品牌名称、`--initial` 首字母、`--abbr` 缩写，均可使用默认值）后直接进入步骤 2。后端 API 地址使用默认 `http://localhost:5000`，无需确认。
    >
    > 此例外**仅适用于创建新 Admin 模板前端项目**。在已有项目中新增业务页面/模块时，仍须执行完整的需求澄清流程。
 
@@ -120,7 +120,7 @@ metadata:
 
 ### Admin 模板项目创建 —— 直接跳过
 
-如果当前任务为**创建 Admin 管理后台前端项目**（用户明确提出"创建 admin 前端"、"新建管理后台"、"create-thirdnet-admin"等），**直接跳过本节后续的多轮澄清流程**。原因：Admin 前端模板已内置完整的系统管理、API 管理和认证授权功能页面（共 18 个模块），功能范围固定不变，无需确认。
+如果当前任务为**创建 Admin 管理后台前端项目**（用户明确提出"创建 admin 前端"、"新建管理后台"、"create-thirdnet-admin"等），**直接跳过本节后续的多轮澄清流程**。原因：Admin 前端模板已内置完整的系统管理、API 管理和认证授权功能页面（共 19 个模块），功能范围固定不变，无需确认。
 
 **替代操作**：使用一次 `AskUserQuestion` 仅确认品牌参数（项目名称、`--brand` 品牌名称、`--initial` 首字母、`--abbr` 缩写，均可使用默认值）。后端 API 地址使用默认 `http://localhost:5000`，无需确认。
 
@@ -250,7 +250,7 @@ metadata:
 | **移动端（uniapp）** | Vue 3.4.x、Vant 4.x、Vite 5.x、Pinia 2.x、Axios 1.x                         |
 | **Web 端**           | Vue 3.5.x、Vite 8.x、Element Plus 2.x、Vue Router 4.x、Pinia 3.x、Axios 1.x |
 
-- **Pinia 版本选择**：Vue 3.5+ / Vite 8+ 项目使用 Pinia 3.x（以 npm 最新稳定版为准，如 3.x 尚未发布则使用 2.x）；Vue 3.4 / uniapp 项目使用 Pinia 2.x
+- **Pinia 版本选择**：Vue 3.5+ / Vite 8+ 项目使用 Pinia 3.x（以 npm 最新稳定版为准）；Vue 3.4 / uniapp 项目使用 Pinia 2.x
 - **TypeScript 强制**：所有代码 `.ts` 扩展名，Vue 组件 `<script setup lang="ts">`，禁止 `.js`
 - **枚举规范**：`enum` 关键字 + JSDoc 注释，禁止 union type 或 const object
 - **移动端**：开发用 H5 模式，最终发布微信小程序，代码须兼容 H5 + 小程序

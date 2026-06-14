@@ -1,6 +1,6 @@
 ---
 name: api-typescript-spec
-description: |
+description: >
   前端 API 接口 TypeScript 全流程规范，基于接口契约的策略工厂模式（Strategy Factory Pattern with Interface Contract）。
   指导创建：类型定义（api/types/）、接口契约（api/interfaces/）、真实实现（RealXxxApi 适配 HTTP）、Mock 实现（mock/api/ 适配 mock/data/ 本地数据）、工厂函数（createXxxApi）。
   当用户需要创建 API 接口、添加接口模块、编写 Mock 数据、定义请求类型、设置 API 层架构、创建枚举类型、或任何涉及 api/ 和 mock/ 目录的操作时，必须使用此 skill。
@@ -9,8 +9,9 @@ license: MIT
 metadata:
   version: "2.1.0"
   author: thirdnet
-  compatibility: Vue 3 + TypeScript + Vite 项目，支持 Web（Element Plus）和移动端（uniapp + Vant，发布为微信小程序 mp-weixin）
 ---
+
+> **兼容性**：Vue 3 + TypeScript + Vite 项目，支持 Web（Element Plus）和移动端（uniapp + Vant，发布为微信小程序 mp-weixin）。
 
 # 前端 API 接口 TypeScript 规范（策略工厂模式）
 
@@ -394,9 +395,9 @@ import { mockOrderList } from '@/mock/data/app/order'
 
 export class MockOrderApi implements IOrderApi {
   async getOrderList(params: OrderQueryParams): Promise<PaginatedResponse<OrderItem>> {
-    const { index = 1, size = 10 } = params
-    const start = (index - 1) * size
-    return { list: mockOrderList.slice(start, start + size), total: mockOrderList.length, index, size }
+    const { page_index = 1, page_size = 10 } = params
+    const start = (page_index - 1) * page_size
+    return { list: mockOrderList.slice(start, start + page_size), total: mockOrderList.length, index: page_index, pages: Math.ceil(mockOrderList.length / page_size) }
   }
   async getOrderDetail(params: { id: number }): Promise<OrderItem> {
     const item = mockOrderList.find(i => i.order_id === params.id)
@@ -432,6 +433,8 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 | `.env.development` | `VITE_MOCK_ENABLED=false` | 日常开发（连真实 API，需后端就绪） |
 | `.env.prototype` | `VITE_MOCK_ENABLED=true` | 原型演示构建（走 Mock，无需后端） |
 | `.env.production` | `VITE_MOCK_ENABLED=false` | 生产构建（连真实 API） |
+
+> **Admin 模板项目例外**：使用 `create-thirdnet-admin` 创建的 Admin 模板项目采用**单一 `.env` 文件**（手动改 `VITE_MOCK_ENABLED` 切换），不使用上述三文件 `.env.{mode}` 模式。详见 `admin-template-setup`。
 
 #### 构建模式
 
@@ -653,7 +656,7 @@ const orderList = ref<OrderItem[]>([])
 async function loadOrders() {
   loading.value = true
   try {
-    const result = await orderApi.getOrderList({ index: 1, size: 10 })
+    const result = await orderApi.getOrderList({ page_index: 1, page_size: 10 })
     orderList.value = result.list
   } finally {
     loading.value = false

@@ -58,7 +58,7 @@ Normal = 0,
 
 应用启动时，`SystemEnumRegistry` 通过反射自动扫描当前程序集中所有带 `[SystemDict]` 的枚举，然后 `SystemEnumDictSync.SyncAsync()` 将枚举值同步到数据库：
 
-- **新增枚举类型** → 自动插入 `t_sys_dict_type`（dict_source=0）和 `t_sys_data`
+- **新增枚举类型** → 自动插入 `t_sys_dict_type`（dict_source=0）和 `t_sys_dict_data`
 - **更新标签** → 枚举成员的 `[EnumMeta]` 标签变化时自动更新
 - **硬删除** → 枚举成员被移除后，对应的 `t_sys_dict_data` 行自动删除
 
@@ -172,12 +172,12 @@ GET /api/manager/dict/type/{dict_type}/data
 |------|---------|---------|
 | "通知渠道"选项（邮件/短信/站内信），后端只用它展示 | 定义 [SystemDict] 枚举 | 前端字典管理页面手动创建 |
 | 新增一个后端需要 switch 判断的状态值 | 前端手动创建字典 | 定义 [SystemDict] 枚举 |
-| 在 Admin.APIService 项目中定义枚举 | 在其他程序集定义 [SystemDict] | 只在 Admin.Common/Enums/ 中定义 |
+| 决定 [SystemDict] 枚举定义在哪个程序集 | 在 `{ProjectName}.Admin.APIService` 等业务项目定义 | 只在 `{ProjectName}.Common/Enums/` 中定义 |
 | 每次新增枚举后手动改 Startup.cs | 手动注册 | 无需操作，自动发现 |
 
 ## 相关技能
 
-- **backend-workflow**: 完整工作流和技能路由
+- **backend-workflow**：后端开发入口与文档驱动开发流程（**编码前确认 `backend/spec.md` 已存在并已阅读**，否则文档驱动流程会被跳过）
 - **net-efcore-developer**: 数据库实体开发（实体中的状态/类型字段引用枚举）
 - **net-api-developer**: API 接口开发（接口返回枚举选项）
 - **net-cache-use**: 缓存功能（字典数据有缓存）

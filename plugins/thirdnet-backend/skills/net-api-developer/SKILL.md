@@ -2,7 +2,7 @@
 name: net-api-developer
 description: >
   ThirdNet API 接口开发规范。覆盖 AdminControllerBase（CurrentUserId/Name/DeptId、
-  自动 OperatorContext 初始化）、Controller 目录组织（Manager/App/Three）、
+  自动 OperatorContext 初始化）、Controller 目录组织（Manager/App/Third）、
   GET/POST-only 约定、DTO 命名（{Entity}{Action}Map）、PermissionAuthorize 属性、
   OperLog 操作日志、WebApiException 错误处理、PageListInfo 分页、
   Service 层完整模式（IDbContextFactory + 缓存注入 + OperatorContext + 部门过滤 + 缓存失效）。
@@ -333,7 +333,7 @@ queryable = queryable.Where(x => visibleDeptIds.Contains(x.dept_id));
 
 ## 相关技能
 
-- **backend-workflow**: 完整工作流和文档驱动开发
+- **backend-workflow**：后端开发入口与文档驱动开发流程（**编码前确认 `backend/spec.md` 已存在并已阅读**，否则文档驱动流程会被跳过）
 - **net-efcore-developer**: 数据库实体开发
 - **net-cache-use**: 缓存集成
 - **net-rbac**: 权限体系

@@ -295,7 +295,7 @@ public class LogCleanupTask : BackgroundRunner
 
 ## 相关技能
 
-- **backend-workflow**: 完整工作流和 DI 管道
+- **backend-workflow**：后端开发入口与文档驱动开发流程（**编码前确认 `backend/spec.md` 已存在并已阅读**，否则文档驱动流程会被跳过）
 - **net-efcore-developer**: 数据库实体（后台任务常操作数据库）
 - **net-cache-use**: 缓存功能（后台任务常刷新缓存）
 - **net-api-developer**: API 接口开发
