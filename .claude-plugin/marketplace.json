@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Thirdnet 全栈开发插件集",
-    "version": "0.31.0"
+    "version": "0.32.0"
   },
   "plugins": [
     {
       "name": "thirdnet-backend",
       "source": "./plugins/thirdnet-backend",
       "description": "后端开发助手 - .NET 10 微服务：API 开发、EF Core 数据库、Redis 缓存、RBAC 权限体系、枚举字典、后台任务、批量操作、认证授权、文档驱动开发",
-      "version": "0.23.0",
+      "version": "0.24.0",
       "author": {
         "name": "thirdnet"
       },

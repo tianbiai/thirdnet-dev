@@ -51,10 +51,21 @@ public class UserModel
 
 字符串属性**不设置 HasMaxLength**，让 EF Core 默认映射为 PostgreSQL `text` 类型。`text` 与 `varchar(n)` 性能相同且无长度限制，避免未来迁移成本。
 
+### 索引策略
+
+除 `HasIndex(x => x.field).IsUnique()` 唯一索引与 `HasIndex(x => new { x.a, x.b }).IsUnique()` 复合唯一索引外：
+
+- **jsonb / 数组列必须配 GIN 索引**（否则 `@>`、数组运算符退化为全表扫描）。
+- 常量谓词过滤场景用部分索引 `HasFilter(...)`。
+- 复合索引遵循左前缀原则（等值列在前、范围列在后）。
+- 覆盖索引（INCLUDE）、表达式索引等高级模式 EF Core 不直接支持，在迁移中手写。
+
+完整指引见 [postgres-best-practices.md](references/postgres-best-practices.md)「一、索引策略」。
+
 ### 其他
 
-- **不创建外键**，通过对应 id 关联
-- 迁移文件仅在用户明确要求时创建
+- **不创建外键**，通过对应 id 关联（理由与边界见文末「设计取舍说明」）
+- 迁移文件仅在用户明确要求时创建；生产迁移须遵循 expand/contract，见 [postgres-best-practices.md](references/postgres-best-practices.md)「七、迁移安全性」
 - **每个 .cs 文件只定义一个类型**（Model、Configuration、View 各自独立成文件）
 
 ### Schema 隔离
@@ -337,6 +348,28 @@ await db.Database.ExecuteSqlInterpolatedAsync($@"WITH ... DELETE ...");
 | [cte-batch-patterns.md](references/cte-batch-patterns.md) | CTE 批量处理的 4 种完整场景示例 | 实现数据归档、同步、清理时 |
 | [complex-types.md](references/complex-types.md) | JSONB、数组类型的配置模式 | 遇到嵌套对象或数组字段时 |
 | [dbcontext-and-queries.md](references/dbcontext-and-queries.md) | DbContext 模板、注册、原生 SQL 查询 | 配置 DbContext 或编写 SQL 查询时 |
+| [postgres-best-practices.md](references/postgres-best-practices.md) | 索引/N+1/分页/连接/监控/并发/迁移最佳实践补齐 | 涉及性能优化、生产部署、慢查询、迁移上线时 |
+
+## 设计取舍说明
+
+下列选择属**有意为之**，与通用 Postgres 最佳实践不同，需明确理由与边界，避免被误判为缺陷：
+
+### 不建外键
+
+- **理由**：微服务跨库（业务库与框架库分离）无法跨库建 FK；表结构演进灵活；避免级联锁影响并发。
+- **边界**：关联完整性由应用层 Service 保证；**同库内强一致关系**（如字典主从表）**可选加 FK**，但需评估级联锁风险。
+- **替代约束**：用复合唯一索引（如 `t_sys_user_role(user_id, role_id)`）保证业务唯一性。
+
+### 不做 RLS（行级安全）
+
+- **理由**：数据权限模型基于部门树（`DeptFilterHelper.GetVisibleDeptIds` 注入查询 `Where`），业务复杂度（含 `include_sub_depts`、通配符、自定义数据范围）高于 RLS 策略表达力。
+- **边界**：若未来出现严格多租户隔离需求（租户间数据绝对不可串），再评估 RLS。
+
+### 数据权限走应用层
+
+- `DeptFilterHelper` 把可见 `dept_id` 集合注入查询 `Where(x => visibleDeptIds.Contains(x.dept_id))`。
+- **关键约束**：`dept_id` 等被数据权限过滤的列**必须建索引**（如 `entity-examples.md` 中 `HasIndex(x => x.dept_id)`），否则每次权限过滤触发 Seq Scan，应用层权限反而拖垮查询。
+- 高频过滤列、JOIN 关联列同理必须建索引——这正是 Postgres「外键列须建索引」最佳实践在本插件无 FK 架构下的对应体现。
 
 ## 相关技能
 

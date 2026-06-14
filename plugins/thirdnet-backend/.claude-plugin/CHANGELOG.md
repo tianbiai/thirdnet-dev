@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.24.0 - 2026-06-14
+
+### Added
+- `net-efcore-developer`：新增参考文档 `postgres-best-practices.md`，按 Supabase《Postgres Best Practices》8 大类补齐此前未覆盖的最佳实践——索引策略（GIN/覆盖/部分/列序）、N+1 查询消除、keyset 分页、连接管理（PgBouncer/超时/prepared statement）、监控诊断（EXPLAIN/pg_stat_statements/ANALYZE）、并发与锁（SKIP LOCKED/advisory/短事务）、迁移安全（expand/contract/CONCURRENTLY/幂等约束）、时区类型（timestamptz）、全文检索与 jsonb 索引
+- `net-efcore-developer`：SKILL 新增「索引策略」「设计取舍说明」章节，明确不建外键、不做 RLS、数据权限走应用层 DeptFilterHelper 的理由与边界
+- `net-rbac`：在 OperatorContext 数据范围过滤处补充「dept_id 等过滤列必须建索引」说明
+- `project-spec-template.md`：数据库优化勾选清单从 3 项扩展为 7 项
+
+### Changed
+- `plugin.json` 版本号 0.23.0 → 0.24.0，与 `marketplace.json` 对齐
+
 ## 0.22.0 - 2026-06-13
 
 ### Added

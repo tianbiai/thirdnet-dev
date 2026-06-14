@@ -100,9 +100,15 @@
 
 ### 数据库优化
 
-- [ ] 避免 N+1 查询
+- [ ] 避免 N+1 查询（优先 `Select` 投影；多集合 `Include` 用 `AsSplitQuery`）
 - [ ] 使用投影（Select）
-- [ ] 分页查询
+- [ ] 分页查询（常规 `ToPageListAsync`，深翻页/实时流用 keyset）
+- [ ] jsonb/数组列配 GIN 索引
+- [ ] 高频过滤列/FK 关联列建索引（含 `dept_id` 等数据权限过滤列）
+- [ ] `DateTime` 列映射为 `timestamptz`
+- [ ] 慢查询经 `EXPLAIN (ANALYZE, BUFFERS)` 验证
+
+> 完整最佳实践（索引策略/连接管理/监控诊断/迁移安全/并发锁）见 [net-efcore-developer → postgres-best-practices.md](../../net-efcore-developer/references/postgres-best-practices.md)。
 
 ### 批量操作
 

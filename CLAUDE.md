@@ -9,12 +9,12 @@ thirdnet-dev/
 ├── code/
 │   └── backend/              # 后端模板/框架参考代码（Library + src + Template，只读参考）
 ├── plugins/
-│   ├── thirdnet-backend/     # .NET 10 微服务后端开发插件 (v0.23.0)
+│   ├── thirdnet-backend/     # .NET 10 微服务后端开发插件 (v0.24.0)
 │   └── thirdnet-frontend/    # Vue 3 前端开发插件 (v0.23.0)
 ├── skills/
 │   └── admin-fullstack-coordination/  # 全栈协调技能 (v1.3.0)
 └── .claude-plugin/
-    └── marketplace.json      # 插件集合注册清单 (v0.31.0)
+    └── marketplace.json      # 插件集合注册清单 (v0.32.0)
 ```
 
 ## 核心约定

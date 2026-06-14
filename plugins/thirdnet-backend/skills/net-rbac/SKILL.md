@@ -248,6 +248,8 @@ var roleIds = await _operatorContext.GetUserRoleIds();
 var visibleDeptIds = await _operatorContext.GetVisibleDeptIds();
 ```
 
+> **数据范围过滤列必须建索引**：`GetVisibleDeptIds()` 返回的部门集合最终会拼成 `Where(x => visibleDeptIds.Contains(x.dept_id))`，对应的 `dept_id` 等过滤列**必须建索引**（`HasIndex(x => x.dept_id)`），否则每次权限过滤触发 Seq Scan。本插件不做 RLS、数据权限走应用层（设计取舍理由见 [net-efcore-developer → 设计取舍说明](../net-efcore-developer/SKILL.md)），所以应用层过滤列的索引是性能关键。
+
 ## 通配符匹配规则
 
 | 用户权限 | 请求的权限 | 是否匹配 |
