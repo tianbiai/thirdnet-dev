@@ -27,7 +27,7 @@ description: >
 
 ## 核心类
 
-**命名空间**: `ThirdNet.Vibe.Common`（框架库，`code/backend/Library/ThirdNet.Vibe.Common/database/`）
+**命名空间**: `ThirdNet.Vibe.Common`（NuGet 包，`database/` 目录）
 
 | 类/接口 | 用途 |
 |---------|------|

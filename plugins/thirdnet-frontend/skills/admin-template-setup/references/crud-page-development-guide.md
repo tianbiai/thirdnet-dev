@@ -185,7 +185,7 @@ const { hasPermi, hasPermiOr } = usePermission()
 const canEdit = computed(() => hasPermi('sys:notice:edit'))
 
 // 任一权限检查（OR）
-const canModify = computed(() => hasPermiOr(['sys:notice:edit', 'sys:notice:update']))
+const canModify = computed(() => hasPermiOr(['sys:notice:edit', 'sys:notice:remove']))
 ```
 
 **注意**：返回值是 `hasPermi` 和 `hasPermiOr`，不是 `hasPermission`。
@@ -298,8 +298,8 @@ formatDateTime(null)                          // "—"
 ```vue
 <!-- 单权限 -->
 <el-button v-permission="['sys:user:add']">新增</el-button>
-<!-- 多权限（满足任一即显示） -->
-<el-button v-permission="['sys:user:edit', 'sys:user:update']">编辑</el-button>
+<!-- 多权限（满足任一即显示，如「操作」列在可编辑或可删除时出现） -->
+<el-button v-permission="['sys:user:edit', 'sys:user:remove']">操作</el-button>
 ```
 
 ---

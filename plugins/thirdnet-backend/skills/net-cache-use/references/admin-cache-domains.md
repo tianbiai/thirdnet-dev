@@ -14,7 +14,7 @@
 
 ## Admin 内置缓存域
 
-Admin 项目已提供一组缓存域（参考实现 `code/backend/src/Tools/ThirdNetVibe.Cache/Domain/`），新增业务缓存前先确认能否复用：
+Admin 项目已提供一组缓存域（生成项目 `Tools/{ProjectName}.Cache/Domain/`），新增业务缓存前先确认能否复用：
 
 | 缓存域 | 主要读取方法 | 用途 |
 |--------|------------|------|

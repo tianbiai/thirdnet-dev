@@ -13,7 +13,7 @@ description: >
 
 ## 核心类
 
-**命名空间**: `ThirdNet.Vibe.Common`（框架库，`code/backend/Library/ThirdNet.Vibe.Common/async/`）
+**命名空间**: `ThirdNet.Vibe.Common`（NuGet 包，`async/` 目录）
 
 框架提供一组后台任务相关类，**按需求选用，不要自造**：
 

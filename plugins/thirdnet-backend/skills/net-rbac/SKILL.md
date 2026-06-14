@@ -16,7 +16,7 @@ description: >
 
 了解认证系统基础，建议同时加载 `net-authentication`。
 
-> 授权相关类（`[PermissionAuthorize]`/`[ProviderAuthorize]`/`PermissionMatcher`/`IPermissionProvider`）命名空间均在框架库 `ThirdNet.Vibe.WebAPI`；`OperatorContext`/`CachePermissionProvider` 在模板生成层 `{ProjectName}.Admin.Cache.*`。完整清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md)「授权」小节。
+> 授权相关类（`[PermissionAuthorize]`/`[ProviderAuthorize]`/`PermissionMatcher`/`IPermissionProvider`）命名空间均在框架库 `ThirdNet.Vibe.WebAPI`；`OperatorContext`/`CachePermissionProvider` 在模板生成层 `{ProjectName}.Cache.*`（即 `Tools/{ProjectName}.Cache`，命名空间**无 `.Admin.` 中缀**）。完整清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md)「授权」小节。
 
 ## RBAC 数据模型
 
@@ -134,7 +134,7 @@ public async Task<IActionResult> GetList() { ... }
 
 ### CachePermissionProvider
 
-参考文件：生成项目 `Tools/{ProjectName}.Admin.Cache/Auth/CachePermissionProvider.cs`；参考仓库 `code/backend/src/Tools/ThirdNetVibe.Cache/Auth/CachePermissionProvider.cs`。
+参考文件：生成项目 `Tools/{ProjectName}.Cache/Auth/CachePermissionProvider.cs`。
 
 ```csharp
 public class CachePermissionProvider(RoleCache roleCache) : IPermissionProvider
@@ -224,7 +224,7 @@ var visibleDeptIds = await _operatorContext.GetVisibleDeptIds();
 
 ## OperatorContext 详解
 
-参考文件：生成项目 `Tools/{ProjectName}.Admin.Cache/Context/OperatorContext.cs`；参考仓库 `code/backend/src/Tools/ThirdNetVibe.Cache/Context/OperatorContext.cs`。命名空间 `{ProjectName}.Admin.Cache.Context`，实现 `IOperatorContext`（`{ProjectName}.Admin.Common.Interfaces`）。
+参考文件：生成项目 `Tools/{ProjectName}.Cache/Context/OperatorContext.cs`。命名空间 `{ProjectName}.Cache.Context`，实现 `IOperatorContext`（`{ProjectName}.Common.Interfaces`）。
 
 OperatorContext 是请求级别的 Memoization 容器（Scoped 生命周期），避免同一请求内重复的 Redis 查询：
 

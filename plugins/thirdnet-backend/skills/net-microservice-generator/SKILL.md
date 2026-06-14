@@ -100,8 +100,8 @@ backend/
 │   ├── {ProjectName}.Admin.APIService/
 │   └── {ProjectName}.Admin.Database/
 ├── Tools/                               ← 已有的工具类库
-│   ├── {ProjectName}.Admin.Common/
-│   └── {ProjectName}.Admin.Cache/
+│   ├── {ProjectName}.Common/
+│   └── {ProjectName}.Cache/
 └── {ServiceName}/              ← 新创建的 Service 项目
     └── Service/
         ├── {ServiceName}.API/       # API 宿主
@@ -118,7 +118,7 @@ backend/
 
 ## 模板升级（ThirdNet.Migrate）
 
-`ThirdNet.Migrate` 是随模板提供的**模板升级 CLI**（**不是数据库迁移工具**），用于让已生成的项目跟进模板的新版本——避免模板修复了 bug 或改进了结构后，旧项目无法同步。源码 `code/backend/Template/ThirdNet.Migrate/`。
+`ThirdNet.Migrate` 是随模板提供的**模板升级 CLI**（**不是数据库迁移工具**），用于让已生成的项目跟进模板的新版本——避免模板修复了 bug 或改进了结构后，旧项目无法同步。
 
 ```bash
 thirdnet-migrate check                       # 检查 NuGet 源上模板是否有新版本
@@ -286,7 +286,7 @@ services.AddRedisExtensionService(Configuration);
 > **关于 `BuildAdminWebHost` 命名**：虽然方法名包含"Admin"，但它是框架提供的通用构建方法，Admin 和 Service 项目均使用此方法。名称中的"Admin"是框架历史命名，不影响 Service 项目的功能。
 
 ```csharp
-using {ProjectName}.Admin.Common.Hosting;
+using {ProjectName}.Common.Hosting;
 using ThirdNet.Vibe.WebAPI;
 
 var host = AdminHostBuilder.BuildAdminWebHost<Startup>(args);

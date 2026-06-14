@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Thirdnet 全栈开发插件集",
-    "version": "0.32.0"
+    "version": "0.32.1"
   },
   "plugins": [
     {
       "name": "thirdnet-backend",
       "source": "./plugins/thirdnet-backend",
       "description": "后端开发助手 - .NET 10 微服务：API 开发、EF Core 数据库、Redis 缓存、RBAC 权限体系、枚举字典、后台任务、批量操作、认证授权、文档驱动开发",
-      "version": "0.24.0",
+      "version": "0.24.1",
       "author": {
         "name": "thirdnet"
       },
@@ -50,7 +50,7 @@
       "name": "admin-fullstack-coordination",
       "source": "./skills/admin-fullstack-coordination",
       "description": "全栈 Admin 功能开发协调 — 前端先行开发顺序、Admin 模板 CRUD 页面开发模式、前后端类型映射、RBAC 权限桥接、共享 API 约定同步。需同时安装 thirdnet-backend 和 thirdnet-frontend 插件",
-      "version": "1.3.0",
+      "version": "1.3.1",
       "author": {
         "name": "thirdnet"
       },

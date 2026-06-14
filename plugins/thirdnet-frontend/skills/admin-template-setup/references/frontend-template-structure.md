@@ -20,10 +20,8 @@
 my-admin/
 ├── index.html              # SPA 入口 HTML（品牌名称已替换）
 ├── package.json            # 项目名称已替换为实际品牌名
-├── vite.config.ts          # API 代理目标已替换
-├── .env.development        # VITE_MOCK_ENABLED=true（开发模式）
-├── .env.prototype          # VITE_MOCK_ENABLED=true（原型演示）
-├── .env.production         # VITE_MOCK_ENABLED=false（生产模式）
+├── vite.config.ts          # API 代理目标已替换；生产构建经 mockDataStripPlugin 剥离 Mock 数据
+├── .env                    # 单一环境文件：VITE_MOCK_ENABLED（默认 false 连真实 API；设 true 走 Mock）/ VITE_API_BASE_URL / VITE_BASIC_AUTH_APP / VITE_BASIC_AUTH_KEY / VITE_API_TARGET
 ├── tsconfig.json
 ├── tsconfig.app.json
 ├── tsconfig.node.json
@@ -48,8 +46,8 @@ src/
 │   ├── adapter.ts          # API 适配器接口
 │   ├── adapter.web.ts      # Web 适配器（Axios + token 刷新队列）
 │   ├── request.ts          # Axios 请求封装
-│   ├── interfaces/         # 18 个接口契约文件
-│   ├── modules/manager/    # 18 个 API 实现 + 工厂函数
+│   ├── interfaces/         # 19 个接口契约文件
+│   ├── modules/manager/    # 19 个 API 实现 + 工厂函数
 │   └── types/              # 21 个 TypeScript 类型定义
 │
 ├── views/                  # 页面组件
@@ -70,6 +68,7 @@ src/
 ├── components/             # 公共组件
 │   ├── HelpBubble.vue      # 帮助气泡（演示模式专用）
 │   ├── IconSelect.vue      # 图标选择器
+│   ├── PaginationBar.vue   # 统一分页栏（CRUD 列表必用，禁用 el-pagination）
 │   ├── TableEmpty.vue      # 表格空状态
 │   └── TableSkeleton.vue   # 表格骨架屏
 │
@@ -101,9 +100,9 @@ src/
 │   └── brand.ts            # 品牌常量（BRAND_NAME、BRAND_INITIAL、BRAND_ABBR）
 │
 ├── mock/                   # Mock 数据与实现
-│   ├── api/manager/        # 18 个 Mock API 处理器
+│   ├── api/manager/        # 19 个 Mock API 处理器
 │   ├── api/helpers.ts      # Mock 辅助工具
-│   └── data/manager/       # 18 个 Mock 数据文件（与 API 模块一一对应）
+│   └── data/manager/       # 19 个 Mock 数据文件（与 API 模块一一对应）
 │
 ├── styles/                 # 样式文件
 │   ├── index.scss           # 主样式表（Element Plus 主题覆盖 + 布局）
@@ -126,7 +125,7 @@ src/
 │   ├── iconMap.ts           # 图标名称映射
 │   ├── menuPath.ts          # 菜单路径工具
 │   ├── permission.ts        # 权限匹配（通配符支持）
-│   ├── token.ts             # Token 存储（localStorage）
+│   ├── token.ts             # Token 存储（sessionStorage，降低 XSS 跨标签页窃取风险）
 │   ├── tree.ts              # 树形数据工具
 │   ├── validators.ts        # 表单验证规则
 │   └── componentModules.ts  # 动态组件加载
@@ -149,6 +148,7 @@ src/
 | 操作日志 | `system/oper-log/` | 操作日志查询（只读） |
 | 缓存管理 | `system/cache/` | 缓存查看与清理 |
 | 权限管理 | `system/permission/` | 权限码查看与管理 |
+| API Key | `system/api-key/` | API 密钥 CRUD、查看密钥 |
 
 ### API 管理页面（views/api/）
 
@@ -170,30 +170,31 @@ src/
 | 欢迎页 | `welcome/` | 系统首页仪表盘 |
 | 404 | `error/` | 页面不存在 |
 
-## API 模块清单（18 个）
+## API 模块清单（19 个）
 
-每个 API 模块遵循策略工厂模式：`I{Module}Api` 接口 + `Real{Module}Api` 实现 + `create{Module}Api()` 工厂。
+每个 API 模块遵循策略工厂模式：`I{Module}Api` 接口 + `Real{Module}Api` 实现 + `create{Module}Api()` 工厂。后端 Controller 类名以生成代码实际为准（多数系统/业务实体**不带** `Sys` 前缀，仅 `SysConfigManagerController` 个别带前缀）。
 
 | 模块 | 文件 | 对应后端 Controller |
 |------|------|---------------------|
-| auth | `auth.ts` | AuthManagerController |
-| user | `user.ts` | SysUserManagerController |
-| role | `role.ts` | SysRoleManagerController |
-| menu | `menu.ts` | SysMenuManagerController |
-| dept | `dept.ts` | SysDeptManagerController |
-| dict | `dict.ts` | SysDictManagerController |
-| config | `config.ts` | SysConfigManagerController |
-| permission | `permission.ts` | SysPermissionManagerController |
-| oper-log | `oper-log.ts` | SysOperLogManagerController |
-| cache | `cache.ts` | SysCacheManagerController |
-| online-user | `online-user.ts` | SysOnlineUserManagerController |
-| api-application | `api-application.ts` | ApiApplicationManagerController |
-| api-service | `api-service.ts` | ApiServiceManagerController |
-| api-action | `api-action.ts` | ApiActionManagerController |
-| api-blacklist | `api-blacklist.ts` | ApiBlacklistManagerController |
-| api-whitelist | `api-whitelist.ts` | ApiWhitelistManagerController |
-| api-role | `api-role.ts` | ApiRoleManagerController |
-| api-visitlog | `api-visitlog.ts` | ApiVisitLogManagerController |
+| auth | `auth.ts` | `AuthManagerController` |
+| user | `user.ts` | `UserManagerController` |
+| role | `role.ts` | `RoleManagerController` |
+| menu | `menu.ts` | `MenuManagerController` |
+| dept | `dept.ts` | `DeptManagerController` |
+| dict | `dict.ts` | `DictManagerController` |
+| config | `config.ts` | `SysConfigManagerController` |
+| permission | `permission.ts` | `PermissionManagerController` |
+| oper-log | `oper-log.ts` | `OperLogManagerController` |
+| cache | `cache.ts` | `CacheAdminManagerController` |
+| online-user | `online-user.ts` | （后端无独立控制器，已并入 `UserManagerController`：`/user/heartbeat`、`/user/kick` + `OnlineUserService`；本模块仅保留心跳上报，列表/强退走 `user.ts`） |
+| api-key | `api-key.ts` | `ApiKeyManagerController` |
+| api-application | `api-application.ts` | `ApiApplicationManagerController` |
+| api-service | `api-service.ts` | `ApiServiceManagerController` |
+| api-action | `api-action.ts` | `ApiActionListManagerController` |
+| api-blacklist | `api-blacklist.ts` | `ApiBlacklistManagerController` |
+| api-whitelist | `api-whitelist.ts` | `ApiWhitelistManagerController` |
+| api-role | `api-role.ts` | `ApiRoleManagerController` |
+| api-visitlog | `api-visitlog.ts` | `ApiVisitLogManagerController` |
 
 ## Composable 清单（11 个）
 
@@ -265,7 +266,7 @@ mock/api/manager/{module}.ts   → Mock{Module}Api（本地数据）
 mock/data/manager/{module}.ts  → 纯数据导出
 ```
 
-通过 `VITE_MOCK_ENABLED` 环境变量切换 Real/Mock 实现。生产构建时 Vite alias 将 `@/mock/**` 重定向到空模块，配合 tree-shaking 彻底移除 Mock 代码。
+通过 `VITE_MOCK_ENABLED` 环境变量切换 Real/Mock 实现。生产构建时由 `vite.config.ts` 的 `mockDataStripPlugin()` 插件拦截 `/mock/data/**` 导入，为每个具名导出生成空数组桩模块，配合 `VITE_MOCK_ENABLED=false` + tree-shaking 彻底移除 Mock 代码（详见 `api-typescript-spec` 技能「生产构建排除机制」）。
 
 ### 动态路由
 

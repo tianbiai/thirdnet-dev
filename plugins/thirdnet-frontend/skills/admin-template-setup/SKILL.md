@@ -90,23 +90,21 @@ npm run dev
 ```
 my-admin/
 ├── src/
-│   ├── api/              # 18 个 API 模块（策略工厂模式）
+│   ├── api/              # 19 个 API 模块（策略工厂模式）
 │   ├── views/            # 页面：系统管理 + API 管理 + 登录 + 欢迎页
 │   ├── stores/           # 4 个 Pinia Store（auth / app / theme / tagsView）
 │   ├── layouts/          # 布局：AdminLayout / Navbar / Sidebar / TagsView
 │   ├── composables/      # 11 个组合式函数
 │   ├── router/           # 动态路由（菜单树 → 路由）
 │   ├── config/           # 品牌常量 + 应用配置（MOCK_ENABLED 等）
-│   ├── mock/             # Mock 数据 + 18 个 Mock API 实现
+│   ├── mock/             # Mock 数据 + 19 个 Mock API 实现
 │   ├── styles/           # 全局样式 + Element Plus 主题覆盖
 │   ├── directives/       # v-permission 权限指令
-│   ├── components/       # 公共组件（HelpBubble、IconSelect 等）
+│   ├── components/       # 公共组件（HelpBubble、IconSelect、PaginationBar 等）
 │   └── utils/            # 工具函数（basicAuth、token、tree、permission 等）
 ├── public/               # changelog.md + viewer.html
-├── .env.development      # VITE_MOCK_ENABLED=true（开发模式，使用 Mock 数据）
-├── .env.prototype        # VITE_MOCK_ENABLED=true（原型演示，使用 Mock 数据）
-├── .env.production       # VITE_MOCK_ENABLED=false（生产模式，使用真实 API）
-├── vite.config.ts        # API 代理已配置指向 --api-target
+├── .env                  # 单一环境文件：VITE_MOCK_ENABLED（默认 false 连真实 API；设 true 走 Mock）、VITE_API_BASE_URL、VITE_BASIC_AUTH_APP/KEY、VITE_API_TARGET
+├── vite.config.ts        # API 代理已配置指向 --api-target；生产构建经 mockDataStripPlugin 剥离 Mock 数据
 └── package.json          # 项目名称已替换
 ```
 
@@ -124,8 +122,8 @@ CRUD 页面开发详细指南（Composable 使用、页面布局模板、工具�
 - [ ] 品牌名称在登录页标题正确显示（非默认 `ThirdNet`）
 - [ ] 品牌首字母在 Logo 图标方块内正确显示
 - [ ] API 代理指向正确的后端地址（检查 `vite.config.ts` 中的 proxy target）
-- [ ] 开发模式下 Mock 数据正常加载（`VITE_MOCK_ENABLED=true`）——可无后端独立运行全部管理功能
-- [ ] 切换为真实 API 后接口正常（修改 `.env.development` 中 `VITE_MOCK_ENABLED=false`）——需后端服务已启动
+- [ ] Mock 模式：在 `.env` 中将 `VITE_MOCK_ENABLED` 设为 `true`，重启 `npm run dev`，可无后端独立运行全部管理功能
+- [ ] 切换为真实 API：在 `.env` 中将 `VITE_MOCK_ENABLED` 设为 `false`（脚手架默认值），需后端服务已启动且 `--api-target` 正确
 
 若后端 API 已启动且 `--api-target` 配置正确，还可验证：
 

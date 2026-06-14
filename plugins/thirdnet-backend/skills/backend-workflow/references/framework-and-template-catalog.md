@@ -2,16 +2,11 @@
 
 本目录是 ThirdNet 后端**所有现成能力**的单一事实来源。编写任何后端代码前先在此查找——你要的东西大概率框架已经提供，**不要重复造轮子**。各编码技能（`net-api-developer`、`net-cache-use` 等）只讲解「怎么用」，本目录回答「有什么、叫什么、在哪」。
 
-参考源码位于仓库根的 `code/backend/`（只读参考范例）：
-- `code/backend/Library/` — 框架 NuGet 库（打包发布，项目以 NuGet 引用）
-- `code/backend/src/` — 参考实现（生成项目的"标准答案"范例）
-- `code/backend/Template/` — `dotnet new` 模板与 `ThirdNet.Migrate` 工具
-
-> 路径约定：下文「文件路径」相对 `code/backend/`。代码中引用框架类时用**命名空间**，引用模板生成层类时用 `{ProjectName}` 占位符（生成后替换为实际项目前缀）。
+> 路径约定：第 1 层框架库（NuGet 包 `ThirdNet.Vibe.Common` / `ThirdNet.Vibe.WebAPI`）以 NuGet 引用，列出的文件路径为包内相对位置；第 2 层模板生成层列出的是**生成项目内**的相对路径，用 `{ProjectName}` 占位符（生成后替换为实际项目前缀）。代码中引用框架类时一律用**命名空间**。
 
 ---
 
-## 第 1 层：框架库（NuGet 包，`code/backend/Library/`）
+## 第 1 层：框架库（NuGet 包 `ThirdNet.Vibe.Common` / `ThirdNet.Vibe.WebAPI`）
 
 这两个库以 NuGet 形式被项目引用，是**最优先复用**的对象。
 
@@ -183,23 +178,23 @@
 
 ## 第 2 层：模板生成层（非框架，随项目生成）
 
-这些类**不在框架 NuGet 里**，而是 `dotnet new thirdnet-admin` 生成项目时带出，位于生成项目的 `Tools/{ProjectName}.Admin.Common`、`Tools/{ProjectName}.Admin.Cache`、`Admin/{ProjectName}.Admin.APIService`。命名空间以 `{ProjectName}` 前缀（参考仓库中前缀为 `ThirdNetVibe`）。
+这些类**不在框架 NuGet 里**，而是 `dotnet new thirdnet-admin` 生成项目时带出，位于生成项目的 `Tools/{ProjectName}.Common`、`Tools/{ProjectName}.Cache`、`Admin/{ProjectName}.Admin.APIService`。命名空间以 `{ProjectName}` 前缀。
 
 ### 控制器基类与操作者上下文
 
 | 类 | 命名空间 | 参考文件 | 用途 |
 |----|---------|---------|------|
-| `AdminControllerBase` | `{ProjectName}.Admin.Common.Controllers` | `src/Tools/ThirdNetVibe.Common/Controllers/AdminControllerBase.cs` | 抽象 `[ApiController][Authorize]`。属性 `CurrentUserId`/`CurrentUserName`/`CurrentDeptId`；`IActionFilter` 在 Action 前自动 `IOperatorContext.Initialize(CurrentUserId)`（ApiKey 鉴权跳过）。 |
-| `IOperatorContext` | `{ProjectName}.Admin.Common.Interfaces` | `.../Interfaces/IOperatorContext.cs` | `Initialize(long operatorId)`。 |
-| `OperatorContext` | `{ProjectName}.Admin.Cache.Context` | `src/Tools/ThirdNetVibe.Cache/Context/OperatorContext.cs` | Scoped，基于 `AsyncMemo`。`GetPermissions()`/`HasWildcardPermission()`/`GetUserInfo()`/`GetUserRoleIds()`/`GetVisibleDeptIds()`。 |
-| `ClaimsPrincipalExtensions` | `{ProjectName}.Admin.Common.Extensions` | `.../Extensions/ClaimsPrincipalExtensions.cs` | `GetUserId()`/`GetUserName()`/`GetDeptId()`（从 JWT claim 取）。 |
+| `AdminControllerBase` | `{ProjectName}.Common.Controllers` | `Tools/{ProjectName}.Common/Controllers/AdminControllerBase.cs` | 抽象 `[ApiController][Authorize]`。属性 `CurrentUserId`/`CurrentUserName`/`CurrentDeptId`；`IActionFilter` 在 Action 前自动 `IOperatorContext.Initialize(CurrentUserId)`（ApiKey 鉴权跳过）。 |
+| `IOperatorContext` | `{ProjectName}.Common.Interfaces` | `.../Interfaces/IOperatorContext.cs` | `Initialize(long operatorId)`。 |
+| `OperatorContext` | `{ProjectName}.Cache.Context` | `Tools/{ProjectName}.Cache/Context/OperatorContext.cs` | Scoped，基于 `AsyncMemo`。`GetPermissions()`/`HasWildcardPermission()`/`GetUserInfo()`/`GetUserRoleIds()`/`GetVisibleDeptIds()`。 |
+| `ClaimsPrincipalExtensions` | `{ProjectName}.Common.Extensions` | `.../Extensions/ClaimsPrincipalExtensions.cs` | `GetUserId()`/`GetUserName()`/`GetDeptId()`（从 JWT claim 取）。 |
 
 ### 分页 / 常量
 
 | 类 | 命名空间 | 用途 |
 |----|---------|------|
-| `PageQueryDto` | `{ProjectName}.Admin.Common.DTOs` | 基础分页入参：`page_index`(默认1)/`page_size`(默认20，上限1000)。 |
-| `SystemConfigKeys` | `{ProjectName}.Admin.Common.Constants` | 系统配置键常量（对应 `t_sys_config.config_key`，见下表）。 |
+| `PageQueryDto` | `{ProjectName}.Common.DTOs` | 基础分页入参：`page_index`(默认1)/`page_size`(默认20，上限1000)。 |
+| `SystemConfigKeys` | `{ProjectName}.Common.Constants` | 系统配置键常量（对应 `t_sys_config.config_key`，见下表）。 |
 
 **`SystemConfigKeys` 全部键**：
 
@@ -218,7 +213,7 @@
 
 | 类 | 命名空间 | 用途 |
 |----|---------|------|
-| `[OperLog]`（`OperLogAttribute`） | `{ProjectName}.Admin.Common.OperLog` | 标记 Action 记录操作日志：`Title`/`BusinessType`。 |
+| `[OperLog]`（`OperLogAttribute`） | `{ProjectName}.Common.OperLog` | 标记 Action 记录操作日志：`Title`/`BusinessType`。 |
 | `OperLogFilter` | 同上 | `IAsyncActionFilter`，拦截 `[OperLog]` 采集请求/响应。 |
 | `IOperLogLogger` / `OperLogEntry` | 同上 | 日志接口 / 日志 POCO。 |
 | `DatabaseOperLogLogger` | 同上 | `BackgroundRunner` + `IOperLogLogger`，每 30s 经 `IDbAsyncBulk` 批量写 `admin.t_sys_oper_log`。 |
@@ -227,18 +222,18 @@
 
 | 类 | 命名空间 | 用途 |
 |----|---------|------|
-| `[SystemDict]`（`SystemDictAttribute`） | `{ProjectName}.Admin.Common.Enums` | 标记枚举为系统字典：`DictTypeKey`/`DisplayName`，启动自动同步到 `t_sys_dict_type`/`t_sys_dict_data`。 |
+| `[SystemDict]`（`SystemDictAttribute`） | `{ProjectName}.Common.Enums` | 标记枚举为系统字典：`DictTypeKey`/`DisplayName`，启动自动同步到 `t_sys_dict_type`/`t_sys_dict_data`。 |
 | `[EnumMeta]`（`EnumMetaAttribute`） | 同上 | 标记枚举成员：`Label`（显示名）、可选 `DbValue`。 |
 | `SystemEnumRegistry` | 同上 | 反射扫描带 `[SystemDict]` 的枚举。 |
 | `SystemEnumDictSync` | `{ProjectName}.Admin.APIService.Data` | `SyncAsync(AdminDbContext)`，幂等同步代码枚举到库。 |
 
 > 同步触发点：`Program.cs` 调 `host.InitializeDatabasesAsync()`（即 `MigrateHelper.InitializeDatabasesAsync(this IHost)` 扩展），迁移 `AdminDbContext` 时调用 `SystemEnumDictSync.SyncAsync(db)`。
 
-### 缓存域（{ProjectName}.Admin.Cache.Domain）
+### 缓存域（{ProjectName}.Cache.Domain）
 
 均继承框架 `RedisCacheManager`，作为 Singleton 经 `AddAdminCacheServices()` 注册。参考实现中的缓存域：
 
-| 缓存域 | 参考文件（src/Tools/ThirdNetVibe.Cache/Domain/） | 主要职责 |
+| 缓存域 | 参考文件（Tools/{ProjectName}.Cache/Domain/） | 主要职责 |
 |--------|------|---------|
 | `UserCache` | UserCache.cs | 用户信息、权限、角色缓存；`UserCacheInvalidation` 配套失效。 |
 | `MenuCache` | MenuCache.cs | 菜单树缓存（用 `TreeBuilder.BuildForest`）。 |
@@ -254,37 +249,23 @@
 
 | 类 | 命名空间 | 参考文件 | 用途 |
 |----|---------|---------|------|
-| `UserCacheInvalidation` | `{ProjectName}.Admin.APIService.Services` | `src/Admin/ThirdNetVibe.Admin.APIService/Services/UserCacheInvalidation.cs` | 静态 `InvalidateUserAuthAsync(UserCache, TokenCache, userId)`：清权限+角色缓存并设 Token 失效时间。**用户/角色变更后必须调用**。 |
+| `UserCacheInvalidation` | `{ProjectName}.Admin.APIService.Services` | `Admin/{ProjectName}.Admin.APIService/Services/UserCacheInvalidation.cs` | 静态 `InvalidateUserAuthAsync(UserCache, TokenCache, userId)`：清权限+角色缓存并设 Token 失效时间。**用户/角色变更后必须调用**。 |
 | `AdminAccountValidator` | `{ProjectName}.Admin.APIService.Auth` | `.../Auth/AdminAccountValidator.cs` | `IAccountValidator` 实现：校验账密、查锁定（用 `SystemConfigKeys`）、产出 JWT claims。 |
-| `CachePermissionProvider` | `{ProjectName}.Admin.Cache.Auth` | `src/Tools/ThirdNetVibe.Cache/Auth/CachePermissionProvider.cs` | `IPermissionProvider` 实现：经 `RoleCache` 解析角色权限。 |
-| `CachedApiKeyValidator` | `{ProjectName}.Admin.Cache.Auth` | `src/Tools/ThirdNetVibe.Cache/Auth/CachedApiKeyValidator.cs` | `IApiKeyValidator` 实现：SHA256 哈希 → `ApiKeyCache` 查找 → 状态/过期检查。 |
+| `CachePermissionProvider` | `{ProjectName}.Cache.Auth` | `Tools/{ProjectName}.Cache/Auth/CachePermissionProvider.cs` | `IPermissionProvider` 实现：经 `RoleCache` 解析角色权限。 |
+| `CachedApiKeyValidator` | `{ProjectName}.Cache.Auth` | `Tools/{ProjectName}.Cache/Auth/CachedApiKeyValidator.cs` | `IApiKeyValidator` 实现：SHA256 哈希 → `ApiKeyCache` 查找 → 状态/过期检查。 |
 
-### DI 扩展（{ProjectName}.Admin.Common 与 .Cache）
+### DI 扩展（{ProjectName}.Common 与 .Cache）
 
-`AdminServiceCollectionExtensions`（`Extensions/AdminServiceCollectionExtensions.cs`）：`AddAdminCommonInfrastructure(config, assemblyName)`（框架 DB+JWT+Redis+限流+加密+MVC）、`AddAdminCacheServices()`（所有缓存域 Singleton）、`AddAdminCommonHelpPage(config)`、`AddAdminCommonControllers(...)`。`AdminApplicationBuilderExtensions`（`Extensions/AdminApplicationBuilderExtensions.cs`）：`UseAdminCommonMvc()` 等管线扩展。`AdminHostBuilder`（`Hosting/AdminHostBuilder.cs`，命名空间 `{ProjectName}.Admin.Common.Hosting`）：`BuildAdminWebHost<TStartup>(args) → IHost`（名字含"Admin"但为通用构建方法）。
+`AdminServiceCollectionExtensions`（`Extensions/AdminServiceCollectionExtensions.cs`）：`AddAdminCommonInfrastructure(config, assemblyName)`（框架 DB+JWT+Redis+限流+加密+MVC）、`AddAdminCacheServices()`（所有缓存域 Singleton）、`AddAdminCommonHelpPage(config)`、`AddAdminCommonControllers(...)`。`AdminApplicationBuilderExtensions`（`Extensions/AdminApplicationBuilderExtensions.cs`）：`UseAdminCommonMvc()` 等管线扩展。`AdminHostBuilder`（`Hosting/AdminHostBuilder.cs`，命名空间 `{ProjectName}.Common.Hosting`）：`BuildAdminWebHost<TStartup>(args) → IHost`（名字含"Admin"但为通用构建方法）。
 
 ---
 
 ## 第 3 层：项目结构与命名校准
 
-### 仓库布局（`code/backend/`，只读参考）
+### 命名约定
 
-```
-code/backend/
-├── Library/                    # 框架 NuGet 库
-│   ├── ThirdNet.Vibe.Common/   # → NuGet ThirdNet.Vibe.Common
-│   └── ThirdNet.Vibe.WebAPI/   # → NuGet ThirdNet.Vibe.WebAPI
-├── src/                        # 参考实现
-│   ├── Admin/   ThirdNetVibe.Admin.{APIService,Database,Tests}  ← 当前实现
-│   ├── Service/ ThirdNetVibe.Service.{API,Database}             ← 当前实现
-│   └── Tools/   ThirdNetVibe.{Common,Cache}                     ← 当前实现
-├── Template/                   # dotnet new 模板 + ThirdNet.Migrate
-└── ThirdNet.Admin.slnx
-```
-
-- **`ThirdNetVibe.*` = 当前实现**（有完整代码）。
-- **`ThirdNet.*`（无 Vibe）= 空的历史壳项目**，仅为兼容旧路径保留，**不要往里写代码**。
-- 模板 `sourceName` 为 `"ThirdNetVibe"`，生成时按 `-n` 前缀替换。
+- 模板 `sourceName` 为 `"ThirdNetVibe"`，生成时按 `-n` 前缀替换为 `{ProjectName}`，所有类命名空间随之变为 `{ProjectName}.*`。
+- 技能中描述「文件放在哪」时一律用**生成项目路径**（`Admin/{ProjectName}.Admin.APIService/...`、`Tools/{ProjectName}.Common/...`）。
 
 ### 生成项目结构（`dotnet new thirdnet-admin -n {ProjectName}.Admin`）
 
@@ -294,15 +275,13 @@ code/backend/
 │   ├── {ProjectName}.Admin.APIService/   # Controllers/Services/DTOs/Auth/Data/Jobs, Program.cs, Startup.cs, MigrateHelper.cs
 │   └── {ProjectName}.Admin.Database/     # AdminDbContext + Models + EntityConfigurations + SeedData
 └── Tools/
-    ├── {ProjectName}.Admin.Common/       # Constants/Enums/Controllers/DTOs/Extensions/Hosting/Interfaces/OperLog/Validation
-    └── {ProjectName}.Admin.Cache/        # Auth/Context/DbContext/Domain/Extensions/View
+    ├── {ProjectName}.Common/       # Constants/Enums/Controllers/DTOs/Extensions/Hosting/Interfaces/OperLog/Validation
+    └── {ProjectName}.Cache/        # Auth/Context/DbContext/Domain/Extensions/View
 ```
-
-> ⚠️ 生成项目**没有 `src/` 目录**。`src/` 只在参考仓库 `code/backend/` 里。技能中描述「文件放在哪」时一律用生成项目路径（`Admin/{ProjectName}.Admin.APIService/...`），需要看真实范例时再指向 `code/backend/src/`。
 
 ### `ThirdNet.Migrate` —— 模板升级工具（非数据库工具）
 
-`code/backend/Template/ThirdNet.Migrate/`，CLI：
+模板升级工具 `ThirdNet.Migrate`，CLI：
 
 ```
 thirdnet-migrate check   # 检查模板是否有新版本

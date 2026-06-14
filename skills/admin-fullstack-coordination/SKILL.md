@@ -11,7 +11,7 @@ description: >
   也提供任务路由（全栈 vs 仅前端/仅后端）与全新 Admin 全栈项目创建的协调路径。
 license: MIT
 metadata:
-  version: "1.3.0"
+  version: "1.3.1"
   author: thirdnet
 ---
 
@@ -19,7 +19,7 @@ metadata:
 
 本技能是前后端协同开发的桥梁，定义全栈功能开发顺序、类型映射规则、权限桥接和约定同步机制。需要 `thirdnet-backend` 和 `thirdnet-frontend` 插件同时安装。
 
-> 后端可复用的框架/模板能力（命名空间 + 用途）见 `thirdnet-backend` 的 [framework-and-template-catalog](../../plugins/thirdnet-backend/skills/backend-workflow/references/framework-and-template-catalog.md)；后端真实的契约与范例代码见参考仓库 `code/backend/`（`plan.md`、`specs/`、`src/Admin/ThirdNetVibe.Admin.*`）。
+> 后端可复用的框架/模板能力（命名空间 + 用途）见 `thirdnet-backend` 的 [framework-and-template-catalog](../../plugins/thirdnet-backend/skills/backend-workflow/references/framework-and-template-catalog.md)；各能力的"参考文件"列已标注生成项目内相对路径。
 
 ## 前置条件检查
 
@@ -58,7 +58,7 @@ metadata:
 1. **后端**（`backend-workflow` 例外流程）：用一次 `AskUserQuestion` 确认项目名 `{ProjectName}`，然后 `dotnet new thirdnet-admin -n {ProjectName}.Admin` 创建，跳过需求澄清直接进入项目框架阶段（NuGet 源、连接串用默认配置）。
 2. **前端**（`frontend-workflow` 例外流程）：确认品牌参数（项目名、`--brand`、`--initial`、`--abbr`，可用默认值），调用 `admin-template-setup` 技能经 `create-thirdnet-admin` 创建前端项目（后端 API 地址默认 `http://localhost:5000`）。
 
-模板内置 18 个模块（用户/角色/菜单/部门/字典/配置/权限/操作日志/缓存/在线用户 + API 管理 + 认证授权），功能固定无需澄清。创建后如需新增**业务模块**，再进入下面的全栈功能开发流程。
+模板内置 19 个管理端模块（用户/角色/菜单/部门/字典/配置/权限/操作日志/缓存/在线用户/API Key + API 应用/服务/操作/黑白名单/角色/访问日志 + 认证授权），功能固定无需澄清。创建后如需新增**业务模块**，再进入下面的全栈功能开发流程。
 
 ## 全栈功能开发流程
 
@@ -88,7 +88,7 @@ metadata:
 - **confirmAction**（`src/utils/confirm.ts`）：二次确认对话框（`useCrudTable.remove()` 已内置）
 - **formatDateTime**（`src/utils/format.ts`）：日期时间格式化
 
-完整开发指南参见 `admin-template-setup` 技能的 [crud-page-development-guide](../plugins/thirdnet-frontend/skills/admin-template-setup/references/crud-page-development-guide.md)。
+完整开发指南参见 `admin-template-setup` 技能的 [crud-page-development-guide](../../plugins/thirdnet-frontend/skills/admin-template-setup/references/crud-page-development-guide.md)。
 
 **标准参考实现**：`src/views/api/blacklist/index.vue`
 
@@ -102,7 +102,7 @@ metadata:
 | 8 | 缓存视图 + 缓存域 | `net-cache-use` | View 模型 + Cache 域 |
 | 9 | Service + DTO + Controller | `net-api-developer` | 按前端契约实现 API，DTO 字段与前端类型一一对应 |
 | 10 | 权限定义 + DI 注册 | `net-rbac` | 权限字符串（如 `sys:notice:list/add/edit/remove`）+ `Startup.cs` 第 9 步注册 |
-| 11 | 菜单/路由数据配置 | `net-rbac`（菜单树设计）+ 运行中的 Admin | 在 `t_sys_menu` 插入目录/页面/按钮三级菜单条目（含 `permission`），启动后经 `PermissionCatalog` 自动同步；可写种子数据或用运行中的 `SysMenuManagerController` 维护。**这不是一个技能，而是数据配置** |
+| 11 | 菜单/路由数据配置 | `net-rbac`（菜单树设计）+ 运行中的 Admin | 在 `t_sys_menu` 插入目录/页面/按钮三级菜单条目（含 `permission`），启动后经 `PermissionCatalog` 自动同步；可写种子数据或用运行中的 `MenuManagerController` 维护。**这不是一个技能，而是数据配置** |
 
 后端 API 开发完成后，前端切换 `VITE_MOCK_ENABLED=false` 即可对接真实 API。
 
@@ -119,8 +119,7 @@ metadata:
 | `{Entity}QueryParams` | `{Entity}QueryMap` | `NoticeQueryParams` → `NoticeQueryMap` |
 | `{Entity}CreateParams` | `{Entity}CreateMap` | `NoticeCreateParams` → `NoticeCreateMap` |
 | `{Entity}UpdateParams` | `{Entity}UpdateMap` | `NoticeUpdateParams` → `NoticeUpdateMap` |
-| `{Entity}Item` | `{Entity}ItemMap` | `NoticeItem` → `NoticeItemMap` |
-| `{Entity}Detail` | `{Entity}DetailMap` | `NoticeDetail` → `NoticeDetailMap` |
+| `{Entity}Item` | `{Entity}ItemMap` | `NoticeItem` → `NoticeItemMap`（前端详情接口 `getXxxDetail()` 同样返回 `{Entity}Item`） |
 
 ### 字段映射
 
@@ -129,7 +128,7 @@ metadata:
 | **字段名保持 snake_case** | 前端定义 `snake_case` 字段名，后端 DTO 用 `[JsonPropertyName("snake_case")]` 保持一致 |
 | **类型对应** | `number` ← `long`、`string` ← `string`/`DateTime`（ISO 8601）、`boolean` ← `bool`、`enum` ← `enum`（值完全一致） |
 | **可空类型** | TypeScript `?` 可选属性 ↔ C# `?` 标记，两端保持一致 |
-| **分页参数** | 前端 `PaginatedResponse<T>` ↔ 后端 `PageListInfo<T>`（字段：`list`、`total`、`index`、`size`） |
+| **分页参数** | 前端 `PaginatedResponse<T>` ↔ 后端 `PageListInfo<List<T>>`（响应字段：`list`、`total`、`index`、`pages`，两端一致；页大小在请求 `QueryMap.page_size`，响应不重复） |
 | **枚举值** | 前端 `enum` 值与后端 `[SystemDict]` 枚举值完全一致 |
 
 ### 枚举映射
@@ -149,7 +148,7 @@ metadata:
 // Controller 方法上的权限注解
 [PermissionAuthorize("sys:notice:list")]
 [HttpGet("list")]
-public async Task<PageListInfo<NoticeItemMap>> GetList([FromQuery] NoticeQueryMap query)
+public async Task<PageListInfo<List<NoticeItemMap>>> GetList([FromQuery] NoticeQueryMap query)
 ```
 
 ### 前端层
@@ -166,7 +165,8 @@ const { hasPermi, hasPermiOr } = usePermission()
 
 // 编程式权限检查
 const canEdit = computed(() => hasPermi('sys:notice:edit'))
-const canModify = computed(() => hasPermiOr(['sys:notice:edit', 'sys:notice:update']))
+// 同时具备「编辑」或「删除」之一即可显示操作按钮（OR 逻辑）
+const canModify = computed(() => hasPermiOr(['sys:notice:edit', 'sys:notice:remove']))
 </script>
 ```
 
@@ -178,7 +178,9 @@ const canModify = computed(() => hasPermiOr(['sys:notice:edit', 'sys:notice:upda
 |---------|------|------|
 | module | 模块前缀 | `sys`、`api`、`biz` |
 | entity | 实体名称 | `user`、`role`、`notice` |
-| action | 操作类型 | `list`、`detail`、`add`、`edit`、`remove` |
+| action | 操作类型 | `list`、`query`、`add`、`edit`、`remove`；模块特例如 `resetPwd`、`kick`（用户）、`info`/`clear`（缓存）、`view-key`（API 服务）等，以控制器实际 `[PermissionAuthorize]` 为准 |
+
+> **权限 action 以后端 `net-rbac` 为权威源**（`PermissionCatalog` 启动时按 `[PermissionAuthorize]` 实际标注扫描）。注意区分两个命名空间：**权限 action** 用 `query`（详情）、`edit`（编辑）、`remove`（删除）；而前端 **URL 路由 action** 用 `/detail`、`/update`、`/delete`（见 `api-typescript-spec` 的 URL 命名规范）。两者不要混用——例如详情权限是 `sys:notice:query`，不是 `sys:notice:detail`。
 
 **后端定义权限字符串 → 注册到 `PermissionCatalog` 自动同步 → 前端通过 `v-permission` 或 `usePermission()` 使用**。前端不需要硬编码权限列表，权限数据从后端 API 动态获取。
 
@@ -212,29 +214,32 @@ const canModify = computed(() => hasPermiOr(['sys:notice:edit', 'sys:notice:upda
 
 ## Admin 模板模块对照表
 
-以下 18 个模块在前端和后端一一对应：
+模板内置 19 个管理端模块，前端 `api/modules/manager/` 与后端 `Controllers/Manager/` 基本一一对应：
 
 | 模块 | 后端 Controller | 前端 API 模块 |
 |------|----------------|--------------|
-| 认证 | `AuthManagerController`（`/connect/token` 等端点由框架内置处理） | `api/modules/app/auth.ts` |
-| 用户管理 | `SysUserManagerController` | `api/modules/manager/user.ts` |
-| 角色管理 | `SysRoleManagerController` | `api/modules/manager/role.ts` |
-| 菜单管理 | `SysMenuManagerController` | `api/modules/manager/menu.ts` |
-| 部门管理 | `SysDeptManagerController` | `api/modules/manager/dept.ts` |
-| 字典管理 | `SysDictManagerController` | `api/modules/manager/dict.ts` |
+| 认证 | `AuthManagerController`（`/connect/token` 等端点由框架内置处理） | `api/modules/manager/auth.ts` |
+| 用户管理 | `UserManagerController` | `api/modules/manager/user.ts` |
+| 角色管理 | `RoleManagerController` | `api/modules/manager/role.ts` |
+| 菜单管理 | `MenuManagerController` | `api/modules/manager/menu.ts` |
+| 部门管理 | `DeptManagerController` | `api/modules/manager/dept.ts` |
+| 字典管理 | `DictManagerController` | `api/modules/manager/dict.ts` |
 | 配置管理 | `SysConfigManagerController` | `api/modules/manager/config.ts` |
-| 权限管理 | `SysPermissionManagerController` | `api/modules/manager/permission.ts` |
-| 操作日志 | `SysOperLogManagerController` | `api/modules/manager/oper-log.ts` |
-| 缓存管理 | `SysCacheManagerController` | `api/modules/manager/cache.ts` |
-| 在线用户 | `SysOnlineUserManagerController` | `api/modules/manager/online-user.ts` |
+| 权限管理 | `PermissionManagerController` | `api/modules/manager/permission.ts` |
+| 操作日志 | `OperLogManagerController` | `api/modules/manager/oper-log.ts` |
+| 缓存管理 | `CacheAdminManagerController` | `api/modules/manager/cache.ts` |
+| API Key | `ApiKeyManagerController` | `api/modules/manager/api-key.ts` |
 | API 应用 | `ApiApplicationManagerController` | `api/modules/manager/api-application.ts` |
 | API 服务 | `ApiServiceManagerController` | `api/modules/manager/api-service.ts` |
-| API 操作 | `ApiActionManagerController` | `api/modules/manager/api-action.ts` |
+| API 操作 | `ApiActionListManagerController` | `api/modules/manager/api-action.ts` |
 | IP 黑名单 | `ApiBlacklistManagerController` | `api/modules/manager/api-blacklist.ts` |
 | IP 白名单 | `ApiWhitelistManagerController` | `api/modules/manager/api-whitelist.ts` |
 | API 角色 | `ApiRoleManagerController` | `api/modules/manager/api-role.ts` |
 | 访问日志 | `ApiVisitLogManagerController` | `api/modules/manager/api-visitlog.ts` |
+| 文件上传/下载 | `CommonManagerController`（通用接口，无前端独立模块） | — |
+
+> **关于"在线用户"**：前端保留 `api/modules/manager/online-user.ts`，但其列表/强退功能在后端**没有独立控制器**——已合并进 `UserManagerController`（`/api/manager/user/heartbeat`、`/api/manager/user/kick`）+ `OnlineUserService` + `OnlineUserHeartbeatLogger` 后台任务；前端 `online-user.ts` 现仅保留心跳上报，列表/强退调用走 `user.ts`。新增业务模块时不要照搬一个"在线用户控制器"。
 
 新增业务模块时，参考此对照表的命名模式。
 
-> 上述 Controller 与权限字符串的权威定义在参考仓库 `code/backend/src/Admin/ThirdNetVibe.Admin.APIService/Controllers/Manager/`；若对照表与源码不一致，以源码为准。
+> 上述 Controller 命名遵循 `{Entity}ManagerController` 模式（多数系统/业务实体**不带** `Sys` 前缀，仅 `SysConfigManagerController` 等个别带前缀——以生成代码实际类名为准），权限字符串遵循 `{module}:{entity}:{action}` 格式。

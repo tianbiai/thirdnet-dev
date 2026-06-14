@@ -13,7 +13,7 @@ description: >
 
 # ThirdNet 系统枚举字典
 
-> 命名空间：`[SystemDict]`、`[EnumMeta]`、`SystemEnumRegistry` 在 `{ProjectName}.Admin.Common.Enums`；同步器 `SystemEnumDictSync` 在 `{ProjectName}.Admin.APIService.Data`。完整类清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md)「枚举字典」。
+> 命名空间：`[SystemDict]`、`[EnumMeta]`、`SystemEnumRegistry` 在 `{ProjectName}.Common.Enums`；同步器 `SystemEnumDictSync` 在 `{ProjectName}.Admin.APIService.Data`。完整类清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md)「枚举字典」。
 
 ## 决策指南：系统枚举 vs 前端手动字典
 
@@ -36,7 +36,7 @@ description: >
 
 ### 一个文件一个枚举
 
-在 `Tools/{ProjectName}.Admin.Common/Enums/` 下新建 `.cs` 文件（参考仓库 `code/backend/src/Tools/ThirdNetVibe.Common/Enums/`），每个文件只包含一个枚举定义。
+在 `Tools/{ProjectName}.Common/Enums/` 下新建 `.cs` 文件，每个文件只包含一个枚举定义。
 
 ### 枚举必须标注 [SystemDict]
 
@@ -66,14 +66,14 @@ Normal = 0,
 
 ### 程序集约束
 
-枚举必须定义在 `{ProjectName}.Admin.Common` 程序集中（`SystemEnumRegistry` 只扫描 `typeof(SystemEnumRegistry).Assembly`）。不要在其他项目中定义 `[SystemDict]` 枚举。
+枚举必须定义在 `{ProjectName}.Common` 程序集中（`SystemEnumRegistry` 只扫描 `typeof(SystemEnumRegistry).Assembly`）。不要在其他项目中定义 `[SystemDict]` 枚举。
 
 ## 完整模板
 
 ```csharp
-using {ProjectName}.Admin.Common.Enums;
+using {ProjectName}.Common.Enums;
 
-namespace {ProjectName}.Admin.Common.Enums
+namespace {ProjectName}.Common.Enums
 {
     /// <summary>
     /// 通知状态枚举。
@@ -142,7 +142,7 @@ public enum StatusEnum
 
 2. 自动发现
    └── SystemEnumRegistry.All
-       └── 反射扫描 {ProjectName}.Admin.Common 程序集
+       └── 反射扫描 {ProjectName}.Common 程序集
            └── 找到所有 [SystemDict] 标注的枚举
                └── 为每个枚举创建 EnumRegistration(DictTypeKey, DisplayName, Type)
 

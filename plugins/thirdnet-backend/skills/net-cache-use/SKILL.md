@@ -297,7 +297,7 @@ public virtual async Task<List<XxxView>> GetXxxList(List<long> ids)
 
 ## Admin 内置缓存域
 
-Admin 项目已提供 9 个缓存域（UserCache、RoleCache、MenuCache、DeptCache、ConfigCache、DictCache、TokenCache、OnlineCache、ApiKeyCache）。新增业务缓存前先确认能否复用，参考实现见 `code/backend/src/Tools/ThirdNetVibe.Cache/Domain/`。
+Admin 项目已提供 9 个缓存域（UserCache、RoleCache、MenuCache、DeptCache、ConfigCache、DictCache、TokenCache、OnlineCache、ApiKeyCache）。新增业务缓存前先确认能否复用，参考实现见生成项目 `Tools/{ProjectName}.Cache/Domain/`。
 
 完整的缓存域清单、方法列表和用途说明见 [admin-cache-domains](references/admin-cache-domains.md)。
 

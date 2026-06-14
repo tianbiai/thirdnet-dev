@@ -91,8 +91,8 @@ X-API-Key: {api_key}
 |------|---------|------|
 | `IApiKeyValidator` | `ThirdNet.Vibe.WebAPI` | 验证接口：`ValidateAsync(apiKeyPlain) -> ApiKeyValidationResult?` |
 | `DefaultApiKeyValidator` | `ThirdNet.Vibe.WebAPI` | 框架默认实现（始终返回 null，占位用） |
-| `CachedApiKeyValidator` | `{ProjectName}.Admin.Cache.Auth` | Admin 层实现：SHA256 哈希 → Redis 缓存 → DB 回退 |
-| `ApiKeyCache` | `{ProjectName}.Admin.Cache.Domain` | 缓存域：key `admin.apikey.hash.{hash[:16]}`，TTL 8h |
+| `CachedApiKeyValidator` | `{ProjectName}.Cache.Auth` | Admin 层实现：SHA256 哈希 → Redis 缓存 → DB 回退 |
+| `ApiKeyCache` | `{ProjectName}.Cache.Domain` | 缓存域：key `admin.apikey.hash.{hash[:16]}`，TTL 8h |
 | `ApiKeyAuthenticationHandler` | `ThirdNet.Vibe.WebAPI` | 认证处理器（Scheme "ApiKey"，读取 `X-API-Key` 头） |
 
 #### 注册方式
@@ -124,7 +124,7 @@ Admin 项目内置完整的 API Key 管理功能（`ApiKeyService` + `ApiKeyMana
 
 ### 一次性注册整套算法
 
-`ThirdNet.Vibe.Common.Algorithm.CryptoServiceExtensions.AddCrypto(...)`（`code/backend/Library/ThirdNet.Vibe.Common/algorithm/CryptoServiceExtensions.cs`）：
+`ThirdNet.Vibe.Common.Algorithm.CryptoServiceExtensions.AddCrypto(...)`（NuGet 包内 `algorithm/CryptoServiceExtensions.cs`）：
 
 ```csharp
 // 选标准即注册全部 5 个算法接口：IHashAlgorithm / IHmacAlgorithm / ISymmetricAlgorithm / IAsymmetricAlgorithm / IPasswordHasher
@@ -173,7 +173,7 @@ namespace ThirdNet.Vibe.WebAPI
 
 Admin 项目中的实现查询 AdminDbContext，使用 PBKDF2 验证密码，包含账户锁定和原子 SQL 操作。
 
-> 完整源码参考：生成项目 `Admin/{ProjectName}.Admin.APIService/Auth/AdminAccountValidator.cs`；参考仓库 `code/backend/src/Admin/ThirdNetVibe.Admin.APIService/Auth/AdminAccountValidator.cs`。
+> 参考文件：生成项目 `Admin/{ProjectName}.Admin.APIService/Auth/AdminAccountValidator.cs`。
 
 ```csharp
 public class AdminAccountValidator : IAccountValidator
@@ -262,7 +262,7 @@ public class AdminAccountValidator : IAccountValidator
 }
 ```
 
-> 上例用到的 `SystemConfigKeys`（`{ProjectName}.Admin.Common.Constants`）是系统配置键常量，对应 `t_sys_config.config_key`，避免硬编码字符串。常用键：`MaxLoginAttempts`（默认 5）、`LockoutDurationHours`（默认 12）、`SessionTimeoutMinutes`、`PasswordExpiryDays`、`ShowLoginErrorDetail`、`CaptchaEnabled`、`UploadAllowedExtensions`、`HeartbeatIntervalSeconds`。配置值经 `ConfigCache.GetConfigInt/GetConfigBool` 读取。完整清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md)。
+> 上例用到的 `SystemConfigKeys`（`{ProjectName}.Common.Constants`）是系统配置键常量，对应 `t_sys_config.config_key`，避免硬编码字符串。常用键：`MaxLoginAttempts`（默认 5）、`LockoutDurationHours`（默认 12）、`SessionTimeoutMinutes`、`PasswordExpiryDays`、`ShowLoginErrorDetail`、`CaptchaEnabled`、`UploadAllowedExtensions`、`HeartbeatIntervalSeconds`。配置值经 `ConfigCache.GetConfigInt/GetConfigBool` 读取。完整清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md)。
 
 ### 注册方式
 

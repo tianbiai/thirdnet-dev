@@ -14,15 +14,15 @@
 
 ## SysUserModel + SysUserConfiguration
 
-**源文件**（参考仓库）：
-- `code/backend/src/Admin/ThirdNetVibe.Admin.Database/Models/SysUserModel.cs`
-- `code/backend/src/Admin/ThirdNetVibe.Admin.Database/EntityConfigurations/SysUserConfiguration.cs`
+**参考文件**（生成项目）：
+- `Admin/{ProjectName}.Admin.Database/Models/SysUserModel.cs`
+- `Admin/{ProjectName}.Admin.Database/EntityConfigurations/SysUserConfiguration.cs`
 
 ### SysUserModel
 
 ```csharp
-using {ProjectName}.Admin.Common.Enums;
-using {ProjectName}.Admin.Common.Interfaces;
+using {ProjectName}.Common.Enums;
+using {ProjectName}.Common.Interfaces;
 
 namespace {ProjectName}.Admin.Database.Models
 {
@@ -67,7 +67,7 @@ namespace {ProjectName}.Admin.Database.Models
 ```csharp
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using {ProjectName}.Admin.Common.Enums;
+using {ProjectName}.Common.Enums;
 using {ProjectName}.Admin.Database.Models;
 
 namespace {ProjectName}.Admin.Database.EntityConfigurations
@@ -117,8 +117,8 @@ namespace {ProjectName}.Admin.Database.EntityConfigurations
 ### SysRoleModel
 
 ```csharp
-using {ProjectName}.Admin.Common.Enums;
-using {ProjectName}.Admin.Common.Interfaces;
+using {ProjectName}.Common.Enums;
+using {ProjectName}.Common.Interfaces;
 
 namespace {ProjectName}.Admin.Database.Models
 {
@@ -178,8 +178,8 @@ public class SysRoleConfiguration : IEntityTypeConfiguration<SysRoleModel>
 ### SysMenuModel
 
 ```csharp
-using {ProjectName}.Admin.Common.Enums;
-using {ProjectName}.Admin.Common.Interfaces;
+using {ProjectName}.Common.Enums;
+using {ProjectName}.Common.Interfaces;
 
 namespace {ProjectName}.Admin.Database.Models
 {
@@ -296,7 +296,7 @@ namespace {ProjectName}.Admin.Database.Models
 
 ## 审计字段配置详解
 
-`ConfigureAuditFields()` 扩展方法（参考仓库 `code/backend/src/Admin/ThirdNetVibe.Admin.Database/EntityConfigurations/AuditPropertyExtensions.cs`）：
+`ConfigureAuditFields()` 扩展方法（生成项目 `Admin/{ProjectName}.Admin.Database/EntityConfigurations/AuditPropertyExtensions.cs`）：
 
 ```csharp
 public static void ConfigureAuditFields<T>(this EntityTypeBuilder<T> builder)

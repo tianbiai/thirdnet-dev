@@ -76,7 +76,7 @@ public class UserModel
 
 ### AdminDbContext
 
-参考文件：生成项目 `Admin/{ProjectName}.Admin.Database/DbContext/AdminDbContext.cs`；参考仓库 `code/backend/src/Admin/ThirdNetVibe.Admin.Database/DbContext/AdminDbContext.cs`。
+参考文件：生成项目 `Admin/{ProjectName}.Admin.Database/DbContext/AdminDbContext.cs`。
 
 ```csharp
 protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -128,8 +128,8 @@ await using var db = await _dbFactory.CreateDbContextAsync();
 ### 完整实体模板
 
 ```csharp
-using {ProjectName}.Admin.Common.Enums;
-using {ProjectName}.Admin.Common.Interfaces;
+using {ProjectName}.Common.Enums;
+using {ProjectName}.Common.Interfaces;
 
 namespace {ProjectName}.Admin.Database.Models
 {
@@ -243,7 +243,7 @@ public long? parent_id { get; set; }  // 可空，顶级节点 parent_id = null
 
 ## 迁移命令
 
-在 `backend/` 目录下执行（路径相对 `backend/`，生成项目无 `src/`）：
+在生成项目根目录下执行（路径相对生成项目根）：
 
 ```bash
 # 添加迁移
@@ -328,7 +328,7 @@ await db.Database.ExecuteSqlInterpolatedAsync($@"WITH ... DELETE ...");
 
 ## 分组查询构建器（query 框架）
 
-需要**分组/聚合/动态多条件**查询（如按时间/地区/类目多维分组统计、运行时拼装筛选条件）时，框架提供分组查询构建器，避免手拼 SQL 字符串或写大量条件分支。命名空间 `ThirdNet.Vibe.Common`（`code/backend/Library/ThirdNet.Vibe.Common/query/`）。
+需要**分组/聚合/动态多条件**查询（如按时间/地区/类目多维分组统计、运行时拼装筛选条件）时，框架提供分组查询构建器，避免手拼 SQL 字符串或写大量条件分支。命名空间 `ThirdNet.Vibe.Common`（NuGet 包内 `query/` 目录）。
 
 | 类/接口 | 用途 |
 |---------|------|

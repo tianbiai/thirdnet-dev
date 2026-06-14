@@ -20,13 +20,13 @@ description: >
 
 | 层 | 位置 | 说明 |
 |----|------|------|
-| **① 框架库** | NuGet 包 `ThirdNet.Vibe.Common` / `ThirdNet.Vibe.WebAPI` | 加密、分组查询、Redis 缓存/锁、批量、限流、multipart、CIDR、JWT、RBAC、操作日志、访问日志、分页等——**最优先复用**。源码只读参考：`code/backend/Library/`。 |
-| **② 模板生成层** | 生成项目的 `Tools/{ProjectName}.Admin.Common` / `.Admin.Cache` / `Admin/{ProjectName}.Admin.APIService` | `AdminControllerBase`、`OperatorContext`、`SystemConfigKeys`、`[OperLog]`、`[SystemDict]`、各缓存域等。随 `dotnet new thirdnet-admin` 生成。参考：`code/backend/src/`。 |
+| **① 框架库** | NuGet 包 `ThirdNet.Vibe.Common` / `ThirdNet.Vibe.WebAPI` | 加密、分组查询、Redis 缓存/锁、批量、限流、multipart、CIDR、JWT、RBAC、操作日志、访问日志、分页等——**最优先复用**。 |
+| **② 模板生成层** | 生成项目的 `Tools/{ProjectName}.Common` / `.Admin.Cache` / `Admin/{ProjectName}.Admin.APIService` | `AdminControllerBase`、`OperatorContext`、`SystemConfigKeys`、`[OperLog]`、`[SystemDict]`、各缓存域等。随 `dotnet new thirdnet-admin` 生成。 |
 | **③ 业务代码** | 生成项目的 `Admin/{ProjectName}.Admin.APIService`（Controllers/Services/DTOs）与 `.Database`（Models/EntityConfigurations） | 你自己写的实体、Service、Controller。 |
 
 **完整的可复用类清单（命名空间 + 文件 + 用途）见 [framework-and-template-catalog](references/framework-and-template-catalog.md)**。不确定「框架是否已提供某个能力」时，先查目录，不要重复造轮子。
 
-> 命名校准：参考仓库里 `ThirdNetVibe.*` 是当前实现，`ThirdNet.*`（无 Vibe）是空的历史壳项目——**不要往 `ThirdNet.*` 里写代码**。生成项目结构**没有 `src/`**（`src/` 只在 `code/backend/` 参考仓库）；描述文件位置时一律用生成路径 `Admin/{ProjectName}.Admin.APIService/...`。
+> 命名校准：生成项目中类命名空间以 `{ProjectName}` 前缀（由模板 `sourceName` 替换而来）；描述文件位置时一律用生成路径 `Admin/{ProjectName}.Admin.APIService/...`、`Tools/{ProjectName}.Common/...`。
 
 ## 框架内置能力（开箱即用，无需自研）
 
@@ -121,8 +121,8 @@ dotnet sln {ProjectName}.Admin.slnx add \
   Admin/{ProjectName}.Admin.Database/{ProjectName}.Admin.Database.csproj \
   -s /src/Admin/
 dotnet sln {ProjectName}.Admin.slnx add \
-  Tools/{ProjectName}.Admin.Common/{ProjectName}.Admin.Common.csproj \
-  Tools/{ProjectName}.Admin.Cache/{ProjectName}.Admin.Cache.csproj \
+  Tools/{ProjectName}.Common/{ProjectName}.Common.csproj \
+  Tools/{ProjectName}.Cache/{ProjectName}.Cache.csproj \
   -s /src/Tools/
 
 # 5. 配置数据库连接字符串
@@ -150,11 +150,9 @@ backend/
 │   ├── {ProjectName}.Admin.APIService/       # API 宿主（Controllers、Services、DTOs）
 │   └── {ProjectName}.Admin.Database/         # AdminDbContext + 实体 + EntityConfigurations
 └── Tools/
-    ├── {ProjectName}.Admin.Common/           # 常量、枚举、DI 扩展、AdminControllerBase
-    └── {ProjectName}.Admin.Cache/            # Redis 缓存域
+    ├── {ProjectName}.Common/           # 常量、枚举、DI 扩展、AdminControllerBase
+    └── {ProjectName}.Cache/            # Redis 缓存域
 ```
-
-> 需要看每个目录里**真实的范例代码**（完整 Controller/Service/Cache 实现）时，参考仓库 `code/backend/src/Admin/ThirdNetVibe.Admin.*` 与 `code/backend/src/Tools/ThirdNetVibe.*`（只读）。生成项目本身不含 `src/`。
 
 ### 创建 Service 微服务项目
 

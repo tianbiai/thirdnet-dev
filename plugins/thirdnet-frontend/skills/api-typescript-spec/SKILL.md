@@ -96,15 +96,16 @@ src/
 ```typescript
 type Endpoint = 'manager' | 'app'
 
-interface PaginationParams { index: number; size: number }
+interface PaginationParams { page_index: number; page_size: number }
 
-interface PaginatedResponse<T> { list: T[]; total: number; index: number; size: number }
+interface PaginatedResponse<T> { total: number; list: T[]; index?: number; pages?: number }
 
 interface RequestConfig<TData = unknown> {
   url: string
   method: 'GET' | 'POST'
   data?: TData
   params?: Record<string, unknown>
+  headers?: Record<string, string>  // 自定义请求头（如 Basic 认证头），与默认头合并
   endpoint?: Endpoint  // 可选，当 url 为相对路径时由适配器拼接为 /api/{endpoint}{url}；当 url 已包含完整前缀时忽略此字段
 }
 
@@ -428,50 +429,50 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 | 文件 | 值 | 用途 |
 |------|-----|------|
-| `.env.development` | `VITE_MOCK_ENABLED=true` | 日常开发 |
-| `.env.prototype` | `VITE_MOCK_ENABLED=true` | 原型演示构建 |
-| `.env.production` | `VITE_MOCK_ENABLED=false` | 生产构建 |
+| `.env.development` | `VITE_MOCK_ENABLED=false` | 日常开发（连真实 API，需后端就绪） |
+| `.env.prototype` | `VITE_MOCK_ENABLED=true` | 原型演示构建（走 Mock，无需后端） |
+| `.env.production` | `VITE_MOCK_ENABLED=false` | 生产构建（连真实 API） |
 
 #### 构建模式
 
 | 命令 | mode | Mock 行为 | 构建优化 |
 |------|------|-----------|---------|
-| `dev` / `dev:h5` | development | 正常加载，使用 MockApi | 无 |
+| `dev` / `dev:h5` | development | 连真实 API（`VITE_MOCK_ENABLED=false`） | 无 |
 | `build:proto` / `build:h5:proto` | prototype | 正常加载，使用 MockApi | 有 |
 | `build` / `build:h5` | production | 排除 mock 代码，使用 RealApi | 有 |
 
 #### 生产构建排除机制
 
-生产构建时，通过两步机制确保 Mock 代码不出现在最终产物中：
+生产构建（`vite build`）时，通过自定义 Vite 插件 `mockDataStripPlugin()`（`vite.config.ts`）剥离 Mock 数据，配合 `MOCK_ENABLED` 静态为 `false` 让 Mock 分支成为死代码被 tree-shaking 移除。
 
-**1. Vite alias 重定向**：在 `vite.config.js` 中根据 mode 条件配置 `resolve.alias`：
+**真实机制**（与 `vite.config.ts` 一致，不是 alias 重定向）：
 
-```javascript
-resolve: {
-  alias: [
-    ...(mode === 'production'
-      ? [{ find: /^@\/mock.*/, replacement: 'src/mock_prod_stub.ts' }]
-      : []),
-    { find: '@', replacement: 'src' }
-  ]
+```typescript
+// 仅在 command === 'build' 时启用
+function mockDataStripPlugin(): Plugin {
+  return {
+    name: 'mock-data-strip',
+    enforce: 'pre',
+    resolveId(source, importer) {
+      // 只拦截路径含 /mock/data/ 的导入
+      if (!source.includes('/mock/data/')) return null
+      // 解析到虚拟桩模块 ID
+      return '\0mock-stub:' + resolvedPath
+    },
+    load(id) {
+      if (!id.startsWith('\0mock-stub:')) return null
+      // 读取原 mock 数据文件，提取所有 export 的名称
+      const names = [...content.matchAll(/export\s+(?:const|let|var|function|class)\s+(\w+)/g)].map(m => m[1])
+      // 为每个具名导出生成空数组桩（死代码分支不会实际使用）
+      return names.map(n => `export const ${n} = []`).join('\n') // 无具名导出则返回 'export {}'
+    },
+  }
 }
 ```
 
-**2. Rollup 死代码消除**：配合 `MOCK_ENABLED` 静态为 `false`，工厂函数中 Mock 分支成为死代码被消除。
+**原理**：生产构建时，所有 `/mock/data/**` 的导入被 `mockDataStripPlugin` 拦截，替换为"每个具名导出 = 空数组"的虚拟桩模块（不是空对象、也不重定向整个 `@/mock`）。由于 `MOCK_ENABLED` 静态为 `false`，工厂函数中 `new MockXxxApi()` 所在分支不可达，Rollup tree-shaking 移除该分支；Mock 数据本身已被桩替换为空数组，最终产物中不含真实 Mock 数据。**注意**：拦截范围是 `/mock/data/`（Mock 数据文件），不含 `/mock/api/`；Mock API 类的剥离依赖 `MOCK_ENABLED=false` + tree-shaking。开发模式下插件不启用，Mock 模块正常加载。
 
-```typescript
-// src/mock_prod_stub.ts — 空模块，仅在 production 构建时替代 @/mock/**
-// 此文件不需要导出任何内容，因为：
-// 1. Vite alias 将所有 @/mock/** 的 import 重定向到此文件
-// 2. MOCK_ENABLED 静态为 false，工厂函数中 Mock 分支（import { MockXxxApi }）不可达
-// 3. Rollup tree-shaking 移除整个不可达分支，命名 import 在最终产物中不存在
-// 因此 TypeScript 编译阶段的 import 语句会被完全消除，不会触发解析错误
-export default {}
-```
-
-**原理**：生产构建时，所有 `@/mock/**` 的静态 import 被 Vite alias 重定向到空模块 `mock_prod_stub.ts`。由于 `MOCK_ENABLED` 静态为 `false`，工厂函数中 `new MockXxxApi()` 所在的 `if (MOCK_ENABLED)` 分支成为不可达代码。Rollup 在 tree-shaking 阶段会移除整个不可达分支，包括对 `MockXxxApi` 的 `import` 语句本身，因此命名导入不会触发运行时解析错误——Mock API 类、Mock 数据文件、Mock 工具函数均不会出现在最终包中。非 production 模式下 alias 不生效，Mock 模块正常参与构建。
-
-**切换流程**：通过不同构建命令自动选择对应 `.env.*` 文件，无需手动修改配置。工厂函数在模块初始化时执行一次，运行期间不再切换。
+**切换流程**：通过环境变量 `VITE_MOCK_ENABLED`（开发期 `.env`）控制，无需手动改配置。工厂函数在模块初始化时执行一次，运行期间不再切换。
 
 ## 认证模块（`auth.ts`）
 

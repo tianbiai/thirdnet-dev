@@ -307,25 +307,25 @@ queryable = queryable.Where(x => visibleDeptIds.Contains(x.dept_id));
 
 | 类型 | 命名空间 | 说明 |
 |------|----------|------|
-| `AdminControllerBase` | `{ProjectName}.Admin.Common.Controllers` | Admin 控制器基类，提供 `CurrentUserId`/`CurrentUserName`/`CurrentDeptId`，自动初始化 `IOperatorContext` |
+| `AdminControllerBase` | `{ProjectName}.Common.Controllers` | Admin 控制器基类，提供 `CurrentUserId`/`CurrentUserName`/`CurrentDeptId`，自动初始化 `IOperatorContext` |
 | `WebApiException` | `ThirdNet.Vibe.WebAPI` | 业务异常类，构造参数 `(HttpStatusCode, string message)` |
-| `PageQueryDto` | `{ProjectName}.Admin.Common.DTOs` | 分页查询基类，含 `page_index`、`page_size` |
+| `PageQueryDto` | `{ProjectName}.Common.DTOs` | 分页查询基类，含 `page_index`、`page_size` |
 | `PageListInfo<T>` | `ThirdNet.Vibe.WebAPI` | 分页返回类型，含 `List`、`Total`、`Index`、`Pages` |
 | `ToPageListAsync` | `ThirdNet.Vibe.WebAPI.ThirdNetWebApiExtensions` | **分页扩展**：`IQueryable<T>.ToPageListAsync(page_index, page_size) → Task<PageListInfo<List<T>>>`，勿自写分页 |
-| `IdResult` | `{ProjectName}.Admin.Common.DTOs` | 新增/更新操作的返回类型，含 `id` |
-| `UploadResult` | `{ProjectName}.Admin.Common.DTOs` | 文件上传响应，含 `file_name`（GUID 文件名 + 扩展名）和 `url`（相对路径如 `/uploads/xxx.jpg`） |
+| `IdResult` | `{ProjectName}.Common.DTOs` | 新增/更新操作的返回类型，含 `id` |
+| `UploadResult` | `{ProjectName}.Common.DTOs` | 文件上传响应，含 `file_name`（GUID 文件名 + 扩展名）和 `url`（相对路径如 `/uploads/xxx.jpg`） |
 | `IPasswordHasher` | `ThirdNet.Vibe.Common.Algorithm.Abstractions` | 密码哈希接口，`Hash(plainPassword)` / `Verify(...)`；经 `AddCrypto` 注册 |
 | `PermissionAuthorizeAttribute` | `ThirdNet.Vibe.WebAPI` | 权限授权特性，参数为权限字符串（如 `"sys:user:list"`） |
-| `OperLogAttribute` | `{ProjectName}.Admin.Common.OperLog` | 操作日志特性，参数 `Title`、`BusinessType` |
-| `BusinessTypeEnum` | `{ProjectName}.Admin.Common.Enums` | 操作日志业务类型枚举（`Create`、`Update`、`Delete` 等） |
-| `IOperatorContext` / `OperatorContext` | `{ProjectName}.Admin.Common.Interfaces` / `{ProjectName}.Admin.Cache.Context` | 操作者上下文（Scoped）。`Initialize(operatorId)`（幂等）、`HasWildcardPermission()`、`GetUserInfo()`、`GetUserRoleIds()`、`GetVisibleDeptIds()`——同一请求内懒加载缓存，避免重复读 Redis |
-| `DeptFilterHelper` | `{ProjectName}.Admin.Common.Extensions` | 部门数据范围过滤，`GetVisibleDeptIds()` |
+| `OperLogAttribute` | `{ProjectName}.Common.OperLog` | 操作日志特性，参数 `Title`、`BusinessType` |
+| `BusinessTypeEnum` | `{ProjectName}.Common.Enums` | 操作日志业务类型枚举（`Create`、`Update`、`Delete` 等） |
+| `IOperatorContext` / `OperatorContext` | `{ProjectName}.Common.Interfaces` / `{ProjectName}.Cache.Context` | 操作者上下文（Scoped）。`Initialize(operatorId)`（幂等）、`HasWildcardPermission()`、`GetUserInfo()`、`GetUserRoleIds()`、`GetVisibleDeptIds()`——同一请求内懒加载缓存，避免重复读 Redis |
+| `DeptFilterHelper` | `{ProjectName}.Common.Extensions` | 部门数据范围过滤，`GetVisibleDeptIds()` |
 | `TreeBuilder` | `ThirdNet.Vibe.Common` | 扁平列表 → 树，`BuildForest()`（**仅此方法**） |
 | `TreeHelper` | `ThirdNet.Vibe.Common` | 树操作：`FlattenTree()` / `BuildNameMap()` / `ValidateNoCircularReference()`（与 `TreeBuilder` 是两个类，勿混淆） |
 | `UserCacheInvalidation` | `{ProjectName}.Admin.APIService.Services` | `InvalidateUserAuthAsync(userCache, tokenCache, userId)`，权限/角色变更后统一失效 |
-| `StatusEnum` | `{ProjectName}.Admin.Common.Enums` | 状态枚举（`Normal = 0`、`Disabled = 1`） |
+| `StatusEnum` | `{ProjectName}.Common.Enums` | 状态枚举（`Normal = 0`、`Disabled = 1`） |
 
-> `{ProjectName}` 是创建项目时指定的名称前缀（参考仓库中为 `ThirdNetVibe`）。`ThirdNet.Vibe.*` 命名空间来自框架 NuGet 库，`{ProjectName}.Admin.*` 命名空间来自模板生成层。
+> `{ProjectName}` 是创建项目时指定的名称前缀（模板默认 `sourceName` 为 `ThirdNetVibe`）。`ThirdNet.Vibe.*` 命名空间来自框架 NuGet 库；模板生成层的命名空间**并非统一带 `.Admin.`**——主机/数据库层是 `{ProjectName}.Admin.APIService` / `{ProjectName}.Admin.Database`，而公共工具层（`Tools/{ProjectName}.Common`、`Tools/{ProjectName}.Cache`）的命名空间是 `{ProjectName}.Common.*` / `{ProjectName}.Cache.*`（**无 `.Admin.` 中缀**），使用时注意区分。
 
 ## 完整示例
 

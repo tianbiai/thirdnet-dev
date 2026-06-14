@@ -5,7 +5,7 @@
 ## Program.cs
 
 ```csharp
-using {ProjectName}.Admin.Common.Hosting;
+using {ProjectName}.Common.Hosting;
 using ThirdNet.Vibe.WebAPI;
 
 var host = AdminHostBuilder.BuildAdminWebHost<Startup>(args);
@@ -18,7 +18,7 @@ await host.RunAsync();
 ```
 
 > 说明：
-> - `AdminHostBuilder.BuildAdminWebHost<Startup>(args)` 虽然名字带"Admin"，但它是**通用宿主构建方法**（`{ProjectName}.Admin.Common.Hosting` 命名空间），返回标准 `IHost`，Service 微服务也用它。
+> - `AdminHostBuilder.BuildAdminWebHost<Startup>(args)` 虽然名字带"Admin"，但它是**通用宿主构建方法**（`{ProjectName}.Common.Hosting` 命名空间），返回标准 `IHost`，Service 微服务也用它。
 > - `host.InitializeDatabasesAsync()` 是 `{ProjectName}.Admin.APIService` 里 `MigrateHelper` 提供的扩展：依次迁移 `ThirdNetDbContext`（seed）与 `AdminDbContext`（seed + **枚举字典自动同步** `SystemEnumDictSync.SyncAsync`）。
 > - `InitializeFunctionTableAsync()` 扫描端点生成功能表；`InitializePermissionCatalogTableAsync()` 扫描 `[PermissionAuthorize]` 同步权限目录。
 

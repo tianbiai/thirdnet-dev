@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.24.1 - 2026-06-14
+
+### Changed
+- 清理后端技能文档中对参考仓库 `code/backend/` 的全部引用（该目录被 `.gitignore` 排除、不在发布仓库内）：删除「生成项目没有 `src/`」警告与「参考仓库 `code/backend/src/...`」指针，`framework-and-template-catalog.md` 参考文件列改写为生成项目内相对路径（`Admin/{ProjectName}.Admin.*`、`Tools/{ProjectName}.Admin.*`），框架库路径降级为 NuGet 包内相对位置
+- `framework-and-template-catalog.md`：删除「仓库布局（`code/backend/`）」章节，保留「生成项目结构」章节并新增「命名约定」说明
+- `admin-fullstack-coordination`：删除对 `code/backend/` 范例与权威源码的指向（升至 1.3.1）
+
 ## 0.24.0 - 2026-06-14
 
 ### Added
