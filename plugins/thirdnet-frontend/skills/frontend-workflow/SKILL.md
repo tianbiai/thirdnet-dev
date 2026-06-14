@@ -23,7 +23,7 @@ metadata:
 | 场景 | 相关技能 | 说明 |
 |------|---------|------|
 | 全栈功能开发 | `thirdnet-backend:backend-workflow` | 后端开发工作流入口，定义实体/API/权限 |
-| 全栈协调 | `admin-fullstack-coordination` | 后端 DTO → 前端类型的映射规则、RBAC 桥接、开发顺序 |
+| 全栈协调 | `thirdnet-fullstack` | 后端 DTO → 前端类型的映射规则、RBAC 桥接、开发顺序 |
 | 后端 API 项目创建 | `thirdnet-backend:backend-workflow` | `dotnet new thirdnet-admin` 创建后端项目 |
 
 ## 工作流步骤概览

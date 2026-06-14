@@ -1,5 +1,5 @@
 ---
-name: admin-fullstack-coordination
+name: thirdnet-fullstack
 description: >
   全栈 Admin 功能开发协调指南。当同时开发前端页面和后端 API 时使用此技能，
   提供从前端页面到后端 API 的完整开发顺序（前端先行）、Admin 模板 CRUD 页面开发模式
@@ -11,7 +11,7 @@ description: >
   也提供任务路由（全栈 vs 仅前端/仅后端）与全新 Admin 全栈项目创建的协调路径。
 license: MIT
 metadata:
-  version: "1.3.1"
+  version: "1.5.0"
   author: thirdnet
 ---
 
@@ -53,10 +53,37 @@ metadata:
 
 ## 全栈项目创建（Admin 模板）
 
-当任务是**从零创建一个 Admin 全栈项目**（用户说"创建 admin""新建管理后台"等），**不要**套用下面的模块开发流程——两端模板都已内置完整功能，走各自的「模板创建例外流程」（仅确认必要参数、跳过需求澄清）：
+当任务是**从零创建一个 Admin 全栈项目**（用户说"创建 admin""新建管理后台"等），**不要**套用下面的模块开发流程——两端模板都已内置完整功能，走各自的「模板创建例外流程」（仅确认必要参数、跳过需求澄清）。
 
-1. **后端**（`backend-workflow` 例外流程）：用一次 `AskUserQuestion` 确认项目名 `{ProjectName}`，然后 `dotnet new thirdnet-admin -n {ProjectName}.Admin` 创建，跳过需求澄清直接进入项目框架阶段（NuGet 源、连接串用默认配置）。
-2. **前端**（`frontend-workflow` 例外流程）：确认品牌参数（项目名、`--brand`、`--initial`、`--abbr`，可用默认值），调用 `admin-template-setup` 技能经 `create-thirdnet-admin` 创建前端项目（后端 API 地址默认 `http://localhost:5000`）。
+### 目标目录布局（本技能强制）
+
+全栈项目统一在工作区根目录采用**嵌套布局**，两端脚手架命令必须落在对应目录内：
+
+```
+{项目根}/
+├── README.md                 # 项目总览 + 三端协调说明
+├── backend/                  # .NET Admin 后端（dotnet new thirdnet-admin）
+│   └── {ProjectName}.Admin/  # 模板产物（Admin/、Tools/、plan.md/changelog.md/spec.md）
+└── frontend/
+    ├── web/                  # 管理后台前端（create-thirdnet-admin，项目名传 web）
+    └── minigram/             # 用户端小程序（uni-app + Vant，按需创建）
+```
+
+> ⚠️ 协调技能只规定"在哪个目录跑"，**不重复**两端工作流技能已有的命令细节（NuGet 源、品牌参数、EF 迁移等仍由各工作流技能负责）。两端脚手架都在 cwd 下创建命名文件夹，因此**cwd 必须精确**——否则会产生扁平布局（如 `admin-frontend/` 直接出现在根目录）。
+
+### 创建步骤
+
+1. **建顶层目录**：在工作区根目录创建 `backend/` 与 `frontend/` 两个文件夹（小程序按需再建 `frontend/minigram/`）。
+
+2. **后端**（`backend-workflow` 例外流程）：用一次 `AskUserQuestion` 确认项目名 `{ProjectName}`，然后**在工作区根目录执行** `dotnet new thirdnet-admin -n {ProjectName}.Admin`（backend-workflow 自带 `mkdir -p backend; cd backend`，产出 `backend/{ProjectName}.Admin/`）。跳过需求澄清直接进入项目框架阶段（NuGet 源、连接串用默认配置）。
+
+3. **前端 Admin**（`frontend-workflow` + `admin-template-setup` 例外流程）：确认品牌参数（`--brand`、`--initial`、`--abbr`，可用默认值），然后**在 `frontend/` 目录内执行** `npm exec --registry http://192.168.1.207:4873/ -- create-thirdnet-admin web --brand …`，项目名传 `web`（落地为 `frontend/web/`，npm 包名为 `web`）。后端 API 地址默认 `http://localhost:5000`。
+
+   > `create-thirdnet-admin` 的项目名即目录名，无 `--out-dir`/`--parent` 参数，故必须用 cwd 控制落点。
+
+4. **用户端小程序（按需）**：若用户同时要 C 端小程序，按 `frontend-workflow` 的手动初始化流程在 `frontend/minigram/` 创建 uni-app + Vant 项目；无此需求则跳过。
+
+5. **README.md**：在项目根创建 `README.md`，记录三端协调说明与目录布局（指向 `backend/` 与 `frontend/{web,minigram}/`）。
 
 模板内置 19 个管理端模块（用户/角色/菜单/部门/字典/配置/权限/操作日志/缓存/在线用户/API Key + API 应用/服务/操作/黑白名单/角色/访问日志 + 认证授权），功能固定无需澄清。创建后如需新增**业务模块**，再进入下面的全栈功能开发流程。
 

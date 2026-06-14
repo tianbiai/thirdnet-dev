@@ -61,7 +61,7 @@ description: >
 | 场景 | 相关技能 | 说明 |
 |------|---------|------|
 | 全栈功能开发 | `thirdnet-frontend:frontend-workflow` | 前端开发工作流入口，页面/组件/路由/API 模块开发 |
-| 全栈协调 | `admin-fullstack-coordination` | 后端 DTO → 前端 TypeScript 类型的映射规则、RBAC 前后端桥接、全栈开发顺序 |
+| 全栈协调 | `thirdnet-fullstack` | 后端 DTO → 前端 TypeScript 类型的映射规则、RBAC 前后端桥接、全栈开发顺序 |
 | 前端 Admin 项目创建 | `thirdnet-frontend:admin-template-setup` | `create-thirdnet-admin` 创建前端管理后台项目 |
 | 前端 API 规范 | `thirdnet-frontend:api-typescript-spec` | 前端消费后端 API 的策略工厂模式规范 |
 

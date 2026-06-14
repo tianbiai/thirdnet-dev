@@ -1,5 +1,10 @@
 # Changelog
 
+## [未发布]
+
+### Changed
+- `frontend-workflow` 技能「相关技能」表格中的交叉引用由 `admin-fullstack-coordination` 同步为 `thirdnet-fullstack`（该技能已重命名为 `thirdnet-fullstack`，统一品牌命名）
+
 ## 0.22.0 - 2026-06-09
 
 ### Added
