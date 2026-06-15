@@ -34,7 +34,9 @@ metadata:
 | ------------ | ------------------------------------------------ |
 | Node.js      | ≥ 18.0.0                                        |
 | npm          | 随 Node.js 安装                                  |
-| npm registry | Verdaccio 私有仓库 `http://192.168.1.207:4873` |
+| npm registry（内网） | Verdaccio 私有仓库 `http://192.168.1.207:4873`（内网不可达时改用外网，见下方说明） |
+
+> **网络环境说明**：模板包同时通过内网和外网两条路径提供，二选一即可。默认使用内网 registry `http://192.168.1.207:4873`；若处于非内网环境或内网不可达，改用外网 registry `http://61.164.57.61:14873/`（命令中替换 `--registry` 后的地址即可）。两条路径均能访问 `create-thirdnet-admin` 包。
 
 ## 安装步骤
 
@@ -46,6 +48,9 @@ metadata:
 # 基础安装（使用默认品牌 ThirdNet）
 npm exec --registry http://192.168.1.207:4873/ -- create-thirdnet-admin my-admin
 
+# 内网不可达时，改用外网 registry
+npm exec --registry http://61.164.57.61:14873/ -- create-thirdnet-admin my-admin
+
 # 带品牌定制
 npm exec --registry http://192.168.1.207:4873/ -- create-thirdnet-admin my-admin \
   --brand MyApp --initial M --abbr MA
@@ -53,7 +58,7 @@ npm exec --registry http://192.168.1.207:4873/ -- create-thirdnet-admin my-admin
 
 **命令说明：**
 
-- `--registry http://192.168.1.207:4873/` — 指定从私有 npm registry 获取模板包
+- `--registry http://192.168.1.207:4873/` — 指定从私有 npm registry 获取模板包。内网地址，外网环境用 `--registry http://61.164.57.61:14873/`，两者二选一
 - `--` — 分隔 npm 参数和包名参数
 - `my-admin` — 项目名称（会成为目录名和 npm 包名）
 - `--brand` — 品牌名称，出现在登录页、侧边栏、导航栏、HTML 标题
@@ -139,9 +144,11 @@ CRUD 页面开发详细指南（Composable 使用、页面布局模板、工具�
 
 **解决**：
 
-1. 确认 Verdaccio 服务器 `http://192.168.1.207:4873` 可访问
-2. 在浏览器中访问 `http://192.168.1.207:4873/create-thirdnet-admin` 确认包存在
-3. 若网络环境变化，确认 registry 地址是否需要更新
+模板包提供内网、外网两条路径，二选一即可。**先尝试内网，内网不可达时改用外网：**
+
+1. 确认 Verdaccio 服务器可达——内网 `http://192.168.1.207:4873` 或外网 `http://61.164.57.61:14873/`
+2. 在浏览器中访问对应地址下的 `/create-thirdnet-admin` 确认包存在（如 `http://192.168.1.207:4873/create-thirdnet-admin` 或 `http://61.164.57.61:14873/create-thirdnet-admin`）
+3. 若当前网络无法访问内网，直接在命令中将 `--registry` 替换为外网地址 `http://61.164.57.61:14873/`
 
 ### 前端代理 404
 

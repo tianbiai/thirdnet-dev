@@ -191,7 +191,7 @@ metadata:
 
 | 项目类型 | 初始化方式 | 说明 |
 |----------|-----------|------|
-| 管理后台 Web（Admin） | **调用 `admin-template-setup` 技能**，使用 `npm exec --registry http://192.168.1.207:4873/ -- create-thirdnet-admin` 创建 | 模板已实现完整后台功能（用户/角色/菜单/权限等），采用真实 API + Mock 数据并行模式，禁止手动搭建 |
+| 管理后台 Web（Admin） | **调用 `admin-template-setup` 技能**，使用 `npm exec --registry http://192.168.1.207:4873/ -- create-thirdnet-admin` 创建（内网不可达时改用外网 registry `http://61.164.57.61:14873/`） | 模板已实现完整后台功能（用户/角色/菜单/权限等），采用真实 API + Mock 数据并行模式，禁止手动搭建 |
 | 用户端 / 小程序（Client / Minigram） | 继续执行以下手动初始化步骤 | 使用 uniapp + Vant 开发，面向 C 端用户的移动端项目（H5 + 微信小程序） |
 
 **判断依据**：如果项目需要登录认证、RBAC 权限管理、后台菜单管理等管理后台特征，则为 Admin 类型；面向终端用户的移动应用（无论 H5 还是小程序）均为用户端，使用 uniapp 开发。

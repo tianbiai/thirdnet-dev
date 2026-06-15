@@ -71,7 +71,7 @@ description: >
 
 1. **需求澄清**（AskUserQuestion）—— 明确服务范围、数据模型、接口需求、架构约束
 
-   > **例外：Admin 模板项目创建** —— 如果任务明确为"创建 Admin 管理后台项目"（使用 `dotnet new thirdnet-admin`），模板已内置全部模块（用户/角色/菜单/部门/字典/配置/操作日志/缓存、API 管理、认证授权），功能范围固定、无需澄清。此时跳过需求澄清的 3 轮提问，仅用一次 AskUserQuestion 确认项目名称（`{ProjectName}`，用于 `-n` 参数）后直接进入步骤 2。NuGet 源地址（`http://192.168.1.156:8088/nuget`）和数据库连接字符串均使用技能默认配置，无需额外确认。
+   > **例外：Admin 模板项目创建** —— 如果任务明确为"创建 Admin 管理后台项目"（使用 `dotnet new thirdnet-admin`），模板已内置全部模块（用户/角色/菜单/部门/字典/配置/操作日志/缓存、API 管理、认证授权），功能范围固定、无需澄清。此时跳过需求澄清的 3 轮提问，仅用一次 AskUserQuestion 确认项目名称（`{ProjectName}`，用于 `-n` 参数）后直接进入步骤 2。NuGet 源地址默认用内网 `http://192.168.1.156:8088/nuget`，内网不可达时改用外网 `http://61.164.57.61:8088/nuget`；数据库连接字符串均使用技能默认配置，无需额外确认。
    >
    > 此例外**仅适用于创建新 Admin 模板项目**。在已有 Admin 项目上新增业务模块（如"通知管理"）时，仍须执行完整的需求澄清流程。
 
@@ -105,6 +105,8 @@ description: >
 ```bash
 # 1. 配置 NuGet 源（一次性）
 dotnet nuget add source http://192.168.1.156:8088/nuget -n ThirdNet
+# 内网不可达时改用外网源：
+# dotnet nuget add source http://61.164.57.61:8088/nuget -n ThirdNet
 
 # 2. 安装模板
 dotnet new install ThirdNet.Admin.Template --force
@@ -254,7 +256,7 @@ Admin 项目的 Program.cs 和 Startup.cs 遵循固定的启动模式和 10 步 
 
 如果当前任务为**创建 Admin 管理后台项目**（用户明确提出"创建 admin"、"新建管理后台"、"thirdnet-admin"等），**直接跳过本节后续的 3 轮澄清流程**。原因：Admin 模板已内置完整的系统管理和 API 管理模块，功能范围固定不变，无需确认。
 
-**替代操作**：使用一次 `AskUserQuestion` 仅确认项目名称（`{ProjectName}`，用于 `dotnet new thirdnet-admin -n {ProjectName} -o {ProjectName}.Admin`）。NuGet 源地址（`http://192.168.1.156:8088/nuget`）和数据库连接字符串均使用技能默认配置，无需确认。
+**替代操作**：使用一次 `AskUserQuestion` 仅确认项目名称（`{ProjectName}`，用于 `dotnet new thirdnet-admin -n {ProjectName} -o {ProjectName}.Admin`）。NuGet 源地址默认用内网 `http://192.168.1.156:8088/nuget`，内网不可达时改用外网 `http://61.164.57.61:8088/nuget`；数据库连接字符串均使用技能默认配置，无需确认。
 
 确认后直接跳转至「开发阶段」的阶段 2（项目框架：使用模板创建标准化项目结构）。
 

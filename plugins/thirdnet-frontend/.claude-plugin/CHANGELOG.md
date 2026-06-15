@@ -5,6 +5,9 @@
 ### Changed
 - `frontend-workflow` 技能「相关技能」表格中的交叉引用由 `admin-fullstack-coordination` 同步为 `thirdnet-fullstack`（该技能已重命名为 `thirdnet-fullstack`，统一品牌命名）
 
+### Added
+- `admin-template-setup`、`frontend-workflow` 技能补充模板安装的外网（公网）npm registry 地址 `http://61.164.57.61:14873/`：默认仍用内网 `http://192.168.1.207:4873`，内网不可达时改用外网，两条路径二选一均可访问 `create-thirdnet-admin` 包
+
 ## 0.22.0 - 2026-06-09
 
 ### Added
