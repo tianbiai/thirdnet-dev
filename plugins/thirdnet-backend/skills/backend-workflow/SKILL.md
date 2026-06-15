@@ -112,7 +112,7 @@ dotnet new install ThirdNet.Admin.Template --force
 # 3. 创建项目（在 backend/ 目录内）
 mkdir -p backend
 cd backend
-dotnet new thirdnet-admin -n {ProjectName}.Admin
+dotnet new thirdnet-admin -n {ProjectName} -o {ProjectName}.Admin
 
 # 4. 创建解决方案文件并添加项目（必需）
 dotnet new sln -n {ProjectName}.Admin -o .
@@ -162,7 +162,7 @@ backend/
 # 前提：已有 Admin 项目
 dotnet new install ThirdNet.Service.Template --force
 cd backend
-dotnet new thirdnet-service -n {ServiceName} --AdminName {ProjectName}.Admin
+dotnet new thirdnet-service -n {ServiceName} --AdminName {ProjectName}
 ```
 
 ## 双数据库架构
@@ -254,7 +254,7 @@ Admin 项目的 Program.cs 和 Startup.cs 遵循固定的启动模式和 10 步 
 
 如果当前任务为**创建 Admin 管理后台项目**（用户明确提出"创建 admin"、"新建管理后台"、"thirdnet-admin"等），**直接跳过本节后续的 3 轮澄清流程**。原因：Admin 模板已内置完整的系统管理和 API 管理模块，功能范围固定不变，无需确认。
 
-**替代操作**：使用一次 `AskUserQuestion` 仅确认项目名称（`{ProjectName}`，用于 `dotnet new thirdnet-admin -n {ProjectName}.Admin`）。NuGet 源地址（`http://192.168.1.156:8088/nuget`）和数据库连接字符串均使用技能默认配置，无需确认。
+**替代操作**：使用一次 `AskUserQuestion` 仅确认项目名称（`{ProjectName}`，用于 `dotnet new thirdnet-admin -n {ProjectName} -o {ProjectName}.Admin`）。NuGet 源地址（`http://192.168.1.156:8088/nuget`）和数据库连接字符串均使用技能默认配置，无需确认。
 
 确认后直接跳转至「开发阶段」的阶段 2（项目框架：使用模板创建标准化项目结构）。
 

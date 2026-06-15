@@ -45,8 +45,8 @@ mkdir -p backend
 cd backend
 dotnet new thirdnet-service -n {ServiceName}
 
-# 如果 Admin 使用了自定义名称
-dotnet new thirdnet-service -n {ServiceName} --AdminName {ProjectName}.Admin
+# 如果 Admin 使用了自定义名称（--AdminName 取值须与创建 Admin 时传给 -n 的值一致，即裸 {ProjectName}）
+dotnet new thirdnet-service -n {ServiceName} --AdminName {ProjectName}
 
 # 可选：指定框架版本
 dotnet new thirdnet-service -n {ServiceName} \

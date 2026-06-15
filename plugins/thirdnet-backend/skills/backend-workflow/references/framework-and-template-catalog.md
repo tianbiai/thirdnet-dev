@@ -267,7 +267,7 @@
 - 模板 `sourceName` 为 `"ThirdNetVibe"`，生成时按 `-n` 前缀替换为 `{ProjectName}`，所有类命名空间随之变为 `{ProjectName}.*`。
 - 技能中描述「文件放在哪」时一律用**生成项目路径**（`Admin/{ProjectName}.Admin.APIService/...`、`Tools/{ProjectName}.Common/...`）。
 
-### 生成项目结构（`dotnet new thirdnet-admin -n {ProjectName}.Admin`）
+### 生成项目结构（`dotnet new thirdnet-admin -n {ProjectName} -o {ProjectName}.Admin`）
 
 ```
 {ProjectName}.Admin/
