@@ -1,15 +1,11 @@
 ---
 name: net-api-developer
 description: >
-  ThirdNet API 接口开发规范。覆盖 AdminControllerBase（CurrentUserId/Name/DeptId、
-  自动 OperatorContext 初始化）、Controller 目录组织（Manager/App/Third）、
-  GET/POST-only 约定、DTO 命名（{Entity}{Action}Map）、PermissionAuthorize 属性、
-  OperLog 操作日志、WebApiException 错误处理、PageListInfo 分页、
-  Service 层完整模式（IDbContextFactory + 缓存注入 + OperatorContext + 部门过滤 + 缓存失效）。
-  禁止匿名对象返回、禁止直接返回 EF Core 实体、ProducesResponseType 声明要求。
-  当用户提到"controller"、"AdminControllerBase"、"service"、"DTO"、
-  "PermissionAuthorize"、"OperLog"、"API"、"snake_case API"、"端点"、
-  "写接口"、"创建接口"、"接口开发"、"CRUD"、"HttpGet"、"HttpPost"时，必须使用此技能。
+  ThirdNet API 接口开发规范：AdminControllerBase（自动 OperatorContext）、Controller 分层
+  （Manager/App/Third）、GET/POST-only、DTO 命名（{Entity}{Action}Map）、OperLog 操作日志、
+  Service 层模式（IDbContextFactory + 缓存 + 部门过滤）。禁止匿名对象与直接返回 EF Core 实体。
+  当用户提到"controller"、"AdminControllerBase"、"service"、"DTO"、"OperLog"、"API"、
+  "接口开发"、"写接口"、"CRUD"、"HttpGet"、"HttpPost"时，必须使用此技能。
 ---
 
 # ThirdNet API 接口开发

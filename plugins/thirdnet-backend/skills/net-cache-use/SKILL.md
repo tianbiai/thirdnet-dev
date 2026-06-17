@@ -1,14 +1,11 @@
 ---
 name: net-cache-use
 description: >
-  ThirdNet Redis 缓存域开发规范。覆盖缓存键命名、View 模型（轻量投影）、
-  CacheDbContext（原始 SQL 回退查询）、缓存域三区域结构（Reader/Remove/Query）、
-  RedisCacheManager 基类内置能力（熔断、防击穿、TTL 抖动）、完整方法签名、
-  分布式锁（RedisLock）、缓存对象复用原则、TTL 约定、缓存失效策略、
-  Singleton 注册、批量操作模式、代码审查清单。
-  当用户提到"cache"、"UserCache"、"RoleCache"、"CacheKeys"、"CacheDbContext"、
-  "cache view"、"cache domain"、"redis"、"缓存域"、"缓存开发"、"RedisCacheManager"、
-  "RedisLock"、"分布式锁"、"加缓存"、"缓存数据"时，必须使用此技能。
+  ThirdNet Redis 缓存域开发规范：缓存键命名、View 投影、CacheDbContext 回退查询、
+  缓存域三区域结构（Reader/Remove/Query）、RedisCacheManager（熔断/防击穿/TTL 抖动）、
+  RedisLock 分布式锁、缓存失效策略。
+  当用户提到"cache"、"缓存域"、"redis"、"RedisCacheManager"、"RedisLock"、
+  "分布式锁"、"加缓存"、"CacheDbContext"时，必须使用此技能。
 ---
 
 # ThirdNet Redis 缓存域开发

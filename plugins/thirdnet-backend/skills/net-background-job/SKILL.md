@@ -1,12 +1,10 @@
 ---
 name: net-background-job
 description: >
-  ThirdNet 后台任务开发规范。基于 BackgroundRunner 框架创建循环执行的后台任务
-  （使用 SleepTime 毫秒间隔，非 Cron 表达式）。覆盖核心属性（SleepTime、Name、Check）、
-  开发步骤、Scoped 服务模式（IServiceScopeFactory）、常见场景示例。
+  ThirdNet 后台任务开发规范。基于 BackgroundRunner 创建循环执行的后台任务
+  （SleepTime 毫秒间隔，非 Cron 表达式）：核心属性、Scoped 服务模式、常见场景示例。
   当用户提到"定时"、"后台任务"、"Job"、"Worker"、"每隔"、"自动执行"、
-  "BackgroundRunner"、"BackgroundService"、"定时同步"、"后台处理"、"循环任务"、
-  "操作日志后台"、"心跳检测"时，必须使用此技能。
+  "BackgroundRunner"、"循环任务"、"心跳检测"时，必须使用此技能。
 ---
 
 # ThirdNet 后台任务开发

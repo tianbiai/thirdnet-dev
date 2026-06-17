@@ -1,13 +1,11 @@
 ---
 name: net-rbac
 description: >
-  ThirdNet RBAC 权限体系完整指南。覆盖 RBAC 数据模型（User→UserRole→Role→RoleMenu→Menu）、
-  权限字符串格式（module:entity:action）、三层授权（角色/范围/权限+通配符）、
-  CachePermissionProvider 权限解析流程、PermissionCatalog 自动同步、菜单树结构、
-  OperatorContext 请求级缓存、新增权限保护模块的步骤。
-  当用户提到"RBAC"、"permission"、"角色权限"、"菜单权限"、"PermissionAuthorize"、
-  "PermissionCatalog"、"permission provider"、"权限"、"角色菜单"、"用户角色"、
-  "权限开发"、"权限配置"、"OperatorContext"时，必须使用此技能。
+  ThirdNet RBAC 权限体系完整指南：数据模型（User→Role→Menu）、权限字符串（module:entity:action）、
+  三层授权（角色/范围/权限+通配符）、CachePermissionProvider 解析、PermissionCatalog 自动同步、
+  菜单树、OperatorContext、新增权限保护模块步骤。
+  当用户提到"RBAC"、"permission"、"角色权限"、"菜单权限"、"权限"、"授权"、
+  "PermissionAuthorize"、"PermissionCatalog"、"OperatorContext"时，必须使用此技能。
 ---
 
 # ThirdNet RBAC 权限体系

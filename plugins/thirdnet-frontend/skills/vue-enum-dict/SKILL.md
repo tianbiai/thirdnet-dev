@@ -1,16 +1,12 @@
 ---
 name: vue-enum-dict
 description: >
-  ThirdNet 前端枚举字典与自定义字典使用规范（与 docs/enum.md 对齐，覆盖通用 Vue 最佳实践与 API 规范）。
-  区分两类字典：枚举字典（dict_source=0，int，useDict(dictType) → GET /api/manager/dict/options/{dict_type}，
-  选项类型 EnumItem { value:number, label }) 和自定义字典（dict_source=1，string，
-  dictApi.getDictDataByType(dictType) → GET /api/manager/dict/data/type/{dict_type}，
-  选项类型 DictOption { dict_value:string, dict_label, tag_type }）。
-  覆盖四个场景：表单下拉（el-select/el-option，禁止硬编码选项数组）、表单提交（提交数值/字符串，禁止提交 label）、
-  表格列显示（直接用后端 *_label，禁止 useDict.formatLabel）、筛选下拉（v-model 绑 number|string）。
-  含前后端速查对照表与常见坑。当用户涉及下拉选项、枚举字典、自定义字典、useDict、getDictDataByType、
-  EnumItem、DictOption、el-select、el-option、*_label、dict_type、状态枚举、业务类型、int 还是 string、
-  表格列翻译、筛选下拉、"加个下拉"、"选项字典"时，必须使用此技能。
+  ThirdNet 前端枚举字典与自定义字典使用规范（与 docs/enum.md 对齐）。区分两类字典：枚举字典
+  （dict_source=0，int，useDict）与自定义字典（dict_source=1，string，getDictDataByType）。
+  覆盖表单下拉、表单提交（提交数值/字符串，禁止提交 label）、表格列（直接用后端 *_label）、
+  筛选下拉四个场景，含前后端速查对照表。当用户涉及"下拉选项"、"枚举字典"、"自定义字典"、
+  "useDict"、"getDictDataByType"、"el-select"、"*_label"、"dict_type"、"int 还是 string"、
+  "加个下拉"时，必须使用此技能。
 license: MIT
 metadata:
   version: "1.0.0"

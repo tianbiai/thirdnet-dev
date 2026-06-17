@@ -1,14 +1,11 @@
 ---
 name: thirdnet-fullstack
 description: >
-  全栈 Admin 功能开发协调指南。当同时开发前端页面和后端 API 时使用此技能，
-  提供从前端页面到后端 API 的完整开发顺序（前端先行）、Admin 模板 CRUD 页面开发模式
-  （useCrudTable + PaginationBar + validators）、前后端类型映射规则、
-  RBAC 权限前后端桥接、以及共享 API 约定的同步检查清单。适用于：
-  新增一个完整 Admin 模块（前端 + 后端）、修改跨前后端的 API 契约、
-  理解前端类型与后端 DTO 的映射关系、排查前后端数据格式不一致的问题。
-  本技能在执行前会检查 thirdnet-backend 和 thirdnet-frontend 插件是否已安装，缺少任一插件时会阻止执行并提示安装方式。
-  也提供任务路由（全栈 vs 仅前端/仅后端）与全新 Admin 全栈项目创建的协调路径。
+  全栈 Admin 功能开发协调指南。当同时开发前端页面与后端 API 时使用：前端先行开发顺序、
+  Admin 模板 CRUD 页面模式（useCrudTable + PaginationBar）、前后端类型映射、RBAC 权限桥接、
+  共享 API 约定同步检查清单，以及任务路由（全栈 vs 仅前端/仅后端）与全新项目创建路径。
+  执行前检查 thirdnet-backend 与 thirdnet-frontend 是否已安装，缺一则阻止并提示安装。
+  适用于新增完整 Admin 模块、修改跨前后端 API 契约、排查前后端数据格式不一致。
 license: MIT
 metadata:
   version: "1.5.1"

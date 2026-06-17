@@ -1,13 +1,11 @@
 ---
 name: net-database-bulkcopy
 description: >
-  ThirdNet PostgreSQL 批量数据操作规范。基于 PostgresqlAsyncBulk（IDbAsyncBulk）
-  实现高性能数据操作：CopyToServer（批量插入）、MergeToServer（Upsert）、
-  UpdateToServer（批量更新）、MergeAndDeleteToServer（完整同步）。
-  包含决策流程图（内存数据 → BulkCopy vs 数据库数据 → CTE）。
-  当用户提到"批量"、"导入"、"同步"、"大数据量"、"Excel导入"、
-  "数据迁移"、"Upsert"、"Merge"、"CopyToServer"、"BulkCopy"、
-  "批量写入"、"批量插入"、"DbBulk"时，必须使用此技能。
+  ThirdNet PostgreSQL 批量数据操作规范。基于 PostgresqlAsyncBulk 实现高性能操作
+  （CopyToServer 插入 / MergeToServer Upsert / UpdateToServer 更新 / MergeAndDeleteToServer 同步），
+  含 BulkCopy vs CTE 决策流程。
+  当用户提到"批量"、"导入"、"同步"、"大数据量"、"Excel导入"、"数据迁移"、
+  "Upsert"、"Merge"、"CopyToServer"、"BulkCopy"时，必须使用此技能。
 ---
 
 # ThirdNet 批量数据操作

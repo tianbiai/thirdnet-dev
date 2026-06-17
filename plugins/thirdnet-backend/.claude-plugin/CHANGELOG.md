@@ -1,12 +1,13 @@
 # Changelog
 
-## [未发布]
+## 0.25.0 - 2026-06-17
 
 ### Changed
 - `backend-workflow` 技能「相关技能」表格中的交叉引用由 `admin-fullstack-coordination` 同步为 `thirdnet-fullstack`（该技能已重命名为 `thirdnet-fullstack`，统一品牌命名）
 
 ### Added
 - `backend-workflow` 技能补充 NuGet 源的外网（公网）地址 `http://61.164.57.61:8088/nuget`：默认仍用内网 `http://192.168.1.156:8088/nuget`，内网不可达时改用外网（`dotnet nuget add source` 命令及默认配置说明处均已标注）
+- `plugin.json` 版本号 0.24.1 → 0.25.0，与 `marketplace.json` 对齐
 
 ## 0.24.1 - 2026-06-14
 

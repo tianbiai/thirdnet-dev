@@ -1,15 +1,11 @@
 ---
 name: net-authentication
 description: >
-  ThirdNet 认证系统开发规范。覆盖三层认证：Basic 认证（IP 白名单、HMAC-SM3 国密应用加密）、
-  Bearer/JWT 认证（SM2/RSA 签名）、API Key 认证（X-API-Key 请求头、IApiKeyValidator、
-  CachedApiKeyValidator）、IAccountValidator 实现、ICheckClient 客户端验证、
-  Token 获取/刷新端点、授权策略（Default/Logon/Basic/Both）、Token 过期检查、
-  AdminAccountValidator 模式。
-  当用户提到"认证"、"授权"、"登录"、"Token"、"JWT"、"Basic"、"Bearer"、
-  "ApiKey"、"X-API-Key"、"IApiKeyValidator"、"IAccountValidator"、"ICheckClient"、
-  "策略"、"Policy"、"用户验证"、"密码"、"登录接口"、"刷新Token"、
-  "AdminAccountValidator"时，必须使用此技能。
+  ThirdNet 认证系统开发规范：三层认证（Basic 国密、Bearer/JWT 签名、API Key）、
+  IAccountValidator/ICheckClient 客户端验证、Token 获取/刷新端点、授权策略（Default/Logon/Basic/Both）。
+  当用户提到"认证"、"登录"、"Token"、"JWT"、"Basic"、"Bearer"、"ApiKey"、"X-API-Key"、
+  "IAccountValidator"、"ICheckClient"、"Policy"时，必须使用此技能。
+  （权限/授权见 net-rbac 技能）
 ---
 
 # ThirdNet 认证系统

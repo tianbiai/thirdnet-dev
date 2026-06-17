@@ -1,12 +1,19 @@
 # Changelog
 
-## [未发布]
+## 0.24.0 - 2026-06-17
+
+### Added
+- 新增 `vue-enum-dict` 技能：前端枚举字典 / 自定义字典使用规范，与后端 `net-enum-dict`、`docs/enum.md` 单一事实源对齐；区分枚举字典（`dict_source=0`，`useDict(dictType)` → `GET /api/manager/dict/options/{dict_type}`，`EnumItem{value:number,label}`）与自定义字典（`dict_source=1`，`getDictDataByType(dictType)` → `GET /api/manager/dict/data/type/{dict_type}`，`DictOption`），覆盖表单下拉、提交、表格列、筛选下拉四类场景
+- `admin-template-setup`、`frontend-workflow` 技能补充模板安装的外网（公网）npm registry 地址 `http://61.164.57.61:14873/`：默认仍用内网 `http://192.168.1.207:4873`，内网不可达时改用外网，两条路径二选一均可访问 `create-thirdnet-admin` 包
+- `frontend-workflow` 技能路由表「按需技能」与编码前检查清单接入 `vue-enum-dict`（下拉选项 / 字典字段 / `*_label` 场景）
 
 ### Changed
 - `frontend-workflow` 技能「相关技能」表格中的交叉引用由 `admin-fullstack-coordination` 同步为 `thirdnet-fullstack`（该技能已重命名为 `thirdnet-fullstack`，统一品牌命名）
+- `frontend-workflow` 技能枚举规范修正：明确区分**纯前端常量**（`enum` 关键字 + JSDoc，禁止 union type / const object）与**后端字典驱动字段**（不定义 TS enum，字段类型用 `number`/`string`，下拉走 `useDict` / `getDictDataByType`），与 `api-typescript-spec` 约定 #7、`vue-enum-dict` 口径一致
+- `plugin.json` 版本号 0.22.0 → 0.24.0，与 `marketplace.json` 对齐
+- 插件描述补充「枚举字典/自定义字典前端规范（useDict / getDictDataByType）」
 
-### Added
-- `admin-template-setup`、`frontend-workflow` 技能补充模板安装的外网（公网）npm registry 地址 `http://61.164.57.61:14873/`：默认仍用内网 `http://192.168.1.207:4873`，内网不可达时改用外网，两条路径二选一均可访问 `create-thirdnet-admin` 包
+> 注：0.23.0 为版本号过渡发布，未单独维护 CHANGELOG 条目，相关变更已并入 0.24.0。
 
 ## 0.22.0 - 2026-06-09
 

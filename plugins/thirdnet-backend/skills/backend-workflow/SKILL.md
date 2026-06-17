@@ -1,13 +1,10 @@
 ---
 name: backend-workflow
 description: >
-  ThirdNet 后端开发完整工作流。覆盖项目创建（dotnet new thirdnet-admin / thirdnet-service）、
-  双数据库架构、DI 管道（10 步注册顺序）、Program.cs/Startup.cs 模式、功能开发全流程
-  （entity → configuration → migration → cache view → cache domain → service → DTO → controller → DI 注册）、
-  文档驱动开发（plan → changelog → spec → 编码 → 校验）、需求澄清流程、开发阶段、完成校验清单，
-  以及技能路由表。当用户提到"后端开发"、"创建 admin"、"workflow"、"thirdnet-admin"、
-  "thirdnet-service"、"后端工作流"、"新模块"、"backend"、"后端开发工作流"、
-  "开发流程"、"创建后端模块"、"后端规范"时，必须使用此技能。
+  ThirdNet 后端开发入口与路由器：项目创建、功能开发全流程（entity → controller → DI 注册）、
+  文档驱动开发（plan/changelog/spec → 编码 → 校验）、技能路由表。当用户提到"后端开发"、
+  "创建 admin"、"thirdnet-admin"、"thirdnet-service"、"后端工作流"、"新模块"、
+  "backend"、"开发流程"时，必须使用此技能。
 ---
 
 # ThirdNet 后端开发工作流

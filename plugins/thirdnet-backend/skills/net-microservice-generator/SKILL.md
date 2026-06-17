@@ -1,14 +1,11 @@
 ---
 name: net-microservice-generator
 description: >
-  ThirdNet Service 微服务模板开发指南。覆盖 dotnet new thirdnet-service 创建微服务、
-  跨项目引用（Admin.Common、Admin.Cache）、ServiceDbContext 自定义 schema、
-  共享认证（CachePermissionProvider）、Startup.cs 配置详解、中间件执行顺序、
-  AddThirdNetMvcWithPostgresql 内部注册内容、Redis 配置、appsettings 配置文件管理、
-  健康检查、按 Admin 模式添加业务模块。
+  ThirdNet Service 微服务模板开发指南：dotnet new thirdnet-service 创建微服务、跨项目引用
+  （Admin.Common/Admin.Cache）、ServiceDbContext、共享认证、Startup.cs 与中间件顺序、
+  appsettings 管理、健康检查、按 Admin 模式添加业务模块。
   当用户提到"new service"、"微服务"、"thirdnet-service"、"ServiceDbContext"、
-  "跨项目引用"、"service template"、"创建微服务"、"新建服务"、"AddThirdNetMvc"、
-  "appsettings"、"中间件"时，必须使用此技能。
+  "创建微服务"、"新建服务"、"AddThirdNetMvc"、"appsettings"、"中间件"时，必须使用此技能。
 ---
 
 # ThirdNet Service 微服务模板开发

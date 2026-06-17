@@ -1,74 +1,53 @@
 ---
 name: net-enum-dict
 description: >
-  ThirdNet 系统枚举字典开发规范。定义可复用的下拉选项为 [SystemDict] 枚举，
-  通过反射自动同步到数据库字典表（t_sys_dict_type + t_sys_dict_data）。
-  后端代码中需要做 if/switch 流程判断的值必须定义为系统枚举（前端只读 dict_source=0）；
-  仅作为前端下拉展示、后端无需判断流程的选项，通过前端字典管理页面手动创建（dict_source=1）。
-  覆盖 [SystemDict] 属性、[EnumMeta] 标签、自动同步机制、枚举模板、决策指南。
-  当用户提到"枚举字典"、"下拉选项"、"EnumMeta"、"SystemDict"、"字典枚举"、
-  "状态选项"、"字典类型"、"新增枚举"、"dict_source"、"枚举下拉"、"状态枚举"、
-  "类型枚举"、"加个下拉"、"选项字典"时，必须使用此技能。
+  ThirdNet 枚举字典与自定义字典后端开发规范（与 docs/enum.md 对齐）。区分两类字典：枚举字典
+  （C# enum + 特性，dict_source=0，value=int，启动时反射幂等同步）与自定义字典（运营手建，
+  dict_source=1，value=string，后端无需写 C#）。覆盖响应 DTO 带 *_label、EnumHelper/DictCache
+  用法、int vs string 决策。当用户提到"枚举字典"、"自定义字典"、"dict_source"、"SystemDict"、
+  "EnumHelper"、"DictCache"、"字典类型"、"新增枚举"、"加个下拉"、"int 还是 string"、
+  "*_label"时，必须使用此技能。
 ---
 
-# ThirdNet 系统枚举字典
+# ThirdNet 枚举字典与自定义字典（后端）
 
-> 命名空间：`[SystemDict]`、`[EnumMeta]`、`SystemEnumRegistry` 在 `{ProjectName}.Common.Enums`；同步器 `SystemEnumDictSync` 在 `{ProjectName}.Admin.APIService.Data`。完整类清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md)「枚举字典」。
+> **唯一事实来源**：`docs/enum.md`。本技能与其保持一致，冲突以 `docs/enum.md` 为准。
+>
+> 命名空间：`[SystemDict]`、`[EnumMeta]`、`SystemEnumRegistry`、`EnumHelper` 在 `{ProjectName}.Common.Enums`；同步器 `SystemEnumDictSync` 在 `{ProjectName}.Admin.APIService.Data`；`DictCache` 在 `{ProjectName}.Cache.Domain`。完整类清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md)「枚举字典」。
 
-## 决策指南：系统枚举 vs 前端手动字典
+## 概览：两条路径不混用
 
-在创建下拉选项前，先判断属于哪种类型：
+系统把字典分成两类，走**不同接口**，value 类型不同，职责严格分离：
 
-```
-后端代码是否需要对此值做 if / switch 流程判断？
-├── 是 → 定义为系统枚举（[SystemDict]，本技能）
-│       前端字典管理页面中显示为只读（dict_source=0）
-│       例如：状态（StatusEnum）、菜单类型（MenuTypeEnum）
-│
-└── 否 → 通过前端字典管理界面手动创建用户自定义字典
-        前端可编辑（dict_source=1）
-        例如："通知渠道"（邮件/短信/站内信）、"优先级"（高/中/低）
-```
+| 维度 | 枚举字典（`dict_source=0`） | 自定义字典（`dict_source=1`） |
+|------|------------------------------|--------------------------------|
+| **来源** | C# 枚举反射（`[SystemDict]`） | 运营在「字典管理」页手建 |
+| **value 类型** | `int`（枚举数值） | `string`（任意业务编码） |
+| **取选项接口** | `GET /api/manager/dict/options/{dict_type}` | `GET /api/manager/dict/data/type/{dict_type}` |
+| **后端是否写代码** | 写 C# 枚举（唯一文件） | **全程不写 C#**，只配置存储 + 缓存 |
+| **CRUD** | 只读——增删改全部被 `SysDictService` 拒绝（抛异常） | 完整 CRUD |
+| **同步方式** | 启动时 `SystemEnumDictSync` 单向覆盖 | 不参与代码同步，纯人工维护 |
 
-**原则**：后端流程依赖的值不能让用户随意增删改，否则代码逻辑会失效。
+**核心原则**：前后端传递的是**数值/编码**，显示文字由后端在响应里以 `*_label` 附带返回。新增/修改枚举值**只改后端枚举定义**，注册、字典表同步、前端下拉全部自动生效。不要试图把两类字典"统一类型"——枚举字典改 string 会破坏后端 `int` DTO 反序列化；自定义字典改 int 会丢失非数字编码。
 
-## 核心规则
+## 决策准则：枚举字典 vs 自定义字典
 
-### 一个文件一个枚举
+判断一个问题即可：
 
-在 `Tools/{ProjectName}.Common/Enums/` 下新建 `.cs` 文件，每个文件只包含一个枚举定义。
+> **这个选项集，会不会在不发版的情况下由运营/管理员改动？**
 
-### 枚举必须标注 [SystemDict]
+- **不会** → 写成 **C# 枚举**（`dict_source=0`，int）。适用于：选项**稳定、与代码逻辑强绑定**（代码里有 `if (status==0)` 之类的分支判断）。
+  - 例：`StatusEnum`（正常/停用）、`MenuTypeEnum`（菜单类型）、`BusinessTypeEnum`（操作类型）、`PriorityEnum`（优先级）。
+- **会** → 在字典管理页建 **自定义字典**（`dict_source=1`，string）。适用于：**业务运营性质、经常增删、带业务编码**、代码只存值不做逻辑判断。
+  - 例：`user_source`（用户来源渠道 `web`/`app`/`mini_program`）、`id_card_type`（证件类型）、`bank_code`（银行编码）。
 
-类上标注 `[SystemDict("字典类型编码", "显示名称")]`：
+**原则**：后端流程依赖的值不能让运营随意增删改，否则代码逻辑会失效；反之，纯展示性的业务编码不必发版，交由运营维护。
 
-- `字典类型编码`：前端查询字典时的 key，使用 snake_case（如 `"notice_status"`）
-- `显示名称`：在字典管理页面展示的中文名（如 `"通知状态"`）
+## §1 定义一个新枚举（唯一文件）
 
-### 每个成员标注 [EnumMeta]
+新增枚举只需**一个文件**，标注两个特性。注册和字典表同步全自动完成。
 
-每个枚举成员标注 `[EnumMeta("中文标签")]` 并从 0 开始显式赋值：
-
-```csharp
-[EnumMeta("正常")]
-Normal = 0,
-```
-
-### 自动同步机制
-
-应用启动时，`SystemEnumRegistry` 通过反射自动扫描当前程序集中所有带 `[SystemDict]` 的枚举，然后 `SystemEnumDictSync.SyncAsync()` 将枚举值同步到数据库：
-
-- **新增枚举类型** → 自动插入 `t_sys_dict_type`（dict_source=0）和 `t_sys_dict_data`
-- **更新标签** → 枚举成员的 `[EnumMeta]` 标签变化时自动更新
-- **硬删除** → 枚举成员被移除后，对应的 `t_sys_dict_data` 行自动删除
-
-**无需手动操作**：不需要改 Startup.cs、不需要手动注册、不需要手动写迁移。
-
-### 程序集约束
-
-枚举必须定义在 `{ProjectName}.Common` 程序集中（`SystemEnumRegistry` 只扫描 `typeof(SystemEnumRegistry).Assembly`）。不要在其他项目中定义 `[SystemDict]` 枚举。
-
-## 完整模板
+在 `Tools/{ProjectName}.Common/Enums/` 下新建 `.cs` 文件，每个文件只包含一个枚举定义：
 
 ```csharp
 using {ProjectName}.Common.Enums;
@@ -76,108 +55,264 @@ using {ProjectName}.Common.Enums;
 namespace {ProjectName}.Common.Enums
 {
     /// <summary>
-    /// 通知状态枚举。
-    /// <para>对应字典类型：notice_status。</para>
+    /// 优先级枚举。
+    /// <para>对应字典类型：priority。</para>
     /// </summary>
-    [SystemDict("notice_status", "通知状态")]
-    public enum NoticeStatusEnum
+    [SystemDict("priority", "优先级")]   // 注册为系统字典：dict_type 键 + 字典类型显示名
+    public enum PriorityEnum
     {
-        /// <summary>草稿</summary>
-        [EnumMeta("草稿")]
-        Draft = 0,
+        /// <summary>低</summary>
+        [EnumMeta("低")]
+        Low = 0,
 
-        /// <summary>已发布</summary>
-        [EnumMeta("已发布")]
-        Published = 1,
+        /// <summary>中</summary>
+        [EnumMeta("中")]
+        Medium = 1,
 
-        /// <summary>已撤回</summary>
-        [EnumMeta("已撤回")]
-        Revoked = 2
+        /// <summary>高</summary>
+        [EnumMeta("高")]
+        High = 2,
     }
 }
 ```
 
-## 现有系统枚举
+两个特性：
 
-以下枚举已定义并在数据库中同步，可直接在代码中引用，无需重复创建：
+| 特性 | 标注位置 | 作用 |
+|------|----------|------|
+| `[SystemDict(dictTypeKey, displayName)]` | 枚举类 | 声明该枚举为系统字典。`dictTypeKey` 是前后端约定的字典类型编码，使用 **snake_case** 且与字段名一致（如 `status`、`menu_type`、`business_type`）；`displayName` 是字典管理页显示名 |
+| `[EnumMeta(label)]` | 枚举成员 | 该成员的中文显示文字。每个成员都标，并从 0 开始**显式赋值** |
 
-| 枚举类 | 字典编码 | 显示名称 | 值 |
-|--------|---------|---------|-----|
-| `StatusEnum` | `status` | 系统状态 | 0=正常, 1=停用 |
-| `MenuTypeEnum` | `menu_type` | 菜单类型 | 0=目录, 1=页面, 2=按钮 |
-| `VisibleEnum` | `visible` | 显示状态 | 0=显示, 1=隐藏 |
-| `BusinessTypeEnum` | `business_type` | 业务类型 | 0=其他, 1=新增, 2=修改, 3=删除, 4=导出 |
-| `OperLogStatusEnum` | `oper_log_status` | 操作状态 | 0=成功, 1=失败 |
-| `ConfigTypeEnum` | `config_type` | 配置值类型 | 0=字符串, 1=数字, 2=布尔 |
+完成后 `GET /api/manager/dict/options/priority` 立即可用：
 
-### 已有系统枚举的完整声明格式
+```json
+[
+  {"value": 0, "label": "低", "name": "Low"},
+  {"value": 1, "label": "中", "name": "Medium"},
+  {"value": 2, "label": "高", "name": "High"}
+]
+```
 
-这些枚举的声明方式如下（以 `StatusEnum` 为例），了解其格式有助于在代码中正确引用：
+## §2 自动注册与同步（无需手写注册代码）
+
+应用启动时自动发生两件事：
+
+1. **注册发现**：`SystemEnumRegistry` 反射 `{ProjectName}.Common` 程序集中所有带 `[SystemDict]` 的枚举，自动加入注册表（按 `dict_type` 排序）。
+2. **字典表同步**：`SystemEnumDictSync.SyncAsync(dbContext)` 每次启动幂等地把枚举同步到 `t_sys_dict_type`（`dict_source=0`）和 `t_sys_dict_data`（`dict_value = 数值.ToString()`）：
+   - **新增**：代码中有、表中无 → 插入
+   - **更新**：label 变化 → 更新 `dict_label`
+   - **删除**：表中有、代码已移除 → 硬删除
+   - 所有变更用单次 `SaveChangesAsync` 提交
+
+**无需手动操作**：不需要改 Startup.cs、不需要手动注册、不需要手动写迁移。
+
+### 程序集约束
+
+枚举必须定义在 `{ProjectName}.Common` 程序集中（`SystemEnumRegistry` 只扫描 `typeof(SystemEnumRegistry).Assembly`）。不要在其他项目中定义 `[SystemDict]` 枚举。
+
+### 启动路径
+
+```
+Program.cs → MigrateHelper.InitializeDatabasesAsync()
+            └── SystemEnumDictSync.SyncAsync(dbContext)
+                └── SystemEnumRegistry.All（反射 {ProjectName}.Common 程序集）
+```
+
+## §3 现有系统枚举清单
+
+以下枚举已定义（均位于 `backend/src/Tools/ThirdNetVibe.Common/Enums/`）：
+
+| 枚举类 | dict_type | 用途 |
+|--------|-----------|------|
+| `StatusEnum` | `status` | 通用启停状态（正常/停用） |
+| `BusinessTypeEnum` | `business_type` | 操作日志业务类型（其它/新增/修改/删除/导出） |
+| `MenuTypeEnum` | `menu_type` | 菜单类型 |
+| `ConfigTypeEnum` | `config_type` | 系统配置类型 |
+| `OperLogStatusEnum` | **—（无 dict_type）** | 操作日志执行状态（成功/失败），仅供后端分支判断，不进 `/dict/options`、不同步字典表 |
+| `VisibleEnum` | **—（无 dict_type）** | 菜单是否可见，仅供后端分支判断，不进 `/dict/options`、不同步字典表 |
+
+> ⚠️ `OperLogStatusEnum` 与 `VisibleEnum` **没有** `[SystemDict]` 标注，因此不会出现在 `/dict/options` 接口、也不会被同步到 `t_sys_dict_type`——它们存在纯粹是为了在后端代码里做 `switch`/`if` 判断。新增枚举后请同步更新本表。
+
+### 声明格式参考（以 StatusEnum 为例）
 
 ```csharp
-/// <summary>
-/// 系统状态
-/// </summary>
 [SystemDict("status", "系统状态")]
 public enum StatusEnum
 {
-    /// <summary>正常</summary>
     [EnumMeta("正常")]
     Normal = 0,
-
-    /// <summary>停用</summary>
     [EnumMeta("停用")]
     Disabled = 1
 }
 ```
 
-在 Service 层中引用时：`(StatusEnum)dto.status`（DTO 中为 int，需要显式转换）。
+Service 层引用时：`(StatusEnum)dto.status`（DTO 中为 int，需要显式转换）。
 
-## 同步流程详解
+## §4 响应 DTO：必须带 `<field>` + `<field>_label`（枚举字典）
 
-```
-1. 应用启动
-   └── Program.cs → MigrateHelper.InitializeDatabasesAsync()
-       └── SystemEnumDictSync.SyncAsync(dbContext)
+**规则**：响应 DTO 中凡含枚举字段，必须**同时**返回 `<字段>`（数值 int）和 `<字段>_label`（文字 string）。label 用 `EnumHelper.GetLabel` 反射填充。
 
-2. 自动发现
-   └── SystemEnumRegistry.All
-       └── 反射扫描 {ProjectName}.Common 程序集
-           └── 找到所有 [SystemDict] 标注的枚举
-               └── 为每个枚举创建 EnumRegistration(DictTypeKey, DisplayName, Type)
+```csharp
+public class OperLogMap
+{
+    public int business_type { get; set; }
+    public string business_type_label { get; set; } = string.Empty;
+    // ...其他字段
 
-3. 数据库同步（幂等）
-   ├── dict_type 不存在 → INSERT t_sys_dict_type (dict_source=0)
-   ├── dict_type 已存在 → 跳过（不修改显示名称）
-   ├── dict_value 不存在 → INSERT t_sys_dict_data
-   ├── dict_value 存在但 label 变了 → UPDATE dict_label
-   └── dict_value 在数据库中但枚举中已移除 → DELETE（硬删除）
-
-4. 单次 SaveChangesAsync 提交所有变更
+    public static OperLogMap FromEntity(Database.Models.SysOperLogModel entity) => new()
+    {
+        business_type = entity.business_type,
+        business_type_label = EnumHelper.GetLabel(typeof(BusinessTypeEnum), entity.business_type),  // 反射填 label
+        // ...
+    };
+}
 ```
 
-## 使用枚举的前端 API
+> 若实体字段是裸 `int`（为兼容 PostgreSQL bulk copy，部分实体用 `int` 而非枚举类型，如 `SysOperLogModel.business_type`），`EnumHelper.GetLabel` 第二参直接传 int，内部按数值匹配。
 
-前端通过字典 API 获取枚举选项：
+`EnumHelper` 两个核心方法：
+
+| 方法 | 用途 |
+|------|------|
+| `GetEnumMetadata(Type)` | 返回某枚举的全部选项列表（`List<EnumItemDto>`），供 `/dict/options` 接口使用 |
+| `GetLabel(Type, int)` | 按枚举类型 + 数值查单个 label，**进程级缓存**，供 DTO 映射填 `*_label` 使用 |
+
+## §5 DTO 字段类型规则（枚举字典）
+
+| DTO 类型 | 枚举字段类型 | 示例 |
+|----------|--------------|------|
+| 创建 / 更新 | `int` | `UserCreateMap.status` → `int` |
+| 查询条件 | `int?` | `OperLogQueryMap.business_type` → `int?` |
+
+**禁止**将 DTO 枚举字段声明为 `string` 或枚举名类型，以保证前后端数值口径一致。
+
+## §6 前端取选项接口（枚举字典）
+
+枚举字典前端通过**专用接口**取选项（int）：
 
 ```
-GET /api/manager/dict/type/{dict_type}/data
+GET /api/manager/dict/options/{dict_type}
 ```
 
-返回该字典类型下的所有选项（value + label），系统枚举和自定义字典使用同一接口。
+返回 `[{value: int, label, name}]`，纯内存反射生成、不查库。
 
-## 反模式
+> 自定义字典走**另一个接口** `GET /api/manager/dict/data/type/{dict_type}`（string），见 §7。两者不可混用。
+>
+> 前端落地规范（下拉、提交、表格、筛选四场景）见 **`vue-enum-dict`** 技能。
 
-| 场景 | 错误做法 | 正确做法 |
-|------|---------|---------|
-| "通知渠道"选项（邮件/短信/站内信），后端只用它展示 | 定义 [SystemDict] 枚举 | 前端字典管理页面手动创建 |
-| 新增一个后端需要 switch 判断的状态值 | 前端手动创建字典 | 定义 [SystemDict] 枚举 |
-| 决定 [SystemDict] 枚举定义在哪个程序集 | 在 `{ProjectName}.Admin.APIService` 等业务项目定义 | 只在 `{ProjectName}.Common/Enums/` 中定义 |
-| 每次新增枚举后手动改 Startup.cs | 手动注册 | 无需操作，自动发现 |
+## §7 自定义字典后端（`dict_source=1`，string）
+
+自定义字典与枚举字典最大的区别：**全程不写 C# 代码**——后端不定义枚举/特性，全部由运营在「字典管理」页维护；后端只提供存储 + 缓存取值接口，业务字段用普通 `string` 列。
+
+### 7.1 配置步骤（只做一次）
+
+**步骤 1 — 运营在「字典管理」页建字典**（无需改代码）
+
+访问 `/system/dict` 页面：
+
+1. 左侧新建**字典类型**，例如 `user_source`（用户来源）。新建时自动设 `dict_source = 1`。
+2. 右侧给该类型添加**字典数据**，每条含：
+   - `dict_label`：显示文字（如 "网页"）
+   - `dict_value`：**实际存储值**（如 `"web"`，string）
+   - `dict_sort`、`tag_type`、`css_class`、`remark`（可选）
+
+CRUD 写操作后 `SysDictService` 自动清缓存（`_dictCache.RemoveDictData`）。
+
+**步骤 2 — 业务实体字段用 string 存储**
+
+业务表里存字典值的列用普通 `text`/`string`，**不要用 int、也不要建枚举**（即便值形如 `"1"`/`"2"` 数字形态编码，也按 string 存，自定义字典值统一 string；`"web"` 等更存不进 int）：
+
+```csharp
+// backend/src/Admin/.../Models/SysUserModel.cs
+public string user_source { get; set; } = string.Empty;   // 存 "web" / "app" / "mini_program"
+```
+
+EF 配置（text 类型 + 注释）：
+
+```csharp
+// EntityConfigurations/SysUserConfiguration.cs
+builder.Property(x => x.user_source).HasComment("用户来源（自定义字典 user_source 的 dict_value）");
+```
+
+**步骤 3 — 响应 DTO 带上显示文字（`*_label`）**
+
+与枚举字典一样要同时返回存储值和显示文字，**但 label 来源不同**：
+
+| 字典类别 | label 查询方式 | 数据源 |
+|----------|----------------|--------|
+| 枚举字典 | `EnumHelper.GetLabel(typeof(XxxEnum), intValue)` | C# 枚举反射（进程内缓存） |
+| 自定义字典 | **注入 `DictCache`，从缓存列表 LINQ 查找** | Redis 缓存（key `admin.dict.data.{dictType}`，TTL 24h，DB 回退） |
+
+自定义字典**没有现成的"按 value 反查 label"工具方法**——`EnumHelper.GetLabel` 只认 C# 枚举，自定义字典用不了；`DictDataView` 也只是缓存数据结构（POCO），**没有 `GetLabel` 方法**。需在 Service / DTO 映射处用 `DictCache.GetDictData(dictType)` 取列表后查找：
+
+```csharp
+public class XxxService
+{
+    private readonly DictCache _dictCache;   // 已注入
+
+    public async Task<List<UserItemMap>> GetUserList(...)
+    {
+        // 1. 取该字典类型的缓存列表（命中 Redis，未命中回退 DB）
+        var sourceDict = await _dictCache.GetDictData("user_source");
+        // 2. 构建 value → label 查找表
+        var sourceLabelMap = sourceDict.ToDictionary(d => d.dict_value, d => d.dict_label);
+
+        // 3. 填充每条记录的 *_label（EF 表达式树内不能查字典，先 ToList 再回填）
+        var list = await q.Select(x => new UserItemMap
+                {
+                    // ...其他字段
+                    user_source = x.user_source,
+                }).ToListAsync();
+
+        foreach (var m in list)
+            m.user_source_label = sourceLabelMap.TryGetValue(m.user_source, out var lb) ? lb : m.user_source;
+
+        return list;
+    }
+}
+```
+
+> `DictCache.GetDictData(dictType)` 返回 `List<DictDataView>`，`DictDataView` 含 `dict_value`/`dict_label`/`tag_type` 等字段。
+>
+> 因为 EF 表达式树内不能调用字典查找，自定义字典的 `*_label` 通常在 `ToListAsync()` **之后**遍历回填（枚举字典用 `EnumHelper` 是因为它是纯内存计算，可以放进 `Select` 表达式）。
+
+### 7.2 DTO 字段类型规则（自定义字典）
+
+| DTO 类型 | 字段类型 | 示例 |
+|----------|----------|------|
+| 创建 / 更新 | `string` | `UserCreateMap.user_source` → `string` |
+| 查询条件 | `string?` | `UserQueryMap.user_source` → `string?`，Service 按 string 匹配 |
+
+## §8 端到端新增枚举清单
+
+以新增 `priority`（优先级）枚举为例，完整步骤：
+
+| # | 层 | 文件 / 位置 | 动作 |
+|---|----|-------------|------|
+| 1 | 枚举定义 | `Enums/PriorityEnum.cs` | 新建枚举，标 `[SystemDict("priority","优先级")]` + 每成员 `[EnumMeta]` |
+| 2 | （自动） | 启动时 | `SystemEnumRegistry` 注册 + `SystemEnumDictSync` 同步字典表 |
+| 3 | 实体 + EF 配置 | 业务实体类 + `EntityConfigurations/*` | 加 `priority` 字段（建议裸 `int` 兼容 bulk copy，参考 `SysOperLogModel.business_type`） |
+| 4 | 响应 DTO Map | `DTOs/*/XxxMap.cs` | 加 `priority`(int) + `priority_label`(string)，`FromEntity` 里用 `EnumHelper.GetLabel(typeof(PriorityEnum), entity.priority)` |
+| 5 | 创建/更新 DTO | `DTOs/*/XxxCreateMap.cs` 等 | 加 `int priority` 字段 |
+| 6 | 查询 DTO + Service | `XxxQueryMap.cs` + `XxxService.cs` | 加 `int? priority`，Service 按 int 精确匹配 |
+| 7 | 前端页面 | `views/**/*.vue` | `useDict('priority')` 取下拉；表格列用 `priority_label`；表单提交 number（详见 **`vue-enum-dict`** 技能） |
+
+## §9 禁止事项（后端相关）
+
+| # | 禁止行为 | 原因 |
+|---|----------|------|
+| 1 | 前端提交 label 字符串或枚举名（如 `"高"` / `"High"`） | 后端 `int` DTO 反序列化失败 |
+| 2 | 在 `t_sys_dict_data` 手改枚举字典的 label | 会被下次启动的 `SystemEnumDictSync` 覆盖回 `[EnumMeta]` 的值（单向同步） |
+| 3 | DTO 枚举字段声明为 `string` 或枚举名类型 | 破坏数值口径 |
+| 4 | 自定义字典 label 用 `EnumHelper.GetLabel`，或以为 `DictDataView.GetLabel` 存在 | `EnumHelper` 只认 C# 枚举；`DictDataView` 是 POCO 无查询方法。自定义字典须用 `DictCache.GetDictData` 取列表 LINQ 查找 |
+| 5 | 自定义字典业务字段用 int 存储 | 即便值是 `"1"`/`"2"` 数字形态，自定义字典值统一 string；`"web"` 等更存不进 int |
+
+> 前端禁止事项（硬编码选项数组、用 `getDictDataByType` 给枚举字典做下拉、表格列用 `formatLabel` 等）见 **`vue-enum-dict`** 技能。完整禁止清单见 `docs/enum.md` §9。
 
 ## 相关技能
 
+- **vue-enum-dict**：前端枚举字典与自定义字典使用规范（下拉/提交/表格/筛选四场景）——前后端配套技能
 - **backend-workflow**：后端开发入口与文档驱动开发流程（**编码前确认 `backend/spec.md` 已存在并已阅读**，否则文档驱动流程会被跳过）
-- **net-efcore-developer**: 数据库实体开发（实体中的状态/类型字段引用枚举）
-- **net-api-developer**: API 接口开发（接口返回枚举选项）
-- **net-cache-use**: 缓存功能（字典数据有缓存）
+- **net-efcore-developer**：数据库实体开发（实体中的状态/类型字段引用枚举；自定义字典字段用 string 列）
+- **net-api-developer**：API 接口开发（接口返回 `*_label`）
+- **net-cache-use**：缓存功能（自定义字典 `DictCache` 取值与刷新）

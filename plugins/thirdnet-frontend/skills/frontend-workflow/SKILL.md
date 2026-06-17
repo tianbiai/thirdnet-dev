@@ -1,12 +1,11 @@
 ---
 name: frontend-workflow
 description: >
-  前端开发完整工作流程与规范。定义了强制执行规则、需求澄清流程、项目结构检查、文档驱动开发流程、
-  技术栈版本、API 策略工厂架构、演示模式控制、项目目录结构、文档模板（spec/changelog/viewer）
-  和开发完成校验清单。管理后台 Web 项目默认使用 admin-template-setup 模板创建，用户端和小程序
-  项目走常规手动初始化流程。当执行前端开发任务时必须使用，尤其是：新建前端项目、创建页面规格、
-  编写前端代码、生成 changelog/viewer、校验交付物。即使任务看起来简单，也需要遵循此工作流
-  以保证代码与文档的一致性。
+  前端开发完整工作流程与规范：强制执行规则、需求澄清、项目结构检查、文档驱动开发
+  （plan/changelog/spec → 编码 → 校验）、技术栈版本、演示模式控制、文档模板与交付校验清单。
+  管理后台默认用 admin-template-setup 创建，用户端/小程序走手动初始化。当执行前端开发任务时必须使用，
+  尤其是新建前端项目、创建页面规格、生成 changelog/viewer、校验交付物。即使任务简单也需遵循，
+  以保证代码与文档一致。
 license: MIT
 metadata:
   version: "2.2.0"
@@ -103,6 +102,7 @@ metadata:
 | -------------- | ----------------------------------------------- |
 | Composable     | `thirdnet-frontend:create-adaptable-composable` |
 | JSX            | `thirdnet-frontend:vue-jsx-best-practices`      |
+| 枚举字典 / 自定义字典 / 下拉选项 / `*_label` | `thirdnet-frontend:vue-enum-dict` |
 
 ### 技能调用检查清单
 
@@ -110,6 +110,7 @@ metadata:
 
 - [ ] 涉及 `.vue` / `.ts` 文件 → 已调用 `vue-best-practices`
 - [ ] 涉及 `api/` 或 `mock/` 文件 → 已调用 `api-typescript-spec`
+- [ ] 涉及下拉选项 / 字典字段（`*_label`、`useDict`、`getDictDataByType`）→ 已调用 `vue-enum-dict`
 - [ ] 涉及 `stores/` 文件 → 已调用 `vue-pinia-best-practices`
 - [ ] 涉及 `router/` 文件 → 已调用 `vue-router-best-practices`
 - [ ] 涉及样式/CSS → 已调用 `design-apple`
@@ -252,7 +253,7 @@ metadata:
 
 - **Pinia 版本选择**：Vue 3.5+ / Vite 8+ 项目使用 Pinia 3.x（以 npm 最新稳定版为准）；Vue 3.4 / uniapp 项目使用 Pinia 2.x
 - **TypeScript 强制**：所有代码 `.ts` 扩展名，Vue 组件 `<script setup lang="ts">`，禁止 `.js`
-- **枚举规范**：`enum` 关键字 + JSDoc 注释，禁止 union type 或 const object
+- **枚举规范**：**纯前端常量**用 `enum` 关键字 + JSDoc 注释，禁止 union type 或 const object；**后端字典驱动字段**不定义 TS enum，字段类型直接用 `number`（枚举字典）/ `string`（自定义字典），下拉走 `useDict` / `getDictDataByType`（详见 `api-typescript-spec` 约定 #7、`vue-enum-dict`）
 - **移动端**：开发用 H5 模式，最终发布微信小程序，代码须兼容 H5 + 小程序
 
 ## API 策略工厂架构

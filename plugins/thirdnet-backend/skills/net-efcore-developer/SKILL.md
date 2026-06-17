@@ -1,15 +1,12 @@
 ---
 name: net-efcore-developer
 description: >
-  ThirdNet 数据库实体开发规范。覆盖 DbContext 约定（schema、t_ 前缀、long id 主键、
-  xmin 乐观并发、ApplyConfigurationsFromAssembly）、实体建模（IAuditableEntity、
-  ConfigureAuditFields）、EntityConfiguration 模式、Pooled DbContextFactory、迁移命令、
-  双数据库上下文、Fluent API 配置（禁止 Data Annotations）、CTE 批量数据处理、
-  原生 SQL 查询模式、复杂类型（JSONB/数组）配置。
-  当用户提到"实体"、"数据库"、"DbContext"、"t_sys_"、"IAuditableEntity"、
-  "ConfigureAuditFields"、"migration"、"xmin"、"schema"、"创建实体"、"新建表"、
-  "EF Core 配置"、"加个字段"、"建张表"、"数据库迁移"、"写个查询"、"CTE"、
-  "批量数据处理"时，必须使用此技能。
+  ThirdNet 数据库实体开发规范：DbContext 约定（schema、t_ 前缀、long id、xmin 乐观并发）、
+  IAuditableEntity 审计字段、EntityConfiguration 模式、Pooled DbContextFactory、迁移命令、
+  双数据库上下文、Fluent API（禁止 Data Annotations）、CTE 与原生 SQL 查询、复杂类型配置。
+  当用户提到"实体"、"数据库"、"DbContext"、"migration"、"xmin"、"schema"、
+  "创建实体"、"建张表"、"加个字段"、"数据库迁移"、"EF Core"、"CTE"时，必须使用此技能。
+  （批量写入见 net-database-bulkcopy 技能）
 ---
 
 # ThirdNet 数据库实体开发
