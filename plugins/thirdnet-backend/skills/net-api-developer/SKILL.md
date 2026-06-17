@@ -313,13 +313,11 @@ queryable = queryable.Where(x => visibleDeptIds.Contains(x.dept_id));
 | `IPasswordHasher` | `ThirdNet.Vibe.Common.Algorithm.Abstractions` | 密码哈希接口，`Hash(plainPassword)` / `Verify(...)`；经 `AddCrypto` 注册 |
 | `PermissionAuthorizeAttribute` | `ThirdNet.Vibe.WebAPI` | 权限授权特性，参数为权限字符串（如 `"sys:user:list"`） |
 | `OperLogAttribute` | `{ProjectName}.Common.OperLog` | 操作日志特性，参数 `Title`、`BusinessType` |
-| `BusinessTypeEnum` | `{ProjectName}.Common.Enums` | 操作日志业务类型枚举（`Create`、`Update`、`Delete` 等） |
-| `IOperatorContext` / `OperatorContext` | `{ProjectName}.Common.Interfaces` / `{ProjectName}.Cache.Context` | 操作者上下文（Scoped）。`Initialize(operatorId)`（幂等）、`HasWildcardPermission()`、`GetUserInfo()`、`GetUserRoleIds()`、`GetVisibleDeptIds()`——同一请求内懒加载缓存，避免重复读 Redis |
+| `IOperatorContext` / `OperatorContext` | | `{ProjectName}.Common.Interfaces` / `{ProjectName}.Cache.Context` | 操作者上下文（Scoped）。`Initialize(operatorId)`（幂等）、`HasWildcardPermission()`、`GetUserInfo()`、`GetUserRoleIds()`、`GetVisibleDeptIds()`——同一请求内懒加载缓存，避免重复读 Redis |
 | `DeptFilterHelper` | `{ProjectName}.Common.Extensions` | 部门数据范围过滤，`GetVisibleDeptIds()` |
 | `TreeBuilder` | `ThirdNet.Vibe.Common` | 扁平列表 → 树，`BuildForest()`（**仅此方法**） |
 | `TreeHelper` | `ThirdNet.Vibe.Common` | 树操作：`FlattenTree()` / `BuildNameMap()` / `ValidateNoCircularReference()`（与 `TreeBuilder` 是两个类，勿混淆） |
 | `UserCacheInvalidation` | `{ProjectName}.Admin.APIService.Services` | `InvalidateUserAuthAsync(userCache, tokenCache, userId)`，权限/角色变更后统一失效 |
-| `StatusEnum` | `{ProjectName}.Common.Enums` | 状态枚举（`Normal = 0`、`Disabled = 1`） |
 
 > `{ProjectName}` 是创建项目时指定的名称前缀（模板默认 `sourceName` 为 `ThirdNetVibe`）。`ThirdNet.Vibe.*` 命名空间来自框架 NuGet 库；模板生成层的命名空间**并非统一带 `.Admin.`**——主机/数据库层是 `{ProjectName}.Admin.APIService` / `{ProjectName}.Admin.Database`，而公共工具层（`Tools/{ProjectName}.Common`、`Tools/{ProjectName}.Cache`）的命名空间是 `{ProjectName}.Common.*` / `{ProjectName}.Cache.*`（**无 `.Admin.` 中缀**），使用时注意区分。
 

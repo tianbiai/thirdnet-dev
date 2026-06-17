@@ -118,37 +118,7 @@ Program.cs → MigrateHelper.InitializeDatabasesAsync()
                 └── SystemEnumRegistry.All（反射 {ProjectName}.Common 程序集）
 ```
 
-## §3 现有系统枚举清单
-
-以下枚举已定义（均位于 `backend/src/Tools/ThirdNetVibe.Common/Enums/`）：
-
-| 枚举类 | dict_type | 用途 |
-|--------|-----------|------|
-| `StatusEnum` | `status` | 通用启停状态（正常/停用） |
-| `BusinessTypeEnum` | `business_type` | 操作日志业务类型（其它/新增/修改/删除/导出） |
-| `MenuTypeEnum` | `menu_type` | 菜单类型 |
-| `ConfigTypeEnum` | `config_type` | 系统配置类型 |
-| `OperLogStatusEnum` | **—（无 dict_type）** | 操作日志执行状态（成功/失败），仅供后端分支判断，不进 `/dict/options`、不同步字典表 |
-| `VisibleEnum` | **—（无 dict_type）** | 菜单是否可见，仅供后端分支判断，不进 `/dict/options`、不同步字典表 |
-
-> ⚠️ `OperLogStatusEnum` 与 `VisibleEnum` **没有** `[SystemDict]` 标注，因此不会出现在 `/dict/options` 接口、也不会被同步到 `t_sys_dict_type`——它们存在纯粹是为了在后端代码里做 `switch`/`if` 判断。新增枚举后请同步更新本表。
-
-### 声明格式参考（以 StatusEnum 为例）
-
-```csharp
-[SystemDict("status", "系统状态")]
-public enum StatusEnum
-{
-    [EnumMeta("正常")]
-    Normal = 0,
-    [EnumMeta("停用")]
-    Disabled = 1
-}
-```
-
-Service 层引用时：`(StatusEnum)dto.status`（DTO 中为 int，需要显式转换）。
-
-## §4 响应 DTO：必须带 `<field>` + `<field>_label`（枚举字典）
+## §3 响应 DTO：必须带 `<field>` + `<field>_label`（枚举字典）
 
 **规则**：响应 DTO 中凡含枚举字段，必须**同时**返回 `<字段>`（数值 int）和 `<字段>_label`（文字 string）。label 用 `EnumHelper.GetLabel` 反射填充。
 
@@ -177,7 +147,7 @@ public class OperLogMap
 | `GetEnumMetadata(Type)` | 返回某枚举的全部选项列表（`List<EnumItemDto>`），供 `/dict/options` 接口使用 |
 | `GetLabel(Type, int)` | 按枚举类型 + 数值查单个 label，**进程级缓存**，供 DTO 映射填 `*_label` 使用 |
 
-## §5 DTO 字段类型规则（枚举字典）
+## §4 DTO 字段类型规则（枚举字典）
 
 | DTO 类型 | 枚举字段类型 | 示例 |
 |----------|--------------|------|
@@ -186,7 +156,7 @@ public class OperLogMap
 
 **禁止**将 DTO 枚举字段声明为 `string` 或枚举名类型，以保证前后端数值口径一致。
 
-## §6 前端取选项接口（枚举字典）
+## §5 前端取选项接口（枚举字典）
 
 枚举字典前端通过**专用接口**取选项（int）：
 
@@ -196,15 +166,15 @@ GET /api/manager/dict/options/{dict_type}
 
 返回 `[{value: int, label, name}]`，纯内存反射生成、不查库。
 
-> 自定义字典走**另一个接口** `GET /api/manager/dict/data/type/{dict_type}`（string），见 §7。两者不可混用。
+> 自定义字典走**另一个接口** `GET /api/manager/dict/data/type/{dict_type}`（string），见 §6。两者不可混用。
 >
 > 前端落地规范（下拉、提交、表格、筛选四场景）见 **`vue-enum-dict`** 技能。
 
-## §7 自定义字典后端（`dict_source=1`，string）
+## §6 自定义字典后端（`dict_source=1`，string）
 
 自定义字典与枚举字典最大的区别：**全程不写 C# 代码**——后端不定义枚举/特性，全部由运营在「字典管理」页维护；后端只提供存储 + 缓存取值接口，业务字段用普通 `string` 列。
 
-### 7.1 配置步骤（只做一次）
+### 6.1 配置步骤（只做一次）
 
 **步骤 1 — 运营在「字典管理」页建字典**（无需改代码）
 
@@ -276,14 +246,14 @@ public class XxxService
 >
 > 因为 EF 表达式树内不能调用字典查找，自定义字典的 `*_label` 通常在 `ToListAsync()` **之后**遍历回填（枚举字典用 `EnumHelper` 是因为它是纯内存计算，可以放进 `Select` 表达式）。
 
-### 7.2 DTO 字段类型规则（自定义字典）
+### 6.2 DTO 字段类型规则（自定义字典）
 
 | DTO 类型 | 字段类型 | 示例 |
 |----------|----------|------|
 | 创建 / 更新 | `string` | `UserCreateMap.user_source` → `string` |
 | 查询条件 | `string?` | `UserQueryMap.user_source` → `string?`，Service 按 string 匹配 |
 
-## §8 端到端新增枚举清单
+## §7 端到端新增枚举清单
 
 以新增 `priority`（优先级）枚举为例，完整步骤：
 
@@ -297,7 +267,7 @@ public class XxxService
 | 6 | 查询 DTO + Service | `XxxQueryMap.cs` + `XxxService.cs` | 加 `int? priority`，Service 按 int 精确匹配 |
 | 7 | 前端页面 | `views/**/*.vue` | `useDict('priority')` 取下拉；表格列用 `priority_label`；表单提交 number（详见 **`vue-enum-dict`** 技能） |
 
-## §9 禁止事项（后端相关）
+## §8 禁止事项（后端相关）
 
 | # | 禁止行为 | 原因 |
 |---|----------|------|
