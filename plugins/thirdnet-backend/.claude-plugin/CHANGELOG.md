@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.26.0 - 2026-06-17
+
+### Changed
+- `net-enum-dict` 技能移除对不存在的 `docs/enum.md` 的悬空引用（description「与 docs/enum.md 对齐」、开头「唯一事实来源」声明、§8 末尾「完整禁止清单见 docs/enum.md §9」），技能规范改为自包含、自洽
+
+### Added
+- `plugin.json` 版本号 0.25.0 → 0.26.0，与 `marketplace.json` 对齐
+
 ## 0.25.0 - 2026-06-17
 
 ### Changed

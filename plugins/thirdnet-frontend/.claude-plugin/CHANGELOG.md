@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.25.0 - 2026-06-17
+
+### Changed
+- `vue-enum-dict`、`api-typescript-spec` 技能移除对不存在的 `docs/enum.md` 的悬空引用（description「与 docs/enum.md 对齐」、开头「唯一事实来源」声明、决策准则「查 docs/enum.md §6.3」、`api-typescript-spec` 约定 #7 行尾「详见 vue-enum-dict 技能与 docs/enum.md」），技能规范改为自包含、自洽
+
+### Added
+- `plugin.json` 版本号 0.24.0 → 0.25.0，与 `marketplace.json` 对齐
+
 ## 0.24.0 - 2026-06-17
 
 ### Added

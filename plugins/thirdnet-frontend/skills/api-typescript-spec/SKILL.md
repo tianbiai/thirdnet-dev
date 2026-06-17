@@ -28,7 +28,7 @@ API 层采用**接口契约的策略工厂模式**，通过 TypeScript 接口定
 4. **错误走 HTTP 状态码**：通过 401/403/404/500 等区分错误
 5. **API 与 Mock 文件对应**：`api/modules/{endpoint}/{module}.ts` 对应 `mock/api/{endpoint}/{module}.ts` + `mock/data/{endpoint}/{module}.ts`
 6. **全面 TypeScript**：所有前端代码必须使用 `.ts` 扩展名，Vue 组件必须使用 `<script setup lang="ts">`
-7. **TS 枚举仅用于纯前端常量**：仅当某选项集是**纯前端常量**（不来自后端字典、不会由运营改动）时，才定义 TS `enum`（每个成员加 JSDoc，禁止 union type / const object 替代）。**后端字典驱动字段不定义 TS enum**：枚举字典（`dict_source=0`，int）下拉走 `useDict(dictType)`、显示走后端 `*_label`、提交 number；自定义字典（`dict_source=1`，string）走 `dictApi.getDictDataByType`、提交 string。这类字段的 TS 类型直接用 `number` 或 `string`。详见 `vue-enum-dict` 技能与 `docs/enum.md`
+7. **TS 枚举仅用于纯前端常量**：仅当某选项集是**纯前端常量**（不来自后端字典、不会由运营改动）时，才定义 TS `enum`（每个成员加 JSDoc，禁止 union type / const object 替代）。**后端字典驱动字段不定义 TS enum**：枚举字典（`dict_source=0`，int）下拉走 `useDict(dictType)`、显示走后端 `*_label`、提交 number；自定义字典（`dict_source=1`，string）走 `dictApi.getDictDataByType`、提交 string。这类字段的 TS 类型直接用 `number` 或 `string`。详见 `vue-enum-dict` 技能
 
 ## 设计模式
 

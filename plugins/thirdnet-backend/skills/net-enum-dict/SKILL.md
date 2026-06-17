@@ -1,7 +1,7 @@
 ---
 name: net-enum-dict
 description: >
-  ThirdNet 枚举字典与自定义字典后端开发规范（与 docs/enum.md 对齐）。区分两类字典：枚举字典
+  ThirdNet 枚举字典与自定义字典后端开发规范。区分两类字典：枚举字典
   （C# enum + 特性，dict_source=0，value=int，启动时反射幂等同步）与自定义字典（运营手建，
   dict_source=1，value=string，后端无需写 C#）。覆盖响应 DTO 带 *_label、EnumHelper/DictCache
   用法、int vs string 决策。当用户提到"枚举字典"、"自定义字典"、"dict_source"、"SystemDict"、
@@ -11,8 +11,6 @@ description: >
 
 # ThirdNet 枚举字典与自定义字典（后端）
 
-> **唯一事实来源**：`docs/enum.md`。本技能与其保持一致，冲突以 `docs/enum.md` 为准。
->
 > 命名空间：`[SystemDict]`、`[EnumMeta]`、`SystemEnumRegistry`、`EnumHelper` 在 `{ProjectName}.Common.Enums`；同步器 `SystemEnumDictSync` 在 `{ProjectName}.Admin.APIService.Data`；`DictCache` 在 `{ProjectName}.Cache.Domain`。完整类清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md)「枚举字典」。
 
 ## 概览：两条路径不混用
@@ -277,7 +275,7 @@ public class XxxService
 | 4 | 自定义字典 label 用 `EnumHelper.GetLabel`，或以为 `DictDataView.GetLabel` 存在 | `EnumHelper` 只认 C# 枚举；`DictDataView` 是 POCO 无查询方法。自定义字典须用 `DictCache.GetDictData` 取列表 LINQ 查找 |
 | 5 | 自定义字典业务字段用 int 存储 | 即便值是 `"1"`/`"2"` 数字形态，自定义字典值统一 string；`"web"` 等更存不进 int |
 
-> 前端禁止事项（硬编码选项数组、用 `getDictDataByType` 给枚举字典做下拉、表格列用 `formatLabel` 等）见 **`vue-enum-dict`** 技能。完整禁止清单见 `docs/enum.md` §9。
+> 前端禁止事项（硬编码选项数组、用 `getDictDataByType` 给枚举字典做下拉、表格列用 `formatLabel` 等）见 **`vue-enum-dict`** 技能。
 
 ## 相关技能
 

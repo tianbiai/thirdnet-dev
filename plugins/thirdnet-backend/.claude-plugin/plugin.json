@@ -1,6 +1,6 @@
 {
   "name": "thirdnet-backend",
-  "version": "0.25.0",
+  "version": "0.26.0",
   "description": "后端开发助手 - .NET 10 微服务：API 开发、EF Core 数据库、Redis 缓存、RBAC 权限体系、枚举字典、后台任务、批量操作、认证授权、文档驱动开发",
   "author": {
     "name": "thirdnet"

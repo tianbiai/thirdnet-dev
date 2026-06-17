@@ -1,7 +1,7 @@
 ---
 name: vue-enum-dict
 description: >
-  ThirdNet 前端枚举字典与自定义字典使用规范（与 docs/enum.md 对齐）。区分两类字典：枚举字典
+  ThirdNet 前端枚举字典与自定义字典使用规范。区分两类字典：枚举字典
   （dict_source=0，int，useDict）与自定义字典（dict_source=1，string，getDictDataByType）。
   覆盖表单下拉、表单提交（提交数值/字符串，禁止提交 label）、表格列（直接用后端 *_label）、
   筛选下拉四个场景，含前后端速查对照表。当用户涉及"下拉选项"、"枚举字典"、"自定义字典"、
@@ -15,7 +15,7 @@ metadata:
 
 # ThirdNet 枚举字典与自定义字典（前端）
 
-> **唯一事实来源**：`docs/enum.md`。本技能与其保持一致，冲突以 `docs/enum.md` 为准。后端配套规范见 **`net-enum-dict`** 技能。
+> 后端配套规范见 **`net-enum-dict`** 技能。
 >
 > 兼容性：Vue 3 + TypeScript + Element Plus（Web 端）。
 
@@ -45,7 +45,7 @@ metadata:
 
 - 字段类型是 `number`、选项来自 `useDict` → **枚举字典**（int）。
 - 字段类型是 `string`、选项来自 `getDictDataByType` → **自定义字典**（string）。
-- 不确定 → 看后端实体/DTO 字段类型，或查 `docs/enum.md` §6.3 的后端决策准则：会不会在不发版的情况下由运营改动？不会→枚举，会→自定义。
+- 不确定 → 看后端实体/DTO 字段类型，判断会不会在不发版的情况下由运营改动：不会→枚举，会→自定义。
 
 ## 场景 A：表单下拉（枚举字典）
 
