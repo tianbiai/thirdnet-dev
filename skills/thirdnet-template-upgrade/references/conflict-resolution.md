@@ -50,3 +50,41 @@
 5. 重新 `dotnet build` 验证。
 
 > 合并后务必回到 Phase 4 编译验证。`Startup.cs` 这类文件最易因漏注册某个框架服务而编译失败，看到编译错误优先回查合并文件。
+
+---
+
+## 前端冲突处理（前端轨道）
+
+> 前端的"冲突"对应 diff 输出里的两类，都没有 `[m]`、没有 `.thirdnet.merge` 文件——这是前端相对后端的简化，也是能力差距。
+>
+> - **⚠️ 已修改（需确认）** = `Modified` 且 `userModified` 且非 override：用户改过、模板也改了，需逐文件决策。
+> - **🔒 品牌文件（自动跳过，需手动集成）** = `Modified` 且 `isOverride`：apply 不会动，必须在工具外手动合并。
+
+### 决策选项（前端只有三个）
+
+apply 对每个 ⚠️ 文件提示 `[a]应用 [s]跳过 [v]查看完整diff`（默认 `s`）：
+
+- `[a]` 应用模板版 —— 确认这是框架文件、用户改动可弃时选。
+- `[s]` 跳过、保留我的版本 —— **业务文件默认选这个**。
+- `[v]` 查看完整 diff —— 信息不足时先看，随后再 `[a]`/`[s]`。
+
+> 复杂冲突（需同时保留用户的业务改动和模板的框架改动）只能 `[s]` 跳过，**apply 完成后在编辑器里手动合并**——参考 Phase 2 diff 的上游预览，把模板改动叠加进你的文件。前端没有后端那种"写冲突标记文件、稍后合并"的机制。
+
+### 前端文件类型决策方向
+
+总则不变：**框架/基础设施代码以模板为准，业务代码以用户为准。**
+
+| 文件 | 属于 | 决策方向 |
+|------|------|----------|
+| `src/api/`、`src/stores/`、`src/composables/`、`src/layouts/`、`src/router/`、`src/utils/`、`src/directives/`、`src/mock/`、`src/styles/`、`src/components/` | 框架资产 | 倾向 `[a]`（模板的 bug 修复/重构通常更对），除非你有明确的业务理由 |
+| `src/views/` 下你的业务页面、用户自定义文件 | 业务代码 | 倾向 `[s]`；要吸收模板改动就手动合并 |
+| 受保护目录 `src/views/system`、`src/views/api`、`src/api/modules/manager` 的业务逻辑 | 模板资产（按 frontend-workflow 规则本就不该改） | 正常应是 ✅ 安全自动；若出现在 ⚠️，说明曾被违反——按业务优先逐行取舍 |
+
+### 🔒 品牌文件（override）的手动合并
+
+这 4 个文件 apply 自动跳过，**必须手动合并**（详见 [frontend-flow](frontend-flow.md) 的 Phase 3.5）：
+
+- `package.json` —— **依赖版本升级**是前端最常见的合并点：把模板新增/升级的依赖（Element Plus / Vite / Vue / Pinia 等）同步进你的 `dependencies/devDependencies`，保留你的项目名与业务依赖。合并后必须 `npm install`。
+- `vite.config.ts`、`index.html`、`src/config/brand.ts` —— 对照 diff 的上游预览，吸收模板的结构/配置调整，保留你的品牌值。
+
+合并完务必回到 Phase 4 跑 `npm run build` 验证。
