@@ -47,11 +47,11 @@ namespace {ProjectName}.Admin.Database.Models
         public DateTime? login_date { get; set; }      // 最后登录时间
 
         // 审计字段（IAuditableEntity）
-        public string created_by { get; set; }
+        public string? created_by { get; set; }
         public DateTime created_time { get; set; }
         public string? updated_by { get; set; }
         public DateTime? updated_time { get; set; }
-        public string remark { get; set; }
+        public string? remark { get; set; }
 
         // 安全字段
         public int failed_login_attempts { get; set; }  // 连续登录失败次数
@@ -132,11 +132,11 @@ namespace {ProjectName}.Admin.Database.Models
         public long dept_id { get; set; }       // 所属部门
 
         // 审计字段
-        public string created_by { get; set; }
+        public string? created_by { get; set; }
         public DateTime created_time { get; set; }
         public string? updated_by { get; set; }
         public DateTime? updated_time { get; set; }
-        public string remark { get; set; }
+        public string? remark { get; set; }
     }
 }
 ```
@@ -200,11 +200,11 @@ namespace {ProjectName}.Admin.Database.Models
         public bool is_external { get; set; }        // 是否外链
 
         // 审计字段
-        public string created_by { get; set; }
+        public string? created_by { get; set; }
         public DateTime created_time { get; set; }
         public string? updated_by { get; set; }
         public DateTime? updated_time { get; set; }
-        public string remark { get; set; }
+        public string? remark { get; set; }
     }
 }
 ```

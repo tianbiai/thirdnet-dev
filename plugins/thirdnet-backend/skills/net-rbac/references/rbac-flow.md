@@ -153,7 +153,7 @@ public class CachePermissionProvider(RoleCache roleCache) : IPermissionProvider
 {
     public async Task<List<string>> GetPermissionsAsync(string[] roleKeys)
     {
-        return await _roleCache.GetRolePermissions(roleKeys);
+        return await roleCache.GetRolePermissions(roleKeys);
     }
 }
 

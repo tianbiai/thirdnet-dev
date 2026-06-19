@@ -199,7 +199,9 @@ public async Task<PageListInfo<List<UserItemMap>>> GetList(UserQueryMap query, l
         queryable = queryable.Where(u => u.status == (StatusEnum)query.status.Value);
 
     // 部门筛选（含子部门）
-    if (query.dept_id.HasValue)
+    // 注意：dept_id 须 > 0——真实 SysUserService.GetList 会拒绝 dept_id == 0 与 -1（返 400 BadRequest），
+    // 因此前端/调用方传入前必须保证 dept_id 为正整数（前端下拉默认/未选时不要传 0 或 -1）。
+    if (query.dept_id.HasValue && query.dept_id.Value > 0)
     {
         var deptIds = await DeptFilterHelper.GetVisibleDeptIds(
             query.dept_id.Value, true, id => _deptCache.GetDeptChildren(id));

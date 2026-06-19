@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.26.0 - 2026-06-19
+
+### Changed
+- 全面校正前端技能与真实模板（`code/frontend/web/`）的不一致，确保照技能开发不产生偏差：
+  - `api-typescript-spec`：认证示例由虚构的 IdentityServer `/connect/token` + `URLSearchParams` 改为真实应用加密认证（`POST /api/manager/auth/login` + `signBasicAuth` HMAC-SM3 Basic 头，刷新走 `/auth/refresh`，当前用户 `/auth/info`）；删除虚构的 `RequestConfig.endpoint` 字段并补真实字段（含 `skipAuthRefresh`）；`mockDataStripPlugin` 产物由空数组 `[]` 修正为空对象 `{}`；auth 模块路径对齐 `manager/auth`、接口路径扁平化为 `interfaces/auth`（真实 `api/interfaces/` 扁平、无 `manager/` 子目录）
+  - `vue-enum-dict`：`useDict().options` 类型由虚构的 `DictSelectOption[]` 修正为 `EnumItem[]`；自定义字典选项类型由 `DictOption[]` 修正为 `getDictDataByType` 实际返回的 `DictDataItem[]`（并补全字段集）
+  - `admin-template-setup` + `frontend-template-structure`：Pinia Store `4 → 5`（补 `dict`）；Composable `11 → 12`（补 `useDict`）；开发端口 `3000 → 3009`；移除不存在的 `src/types/`、`env.d.ts`、`.eslintrc.cjs`，替换为真实的 `eslint.config.js`、`auto-imports.d.ts`、`components.d.ts`；`frontend-template-structure` 的 `mockDataStripPlugin` 描述「空数组桩」→「空对象桩」（与 `vite.config.ts` 实现一致）
+  - `crud-page-development-guide`：`StatusEnum.Enabled`（不存在）→ `StatusEnum.Normal`
+  - `design-apple`：§9 新增「设计意图 → Admin 模板真实 token 映射」表（`--color-accent`→`--color-primary` 等，并说明模板未加载 SF Pro）；§10 Element Plus 覆盖改为真实实现（直接 `--el-color-primary: #0071e3` + 6 套品牌色预设经 `stores/theme.ts` 运行时覆写 `--el-color-primary*` 全套色阶）
+  - `frontend-workflow`：E2E 测试目录表补全至 18 个（补 `10-frontend-integration`/`11-operation-log`/`14-i18n`/`15-cache-management`/`16-theme`/`17-tags-view`/`18-error-pages`）
+
+### Added
+- `plugin.json` 版本号 0.25.0 → 0.26.0，与 `marketplace.json` 对齐
+
 ## 0.25.0 - 2026-06-17
 
 ### Changed

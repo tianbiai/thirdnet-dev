@@ -145,7 +145,7 @@ services.AddCrypto(CryptoStandard.International);      // 国际：SHA512/AES/RS
 
 ### JWT 签名
 
-签名算法由 `JwtSignType`（枚举 `RSA`/`SM2`）配置，框架经 `ISigner` 抽象派发到 `RSASigner`/`SM2Signer`（`ThirdNet.Vibe.WebAPI.Authentication.Bearer.Signing`）。切换签名算法只改配置，不改业务代码。
+签名算法由 `JwtSignType`（枚举 `SM2`/`RSA`，定义顺序即如此）配置，框架经 `ISigner` 抽象派发到 `RSASigner`/`SM2Signer`（`ThirdNet.Vibe.WebAPI.Authentication.Bearer.Signing`）。切换签名算法只改配置，不改业务代码。
 
 完整的算法类与签名类清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md) 的「加密算法」「认证」小节。
 

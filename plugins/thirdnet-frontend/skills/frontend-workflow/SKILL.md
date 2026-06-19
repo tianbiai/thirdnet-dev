@@ -466,6 +466,13 @@ frontend/
 | `09-permission-matrix/` | 权限访问、权限视图 |
 | `12-security/` | 注入防护、上传安全 |
 | `13-api-management/` | API 端点列表、API 角色、应用、黑白名单、访问日志 |
+| `10-frontend-integration/` | 前后端联调、全栈集成 |
+| `11-operation-log/` | 操作日志记录与查询 |
+| `14-i18n/` | 国际化（多语言切换） |
+| `15-cache-management/` | 缓存管理（Redis 缓存域） |
+| `16-theme/` | 主题切换（6 套品牌色预设 + 亮/暗模式） |
+| `17-tags-view/` | 标签页导航（多标签打开/关闭/缓存） |
+| `18-error-pages/` | 错误页（404 等） |
 
 新增业务页面后，可参照上述测试目录的模式编写对应的 E2E 测试。
 

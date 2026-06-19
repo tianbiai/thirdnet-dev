@@ -79,7 +79,7 @@ namespace {ProjectName}.Common.Enums
 | 特性 | 标注位置 | 作用 |
 |------|----------|------|
 | `[SystemDict(dictTypeKey, displayName)]` | 枚举类 | 声明该枚举为系统字典。`dictTypeKey` 是前后端约定的字典类型编码，使用 **snake_case** 且与字段名一致（如 `status`、`menu_type`、`business_type`）；`displayName` 是字典管理页显示名 |
-| `[EnumMeta(label)]` | 枚举成员 | 该成员的中文显示文字。每个成员都标，并从 0 开始**显式赋值** |
+| `[EnumMeta(label)]` | 枚举成员 | `label`（构造参数，必填）：该成员的中文显示文字。每个成员都标，并从 0 开始**显式赋值**。另有可选属性 `DbValue`（`string?`）：当某枚举成员需在数据库中以**字符串**而非数值存储时，用它指定入库字符串值（如 `[EnumMeta("男", DbValue = "M")]`）；不设 `DbValue` 则按枚举数值（int）入库。 |
 
 完成后 `GET /api/manager/dict/options/priority` 立即可用：
 

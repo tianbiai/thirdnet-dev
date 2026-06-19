@@ -25,9 +25,10 @@ my-admin/
 ├── tsconfig.json
 ├── tsconfig.app.json
 ├── tsconfig.node.json
-├── .eslintrc.cjs
+├── eslint.config.js      # ESLint flat config（注意：不是 .eslintrc.cjs）
 ├── .prettierrc
-├── env.d.ts
+├── auto-imports.d.ts     # unplugin-auto-import 生成（注意：不是 env.d.ts）
+├── components.d.ts       # unplugin-vue-components 生成
 ├── public/
 │   ├── changelog.md        # 版本变更日志
 │   ├── viewer.html         # Markdown 查看器
@@ -72,23 +73,25 @@ src/
 │   ├── TableEmpty.vue      # 表格空状态
 │   └── TableSkeleton.vue   # 表格骨架屏
 │
-├── composables/            # 11 个组合式函数
+├── composables/            # 12 个组合式函数
 │   ├── useActionLoading.ts
 │   ├── useBreadcrumb.ts
 │   ├── useBreakpoint.ts
 │   ├── useComponentPrefetch.ts
 │   ├── useCrudTable.ts
 │   ├── useDialogFocus.ts
+│   ├── useDict.ts            # 枚举字典下拉/翻译（/dict/options，int）
 │   ├── useHeartbeat.ts
 │   ├── useIdleTimeout.ts
 │   ├── useMenuItems.ts
 │   ├── usePagination.ts
 │   └── usePermission.ts
 │
-├── stores/                 # Pinia Store
+├── stores/                 # Pinia Store（5 个）
 │   ├── app.ts              # 应用全局状态（loading、菜单折叠等）
 │   ├── auth.ts             # 认证与权限（token、用户信息、权限码列表）
-│   ├── theme.ts            # 主题配置（亮/暗模式）
+│   ├── dict.ts             # 枚举字典缓存（按 dict_type 幂等加载，登出清空）
+│   ├── theme.ts            # 主题配置（亮/暗模式 + 6 套品牌色预设）
 │   └── tagsView.ts         # 标签页导航状态
 │
 ├── router/                 # 路由配置
@@ -196,7 +199,7 @@ src/
 | api-role | `api-role.ts` | `ApiRoleManagerController` |
 | api-visitlog | `api-visitlog.ts` | `ApiVisitLogManagerController` |
 
-## Composable 清单（11 个）
+## Composable 清单（12 个）
 
 | Composable | 文件 | 用途 |
 |------------|------|------|
@@ -206,19 +209,21 @@ src/
 | useComponentPrefetch | `useComponentPrefetch.ts` | 组件预加载 |
 | useCrudTable | `useCrudTable.ts` | 通用增删改查表格逻辑 |
 | useDialogFocus | `useDialogFocus.ts` | 对话框打开后自动聚焦 |
+| useDict | `useDict.ts` | 枚举字典下拉/翻译（`/dict/options`，int；供表单/筛选下拉） |
 | useHeartbeat | `useHeartbeat.ts` | 心跳检测（在线状态） |
 | useIdleTimeout | `useIdleTimeout.ts` | 空闲超时自动登出 |
 | useMenuItems | `useMenuItems.ts` | 菜单项构建工具 |
 | usePagination | `usePagination.ts` | 分页逻辑封装 |
 | usePermission | `usePermission.ts` | 编程式权限检查 |
 
-## Store 清单（4 个）
+## Store 清单（5 个）
 
 | Store | 文件 | 职责 |
 |-------|------|------|
 | auth | `auth.ts` | Token 管理、用户信息、登录/登出、权限码列表、Token 自动刷新 |
 | app | `app.ts` | 侧边栏折叠、全局 loading、设备类型 |
-| theme | `theme.ts` | 亮/暗模式切换、Element Plus 主题覆盖 |
+| dict | `dict.ts` | 枚举字典缓存：按 dict_type 幂等加载、并发去重、登出清空（供 `useDict` 使用） |
+| theme | `theme.ts` | 亮/暗模式切换、Element Plus 主题覆盖、6 套品牌色预设 |
 | tagsView | `tagsView.ts` | 标签页导航：添加/关闭/缓存已访问路由 |
 
 ## Override 文件机制
@@ -266,7 +271,7 @@ mock/api/manager/{module}.ts   → Mock{Module}Api（本地数据）
 mock/data/manager/{module}.ts  → 纯数据导出
 ```
 
-通过 `VITE_MOCK_ENABLED` 环境变量切换 Real/Mock 实现。生产构建时由 `vite.config.ts` 的 `mockDataStripPlugin()` 插件拦截 `/mock/data/**` 导入，为每个具名导出生成空数组桩模块，配合 `VITE_MOCK_ENABLED=false` + tree-shaking 彻底移除 Mock 代码（详见 `api-typescript-spec` 技能「生产构建排除机制」）。
+通过 `VITE_MOCK_ENABLED` 环境变量切换 Real/Mock 实现。生产构建时由 `vite.config.ts` 的 `mockDataStripPlugin()` 插件拦截 `/mock/data/**` 导入，为每个具名导出生成空对象桩模块，配合 `VITE_MOCK_ENABLED=false` + tree-shaking 彻底移除 Mock 代码（详见 `api-typescript-spec` 技能「生产构建排除机制」）。
 
 ### 动态路由
 

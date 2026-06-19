@@ -11,6 +11,8 @@ description: >
 
 本技能是 ThirdNet 后端开发的入口和路由器，定义工作流步骤、项目创建、架构概览、文档驱动开发流程和技能路由。
 
+> **技术栈版本锚点**：所有 ThirdNet 后端项目目标 **.NET 10（`net10.0`）**，数据访问用 **EF Core 10.x** + **Npgsql 10.x**（`Npgsql.EntityFrameworkCore.PostgreSQL` 10.x）。新建 `.csproj` 的 `TargetFramework` 一律写 `net10.0`，NuGet 包版本以模板的 `Directory.Build.props` 为准——不要自行降级或混用 8.x/9.x，否则会与框架库 `ThirdNet.Vibe.Common`/`ThirdNet.Vibe.WebAPI` 的依赖不兼容。
+
 ## 架构三层与能力目录
 
 写任何后端代码前，先认清代码落在这三层中的哪一层，并**优先复用框架已有的能力**：
@@ -32,7 +34,7 @@ description: >
 | 能力 | 入口 | 简述 |
 |------|------|------|
 | 分页 | `IQueryable<T>.ToPageListAsync(page_index, page_size)` | `ThirdNet.Vibe.WebAPI.ThirdNetWebApiExtensions` 扩展，返回 `PageListInfo<List<T>>`。 |
-| 限流 | `services.AddThirdNetIpRateLimiting()`（及 IP+应用、IP+应用+路径 变体） | 基于 ASP.NET Core `RateLimiter` 固定窗口/分钟，超限 429；配置 `"RateLimiting":{"Times":500}`。 |
+| 限流 | `services.AddThirdNetIpAndApplicationPathRateLimiting(config)`（Admin 模板在 `AddAdminCommonInfrastructure` 内实际注册项；另有 IP-only `AddThirdNetIpRateLimiting()` 与 IP+应用 变体） | 基于 ASP.NET Core `RateLimiter` 固定窗口/分钟，超限 429；配置 `"RateLimiting":{"Times":500}`。 |
 | 文件上传 | `MultipartData`（`Files` + `DataList`） | `ThirdNet.Vibe.WebAPI` 的 multipart 解析模型。 |
 | IP 黑/白名单 | `BlackIpMiddleware` + `CidrMatcher` | 支持 CIDR，黑名单 403；数据经 `ThirdNetDbContext` 的 `IpBlackList`/`IpWhiteList`。 |
 | 访问日志 | `RequestLoggerMiddleware` + `IVisitLogger`（`DatabaseVisitLogger`/`NpgsqlVisitLogRunner`） | 自动批量写访问日志。 |
@@ -61,6 +63,7 @@ description: >
 | 全栈协调 | `thirdnet-fullstack` | 后端 DTO → 前端 TypeScript 类型的映射规则、RBAC 前后端桥接、全栈开发顺序 |
 | 前端 Admin 项目创建 | `thirdnet-frontend:admin-template-setup` | `create-thirdnet-admin` 创建前端管理后台项目 |
 | 前端 API 规范 | `thirdnet-frontend:api-typescript-spec` | 前端消费后端 API 的策略工厂模式规范 |
+| 已生成项目跟进模板升级 | `thirdnet-template-upgrade` | `thirdnet-migrate` 完整升级流程（manifest 模式、6 态文件分类、冲突决策矩阵）——模板升级的单一事实来源 |
 
 ## 工作流步骤
 

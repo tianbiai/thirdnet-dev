@@ -103,12 +103,18 @@ interface PaginationParams { page_index: number; page_size: number }
 interface PaginatedResponse<T> { total: number; list: T[]; index?: number; pages?: number }
 
 interface RequestConfig<TData = unknown> {
+  /** 请求 URL 路径（相对于 baseURL）。Admin 模板约定写完整前缀，如 /api/manager/user/list */
   url: string
   method: 'GET' | 'POST'
   data?: TData
   params?: Record<string, unknown>
-  headers?: Record<string, string>  // 自定义请求头（如 Basic 认证头），与默认头合并
-  endpoint?: Endpoint  // 可选，当 url 为相对路径时由适配器拼接为 /api/{endpoint}{url}；当 url 已包含完整前缀时忽略此字段
+  /** 自定义请求头（如 Basic 认证头），与默认头合并 */
+  headers?: Record<string, string>
+  /**
+   * 跳过 401 时的 token 自动刷新流程。
+   * 登录 / 刷新接口（凭据错误也是 401）必须设 true，否则会陷入「刷新 → 再 401 → 再刷新」死循环。
+   */
+  skipAuthRefresh?: boolean
 }
 
 interface ApiError { status: number; message: string }
@@ -474,32 +480,33 @@ function mockDataStripPlugin(): Plugin {
       if (!id.startsWith('\0mock-stub:')) return null
       // 读取原 mock 数据文件，提取所有 export 的名称
       const names = [...content.matchAll(/export\s+(?:const|let|var|function|class)\s+(\w+)/g)].map(m => m[1])
-      // 为每个具名导出生成空数组桩（死代码分支不会实际使用）
-      return names.map(n => `export const ${n} = []`).join('\n') // 无具名导出则返回 'export {}'
+      // 为每个具名导出生成空对象桩（死代码分支不会实际使用）
+      return names.map(n => `export const ${n} = {}`).join('\n') // 无具名导出则返回 'export {}'
     },
   }
 }
 ```
 
-**原理**：生产构建时，所有 `/mock/data/**` 的导入被 `mockDataStripPlugin` 拦截，替换为"每个具名导出 = 空数组"的虚拟桩模块（不是空对象、也不重定向整个 `@/mock`）。由于 `MOCK_ENABLED` 静态为 `false`，工厂函数中 `new MockXxxApi()` 所在分支不可达，Rollup tree-shaking 移除该分支；Mock 数据本身已被桩替换为空数组，最终产物中不含真实 Mock 数据。**注意**：拦截范围是 `/mock/data/`（Mock 数据文件），不含 `/mock/api/`；Mock API 类的剥离依赖 `MOCK_ENABLED=false` + tree-shaking。开发模式下插件不启用，Mock 模块正常加载。
+**原理**：生产构建时，所有 `/mock/data/**` 的导入被 `mockDataStripPlugin` 拦截，替换为"每个具名导出 = 空对象 `{}`"的虚拟桩模块（不是空数组、也不重定向整个 `@/mock`）。由于 `MOCK_ENABLED` 静态为 `false`，工厂函数中 `new MockXxxApi()` 所在分支不可达，Rollup tree-shaking 移除该分支；Mock 数据本身已被桩替换为空对象，最终产物中不含真实 Mock 数据。**注意**：拦截范围是 `/mock/data/`（Mock 数据文件），不含 `/mock/api/`；Mock API 类的剥离依赖 `MOCK_ENABLED=false` + tree-shaking。开发模式下插件不启用，Mock 模块正常加载。
 
 **切换流程**：通过环境变量 `VITE_MOCK_ENABLED`（开发期 `.env`）控制，无需手动改配置。工厂函数在模块初始化时执行一次，运行期间不再切换。
 
 ## 认证模块（`auth.ts`）
 
-认证模块同样采用策略工厂模式和文件拆分，特殊点：
-- 使用后端 IdentityServer Connect 端点（`/connect/token`）
-- Token 工具（`src/utils/token.ts`）：H5 用 `localStorage`，MP-WEIXIN 用 `uni.getStorageSync`
+认证模块同样采用策略工厂模式和文件拆分，Admin 模板的特殊点：
+- **应用加密认证（HMAC-SM3 Basic 签名）**：登录 `POST /api/manager/auth/login`、刷新 `POST /api/manager/auth/refresh` 两个端点，请求前必须调用 `signBasicAuth(urlPath)` 生成 `Authorization: Basic ...` 头（见下方实现）；当前用户信息走 `GET /api/manager/auth/info`（普通 Bearer，无需 Basic 签名）。**这是 ThirdNet 后端的应用加密认证，不是 IdentityServer `/connect/token`**——因此**不要**用 `URLSearchParams` / `grant_type` / form-urlencoded，登录体是普通 JSON。
+- Token 工具（`src/utils/token.ts`）：Admin Web 端用 `sessionStorage`；若为移动端/小程序则用 `uni.getStorageSync`（双平台适配）。
 - 导出 `getToken`、`setToken`、`getRefreshToken`、`setRefreshToken`、`clearToken`
 
-**`api/types/auth.ts`**：
+**`api/types/auth.ts`**（精简示意；真实 `CurrentUserResponse` 字段更多——含菜单树 `menus`、角色 `roles`、权限 `permissions` 等，以 `api/interfaces/auth.ts` 为准）：
 ```typescript
-export interface LoginParams { username: string; password: string; scope?: string }
+export interface LoginParams { username: string; password: string }
 export interface TokenResponse { access_token: string; refresh_token: string }
-export interface CurrentUserResponse { user_id: number; username: string; role: string }
-```
+export interface CurrentUserResponse {
+  /* 真实含 user_id、username、nick_name、roles、permissions、menus 等大量字段 */
+}
 
-**`api/interfaces/app/auth.ts`**：
+**`api/interfaces/auth.ts`**（Admin 模板的 `api/interfaces/` 为扁平结构，无 `manager/` 子目录）：
 ```typescript
 import type { LoginParams, TokenResponse, CurrentUserResponse } from '@/api/types/auth'
 
@@ -510,38 +517,43 @@ export interface IAuthApi {
 }
 ```
 
-**`api/modules/app/auth.ts`** — Real 实现调用 `/connect/token`，工厂函数 + 模块实例与普通模块相同：
+**`api/modules/manager/auth.ts`** — Real 实现调用 `/api/manager/auth/login` + `signBasicAuth` Basic 签名，工厂函数 + 模块实例与普通模块相同：
 ```typescript
 import { request } from '@/api/request'
 import { MOCK_ENABLED } from '@/config'
-import type { IAuthApi } from '@/api/interfaces/app/auth'
+import { signBasicAuth } from '@/utils/basicAuth'
+import type { IAuthApi } from '@/api/interfaces/auth'
 import type { LoginParams, TokenResponse, CurrentUserResponse } from '@/api/types/auth'
-import { MockAuthApi } from '@/mock/api/app/auth'
+import { MockAuthApi } from '@/mock/api/manager/auth'
 
-// ---- Real 实现（调用 IdentityServer Connect 端点）----
+// ---- Real 实现（应用加密认证：HMAC-SM3 Basic 签名）----
 
 class RealAuthApi implements IAuthApi {
+  /** 登录：POST /api/manager/auth/login，需 Basic 认证签名 */
   async login(data: LoginParams): Promise<TokenResponse> {
-    // IdentityServer /connect/token 端点要求 form-urlencoded
-    const body = new URLSearchParams()
-    body.append('username', data.username)
-    body.append('password', data.password)
-    body.append('grant_type', 'password')
-    if (data.scope) body.append('scope', data.scope)
+    const { url, authHeader } = await signBasicAuth('/api/manager/auth/login')
     return request<TokenResponse>({
-      url: '/connect/token', method: 'POST', data: Object.fromEntries(body),
+      url,                                   // 已含 timestamp 查询参数
+      method: 'POST',
+      data,                                  // JSON body: { username, password }
+      headers: { Authorization: authHeader }, // Basic base64(app:signature)
+      skipAuthRefresh: true,                 // 登录失败(401)=凭据错误，不触发刷新循环
     })
   }
+  /** 刷新：POST /api/manager/auth/refresh，同样需 Basic 签名 */
   async refreshToken(data: { refresh_token: string }): Promise<TokenResponse> {
-    const body = new URLSearchParams()
-    body.append('refresh_token', data.refresh_token)
-    body.append('grant_type', 'refresh_token')
+    const { url, authHeader } = await signBasicAuth('/api/manager/auth/refresh')
     return request<TokenResponse>({
-      url: '/connect/token', method: 'POST', data: Object.fromEntries(body),
+      url,
+      method: 'POST',
+      data,                                  // JSON body: { refresh_token }
+      headers: { Authorization: authHeader },
+      skipAuthRefresh: true,                 // refresh 自身 401 表示 refresh_token 也过期
     })
   }
+  /** 当前用户：GET /api/manager/auth/info（普通 Bearer，无需 Basic 签名） */
   async getCurrentUser(): Promise<CurrentUserResponse> {
-    return request<CurrentUserResponse>({ url: '/app/auth/current-user', method: 'GET' })
+    return request<CurrentUserResponse>({ url: '/api/manager/auth/info', method: 'GET' })
   }
 }
 
@@ -557,15 +569,17 @@ export const authApi = createAuthApi()
 ```
 
 **要点**：
-- IdentityServer `/connect/token` 端点要求 `application/x-www-form-urlencoded` 格式，Real 实现使用 `URLSearchParams` 构建
-- `login` 和 `refreshToken` 都走同一个 `/connect/token` 端点，通过 `grant_type` 区分
+- 登录 / 刷新走 `/api/manager/auth/login`、`/api/manager/auth/refresh`，请求前用 `signBasicAuth(urlPath)` 生成 `Basic ...` 头（HMAC-SM3 签名，国密）；`signBasicAuth` 会返回带 `timestamp` 查询参数的 url 与对应 `Authorization` 头
+- 请求体是普通 JSON（`{ username, password }` / `{ refresh_token }`），**不是** form-urlencoded，也**没有** `grant_type`
+- `login`/`refreshToken` 必须设 `skipAuthRefresh: true`——否则 401 会触发"刷新 → 再 401 → 再刷新"死循环
+- `getCurrentUser` 走 `/api/manager/auth/info`，普通 Bearer 即可
 - 工厂函数和模块单例结构与普通模块完全一致
 
-**`mock/api/app/auth.ts`** — Mock 实现返回固定 token：
+**`mock/api/manager/auth.ts`** — Mock 实现返回固定 token：
 ```typescript
-import type { IAuthApi } from '@/api/interfaces/app/auth'
+import type { IAuthApi } from '@/api/interfaces/auth'
 import type { TokenResponse, CurrentUserResponse } from '@/api/types/auth'
-import { mockCurrentUser } from '@/mock/data/app/auth'
+import { mockCurrentUser } from '@/mock/data/manager/auth'
 
 export class MockAuthApi implements IAuthApi {
   async login(): Promise<TokenResponse> {
@@ -585,7 +599,7 @@ export class MockAuthApi implements IAuthApi {
 - Mock 登录不校验凭据，直接返回固定 token，开发阶段无需真实账号
 - 实现 `IAuthApi` 接口，方法签名与接口契约一致
 
-**`mock/data/app/auth.ts`** — Mock 数据：
+**`mock/data/manager/auth.ts`** — Mock 数据：
 ```typescript
 import type { CurrentUserResponse } from '@/api/types/auth'
 

@@ -83,7 +83,7 @@ npm install
 npm run dev
 ```
 
-开发服务器默认在端口 3000 启动，访问 `http://localhost:3000` 即可看到登录页。
+开发服务器默认在端口 3009 启动（`vite.config.ts` 的 `server.port`），访问 `http://localhost:3009` 即可看到登录页。
 
 ## 生成项目结构概览
 
@@ -94,9 +94,9 @@ my-admin/
 ├── src/
 │   ├── api/              # 19 个 API 模块（策略工厂模式）
 │   ├── views/            # 页面：系统管理 + API 管理 + 登录 + 欢迎页
-│   ├── stores/           # 4 个 Pinia Store（auth / app / theme / tagsView）
+│   ├── stores/           # 5 个 Pinia Store（auth / app / dict / theme / tagsView）
 │   ├── layouts/          # 布局：AdminLayout / Navbar / Sidebar / TagsView
-│   ├── composables/      # 11 个组合式函数
+│   ├── composables/      # 12 个组合式函数（含 useDict 枚举字典）
 │   ├── router/           # 动态路由（菜单树 → 路由）
 │   ├── config/           # 品牌常量 + 应用配置（MOCK_ENABLED 等）
 │   ├── mock/             # Mock 数据 + 19 个 Mock API 实现
@@ -119,8 +119,8 @@ CRUD 页面开发详细指南（Composable 使用、页面布局模板、工具�
 模板安装完成后，逐项验证：
 
 - [ ] `npm install` 无错误
-- [ ] `npm run dev` 启动成功，终端显示 `Local: http://localhost:3000/`
-- [ ] 浏览器访问 `http://localhost:3000`，登录页正常显示
+- [ ] `npm run dev` 启动成功，终端显示 `Local: http://localhost:3009/`
+- [ ] 浏览器访问 `http://localhost:3009`，登录页正常显示
 - [ ] 品牌名称在登录页标题正确显示（非默认 `ThirdNet`）
 - [ ] 品牌首字母在 Logo 图标方块内正确显示
 - [ ] API 代理指向正确的后端地址（检查 `vite.config.ts` 中的 proxy target）

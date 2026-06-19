@@ -142,7 +142,7 @@ namespace {ProjectName}.Admin.Database.Models
         // 业务字段...
 
         /// <summary>创建人</summary>
-        public string created_by { get; set; }
+        public string? created_by { get; set; }
         /// <summary>创建时间</summary>
         public DateTime created_time { get; set; }
         /// <summary>更新人</summary>
@@ -150,14 +150,16 @@ namespace {ProjectName}.Admin.Database.Models
         /// <summary>更新时间</summary>
         public DateTime? updated_time { get; set; }
         /// <summary>备注</summary>
-        public string remark { get; set; }
+        public string? remark { get; set; }
     }
 }
 ```
 
 ### IAuditableEntity 审计字段
 
-大部分实体实现 `IAuditableEntity` 接口，提供 5 个标准审计字段：`created_by`、`created_time`、`updated_by`、`updated_time`、`remark`。
+大部分实体实现 `IAuditableEntity` 接口，提供 5 个标准审计字段：`created_by`（`string?`）、`created_time`（`DateTime`）、`updated_by`（`string?`）、`updated_time`（`DateTime?`）、`remark`（`string?`）。
+
+> **可空性**：`created_by`/`updated_by`/`remark` 均为 `string?`（可空）。框架的 `IAuditableEntity` 已统一迁空，实体模板里这几个字段务必写 `string?`，否则会触发 CS8618「非空属性未初始化」警告——这与真实模板（`SysUserModel` 等）保持一致。
 
 **不适用 IAuditableEntity 的实体**：日志表（本身就是审计记录）、中间关联表。
 

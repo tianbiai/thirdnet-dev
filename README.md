@@ -4,7 +4,7 @@ Claude Code 全栈开发插件集合，为 .NET 后端和 Vue 前端提供专业
 
 ## 插件列表
 
-### thirdnet-backend (v0.24.1)
+### thirdnet-backend (v0.27.0)
 
 .NET 10 微服务后端开发助手。
 
@@ -20,9 +20,9 @@ Claude Code 全栈开发插件集合，为 .NET 后端和 Vue 前端提供专业
 - 枚举字典自动同步（`[SystemDict]` 反射入库）
 - 文档驱动开发工作流
 
-**使用方式**：`/thirdnet-backend`
+**使用方式**：通过 `backend-workflow` 技能进入（全栈场景由 `thirdnet-fullstack` 协调；技能可被 PreToolUse 钩子按文件类型自动触发，或用 Skill 工具手动调用）。
 
-### thirdnet-frontend (v0.23.0)
+### thirdnet-frontend (v0.26.0)
 
 Vue 3 前端开发助手，支持 Web 端和移动端。
 
@@ -38,15 +38,19 @@ Vue 3 前端开发助手，支持 Web 端和移动端。
 - 设计规范（Apple 设计规范、前端创意设计）
 - 文档驱动开发工作流
 
-**使用方式**：`/thirdnet-frontend`
+**使用方式**：通过 `frontend-workflow` 技能进入（全栈场景由 `thirdnet-fullstack` 协调；技能可被 PreToolUse 钩子按文件类型自动触发，或用 Skill 工具手动调用）。
 
-### thirdnet-fullstack (v1.5.0)
+### thirdnet-fullstack (v1.5.1)
 
 全栈 Admin 功能开发协调技能。定义前端先行开发顺序、Admin 模板 CRUD 页面开发模式、前后端类型映射、RBAC 权限桥接、共享 API 约定同步、全栈项目目录布局约定。需同时安装 thirdnet-backend 和 thirdnet-frontend 插件。
 
 ### md-to-word (v0.1.0)
 
 将 Markdown 文件转换为 Word (.docx) 文件，支持标题、粗体、斜体、代码、列表、表格等格式。
+
+### thirdnet-template-upgrade (v0.1.0)
+
+ThirdNet 后端模板升级操作指南——用 `thirdnet-migrate` CLI 把已生成的后端项目（admin/service）升级到最新模板版本。覆盖预检、check/diff/apply 主流程、文件 6 态分类、冲突逐个决策、回滚预案与禁止事项。
 
 ## 安装
 
@@ -63,7 +67,7 @@ git clone https://github.com/tianbiai/thirdnet-dev.git
 ```
 thirdnet-dev/
 ├── .claude-plugin/
-│   └── marketplace.json              # 插件集合注册清单 (v0.33.0)
+│   └── marketplace.json              # 插件集合注册清单 (v0.37.0)
 ├── plugins/
 │   ├── thirdnet-backend/
 │   │   ├── .claude-plugin/
@@ -76,9 +80,10 @@ thirdnet-dev/
 │       │   ├── plugin.json
 │       │   ├── hooks/                # 文档驱动 Stop Hook
 │       │   └── CHANGELOG.md
-│       └── skills/                   # 前端开发技能（10 个）
+│       └── skills/                   # 前端开发技能（11 个）
 ├── skills/
 │   ├── thirdnet-fullstack/           # 全栈协调技能
+│   ├── thirdnet-template-upgrade/    # 后端模板升级指南
 │   └── md-to-word/                   # Markdown 转 Word 工具技能
 └── CLAUDE.md
 ```

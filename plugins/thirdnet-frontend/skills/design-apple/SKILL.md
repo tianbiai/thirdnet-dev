@@ -299,6 +299,26 @@ Apple 标志性的行内 CTA——透明底、蓝色文字、药丸形容器。
 
 ## 9. Vue 3 CSS 变量集成
 
+> ⚠️ **与 Admin 模板真实 token 的关系**：下文 CSS 变量是 Apple 设计规范的**设计意图**命名。**ThirdNet Admin 模板的 `styles/variables.css` 已经内置了一套真实 token，命名与下文不同**，且**未加载 SF Pro 字体**（沿用 Element Plus 默认字体栈）。在 Admin 模板中写样式时，**务必以 `variables.css` 的真实变量为准**，不要假设下文的 `--color-accent`/`--color-bg-dark`/`--nav-glass-bg`/`--radius-pill` 等存在。
+>
+> 设计意图 → Admin 模板真实 token 映射：
+>
+> | 设计意图（本技能） | Admin 模板真实 token（`styles/variables.css`） |
+> |---|---|
+> | Apple Blue `--color-accent` | `--color-primary: #0071e3`（运行时由 `stores/theme.ts` 的 6 套预设覆写，见 §10） |
+> | `--color-bg-light` | `--color-bg-page: #f4f5f7`（页面底）/ `--color-bg-base: #ffffff`（卡片/表面底） |
+> | `--color-bg-dark`（纯黑） | 无纯黑 token；侧边栏用渐变 `--color-sidebar-bg: linear-gradient(180deg,#0d1117,#010409)` |
+> | `--color-text-dark` | `--color-text-primary: #1d1d1f` |
+> | `--color-text-secondary` | `--color-text-secondary: #6e6e73` |
+> | `--radius-md`（8px） | `--radius-md: 8px`（一致）；另有 `--radius-sm:4px` / `--radius-lg:12px` |
+> | `--radius-pill`（980px 药丸） | 无对应（Admin 管理后台不使用药丸 CTA） |
+> | `--space-unit`（8px） | `--space-xs/sm/md/lg/xl`（4/8/16/24/32px） |
+> | `--shadow-card` | `--shadow-xs/sm/md/lg/xl` |
+> | `--font-display`/`--font-text`（SF Pro） | 无；模板未加载 SF Pro，沿用 Element Plus 默认字体栈 |
+> | `--nav-glass-bg`（深色玻璃） | `--color-navbar-bg: rgba(255,255,255,0.78)`（浅色玻璃，非深色） |
+
+下面 `:root` 是**从零搭建 Apple 风格项目时的参考 token 定义**（设计意图命名）。**在 Admin 模板中不要照抄这套变量名**——直接复用 `variables.css` 的真实 token（见上表）。
+
 在 Vue 项目中，将上述色板定义为 CSS 变量，全局可用：
 
 ```css
@@ -404,21 +424,41 @@ Apple 标志性的行内 CTA——透明底、蓝色文字、药丸形容器。
 </style>
 ```
 
-## 10. Element Plus 主题覆盖
+## 10. Element Plus 主题覆盖（Admin 模板真实实现）
 
-当管理后台使用 Element Plus 时，通过 CSS 变量覆盖实现 Apple 设计风格：
+Admin 模板的 `styles/variables.css` **直接**用 Apple Blue 覆盖 Element Plus 主色（不经过中间变量），并覆写完整的 `--el-*` 派生色：
 
 ```css
 :root {
-  --el-color-primary: var(--color-accent);
-  --el-border-radius-base: var(--radius-md);
-  --el-font-family: var(--font-text);
+  --el-color-primary: #0071e3;          /* Apple Blue，默认品牌色 */
+  --el-border-radius-base: 8px;          /* Apple 圆角 */
+  /* 另有 --el-bg-color / --el-text-color-primary/regular / --el-border-color 等整块覆写 */
 }
 ```
 
-需要确保 `variables.css` 中定义了完整的 CSS 变量体系，包括：
-`--font-display`, `--font-text`, `--radius-sm`, `--radius-md`, `--radius-pill`,
-`--color-accent`, `--space-unit` 等。
+### 运行时主题预设（6 套品牌色）
+
+模板支持运行时切换 6 套品牌色预设，定义在 `styles/themes.ts` 的 `THEME_PRESETS`：
+
+| 预设键 | 主色 | 渐变 |
+|--------|------|------|
+| `blue`（默认） | `#0071e3` | `linear-gradient(135deg,#0071e3,#00a8ff)` |
+| `green` | `#34c759` | `linear-gradient(135deg,#34c759,#30d158)` |
+| `purple` | `#8b5cf6` | `linear-gradient(135deg,#8b5cf6,#a78bfa)` |
+| `orange` | `#f97316` | `linear-gradient(135deg,#f97316,#fb923c)` |
+| `red` | `#ef4444` | `linear-gradient(135deg,#ef4444,#f87171)` |
+| `cyan` | `#06b6d4` | `linear-gradient(135deg,#06b6d4,#22d3ee)` |
+
+切换由 `stores/theme.ts` 的 `applyColorPreset(presetKey)` 完成——它经 `document.documentElement.style.setProperty` 动态写入 `--color-primary`/`--color-primary-light`/`--color-primary-gradient`/`--color-avatar-gradient`，**并同步覆写整套 `--el-color-primary` 与 `--el-color-primary-light-3/5/7/8/9`、`--el-color-primary-dark-2`**（经 `mixColor` 计算色阶），保证 Element Plus 所有派生色（按钮、链接、focus 环、禁用态）随之变化。改默认色须同时改 `themes.ts` 的 `blue.primary`。
+
+### 其它尺寸 token（CRUD 页面应复用，勿硬编码）
+
+`variables.css` 还定义了对话框与表单的尺寸分级：
+
+- 对话框宽度：`--dialog-sm: 440px` / `--dialog-md: 560px` / `--dialog-lg: 680px` / `--dialog-xl: 900px`
+- 表单标签宽度：`--form-label-sm: 80px` / `--form-label-md: 90px` / `--form-label-lg: 110px`
+
+> **不要**在 Admin 模板里重新定义 `--color-accent`/`--font-display`/`--radius-pill` 等设计意图变量——要么用 `variables.css` 的真实 token，要么走主题预设。
 
 ## 11. Agent 组件提示词参考
 

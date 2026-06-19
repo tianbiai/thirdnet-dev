@@ -334,7 +334,7 @@ const dialogTitle = ref('')
 const formData = ref<RoleCreateParams & { id?: number }>({
   role_name: '',
   role_key: '',
-  status: StatusEnum.Enabled,
+  status: StatusEnum.Normal,
   remark: '',
   menu_ids: [],
 })
@@ -348,7 +348,7 @@ const { onDialogOpened, onDialogClosed, saveTriggerEl } = useDialogFocus()
 
 function handleAdd() {
   dialogTitle.value = '新增角色'
-  formData.value = { role_name: '', role_key: '', status: StatusEnum.Enabled, remark: '', menu_ids: [] }
+  formData.value = { role_name: '', role_key: '', status: StatusEnum.Normal, remark: '', menu_ids: [] }
   dialogVisible.value = true
 }
 

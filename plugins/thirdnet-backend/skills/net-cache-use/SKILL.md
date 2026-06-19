@@ -201,7 +201,7 @@ public class XxxCache : RedisCacheManager
 
 ## TTL 约定
 
-TTL 根据数据特性选取，范围从 90 秒（在线状态）到 7 天（Token 时间）。完整的 TTL 对照表见 [admin-cache-domains](references/admin-cache-domains.md)。
+TTL 根据数据特性选取，范围从 540 秒（在线状态，3× 心跳，默认心跳 180s）到 7 天（Token 时间）。完整的 TTL 对照表见 [admin-cache-domains](references/admin-cache-domains.md)。
 
 ## 缓存失效策略
 

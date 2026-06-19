@@ -27,7 +27,7 @@ metadata:
 |------|------------------------------|--------------------------------|
 | **取选项** | `useDict(dictType)` | `dictApi.getDictDataByType(dictType)` |
 | **接口** | `GET /api/manager/dict/options/{dict_type}` | `GET /api/manager/dict/data/type/{dict_type}` |
-| **选项类型** | `EnumItem { value:number, label }` | `DictOption { dict_value:string, dict_label, tag_type }` |
+| **选项类型** | `EnumItem { value:number, label }` | `DictDataItem { dict_value:string, dict_label, tag_type, css_class, dict_sort, status, ... }`（`getDictDataByType` 的返回类型） |
 | **表单字段类型** | `number` | `string` |
 | **el-option `:value`** | `o.value` | `o.dict_value` |
 | **el-option `:label`** | `o.label` | `o.dict_label` |
@@ -49,7 +49,7 @@ metadata:
 
 ## 场景 A：表单下拉（枚举字典）
 
-用 `useDict(dictType)` 从 `/dict/options` 取选项（store 自动幂等缓存，登出时清空）。`options` 是 `DictSelectOption[]`，`value: number`。
+用 `useDict(dictType)` 从 `/dict/options` 取选项（store 自动幂等缓存，登出时清空）。`options` 是 `EnumItem[]`（`ComputedRef<EnumItem[]>`），`value: number`。
 
 ```vue
 <script setup lang="ts">
@@ -88,9 +88,9 @@ const PRIORITY_OPTIONS = [
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { dictApi } from '@/api/modules/manager/dict'
-import type { DictOption } from '@/api/types/dict'
+import type { DictDataItem } from '@/api/types/dict'
 
-const sourceOptions = ref<DictOption[]>([])
+const sourceOptions = ref<DictDataItem[]>([])
 const form = ref({ user_source: '' as string })   // ← string，初始空串
 
 onMounted(async () => {
@@ -111,7 +111,7 @@ onMounted(async () => {
 </template>
 ```
 
-> ⚠️ **字段名易错**：枚举字典选项 `EnumItem` 是 `value/label`；自定义字典选项 `DictOption` 是 `dict_value/dict_label`。混用会导致 `:value` 绑空。
+> ⚠️ **字段名易错**：枚举字典选项 `EnumItem` 是 `value/label`；自定义字典选项 `DictDataItem` 是 `dict_value/dict_label`。混用会导致 `:value` 绑空。
 
 ## 场景 B：表单提交
 
@@ -171,9 +171,9 @@ const queryParams = reactive({ business_type: undefined as number | undefined })
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { dictApi } from '@/api/modules/manager/dict'
-import type { DictOption } from '@/api/types/dict'
+import type { DictDataItem } from '@/api/types/dict'
 
-const sourceOptions = ref<DictOption[]>([])
+const sourceOptions = ref<DictDataItem[]>([])
 const queryParams = reactive({ user_source: undefined as string | undefined })
 onMounted(async () => {
   sourceOptions.value = await dictApi.getDictDataByType('user_source')
@@ -192,7 +192,7 @@ onMounted(async () => {
 | 操作 | 枚举字典（int） | 自定义字典（string） |
 |------|------------------|----------------------|
 | 取选项 | `useDict('status')` | `dictApi.getDictDataByType('user_source')` |
-| 选项类型 | `EnumItem { value, label }` | `DictOption { dict_value, dict_label }` |
+| 选项类型 | `EnumItem { value, label }` | `DictDataItem { dict_value, dict_label, ... }` |
 | 表单字段类型 | `number` | `string` |
 | el-option `:value` | `o.value` | `o.dict_value` |
 | el-option `:label` | `o.label` | `o.dict_label` |
@@ -212,13 +212,24 @@ interface EnumItem {
   name?: string      // 枚举成员名
 }
 
-// 自定义字典选项（来自 /dict/data/type，getDictDataByType 返回）
-// 从 @/api/types/dict 导入
-interface DictOption {
-  dict_value: string  // 实际存储值，string
-  dict_label: string  // 显示文字
-  tag_type?: string   // 标签样式（可选）
+// 自定义字典数据项（getDictDataByType 的返回类型，来自 /dict/data/type）
+// 从 @/api/types/dict 导入 DictDataItem
+interface DictDataItem {
+  id: number
+  dict_type: string
+  dict_label: string      // 显示文字
+  dict_value: string      // 实际存储值，string
+  dict_sort: number
+  css_class: string       // CSS 样式类名
+  tag_type: string        // el-tag 的 type
+  status: number          // 0=正常 1=停用
+  status_label?: string
+  remark: string
+  // ... 以及 created_by/created_time/updated_by/updated_time 等审计字段
 }
+
+// 注：@/api/types/dict 另有更窄的 DictOption（仅 dict_label/dict_value/css_class?/tag_type?），
+// 但 getDictDataByType 实际返回的是完整的 DictDataItem——下拉/翻译统一用 DictDataItem。
 ```
 
 ## 端到端示例：新增「用户来源 user_source」（自定义字典）
@@ -240,7 +251,7 @@ interface DictOption {
 ## 常见坑
 
 1. **别用 `useDict` 取自定义字典**——`useDict` 打 `/options`（枚举反射），自定义字典不在 `SystemEnumRegistry` 里，返回空数组。必须用 `getDictDataByType`。
-2. **字段名别搞混**：`EnumItem` 是 `value/label`，`DictOption` 是 `dict_value/dict_label`。混用会导致 `:value` 绑空。
+2. **字段名别搞混**：`EnumItem` 是 `value/label`，`DictDataItem` 是 `dict_value/dict_label`。混用会导致 `:value` 绑空。
 3. **前端别用 `EnumHelper` / `DictDataView.GetLabel` 概念**——那是后端工具（`EnumHelper` 只认 C# 枚举，`DictDataView` 是后端 POCO 无查询方法）。前端拿到的 `*_label` 后端已经填好，直接用即可。
 4. **表单字段类型必须匹配**：枚举字典→`number`，自定义字典→`string`。混用会导致 el-select 的 `v-model` 与 `:value` 类型不等、下拉无法回显选中态。
 5. **别硬编码 `XXX_OPTIONS` 选项数组**——唯一事实来源是后端枚举/字典，前端硬编码改了会漏。

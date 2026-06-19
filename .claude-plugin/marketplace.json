@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Thirdnet 全栈开发插件集",
-    "version": "0.35.0"
+    "version": "0.37.0"
   },
   "plugins": [
     {
       "name": "thirdnet-backend",
       "source": "./plugins/thirdnet-backend",
       "description": "后端开发助手 - .NET 10 微服务：API 开发、EF Core 数据库、Redis 缓存、RBAC 权限体系、枚举字典、后台任务、批量操作、认证授权、文档驱动开发",
-      "version": "0.26.0",
+      "version": "0.27.0",
       "author": {
         "name": "thirdnet"
       },
@@ -34,7 +34,7 @@
       "name": "thirdnet-frontend",
       "source": "./plugins/thirdnet-frontend",
       "description": "前端开发助手 - Vue 3 页面、组件、样式开发，支持 TypeScript API 策略工厂模式（接口契约 + Real/Mock 可互换策略）、Admin 模板 CRUD 页面开发（useCrudTable + PaginationBar + validators）、枚举字典/自定义字典前端规范（useDict / getDictDataByType）、.env 无缝切换与演示模式控制",
-      "version": "0.25.0",
+      "version": "0.26.0",
       "author": {
         "name": "thirdnet"
       },
@@ -97,6 +97,25 @@
         "document"
       ],
       "category": "utility",
+      "strict": false
+    },
+    {
+      "name": "thirdnet-template-upgrade",
+      "source": "./skills/thirdnet-template-upgrade",
+      "description": "ThirdNet 后端模板升级操作指南 — 用 thirdnet-migrate CLI 将已生成的 Admin/Service 后端项目升级到最新模板版本，覆盖 check/diff/apply 五阶段主流程、文件 6 态分类、冲突逐个决策、清单/基线双模式、离线流程、版本漂移、回滚预案与禁止事项",
+      "version": "0.1.0",
+      "author": {
+        "name": "thirdnet"
+      },
+      "keywords": [
+        "backend",
+        "template",
+        "migration",
+        "upgrade",
+        "thirdnet-migrate",
+        "dotnet"
+      ],
+      "category": "development",
       "strict": false
     },
     {

@@ -127,7 +127,11 @@ public class DataSyncTask : BackgroundRunner
     public override async Task WorkAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
-        var dbContext = scope.ServiceProvider.GetRequiredService<AdminDbContext>();
+        // AdminDbContext 仅以 pooled DbContextFactory 注册（AddPooledDbContextFactory），
+        // DI 容器里没有裸 AdminDbContext——直接 GetRequiredService<AdminDbContext>() 会抛异常，
+        // 必须经 IDbContextFactory 取出（与 Service/Controller 注入 IDbContextFactory<T> 一致）。
+        var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AdminDbContext>>();
+        await using var dbContext = await dbFactory.CreateDbContextAsync();
         var userCache = scope.ServiceProvider.GetRequiredService<UserCache>();
 
         // 使用 dbContext 和 userCache 进行业务操作
@@ -150,7 +154,7 @@ public class DataSyncTask : BackgroundRunner
 
 ## Admin 内置后台任务
 
-Admin 项目的 DI 管道中已注册两个内置后台任务（源码位于 `OperLog/` 目录）：
+Admin 项目的 DI 管道中已注册两个内置后台任务（二者源码位置不同：`DatabaseOperLogLogger` 在 `Tools/{ProjectName}.Common/OperLog/`，`OnlineUserHeartbeatLogger` 在 `Admin/{ProjectName}.Admin.APIService/Jobs/`——不要到 `OperLog/` 里找心跳任务）：
 
 ### 操作日志后台写入（DatabaseOperLogLogger）
 
@@ -177,7 +181,7 @@ services.AddSingleton<IOnlineUserHeartbeatLogger>(sp => sp.GetRequiredService<On
 services.AddHostedService(sp => sp.GetRequiredService<OnlineUserHeartbeatLogger>());
 ```
 
-负责维护在线用户状态（TTL 90 秒）。
+负责维护在线用户状态（在线阈值 = 3 × 心跳间隔；默认心跳 `HeartbeatIntervalSeconds = 180`，故离线判定阈值约 **540 秒 / 9 分钟**——注意不是 90 秒；该任务自身 `SleepTime = 30000`，即每 30 秒扫描一次心跳）。
 
 ### 访问日志清理（VisitLogCleanupRunner）
 
@@ -267,7 +271,9 @@ public class LogCleanupTask : BackgroundRunner
     public override async Task WorkAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<AdminDbContext>();
+        // 同上：AdminDbContext 必须经 IDbContextFactory 取出
+        var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AdminDbContext>>();
+        await using var db = await dbFactory.CreateDbContextAsync();
         // 清理 30 天前的操作日志
     }
 }

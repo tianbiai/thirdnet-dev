@@ -7,12 +7,14 @@
 ```
 thirdnet-dev/
 ├── plugins/
-│   ├── thirdnet-backend/     # .NET 10 微服务后端开发插件 (v0.25.0)
-│   └── thirdnet-frontend/    # Vue 3 前端开发插件 (v0.24.0)
+│   ├── thirdnet-backend/     # .NET 10 微服务后端开发插件 (v0.27.0)
+│   └── thirdnet-frontend/    # Vue 3 前端开发插件 (v0.26.0)
 ├── skills/
-│   └── thirdnet-fullstack/  # 全栈协调技能 (v1.5.1)
+│   ├── thirdnet-fullstack/        # 全栈协调技能 (v1.5.1)
+│   ├── thirdnet-template-upgrade/ # 后端模板升级指南 thirdnet-migrate (v0.1.0)
+│   └── md-to-word/               # Markdown → Word 转换 (v0.1.0)
 └── .claude-plugin/
-    └── marketplace.json      # 插件集合注册清单 (v0.34.0)
+    └── marketplace.json      # 插件集合注册清单 (v0.37.0)
 ```
 
 ## 核心约定
@@ -45,7 +47,7 @@ thirdnet-dev/
 - Redis 缓存 + JWT 认证
 - 仅允许 GET/POST 方法（网关限制）
 
-**使用方式**：`/thirdnet-backend`
+**使用方式**：通过 `backend-workflow` 技能进入（全栈场景由 `thirdnet-fullstack` 协调）。技能可被 PreToolUse 钩子按编辑的文件类型自动触发，或用 Skill 工具手动调用。
 
 ### thirdnet-frontend
 
@@ -54,7 +56,7 @@ Vue 3 前端开发专家，支持双平台：
 - **Web 端**：Vue 3 + Element Plus + Vite
 - **移动端**：uniapp + Vant（发布为微信小程序 mp-weixin）
 
-**使用方式**：`/thirdnet-frontend`
+**使用方式**：通过 `frontend-workflow` 技能进入（全栈场景由 `thirdnet-fullstack` 协调）。技能可被 PreToolUse 钩子按编辑的文件类型自动触发，或用 Skill 工具手动调用。
 
 ## 开发注意事项
 

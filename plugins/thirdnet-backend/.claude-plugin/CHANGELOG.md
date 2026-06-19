@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.27.0 - 2026-06-19
+
+### Changed
+- 全面校正后端技能与真实模板（`code/backend/`）的不一致，确保照技能开发不产生偏差：
+  - `backend-workflow`：顶部新增技术栈版本锚点（net10.0 / EF Core 10.x / Npgsql 10.x）；限流入口改为模板实际注册的 `AddThirdNetIpAndApplicationPathRateLimiting(config)`；「相关技能」新增 `thirdnet-template-upgrade` 指针
+  - `framework-and-template-catalog`：`UseAdminCommonMvc()`（不存在）→ `UseAdminCommonMiddleware(...)`；`TokenCache` 方法表修正（`GetUserRoleIds` 实属 `UserCache`）；限流条目注明模板实际注册项；`JwtSignType` 顺序修正为 `SM2`/`RSA`；`OnlineCache` 标注为不继承 `RedisCacheManager` 的例外（两处）；新增 `thirdnet-migrate` 升级流程指针
+  - `net-api-developer`：`controller-service-examples` 补充 `dept_id > 0` 安全校验（后端拒绝 0/-1）
+  - `net-authentication`：`JwtSignType` 成员顺序修正为 `SM2`/`RSA`
+  - `net-background-job`：心跳任务路径修正（`Admin/.../Jobs/` 而非 `OperLog/`）；在线 TTL `90s → 540s`（3×心跳）；scoped 示例改用 `IDbContextFactory<AdminDbContext>`（`AdminDbContext` 仅以 pooled factory 注册，直接 `GetRequiredService<AdminDbContext>()` 会抛异常）
+  - `net-cache-use` + `admin-cache-domains`：`UserCache` 方法修正（`GetUserInfo`/`GetUserDic`/`GetUserRoleIds`/`GetUserPermissions`）；`TokenCache` 方法修正；`OnlineCache` 例外说明；在线状态 TTL `90s → 540s`
+  - `net-efcore-developer` + `entity-examples`：实体模板 `created_by`/`remark` 改为 `string?`（对齐 `IAuditableEntity` 已迁空，消除 CS8618 警告）
+  - `net-microservice-generator`：示例版本 `0.0.6 → 0.0.23`；Service `Program.cs` 修正为真实同步 `InitializeDatabases()`（删除虚构的 `InitializeFunctionTable/PermissionCatalog`）；`ServiceDbContext` 删除虚构 xmin 循环；Service 项目布局修正为 `{ServiceName}/{ServiceName}.API`、`{ServiceName}/{ServiceName}.Database`（保留 `dotnet new` 生成的 `{ServiceName}/` 包装层、删除虚构的 `Service/` 中间层；场景 A/B、结构树、迁移命令 4 处统一）；`UseThirdNetMvc` 中间件表补漏掉的 `UseRateLimiter`（对齐真实 9 步顺序）；`--AdminName` 标注为可选+自动推导
+  - `net-rbac` + `rbac-flow`：`CachePermissionProvider` 片段修正（未定义字段 `_roleCache` → primary-constructor 参数 `roleCache`）
+  - `net-enum-dict`：补充 `[EnumMeta]` 的 `DbValue` 属性说明（字符串映射枚举成员）
+- `hooks/hooks.json` Stop 钩子文档检测路径支持全栈布局 `backend/{ProjectName}.Admin/{plan,changelog,spec}.md`（原仅检测扁平 `backend/*.md`，在真实 Admin 项目上会误判）
+
+### Added
+- `plugin.json` 版本号 0.26.0 → 0.27.0，与 `marketplace.json` 对齐
+
 ## 0.26.0 - 2026-06-17
 
 ### Changed

@@ -124,7 +124,7 @@
 | `BasicAuthenticationHandler` / `ApiKeyAuthenticationHandler` | Basic/、ApiKey/ | "Basic"/"ApiKey" scheme 处理器，写 `client_id`/`scope` claims。 |
 
 **JWT 签名与 Token（Authentication/Bearer/）：**
-`ISigner` / `RSASigner` / `SM2Signer`（Signing/）、`IJtiCheck`/`InMemoryJtiCheck`（JTI 去重）、`JwtTokenManager`/`JwtTokenGenerator`/`JwtHelper`、`JwtOptions`、`JwtSignType`（枚举 `RSA`/`SM2`）、`ThirdNetTokenHandler`（TokenManagement/）。
+`ISigner` / `RSASigner` / `SM2Signer`（Signing/）、`IJtiCheck`/`InMemoryJtiCheck`（JTI 去重）、`JwtTokenManager`/`JwtTokenGenerator`/`JwtHelper`、`JwtOptions`、`JwtSignType`（枚举 `SM2`/`RSA`，定义顺序即如此）、`ThirdNetTokenHandler`（TokenManagement/）。
 
 - 详见 `net-authentication` 技能。
 
@@ -149,7 +149,7 @@
 
 #### 限流（ratelimit/）
 
-`ThirdNetRateLimitingExtensions`：`AddThirdNetIpRateLimiting()` / `AddThirdNetIpAndApplicationRateLimiting()` / `AddThirdNetIpAndApplicationPathRateLimiting()`（基于 ASP.NET Core 内置 `RateLimiter`，固定窗口/分钟，超限 429）。配置 `"RateLimiting": { "Times": 500 }`。
+`ThirdNetRateLimitingExtensions`：`AddThirdNetIpRateLimiting()` / `AddThirdNetIpAndApplicationRateLimiting()` / `AddThirdNetIpAndApplicationPathRateLimiting()`（基于 ASP.NET Core 内置 `RateLimiter`，固定窗口/分钟，超限 429）。配置 `"RateLimiting": { "Times": 500 }`。**Admin 模板在 `AddAdminCommonInfrastructure` 内实际注册的是 `AddThirdNetIpAndApplicationPathRateLimiting(config)`（IP+应用+路径 变体），而非 IP-only 版本。**
 
 #### Multipart 上传（multipart/）
 
@@ -231,18 +231,18 @@
 
 ### 缓存域（{ProjectName}.Cache.Domain）
 
-均继承框架 `RedisCacheManager`，作为 Singleton 经 `AddAdminCacheServices()` 注册。参考实现中的缓存域：
+均继承框架 `RedisCacheManager`，作为 Singleton 经 `AddAdminCacheServices()` 注册（**例外：`OnlineCache` 不继承 `RedisCacheManager`、无 Read-Through 语义，构造时直接注入 `IDatabase`**）。参考实现中的缓存域：
 
 | 缓存域 | 参考文件（Tools/{ProjectName}.Cache/Domain/） | 主要职责 |
 |--------|------|---------|
 | `UserCache` | UserCache.cs | 用户信息、权限、角色缓存；`UserCacheInvalidation` 配套失效。 |
 | `MenuCache` | MenuCache.cs | 菜单树缓存（用 `TreeBuilder.BuildForest`）。 |
 | `RoleCache` | RoleCache.cs | 角色→权限（`GetRolePermissions`）。 |
-| `TokenCache` | TokenCache.cs | Token 失效时间（`SetTokenInvalidationTime`/`GetUserRoleIds`）。 |
+| `TokenCache` | TokenCache.cs | Token 失效时间（实现 `IAccountTokenTimeCache`：`SetTokenInvalidationTime`/`ClearTokenInvalidationTime`/`TryGetAsync`）。注意：`GetUserRoleIds` 在 `UserCache` 上，不在 `TokenCache`。 |
 | `ConfigCache` | ConfigCache.cs | 系统配置缓存（`GetConfigInt`/`GetConfigBool`/`RemoveConfigDic`）。 |
 | `DictCache` | DictCache.cs | 字典数据按 dict_type 缓存（含系统枚举和自定义字典）；key `admin.dict.data.{dictType}`，TTL 24h。 |
 | `DeptCache` | DeptCache.cs | 部门树/可见部门。 |
-| `OnlineCache` | OnlineCache.cs | 在线状态（`BatchCheckOnlineStatus`）。 |
+| `OnlineCache` | OnlineCache.cs | 在线状态（`BatchCheckOnlineStatus`）。**例外**：不继承 `RedisCacheManager`、无 Read-Through，直接注入 `IDatabase`；在线阈值 = 3× 心跳（默认 180s → 540s）。 |
 | `ApiKeyCache` | ApiKeyCache.cs | API Key SHA256 哈希验证；key `admin.apikey.hash.{hash[:16]}`，TTL 8h。 |
 
 ### 业务层失效助手
@@ -256,7 +256,7 @@
 
 ### DI 扩展（{ProjectName}.Common 与 .Cache）
 
-`AdminServiceCollectionExtensions`（`Extensions/AdminServiceCollectionExtensions.cs`）：`AddAdminCommonInfrastructure(config, assemblyName)`（框架 DB+JWT+Redis+限流+加密+MVC）、`AddAdminCacheServices()`（所有缓存域 Singleton）、`AddAdminCommonHelpPage(config)`、`AddAdminCommonControllers(...)`。`AdminApplicationBuilderExtensions`（`Extensions/AdminApplicationBuilderExtensions.cs`）：`UseAdminCommonMvc()` 等管线扩展。`AdminHostBuilder`（`Hosting/AdminHostBuilder.cs`，命名空间 `{ProjectName}.Common.Hosting`）：`BuildAdminWebHost<TStartup>(args) → IHost`（名字含"Admin"但为通用构建方法）。
+`AdminServiceCollectionExtensions`（`Extensions/AdminServiceCollectionExtensions.cs`）：`AddAdminCommonInfrastructure(config, assemblyName)`（框架 DB+JWT+Redis+限流+加密+MVC）、`AddAdminCacheServices()`（所有缓存域 Singleton）、`AddAdminCommonHelpPage(config)`、`AddAdminCommonControllers(...)`。`AdminApplicationBuilderExtensions`（`Extensions/AdminApplicationBuilderExtensions.cs`）：`UseAdminCommonMiddleware(IApplicationBuilder, ILoggerFactory, IApiVersionDescriptionProvider, HelpPageOptions)` —— 依次 `UseResponseCompression` → `UseThirdNetVersioningHelpPage` → `UseThirdNetMvc`（最内层即框架层 `UseThirdNetMvc()` 的管线顺序；不存在 `UseAdminCommonMvc()` 方法）。`AdminHostBuilder`（`Hosting/AdminHostBuilder.cs`，命名空间 `{ProjectName}.Common.Hosting`）：`BuildAdminWebHost<TStartup>(args) → IHost`（名字含"Admin"但为通用构建方法）。
 
 ---
 
@@ -289,7 +289,9 @@ thirdnet-migrate diff    # 预览用户项目与最新模板的差异
 thirdnet-migrate apply   # 把模板更新应用到用户项目（支持 --dry-run --force --non-interactive）
 ```
 
-内部经 `ProjectScanner`/`TemplateExtractor`/`SourceNameReplacer`/`FileDiffer`/`MigrationPreparer` 完成「扫描→下载→替换 sourceName→三方 diff→应用」。用于让已生成的项目跟进模板更新，详见 `net-microservice-generator` 技能。
+内部经 `ProjectScanner`/`TemplateExtractor`/`SourceNameReplacer`/`FileDiffer`/`MigrationPreparer` 完成「扫描→下载→替换 sourceName→三方 diff→应用」。用于让已生成的项目跟进模板更新。
+
+> 这里只给出命令速查。**完整的升级流程**——manifest 模式、6 态文件分类（框架文件 vs 业务文件）、冲突决策矩阵、`--force` 仅限纯框架文件的边界——见独立的 `thirdnet-template-upgrade` 技能（模板升级的单一事实来源）。`net-microservice-generator` 技能则覆盖「新建项目」场景。
 
 ---
 

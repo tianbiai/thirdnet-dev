@@ -42,13 +42,15 @@ mkdir -p backend
 cd backend
 dotnet new thirdnet-service -n {ServiceName}
 
-# 如果 Admin 使用了自定义名称（--AdminName 取值须与创建 Admin 时传给 -n 的值一致，即裸 {ProjectName}）
+# --AdminName 可选：指定所引用 Admin 项目的公司前缀（裸 {ProjectName}）。
+# 缺省时自动从 -n 推导（取第一个 "." 之前的部分，如 -n MyCompany.OrderService → MyCompany）。
+# 仅当 -n 无法正确推导出 Admin 前缀时才需显式传入：
 dotnet new thirdnet-service -n {ServiceName} --AdminName {ProjectName}
 
-# 可选：指定框架版本
+# 可选：指定框架库版本（默认即模板内置值 0.0.23，通常无需指定）
 dotnet new thirdnet-service -n {ServiceName} \
-  --VibeCommonVersion 0.0.6 \
-  --VibeWebAPIVersion 0.0.6
+  --VibeCommonVersion 0.0.23 \
+  --VibeWebAPIVersion 0.0.23
 ```
 
 ### 解决方案文件管理
@@ -62,10 +64,11 @@ dotnet new thirdnet-service -n {ServiceName} \
 ```bash
 cd backend
 
-# 添加 Service 项目到已有解决方案
+# 添加 Service 项目到已有解决方案（模板 sourceName 为 "ThirdNetVibe.Service"，
+# dotnet new 生成 {ServiceName}/ 包装层，下含 {ServiceName}.API 与 {ServiceName}.Database，无 Service/ 子层）
 dotnet sln {ProjectName}.Admin.slnx add \
-  {ServiceName}/Service/{ServiceName}.API/{ServiceName}.API.csproj \
-  {ServiceName}/Service/{ServiceName}.Database/{ServiceName}.Database.csproj \
+  {ServiceName}/{ServiceName}.API/{ServiceName}.API.csproj \
+  {ServiceName}/{ServiceName}.Database/{ServiceName}.Database.csproj \
   -s /src/Service/
 ```
 
@@ -81,8 +84,8 @@ dotnet new sln -n {ServiceName} -o .
 
 # 添加 Service 项目
 dotnet sln {ServiceName}.slnx add \
-  {ServiceName}/Service/{ServiceName}.API/{ServiceName}.API.csproj \
-  {ServiceName}/Service/{ServiceName}.Database/{ServiceName}.Database.csproj \
+  {ServiceName}/{ServiceName}.API/{ServiceName}.API.csproj \
+  {ServiceName}/{ServiceName}.Database/{ServiceName}.Database.csproj \
   -s /src/Service/
 ```
 
@@ -99,18 +102,17 @@ backend/
 ├── Tools/                               ← 已有的工具类库
 │   ├── {ProjectName}.Common/
 │   └── {ProjectName}.Cache/
-└── {ServiceName}/              ← 新创建的 Service 项目
-    └── Service/
-        ├── {ServiceName}.API/       # API 宿主
-        │   ├── Controllers/Manager/
-        │   │   └── HealthManagerController.cs
-        │   ├── Program.cs
-        │   ├── Startup.cs
-        │   └── appsettings.json
-        └── {ServiceName}.Database/  # 数据层
-            ├── DbContext/
-            │   └── ServiceDbContext.cs
-            └── Models/                     # 空，待开发
+└── {ServiceName}/              ← 新创建的 Service 项目（dotnet new 生成的包装层）
+    ├── {ServiceName}.API/       # API 宿主
+    │   ├── Controllers/Manager/
+    │   │   └── HealthManagerController.cs
+    │   ├── Program.cs
+    │   ├── Startup.cs
+    │   └── appsettings.json
+    └── {ServiceName}.Database/  # 数据层
+        ├── DbContext/
+        │   └── ServiceDbContext.cs
+        └── Models/                     # 空，待开发
 ```
 
 ## 模板升级（ThirdNet.Migrate）
@@ -137,15 +139,11 @@ public class ServiceDbContext : DbContext
         // 自定义 schema（如 "order"、"inventory" 等）
         modelBuilder.HasDefaultSchema("service");
 
-        // 自动扫描配置类
+        // 自动扫描配置类（实体配置统一放 EntityConfigurations/，约定优于配置）
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ServiceDbContext).Assembly);
 
-        // xmin 乐观并发
-        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
-        {
-            modelBuilder.Entity(entityType.ClrType, b =>
-                b.Property<uint>("xmin").IsRowVersion().ValueGeneratedOnAddOrUpdate());
-        }
+        // 注意：Service 模板的 ServiceDbContext 不注册 xmin 乐观并发字段
+        // （与 Admin 的 AdminDbContext 不同；如个别实体需要并发控制，请在对应 EntityConfiguration 中单独配置）。
     }
 }
 ```
@@ -206,13 +204,14 @@ public void ConfigureServices(IServiceCollection services)
 | 序号 | 中间件 | 说明 |
 |-----|-------|------|
 | 1 | `UseForwardedHeaders` | 处理反向代理头 |
-| 2 | `UseThirdNetUseExceptionHandler` | 全局异常处理 |
-| 3 | `UseRouting` | 路由匹配 |
-| 4 | `RequestLoggerMiddleware` | 访问日志记录 |
-| 5 | `UseAuthentication` | 认证中间件 |
-| 6 | `UseAuthorization` | 授权中间件 |
-| 7 | `AccountTokenCheckMiddleware` | Token 有效性检查 |
-| 8 | `MapControllers` | 映射控制器路由 |
+| 2 | `UseRateLimiter` | 限流（`AddThirdNetIpAndApplicationPathRateLimiting` 注册的固定窗口） |
+| 3 | `UseThirdNetUseExceptionHandler` | 全局异常处理 |
+| 4 | `UseRouting` | 路由匹配 |
+| 5 | `RequestLoggerMiddleware` | 访问日志记录 |
+| 6 | `UseAuthentication` | 认证中间件 |
+| 7 | `UseAuthorization` | 授权中间件 |
+| 8 | `AccountTokenCheckMiddleware` | Token 有效性检查 |
+| 9 | `MapControllers` | 映射控制器路由 |
 
 **注意**：不要在 `UseThirdNetMvc` 外部手动添加认证/授权中间件，会导致重复执行。
 
@@ -288,9 +287,12 @@ using ThirdNet.Vibe.WebAPI;
 
 var host = AdminHostBuilder.BuildAdminWebHost<Startup>(args);
 
-await host.InitializeDatabasesAsync();
-await host.InitializeFunctionTableAsync();
-await host.InitializePermissionCatalogTableAsync();
+// Service 的 MigrateHelper 只提供【同步】的 InitializeDatabases()（仅迁移 ServiceDbContext）。
+// 注意：Service 的 Program.cs 只调 InitializeDatabases()——不像 Admin 那样还调
+// InitializeDatabasesAsync() + InitializeFunctionTableAsync() + InitializePermissionCatalogTableAsync()
+//（后三者是框架 ThirdNet.Vibe.WebAPI 的扩展方法，定义在 ThirdNetDatabaseHelper，Admin 用于
+// 扫描端点功能表 / 权限目录；Service 模板不启用它们）。
+host.InitializeDatabases();
 
 await host.RunAsync();
 ```
@@ -310,12 +312,12 @@ await host.RunAsync();
 
 ```bash
 dotnet ef migrations add AddOrderEntity \
-  --project {ServiceName}/Service/{ServiceName}.Database \
-  --startup-project {ServiceName}/Service/{ServiceName}.API
+  --project {ServiceName}/{ServiceName}.Database \
+  --startup-project {ServiceName}/{ServiceName}.API
 
 dotnet ef database update \
-  --project {ServiceName}/Service/{ServiceName}.Database \
-  --startup-project {ServiceName}/Service/{ServiceName}.API
+  --project {ServiceName}/{ServiceName}.Database \
+  --startup-project {ServiceName}/{ServiceName}.API
 ```
 
 ## 连接字符串配置
