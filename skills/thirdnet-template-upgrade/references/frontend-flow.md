@@ -58,15 +58,21 @@ npm view create-thirdnet-admin versions --registry http://192.168.1.207:4873 --j
 
 > **发版流程**（仅在需发版时）：前端模板发版为 `npm publish` 到 Verdaccio；模板内容用 `create-thirdnet-admin/scripts/sync-template.js` 从 `code/frontend/web/` 同步并注入品牌占位符。
 
-**0.3 Git 工作区必须干净**
+**0.3 VCS 工作区必须干净**
 ```bash
-git status --porcelain   # 必须为空
+git status --porcelain   # 必须为空（git 项目）
+# 或
+svn status               # 必须为空（svn 项目）
 ```
-> 工具自身的 apply 只对脏工作区**发警告**、不阻断；但脏工作区会让 `git reset --hard` 一键回滚失效，所以技能仍硬性要求先提交/暂存。
+> 工具自身的 apply 只对脏工作区**发警告**、不阻断；但脏工作区会让一键回滚失效，所以技能仍硬性要求先提交/暂存/还原。
 
-**0.4 记下升级前 commit**（回滚用）：
+**0.4 记下升级前版本基点**（回滚用）：
 ```bash
+# git
 git rev-parse HEAD
+
+# svn（记录当前工作副本基于的 revision）
+svn info | grep "Revision"
 ```
 
 **0.5 读 changelog（决定冲突取舍前）**
@@ -104,6 +110,11 @@ npx create-thirdnet-admin diff
 - ⚠️ **`已修改（需确认）`**（Modified · 用户改过）—— **逐一记录路径**，进入 Phase 3 逐文件决策；diff 会附前 6 行变更预览。
 - 🔒 **`品牌文件（自动跳过，需手动集成）`**（Modified · override）—— **逐一记录路径**，apply 不会动它们，需对照这里附的上游变更预览手动合并（见 Phase 3.5）。
 - 🗑️ `模板已删除的文件（不会自动删除）`（Deleted）—— 仅提示，不动。
+
+> **异常冲突强制门**：若 ⚠️ 需确认数量异常多（大量你并未改过的框架文件报冲突），**不要直接 apply**。先排查：
+> - `.template-version.json.tokens` 是否存在且含 5 个 key（`PROJECT_NAME`/`BRAND_NAME`/`BRAND_INITIAL`/`BRAND_ABBR`/`API_PROXY_TARGET`）？缺失或为空 → 品牌占位符未替换，几乎所有含品牌文件都会假冲突（[edge-cases F.8](edge-cases.md)）；
+> - diff 输出里是否**没有** 🗑️ 删除类、且几乎所有 Modified 都标 ⚠️？是 → 旧版 tgz 被删，降级为 2-way，`userModified` 一律为真（[edge-cases F.2](edge-cases.md)）；
+> - 若属上述任一情况，先按 [edge-cases](edge-cases.md) 处理（补全 tokens、换 `--registry`、或接受大量人工判断），再重新 diff。
 
 ### Phase 3：应用升级（apply）
 
@@ -173,11 +184,23 @@ npx create-thirdnet-admin check
 # 期望：当前已是最新版本
 ```
 
+**落地核对**：比较本次实际被覆盖/新增的文件数与 Phase 2 diff 预期。若版本标记已前进但磁盘上几乎没有文件变更（或远低于 diff 预期），说明本次 apply 基本在跳过（大量 `[s]`）或 tokens/占位符未正确替换导致假冲突。**这种情况不得收尾**，应退回 Phase 2 重新检查 `tokens`、基线可用性、是否有 2-way 降级，必要时补全 tokens 或换 `--registry`。
+
 ### Phase 5：收尾
 
-1. 审阅改动：`git status` + `git diff`。
-2. 确认 `.template-version.json` 的 `templateVersion` 已前进到新版本（仅当本次确实 apply 了文件才会更新；纯跳过不会前进）。
-3. **提交**（消息建议：`chore: 升级前端模板至 <新版本>`）。
+1. 审阅改动：执行 `git status` / `git diff` 或 `svn status` / `svn diff`，确认所有变更都是预期中的框架升级。
+2. 确认 `.template-version.json` 的 `templateVersion` 已前进到新版本（或按工具实际行为确认产物文件已落地）。
+3. **不要自动提交**。输出升级报告后，把落库操作交给用户，可建议如下命令：
+   ```bash
+   # git
+   git add -A
+   git commit -m "chore: 升级前端模板至 <新版本>"
+
+   # svn
+   svn status          # 逐个审阅 M/A/? 标记
+   svn add <新增文件>   # 📄 Added 文件需要手动 svn add
+   svn commit -m "chore: 升级前端模板至 <新版本>"
+   ```
 4. 按 [commands-and-report](commands-and-report.md) 的前端模板输出升级报告。
 
 ## 前端文件分类决策经验
@@ -213,12 +236,12 @@ npx create-thirdnet-admin check
 
 - [ ] Phase 0.1 Node ≥ 18 / npm ≥ 9
 - [ ] Phase 0.2 Verdaccio 可达，记下 `LATEST`
-- [ ] Phase 0.3 `git status` 干净，记下升级前 commit
+- [ ] Phase 0.3 `git status` / `svn status` 干净，记下升级前版本基点
 - [ ] Phase 0.5 读 changelog（`public/changelog.md` 或 `viewer.html`）
 - [ ] Phase 1 `check`，确认有新版本
-- [ ] Phase 2 `diff`，读完所有 ⚠️ 需确认 与 🔒 品牌文件
+- [ ] Phase 2 `diff`，读完所有 ⚠️ 需确认 与 🔒 品牌文件；若数量异常多，先排查 tokens/2-way 降级，不直接 apply
 - [ ] Phase 3 `apply --dry-run` → `apply`（⚠️ 按 conflict-resolution 决策）
 - [ ] Phase 3.5 手动合并 4 个 override 文件（**尤其 package.json 依赖**）→ `npm install`
-- [ ] Phase 4 `npm run build` 通过；`check` 报「已是最新」（触碰 auth/api/mock 时加跑 `npm test` + mock 冒烟；后端改 SeedData 时同步 mock 菜单树）
-- [ ] Phase 5 `git` 审阅 + 提交
+- [ ] Phase 4 `npm run build` 通过；`check` 报「已是最新」；核对实际套用数与 diff 预期一致（触碰 auth/api/mock 时加跑 `npm test` + mock 冒烟；后端改 SeedData 时同步 mock 菜单树）
+- [ ] Phase 5 审阅 + 出报告 + 给出落库建议（不自动提交）
 - [ ] 输出升级报告（commands-and-report.md 前端模板）

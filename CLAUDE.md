@@ -11,7 +11,7 @@ thirdnet-dev/
 │   └── thirdnet-frontend/    # Vue 3 前端开发插件 (v0.26.1)
 ├── skills/
 │   ├── thirdnet-fullstack/        # 全栈协调技能 (v1.5.3)
-│   ├── thirdnet-template-upgrade/ # 前后端模板升级指南 thirdnet-migrate / create-thirdnet-admin (v0.3.1)
+│   ├── thirdnet-template-upgrade/ # 前后端模板升级指南 thirdnet-migrate / create-thirdnet-admin (v0.4.0)
 │   └── md-to-word/               # Markdown → Word 转换 (v0.1.0)
 └── .claude-plugin/
     └── marketplace.json      # 插件集合注册清单 (v0.40.0)

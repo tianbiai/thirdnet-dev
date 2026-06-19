@@ -63,11 +63,13 @@ dotnet package search ThirdNet.Service.Template  --source http://192.168.1.156:8
 
 > **发版流程**（仅在需发版时）：见内部仓库 `code/backend/plan.md` 第 8 章「发布与打包」——按依赖顺序 `dotnet pack` 4 个包（Vibe.Common / Vibe.WebAPI / Admin.Template / Service.Template）到 `./artifacts`，中央版本号在 `backend/Directory.Build.props` 的 `ThirdNetPackageVersion`，遵循 semver。
 
-**0.3 Git 工作区必须干净**
+**0.3 VCS 工作区必须干净**
 ```bash
-git status --porcelain   # 必须为空
+git status --porcelain   # 必须为空（git 项目）
+# 或
+svn status               # 必须为空（svn 项目）
 ```
-若有未提交改动：先 `commit` 或 `stash`。**这是最可靠的回滚保险**（升级出问题可直接 `git reset --hard <升级前 commit>`）。
+若有未提交改动：先提交或暂存/还原。**这是最可靠的回滚保险**：git 可用 `git reset --hard <升级前 commit>`；svn 在未落库前可用 `svn revert -R .` 还原，并删除新增未 `svn add` 的文件。详见 [rollback-and-do-not](rollback-and-do-not.md)。
 
 **0.4 网络判定（决定走在线还是离线流程）**
 - 能访问 `http://192.168.1.156:8088/nuget` → **在线流程**（下文 Phase 1–5）。
@@ -112,7 +114,11 @@ thirdnet-migrate diff -v <LATEST>
 - ⚠️ **`冲突`（Conflict）** —— **逐一记录相对路径**，进入 Phase 3 的逐文件决策。
 - 🗑️ `模板已删除` —— 仅提示，不动。
 
-> 若 `diff` 报 `无法下载基线版本，将使用清单/2-way 模式`：说明旧版本 nupkg 不在服务器，已自动降级。此时所有差异都会偏向 `Conflict/UserOnly`（保守）。若项目本就是旧项目且无清单，建议改走 edge-cases 的 `init-manifest` 流程以获得更清晰基线。
+> **异常冲突强制门**：若 ⚠️ `Conflict` / 🔒 `UserOnly` 数量异常多（大量你并未改过的框架文件报冲突），**不要直接 apply**。先排查：
+> - 项目根是否有 `.template-manifest.json`？无则大概率走基线/2-way 模式；
+> - diff 输出是否出现 `ℹ 无法下载基线版本`？是 → 2-way 降级，所有内容差异都归 Conflict；
+> - `.csproj` 命名是否标准？非标准命名会导致 `sourceName` 推断失败（[edge-cases 7.4](edge-cases.md#命名空间--项目前缀)），命名空间未被替换 → 大量假冲突；
+> - 若属上述任一情况，先按 [edge-cases](edge-cases.md) 处理（`init-manifest`、提供 `--base-nupkg`、修正 csproj 命名），再重新 diff。
 
 ### Phase 3：应用升级（apply）
 
@@ -163,11 +169,23 @@ thirdnet-migrate check
 # 期望：当前已是最新版本；哈希清单已启用；无漂移告警。
 ```
 
+**落地核对**：比较本次实际被覆盖/新增的文件数与 Phase 2 diff 预期。若 `.template-version.json` 已前进但磁盘上几乎没有文件变更（或远低于 diff 预期），说明本次 apply 基本在保留用户版本（大量 `[k]`/`[e]`）或命名空间/占位符未正确替换导致假冲突。**这种情况不得收尾**，应退回 Phase 2 重新检查清单、基线、`sourceName` 推断，必要时 `init-manifest` 或提供 `--base-nupkg`。
+
 ### Phase 5：收尾
 
-1. 审阅改动：`git status` + `git diff`。
+1. 审阅改动：执行 `git status` / `git diff` 或 `svn status` / `svn diff`，确认所有变更都是预期中的框架升级。
 2. 确认 `.template-manifest.json` 已生成/更新、`.template-version.json` 已前进到新版本。
-3. **提交**（消息建议：`chore: 升级 ThirdNet 模板至 <新版本>`）。
+3. **不要自动提交**。输出升级报告后，把落库操作交给用户，可建议如下命令：
+   ```bash
+   # git
+   git add -A
+   git commit -m "chore: 升级 ThirdNet 模板至 <新版本>"
+
+   # svn
+   svn status          # 逐个审阅 M/A/? 标记
+   svn add <新增文件>   # 📄 Added 文件需要手动 svn add
+   svn commit -m "chore: 升级 ThirdNet 模板至 <新版本>"
+   ```
 4. 按 [commands-and-report](commands-and-report.md) 的格式输出升级报告。
 
 ## 框架库版本同步（仅当模板升级了 Vibe.Common/WebAPI 时）
@@ -197,12 +215,12 @@ dotnet add package ThirdNet.Vibe.Common -v <新版本> --source http://192.168.1
 
 - [ ] Phase 0.1 工具 ≥ 0.0.23 已装
 - [ ] Phase 0.2 服务器最新版本 ≥ 目标版本（否则先发版）
-- [ ] Phase 0.3 `git status` 干净
+- [ ] Phase 0.3 `git status` / `svn status` 干净
 - [ ] Phase 0.4 确定在线 / 离线
 - [ ] Phase 0.5 读 changelog（了解"为什么改"，指导冲突取舍）
 - [ ] Phase 1 `check`，判定场景（清单/基线/旧项目）
-- [ ] Phase 2 `diff`，读完所有 ⚠️ Conflict
+- [ ] Phase 2 `diff`，读完所有 ⚠️ Conflict；若数量异常多，先排查清单/基线/sourceName，不直接 apply
 - [ ] Phase 3 `apply --dry-run` → `apply`（Conflict 按 conflict-resolution 决策）
-- [ ] Phase 4 `dotnet build` 通过；`check` 报「已是最新」（触碰认证/权限/SeedData 时加跑单测）
-- [ ] Phase 5 `git` 审阅 + 提交
+- [ ] Phase 4 `dotnet build` 通过；`check` 报「已是最新」；核对实际套用数与 diff 预期一致（触碰认证/权限/SeedData 时加跑单测）
+- [ ] Phase 5 审阅 + 出报告 + 给出落库建议（不自动提交）
 - [ ] 输出升级报告（commands-and-report.md 格式）

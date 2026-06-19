@@ -12,7 +12,7 @@ description: >
   即便用户只说"项目模板是不是该更新了"、"怎么同步最新模板改动"、"把旧项目跟到新模板"、
   "前端项目怎么跟进模板改动"、"两端模板一起升"也要触发。前后端均适用——进入后先按项目类型选轨道。
 metadata:
-  version: "0.3.1"
+  version: "0.4.0"
 ---
 
 # ThirdNet 模板升级（前后端通用）
@@ -57,7 +57,9 @@ metadata:
 1. **绝不覆盖用户业务代码。** 任何被工具识别为用户改动/用户专属的文件——后端是业务 Controller / 实体 / EntityConfiguration / 业务 DbContext / Service / DTO 等；前端是 `src/views/` 下的业务页面与任何用户自定义——**一律保留**，绝不套用模板版。业务代码是用户最宝贵的资产，模板升级只动框架结构。
 2. **绝不自动删除用户文件。** 即便模板删除了某文件（🗑️ `Deleted`），apply 也只提示、永不删。**不得手动删除任何用户文件。** 模板删某个文件可能只是因为重构，但用户项目里那文件可能仍承载业务——删了找不回。
 3. **冲突文件必须逐个决定**，不得用 `--force` 批量覆盖业务相关改动。`--force` 仅允许用于确认为「纯框架基础设施、无业务逻辑」的文件。`--force` 绕过逐个确认，等于盲覆盖，对业务文件是灾难。
-4. **每次覆盖既有文件前，工具会自动备份到 `.thirdnet-backup/<时间戳>/`**；但更可靠的保险是**升级前 git 工作区干净**（见各轨道 Phase 0）。备份是第二道防线，git 才是第一道。
+4. **每次覆盖既有文件前，工具会自动备份到 `.thirdnet-backup/<时间戳>/`**；但更可靠的保险是**升级前 VCS 工作区干净**（见各轨道 Phase 0）。备份是第二道防线，干净的版本控制工作区才是第一道。
+   - git：`git status --porcelain` 为空。
+   - svn：`svn status` 为空（无 `?`、`M`、`A` 等未处理改动）。
 5. **升级全程不手动编辑命名空间 / 品牌占位符引用。** 工具会在比对前自动完成占位符替换——后端是 `sourceName`（`ThirdNetVibe`→项目前缀）+ 版本占位符（`VIBE_COMMON_VERSION` 等）；前端是品牌 token（`__BRAND_NAME__` / `__BRAND_INITIAL__` / `__BRAND_ABBR__` / `__PROJECT_NAME__` / `__API_PROXY_TARGET__`）。手动改这些会制造伪冲突，让干净的安全更新变成假的需确认项。
 6. **升级目标版本必须已发布到对应注册表**。后端发到 NuGet（内网 `192.168.1.156:8088/nuget`，可用 `--nupkg` 离线）；前端发到 Verdaccio（内网 `192.168.1.207:4873`，**无离线模式**）。未发布的模板改动无法迁移。
 
@@ -95,12 +97,12 @@ metadata:
 
 两端流程对仗，每阶段的**共性**如下；**具体命令、判定与边界见所属轨道的 flow 文档**。
 
-- **Phase 0 预检**：环境/工具就绪（后端 `dotnet tool` ≥ 0.0.23；前端 Node ≥ 18 / npm ≥ 9）；确认注册表可达并记下最新版本号；**git 工作区必须干净**；确定在线/离线（后端可离线，前端不可）；**读本次升级涉及的 changelog**（前端 `public/changelog.md`、后端 `code/backend/changelog.md`，详见各 flow 的 Phase 0）——diff 只告诉你"改了什么"，changelog 告诉你"为什么、是否破坏性、是否跨端"，直接影响 ⚠️ 冲突的取舍。
+- **Phase 0 预检**：环境/工具就绪（后端 `dotnet tool` ≥ 0.0.23；前端 Node ≥ 18 / npm ≥ 9）；确认注册表可达并记下最新版本号；**VCS 工作区必须干净**（git 查 `git status --porcelain`、svn 查 `svn status`）；确定在线/离线（后端可离线，前端不可）；**读本次升级涉及的 changelog**（前端 `public/changelog.md`、后端 `code/backend/changelog.md`，详见各 flow 的 Phase 0）——diff 只告诉你"改了什么"，changelog 告诉你"为什么、是否破坏性、是否跨端"，直接影响 ⚠️ 冲突的取舍。
 - **Phase 1 check**：探测项目，判定是否需要升级（已是最新则结束）。
-- **Phase 2 diff（只读）**：**必须完整阅读**，重点记录所有需确认/冲突文件与品牌文件的相对路径。
+- **Phase 2 diff（只读）**：**必须完整阅读**，重点记录所有需确认/冲突文件与品牌文件的相对路径。若 ⚠️ 冲突/需确认数量异常多（大量你并未改过的框架文件报冲突）→ **停在 Phase 2**，先按各轨道 Phase 0 检查清单模式/基线/占位符是否正确，不要直接进 apply。
 - **Phase 3 apply**：先 `--dry-run`，再正式应用。需确认/冲突文件逐个决策（后端 `[a]/[k]/[m]/[v]/[e]`；前端 `[a]/[s]/[v]`，无 `[m]`），遵循 [conflict-resolution](references/conflict-resolution.md)。
-- **Phase 4 验证**：构建必须通过（后端 `dotnet build`；前端 `npm run build`），再 `check` 确认已是最新；**若本次升级触碰了认证/API/mock 等关键模块，加跑单测 + mock 模式冒烟**——`build` 通过 ≠ 行为正确，签名/权限/路由的回归编译期发现不了。
-- **Phase 5 收尾**：git 审阅 + 提交（消息建议 `chore: 升级 ThirdNet 模板至 <新版本>`），按 [commands-and-report](references/commands-and-report.md) 输出报告。
+- **Phase 4 验证**：构建必须通过（后端 `dotnet build`；前端 `npm run build`），再 `check` 确认已是最新；**若本次升级触碰了认证/API/mock 等关键模块，加跑单测 + mock 模式冒烟**——`build` 通过 ≠ 行为正确，签名/权限/路由的回归编译期发现不了。此外，apply 后必须核对「实际套用/新增文件数」与 Phase 2 diff 预期是否一致；若 `.template-version.json` 已前进但实际变更文件数远少于预期（甚至为 0），视为升级异常，**不得收尾、不得建议落库**，退回 Phase 2 按命名空间/占位符/清单/基线重新诊断。
+- **Phase 5 收尾**：审阅改动汇总、确认产物文件更新、按 [commands-and-report](references/commands-and-report.md) 输出升级报告，并**列出建议的落库操作但交用户执行**；git 与 svn 各给命令示例，agent 不得自动执行 `git commit` 或 `svn commit`。消息建议：`chore: 升级 ThirdNet 模板至 <新版本>`。
 
 ## 全栈协同升级（两端都有时）
 

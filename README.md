@@ -48,9 +48,9 @@ Vue 3 前端开发助手，支持 Web 端和移动端。
 
 将 Markdown 文件转换为 Word (.docx) 文件，支持标题、粗体、斜体、代码、列表、表格等格式。
 
-### thirdnet-template-upgrade (v0.1.0)
+### thirdnet-template-upgrade (v0.4.0)
 
-ThirdNet 后端模板升级操作指南——用 `thirdnet-migrate` CLI 把已生成的后端项目（admin/service）升级到最新模板版本。覆盖预检、check/diff/apply 主流程、文件 6 态分类、冲突逐个决策、回滚预案与禁止事项。
+ThirdNet 模板升级操作指南（前后端通用）——把已生成的 ThirdNet 项目升级到最新模板版本：后端用 `thirdnet-migrate` CLI（admin/service），前端用 `npx create-thirdnet-admin check/diff/apply`。覆盖预检、check/diff/apply 主流程、文件状态分类（后端 6 态/前端 4 态）、冲突逐个决策、清单/基线模式、override 品牌文件人工集成、离线流程、版本漂移、回滚预案与禁止事项。
 
 ## 安装
 

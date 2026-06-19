@@ -4,21 +4,28 @@
 
 ## 第 8 章 回滚预案
 
-> 本预案对**前后端两条轨道都适用**——两端都用 git 作第一道保险、`.thirdnet-backup/<时间戳>/` 作第二道，备份目录名也相同。
+> 本预案对**前后端两条轨道都适用**——两端都用 VCS 工作区作为第一道保险、`.thirdnet-backup/<时间戳>/` 作第二道，备份目录名也相同。下文分别给出 git 与 svn 的操作。
 
-升级出问题时的回滚优先级（从最可靠到兜底）：
+升级出问题时的回滚优先级（从最可靠到兜底）。**注意：本技能 Phase 5 已不允许 agent 自动提交，因此升级改动在回到本节时通常仍未落库。**
 
-1. **首选（最干净）：`git reset --hard <升级前 commit>`** —— 因 Phase 0 已保证工作区干净，这是最可靠的一键回滚。前提是升级前那次 commit 的哈希已记录（前端 Phase 0.4 已要求记下）。
-2. **工具自动备份**：`.thirdnet-backup/<时间戳>/` 下有被覆盖文件的原始副本（文件名是原路径的扁平化）。逐个还原即可，但不如 git 干净。
+1. **首选（最干净）：还原未提交的升级改动**
+   - git：`git reset --hard <升级前 commit>` —— 前提是 Phase 0.4 已记下升级前 commit 哈希。
+   - svn：`svn revert -R .` 回退所有已修改文件；**新增但未 `svn add` 的文件不会被 revert 删除**，需手动 `rm` 掉工具新增的 `📄 Added` 文件（可用 `svn status` 看 `?` 标记）。
+2. **工具自动备份**：`.thirdnet-backup/<时间戳>/` 下有被覆盖文件的原始副本（文件名是原路径的扁平化）。逐个还原即可，但不如 VCS 回滚干净。
 3. **回滚文件时务必一并还原版本标记文件**，否则下次 diff 的基准会错乱——这些文件定义了「当前是什么版本」，错乱会让后续升级全乱：
    - 两端都要还原 `.template-version.json`；
    - **后端**还要还原 `.template-manifest.json`（前端没有此文件）。
+
+> 若已不慎被 agent 自动提交进 VCS（例如使用旧版技能），则：
+> - git：`git revert <升级后 commit>` 或 `git reset --hard <升级前 commit>` 后强制推送（若仅本地）。
+> - svn：`svn merge -c -<升级 revision> .` 进行反向合并后 `svn commit`；或 `svn update -r <旧 revision>` 到旧版本再处理。
 
 ### 备份目录的归宿
 
 `.thirdnet-backup/<时间戳>/` 是工具的第二道保险，**不必进版本库**：
 
-- 应把它加入项目 `.gitignore`（git 已是第一道保险，备份再进 git 会污染历史，且 `git reset --hard` 回滚时备份仍残留在新 commit 里）。注意：前端模板自带的 `.gitignore` 当前**未**忽略它，创建项目后要手动补一行 `.thirdnet-backup/`。
+- git：加进 `.gitignore`（git 已是第一道保险，备份再进 git 会污染历史，且 `git reset --hard` 回滚时备份仍残留在新 commit 里）。注意：前端模板自带的 `.gitignore` 当前**未**忽略它，创建项目后要手动补一行 `.thirdnet-backup/`。
+- svn：把 `.thirdnet-backup/` 加到 `svn:ignore` 属性，例如 `svn propset svn:ignore ".thirdnet-backup" .` 后提交。
 - 升级成功、`check` 报"已是最新"、且 Phase 4 验证通过后，本次及历史的 `.thirdnet-backup/<时间戳>/` 即可删除——回滚才需要备份，已验证提交的升级，备份已失价值。
 
 ## 第 9 章 禁止事项清单（DO NOT）
@@ -27,14 +34,14 @@
 
 ### 通用红线（前后端）
 
-- ❌ **用 `--force` 批量覆盖含业务逻辑的文件。** `--force` 绕过逐个确认 = 盲覆盖，业务代码一旦被覆盖、git 又没及时回滚就丢失。后端的 ⚠️ `Conflict`、前端的 ⚠️ 需确认文件都适用。
+- ❌ **用 `--force` 批量覆盖含业务逻辑的文件。** `--force` 绕过逐个确认 = 盲覆盖，业务代码一旦被覆盖、VCS 又没及时回滚就丢失。后端的 ⚠️ `Conflict`、前端的 ⚠️ 需确认文件都适用。
 - ❌ **手动删除任何用户文件（即便模板删了它）。** 模板删文件可能只是重构，用户项目里那文件可能仍承载业务。两端 apply 的「仅提示永不删」是有意为之。
 - ❌ **手动改命名空间/占位符引用。** 工具在比对前会自动替换——后端是 `ThirdNetVibe` 命名空间与 `VIBE_*` 占位符，前端是 `__BRAND_*__` / `__PROJECT_NAME__` / `__API_PROXY_TARGET__` 品牌 token。手动改会让干净的安全更新变成假冲突，制造混乱。
-- ❌ **在 git 工作区不干净时升级。** 干净工作区是第一道回滚保险，脏工作区会让 `git reset --hard` 连未提交的工作一起冲掉。前端工具只警告不阻断，所以更要靠自觉。
+- ❌ **在 VCS 工作区不干净时升级。** 干净工作区是第一道回滚保险，脏工作区会让一键回滚连未提交的工作一起冲掉。git 用 `git status --porcelain`、svn 用 `svn status` 检查。前端工具只警告不阻断，所以更要靠自觉。
 - ❌ **跳过 `diff` 直接 `apply`。** diff 是唯一让你看清「将要发生什么」的只读预览，跳过等于盲操作。
 - ❌ **升级到尚未发布到注册表的模板版本。** 后端发到 NuGet（可用 `--nupkg` 离线）；前端发到 Verdaccio（无离线）。未发布的改动拿不到，强行升级只会得到旧模板。
-- ❌ **升级后不跑构建验证就提交。** 后端 `dotnet build`、前端 `npm run build`——合并改动最易引入编译/类型错误，提交前必须通过。
-- ❌ **把 `.thirdnet-backup/` 提交进 git。** 它是工具的第二道保险，git 已是第一道；进版本库只会污染历史（且 `git reset --hard` 回滚时它仍残留）。加进 `.gitignore`。
+- ❌ **升级后不跑构建验证就交付落库。** 后端 `dotnet build`、前端 `npm run build`——合并改动最易引入编译/类型错误，落库前必须通过。
+- ❌ **把 `.thirdnet-backup/` 提交进版本库。** 它是工具的第二道保险，VCS 已是第一道；进版本库只会污染历史（且 `git reset --hard` / `svn revert` 回滚时它仍残留）。git 加 `.gitignore`，svn 加 `svn:ignore`。
 
 ### 后端专属红线
 
@@ -45,4 +52,4 @@
 - ❌ **用 `--force` 对 `src/views/` 等业务文件批量套用。** 前端唯一的"非交互"手段就是 `--force`，它会把你改过的业务文件当安全文件盲覆盖——业务页面上用 `--force` 等同丢代码。
 - ❌ **覆盖 4 个 override 品牌文件而不手动合并。** `package.json` / `vite.config.ts` / `index.html` / `src/config/brand.ts` 被工具自动跳过是有意的；要升级它们必须对照 diff 手动合并（尤其 `package.json` 的依赖版本），不能直接用模板版覆盖你的定制。
 - ❌ **手改 `.template-version.json.tokens` 或品牌占位符。** 这些由工具自动维护/替换，手改会制造伪冲突（见 edge-cases F.7）。
-- ⚠️ **`.thirdnet-backup/` 不在前端 CLI 的忽略列表**——下次 `diff`/`apply` 会扫描到它（里面的文件通常与 reference 同源、判 Unchanged，无害但会出现在统计里）。因此更要把它 `.gitignore` 掉，避免它随升级反复堆积。
+- ⚠️ **`.thirdnet-backup/` 不在前端 CLI 的忽略列表**——下次 `diff`/`apply` 会扫描到它（里面的文件通常与 reference 同源、判 Unchanged，无害但会出现在统计里）。因此更要把它加入 VCS 忽略（git `.gitignore` / svn `svn:ignore`），避免它随升级反复堆积。
