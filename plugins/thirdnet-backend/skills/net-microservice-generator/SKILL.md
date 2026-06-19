@@ -47,10 +47,7 @@ dotnet new thirdnet-service -n {ServiceName}
 # 仅当 -n 无法正确推导出 Admin 前缀时才需显式传入：
 dotnet new thirdnet-service -n {ServiceName} --AdminName {ProjectName}
 
-# 可选：指定框架库版本（默认即模板内置值 0.0.23，通常无需指定）
-dotnet new thirdnet-service -n {ServiceName} \
-  --VibeCommonVersion 0.0.23 \
-  --VibeWebAPIVersion 0.0.23
+# 框架库版本以模板 `Directory.Build.props` 为准，通常无需指定
 ```
 
 ### 解决方案文件管理
@@ -115,17 +112,9 @@ backend/
         └── Models/                     # 空，待开发
 ```
 
-## 模板升级（ThirdNet.Migrate）
+## 模板升级
 
-`ThirdNet.Migrate` 是随模板提供的**模板升级 CLI**（**不是数据库迁移工具**），用于让已生成的项目跟进模板的新版本——避免模板修复了 bug 或改进了结构后，旧项目无法同步。
-
-```bash
-thirdnet-migrate check                       # 检查 NuGet 源上模板是否有新版本
-thirdnet-migrate diff                        # 下载最新模板、替换 sourceName、预览与当前项目的差异
-thirdnet-migrate apply                       # 应用差异到当前项目（支持 --dry-run / --force / --non-interactive）
-```
-
-内部经 `ProjectScanner`→`TemplateExtractor`→`SourceNameReplacer`→`FileDiffer`→`MigrationPreparer` 完成「扫描→下载→替换项目前缀→三方 diff→应用」。**先用 `diff` 预览、确认无误再 `apply`**；生产项目务必先提交 Git 以便回滚。
+模板升级（`thirdnet-migrate`）的完整流程见 `thirdnet-template-upgrade` 技能（单一事实来源）。
 
 ## ServiceDbContext
 
@@ -193,46 +182,13 @@ public void ConfigureServices(IServiceCollection services)
 
 **与 Admin 的区别**：
 - Service 不注册 `IAccountValidator`（用户认证由 Admin 处理）
-- Service 不注册 `OperLogFilter`（操作日志由 Admin 处理）
+- Service 不注册 `OperLogFilter`、其端点也不加 `[OperLog]` 特性（操作日志统一由 Admin 处理）
 - Service 使用 `ServiceDbContext` 而非 `AdminDbContext`
 - CacheDbContext 使用 Admin 的 `DefaultConnectionString`
 
-## 中间件执行顺序
+## 框架管道与中间件
 
-`UseThirdNetMvc` 内部中间件执行顺序：
-
-| 序号 | 中间件 | 说明 |
-|-----|-------|------|
-| 1 | `UseForwardedHeaders` | 处理反向代理头 |
-| 2 | `UseRateLimiter` | 限流（`AddThirdNetIpAndApplicationPathRateLimiting` 注册的固定窗口） |
-| 3 | `UseThirdNetUseExceptionHandler` | 全局异常处理 |
-| 4 | `UseRouting` | 路由匹配 |
-| 5 | `RequestLoggerMiddleware` | 访问日志记录 |
-| 6 | `UseAuthentication` | 认证中间件 |
-| 7 | `UseAuthorization` | 授权中间件 |
-| 8 | `AccountTokenCheckMiddleware` | Token 有效性检查 |
-| 9 | `MapControllers` | 映射控制器路由 |
-
-**注意**：不要在 `UseThirdNetMvc` 外部手动添加认证/授权中间件，会导致重复执行。
-
-## AddThirdNetMvcWithPostgresql 内部注册
-
-`AddThirdNetMvcWithPostgresql` 是框架核心注册方法，一次调用自动注册以下组件：
-
-| 分类 | 注册内容 | 说明 |
-|------|---------|------|
-| MVC | `CustomExceptionFilter` | 全局异常，`WebApiException` 返回对应 HTTP 状态码 |
-| MVC | `ValidateModelAttribute` | 自动校验 ModelState |
-| MVC | JSON 序列化 | 小写策略 + DateTime 转换器 |
-| 认证 | Basic + Bearer | 双层认证 |
-| 授权 | 四个策略 | Default、Logon、Basic、Both |
-| 授权 | 通配符授权 | 支持角色通配符 `*` |
-| 缓存 | 应用/IP/角色缓存 | 内存缓存 |
-| 日志 | 访问日志 + 后台日志 | 批量写入 |
-| 批量 | `IDbAsyncBulk` | PostgreSQL 批量操作（Transient） |
-| 其他 | `ICheckClient`/`IAccountTokenTimeCache` 等 | 客户端签名、Token 检测 |
-
-> **Redis 不在此方法内注册**。Redis 需通过 `AddRedisExtensionService` 单独注册，且必须在 `AddThirdNetMvcWithPostgresql` 之前调用。
+`AddThirdNetMvcWithPostgresql` 自动注册的组件清单、`UseThirdNetMvc` 中间件执行顺序见 [framework-pipeline.md](references/framework-pipeline.md)——Service 与 Admin 共用同一套框架管道，了解执行顺序有助于排查认证/授权问题。
 
 ## Redis 配置
 
@@ -335,7 +291,7 @@ dotnet ef database update \
 
 ## 相关技能
 
-- **backend-workflow**：后端开发入口与文档驱动开发流程（**编码前确认 `backend/spec.md` 已存在并已阅读**，否则文档驱动流程会被跳过）
+- **backend-workflow**：后端开发入口与文档驱动流程（→ 见该技能）
 - **net-efcore-developer**: 数据库实体开发
 - **net-api-developer**: API 接口开发
 - **net-cache-use**: 缓存集成

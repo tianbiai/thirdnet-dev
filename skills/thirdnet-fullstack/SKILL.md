@@ -8,7 +8,7 @@ description: >
   适用于新增完整 Admin 模块、修改跨前后端 API 契约、排查前后端数据格式不一致。
 license: MIT
 metadata:
-  version: "1.5.2"
+  version: "1.5.3"
   author: thirdnet
 ---
 
@@ -86,7 +86,7 @@ metadata:
 
 5. **README.md**：在项目根创建 `README.md`，记录三端协调说明与目录布局（指向 `backend/` 与 `frontend/{web,minigram}/`）。
 
-模板内置 19 个管理端模块（用户/角色/菜单/部门/字典/配置/权限/操作日志/缓存/在线用户/API Key + API 应用/服务/操作/黑白名单/角色/访问日志 + 认证授权），功能固定无需澄清。创建后如需新增**业务模块**，再进入下面的全栈功能开发流程。
+模板内置约 19 个管理端模块（以模板实际为准，模块清单见 `admin-template-setup` 技能；前后端 Controller↔API 模块映射见本技能的 [admin-module-mapping](references/admin-module-mapping.md)），功能固定无需澄清。创建后如需新增**业务模块**，再进入下面的全栈功能开发流程。
 
 ## 全栈功能开发流程
 
@@ -107,30 +107,21 @@ metadata:
 
 前端阶段完成后，页面已可通过 Mock 数据独立运行和验证交互。
 
-**步骤 6 详细指引**：Admin 模板提供了完整的 CRUD 页面开发基础设施，新增页面时必须复用：
+**步骤 6 详细指引**：Admin 模板提供了完整的 CRUD 页面开发基础设施，新增页面时复用既有 composables / 组件（`useCrudTable`、`PaginationBar`、`useDialogFocus`、`validators`、`confirmAction`、`formatDateTime` 等，并遵守「禁止手写 `usePagination + useActionLoading` 样板」「禁止直接使用 `el-pagination`」等约束）。
 
-- **useCrudTable\<T, Q\>**（`src/composables/useCrudTable.ts`）：分页 + 搜索 + 防抖 + 加载 + 删除一体化，禁止手写 `usePagination + useActionLoading + debounced search` 样板
-- **PaginationBar**（`src/components/PaginationBar.vue`）：统一分页栏组件，禁止直接使用 `el-pagination`
-- **useDialogFocus**（`src/composables/useDialogFocus.ts`）：弹窗焦点管理
-- **validators**（`src/utils/validators.ts`）：`requiredRule`、`requiredSelectRule` 等表单验证规则工厂
-- **confirmAction**（`src/utils/confirm.ts`）：二次确认对话框（`useCrudTable.remove()` 已内置）
-- **formatDateTime**（`src/utils/format.ts`）：日期时间格式化
-
-完整开发指南参见 `admin-template-setup` 技能的 [crud-page-development-guide](../../plugins/thirdnet-frontend/skills/admin-template-setup/references/crud-page-development-guide.md)。
+具体清单与使用方式以 `admin-template-setup` 为权威源，参见 [crud-page-development-guide](../../plugins/thirdnet-frontend/skills/admin-template-setup/references/crud-page-development-guide.md)。
 
 **标准参考实现**：`src/views/api/blacklist/index.vue`
 
 ### 后端阶段（跟随前端契约）
 
-根据前端定义的接口契约，在后端实现对应的 API：
+后端阶段的完整步骤（实体 → 缓存 → DTO/Service/Controller → 权限 → DI 注册 → 菜单/路由数据配置）委派给 `backend-workflow` 的「功能开发流程」执行，本技能不复述。要点：
 
-| 步骤 | 内容 | 调用技能 | 产出文件 |
-|------|------|---------|---------|
-| 7 | 定义实体 + 配置 + 迁移 | `net-efcore-developer` | Models + Configurations + Migration |
-| 8 | 缓存视图 + 缓存域 | `net-cache-use` | View 模型 + Cache 域 |
-| 9 | Service + DTO + Controller | `net-api-developer` | 按前端契约实现 API，DTO 字段与前端类型一一对应 |
-| 10 | 权限定义 + DI 注册 | `net-rbac` | 权限字符串（如 `sys:notice:list/add/edit/remove`）+ `Startup.cs` 第 9 步注册 |
-| 11 | 菜单/路由数据配置 | `net-rbac`（菜单树设计）+ 运行中的 Admin | 在 `t_sys_menu` 插入目录/页面/按钮三级菜单条目（含 `permission`），启动后经 `PermissionCatalog` 自动同步；可写种子数据或用运行中的 `MenuManagerController` 维护。**这不是一个技能，而是数据配置** |
+- 前端先定义的接口契约（`I{Entity}Api`）和数据类型是后端实现依据，DTO 字段须与前端类型一一对应
+- 权限字符串格式 `{module}:{entity}:{action}`（如 `sys:notice:list/add/edit/remove`），DI 注册位于 `Startup.cs`
+- 菜单/路由为**数据配置**（非技能）：在 `t_sys_menu` 插入目录/页面/按钮三级菜单条目（含 `permission`），启动后经 `PermissionCatalog` 自动同步
+
+详细步骤表见 [backend-workflow 功能开发流程](../../plugins/thirdnet-backend/skills/backend-workflow/SKILL.md)。
 
 后端 API 开发完成后，前端切换 `VITE_MOCK_ENABLED=false` 即可对接真实 API。
 
@@ -214,17 +205,9 @@ const canModify = computed(() => hasPermiOr(['sys:notice:edit', 'sys:notice:remo
 
 ## 共享 API 约定
 
-以下约定是前后端必须共同遵守的 API 契约。两端的技能各自独立描述这些约定，此处列出作为协调参考。前端定义接口契约时必须遵循这些约定，后端实现时保持一致：
+两端工作流各自独立描述这些契约，此处仅作协调要点提示：API 仅允许 GET/POST（网关限制）、字段统一 snake_case、成功响应直接返回 JSON 不做包装、认证采用 JWT（国密 SM2）+ HMAC-SM3 Basic Auth + API-Key 三 scheme（登录/刷新走 `/api/manager/auth/login`、`/api/manager/auth/refresh`，非 IdentityServer）。
 
-| 约定 | 说明 | 后端出处 | 前端出处 |
-|------|------|---------|---------|
-| 仅 GET / POST | API 网关限制，不允许 PUT/DELETE/PATCH | `net-api-developer` | `api-typescript-spec` |
-| snake_case 字段 | 所有 API 字段名使用 snake_case | `backend-workflow` 代码规范速查 | `api-typescript-spec` 核心约定 |
-| 无响应包装 | 成功直接返回 JSON，不用 `{code, message, data}` | `net-api-developer` | `api-typescript-spec` |
-| HTTP 状态码错误 | 401/403/404/500 区分错误类型 | `net-api-developer` | `api-typescript-spec` |
-| DTO Map 后缀 | 后端 `{Entity}{Action}Map` | `net-api-developer` | `api-typescript-spec` URL 命名规范 |
-| 路由格式 | `/api/{endpoint}/{module}/{action}` | `net-api-developer` | `api-typescript-spec` URL 命名规范 |
-| 认证方式 | JWT（国密 SM2 签名）+ HMAC-SM3 Basic Auth（登录/刷新）+ API-Key 三 scheme；登录/刷新走 `/api/manager/auth/login`、`/api/manager/auth/refresh`，**非 IdentityServer `/connect/token`** | `net-authentication` | `api-typescript-spec` 认证模块 |
+完整约定（响应包装细节、HTTP 状态码语义、DTO `Map` 后缀规则、路由格式 `/api/{endpoint}/{module}/{action}`、认证流程等）以两端工作流为权威源：[`backend-workflow`](../../plugins/thirdnet-backend/skills/backend-workflow/SKILL.md) 与 [`frontend-workflow`](../../plugins/thirdnet-frontend/skills/frontend-workflow/SKILL.md)（及 `net-api-developer`、`net-authentication`、`api-typescript-spec` 子技能）。
 
 ## 约定同步检查清单
 
@@ -242,32 +225,6 @@ const canModify = computed(() => hasPermiOr(['sys:notice:edit', 'sys:notice:remo
 
 ## Admin 模板模块对照表
 
-模板内置 19 个管理端模块，前端 `api/modules/manager/` 与后端 `Controllers/Manager/` 基本一一对应：
+Admin 模板内置约 19 个管理端模块（以模板实际为准），前端 `api/modules/manager/` 与后端 `Controllers/Manager/` 基本一一对应。完整对照表（含 Controller 命名模式、权限字符串约定、「在线用户」合并说明）见 [admin-module-mapping](references/admin-module-mapping.md)。
 
-| 模块 | 后端 Controller | 前端 API 模块 |
-|------|----------------|--------------|
-| 认证 | `AuthManagerController`（`/api/manager/auth/login`、`/api/manager/auth/refresh` 等；JWT 国密 SM2 + HMAC-SM3 Basic + API-Key 三 scheme，由 `ThirdNet.Vibe.WebAPI` 框架内置，**非 IdentityServer**） | `api/modules/manager/auth.ts`、`src/utils/basicAuth.ts`（`sm-crypto`） |
-| 用户管理 | `UserManagerController` | `api/modules/manager/user.ts` |
-| 角色管理 | `RoleManagerController` | `api/modules/manager/role.ts` |
-| 菜单管理 | `MenuManagerController` | `api/modules/manager/menu.ts` |
-| 部门管理 | `DeptManagerController` | `api/modules/manager/dept.ts` |
-| 字典管理 | `DictManagerController` | `api/modules/manager/dict.ts` |
-| 配置管理 | `SysConfigManagerController` | `api/modules/manager/config.ts` |
-| 权限管理 | `PermissionManagerController` | `api/modules/manager/permission.ts` |
-| 操作日志 | `OperLogManagerController` | `api/modules/manager/oper-log.ts` |
-| 缓存管理 | `CacheAdminManagerController` | `api/modules/manager/cache.ts` |
-| API Key | `ApiKeyManagerController` | `api/modules/manager/api-key.ts` |
-| API 应用 | `ApiApplicationManagerController` | `api/modules/manager/api-application.ts` |
-| API 服务 | `ApiServiceManagerController` | `api/modules/manager/api-service.ts` |
-| API 操作 | `ApiActionListManagerController` | `api/modules/manager/api-action.ts` |
-| IP 黑名单 | `ApiBlacklistManagerController` | `api/modules/manager/api-blacklist.ts` |
-| IP 白名单 | `ApiWhitelistManagerController` | `api/modules/manager/api-whitelist.ts` |
-| API 角色 | `ApiRoleManagerController` | `api/modules/manager/api-role.ts` |
-| 访问日志 | `ApiVisitLogManagerController` | `api/modules/manager/api-visitlog.ts` |
-| 文件上传/下载 | `CommonManagerController`（通用接口，无前端独立模块） | — |
-
-> **关于"在线用户"**：前端保留 `api/modules/manager/online-user.ts`，但其列表/强退功能在后端**没有独立控制器**——已合并进 `UserManagerController`（`/api/manager/user/heartbeat`、`/api/manager/user/kick`）+ `OnlineUserService` + `OnlineUserHeartbeatLogger` 后台任务；前端 `online-user.ts` 现仅保留心跳上报，列表/强退调用走 `user.ts`。新增业务模块时不要照搬一个"在线用户控制器"。
-
-新增业务模块时，参考此对照表的命名模式。
-
-> 上述 Controller 命名遵循 `{Entity}ManagerController` 模式（多数系统/业务实体**不带** `Sys` 前缀，仅 `SysConfigManagerController` 等个别带前缀——以生成代码实际类名为准），权限字符串遵循 `{module}:{entity}:{action}` 格式。
+新增业务模块时，参考该对照表的命名模式。

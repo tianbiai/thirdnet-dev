@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.27.1 - 2026-06-19
+
+### Changed
+- 全插件技能去冗余/重复/冲突，确立「单一事实来源 + 指针引用」结构：
+  - `net-efcore-developer` 成为 `IDbContextFactory<T>` / 双数据库对照 / Fluent API（`[DbBulk]` 唯一例外）/ snake_case 命名的权威源；`net-api-developer`、`net-cache-use`、`net-background-job`、`net-database-bulkcopy`、`backend-workflow` 中相关复述改为指针
+  - `net-cache-use` 成为 `UserCacheInvalidation.InvalidateUserAuthAsync` 规则的权威源；`net-authentication`「触发失效」指针由 `net-api-developer` 更正为 `net-cache-use`
+  - `net-rbac` 成为授权策略（Default/Logon/Basic/Both）、`[PermissionAuthorize]`/`[ProviderAuthorize]`、权限字符串格式的权威源；`net-authentication`「授权策略」整章改为指针，仅保留认证（JWT 签发/校验/HttpContext）内容
+  - `backend-workflow`「代码规范速查」由复述表改为「要点 + 见技能」索引；「双数据库架构」表改为指针；Service 创建命令委派 `net-microservice-generator`（消除 `--AdminName` 写法分歧）
+- 冲突修复：
+  - `net-microservice-generator` 删除硬编码 `--VibeCommonVersion 0.0.23`，统一为「以模板 `Directory.Build.props` 为准」
+  - `net-microservice-generator` 错误的 `OperLogFilter` 命名更正为「Service 不再为变更端点加 `[OperLog]` 特性」
+- 长内容下沉到 references/：
+  - 新增 `net-microservice-generator/references/framework-pipeline.md`（承接 `AddThirdNetMvcWithPostgresql` 注册清单 + `UseThirdNetMvc` 中间件顺序）
+  - 新增 `net-authentication/references/crypto-catalog.md`（承接 `AddCrypto` 注册 + 算法族对应表）；`net-authentication` 80 行 `AdminAccountValidator` 源码清单改为接口签名 + 职责要点
+  - `net-microservice-generator`「模板升级」整章改为指向 `thirdnet-template-upgrade` 的指针
+- 9 个技能末尾逐字重复的「backend-workflow：…编码前确认 `backend/spec.md`」长句统一精简为单行指针
+
+### Added
+- `plugin.json` 版本号 0.27.0 → 0.27.1，与 `marketplace.json` 对齐
+
 ## 0.27.0 - 2026-06-19
 
 ### Changed

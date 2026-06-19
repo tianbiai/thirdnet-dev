@@ -8,7 +8,7 @@ description: >
   以保证代码与文档一致。
 license: MIT
 metadata:
-  version: "2.2.0"
+  version: "2.3.0"
   author: thirdnet
 ---
 # 前端开发工作流
@@ -48,16 +48,7 @@ metadata:
 - **简单优先** —— 最少代码、无推测设计，不为假设的未来需求预留扩展
 - **精准修改** —— 只改必须改的，匹配现有风格，不做附带清理
 - **目标驱动执行** —— 定义成功标准，每步验证是否向目标推进
-- **模板功能代码保护** —— 通过 admin 模板创建的项目，禁止修改模板内置系统管理和 API 管理模块的**业务逻辑代码**。这些模块由模板统一维护，修改业务逻辑会导致后续模板升级冲突。
-  - **受保护的文件范围**：
-    - `src/views/system/` 和 `src/views/api/` 中的 `<script setup>` 逻辑、组件嵌套关系、事件处理
-    - 对应的 API 模块 `src/api/modules/manager/`
-    - 对应的 Mock 数据 `src/mock/data/manager/`
-    - 核心路由框架 `src/router/`
-    - 认证相关 `src/stores/auth.ts`、`src/utils/token.ts`、`src/api/adapter.web.ts`
-  - **允许的修改**：模板页面的样式调整（`<style scoped>` 中的 CSS/SCSS、布局间距、配色、字体等纯视觉表现）
-  - **正确的业务扩展方式**：在 `src/views/` 下新建业务目录、在 `src/api/modules/` 下新建业务 API 模块、通过后端菜单配置注册新页面路由
-  - **当用户请求修改模板模块的业务逻辑时**：说明保护规则，建议替代方案（如通过后端配置扩展、或在新建的业务模块中封装扩展逻辑）
+- **模板功能代码保护** —— → 模板内置模块（`src/views/system/`、`src/views/api/`、`src/api/modules/manager/`、`src/mock/data/manager/`、`src/router/`、`src/stores/auth.ts`、`src/utils/token.ts`、`src/api/adapter.web.ts` 等）业务逻辑受保护、不可修改，仅允许 `<style scoped>` 视觉调整；扩展业务应新建独立模块。详见 `admin-template-setup`「核心原则」。
 
 ## 代码注释规范
 
@@ -253,96 +244,39 @@ metadata:
 
 - **Pinia 版本选择**：Vue 3.5+ / Vite 8+ 项目使用 Pinia 3.x（以 npm 最新稳定版为准）；Vue 3.4 / uniapp 项目使用 Pinia 2.x
 - **TypeScript 强制**：所有代码 `.ts` 扩展名，Vue 组件 `<script setup lang="ts">`，禁止 `.js`
-- **枚举规范**：**纯前端常量**用 `enum` 关键字 + JSDoc 注释，禁止 union type 或 const object；**后端字典驱动字段**不定义 TS enum，字段类型直接用 `number`（枚举字典）/ `string`（自定义字典），下拉走 `useDict` / `getDictDataByType`（详见 `api-typescript-spec` 约定 #7、`vue-enum-dict`）
+- **枚举规范**：→ 枚举/字典规范见 `api-typescript-spec`（约定 #7：纯前端常量才用 TS enum）与 `vue-enum-dict`（int/string 字典字段用法）
 - **移动端**：开发用 H5 模式，最终发布微信小程序，代码须兼容 H5 + 小程序
 
 ## API 策略工厂架构
 
-所有 API 模块必须遵循接口契约策略工厂模式（`IXxxApi` + `RealXxxApi` + `MockXxxApi` + `createXxxApi()`），通过 `.env.*` 中 `VITE_MOCK_ENABLED` 无缝切换。详细规则见 `api-typescript-spec` 技能。
+所有 API 模块采用接口契约策略工厂模式（`IXxxApi` + `RealXxxApi` + `MockXxxApi` + `createXxxApi()`），通过 `VITE_MOCK_ENABLED` 切换。完整规范见 `api-typescript-spec`。
 
-## 演示模式
+## 演示模式与生产剥离
 
-`VITE_MOCK_ENABLED` 控制开发/演示模式，生产构建自动排除 Mock 代码（详见 `api-typescript-spec` 的「生产构建排除机制」）。
+`VITE_MOCK_ENABLED` 控制开发/演示模式（`true`=演示走 Mock、`false`=生产走真实 API）；生产构建经 `mockDataStripPlugin` + tree-shaking 自动剥离 Mock。每个页面右上角必须有 HelpBubble（Web 用 `ElPopover`/`QuestionFilled`，移动端用 `van-popup`/`uni.showModal`），用 `v-if="MOCK_ENABLED"` 而非 `v-show`；辅助文案须用 `MOCK_ENABLED` 条件守卫让生产构建彻底移除（不能仅靠 `v-if`）。
 
 | 模式 | MOCK_ENABLED | 帮助气泡 | 数据来源 |
 | ---- | ------------ | -------- | -------- |
 | 演示 | `true` | 右上角显示 | Mock 数据 |
 | 生产 | `false` | `v-if` 不渲染（禁 `v-show`） | 真实 API |
 
-### HelpBubble
+> Admin 模板项目例外：使用单一 `.env` 文件，详见 `admin-template-setup`。
 
-每个页面右上角必须有 HelpBubble（问号图标），点击显示功能说明。
-
-- **Props**：`content: string`（帮助内容）、`placement?: string`（弹出位置，默认 `'bottom-end'`）
-- **Web 端**：`ElPopover` + `ElIcon` + `QuestionFilled`，添加 `v-if="MOCK_ENABLED"`
-- **移动端**：`van-popup` 或 `uni.showModal`，添加 `v-if="MOCK_ENABLED"`
-
-### 开发提示文案生产环境剥离
-
-帮助气泡文案、操作提示、开发辅助说明等仅用于演示/调试的文本，不能仅靠 `v-if` 隐藏——字符串本身仍会进入生产 JS bundle。必须通过 `MOCK_ENABLED` 条件守卫，让 Vite 在生产构建时通过 dead code elimination 彻底移除（`MOCK_ENABLED` 在生产环境为静态 `false`，触发 Rollup tree-shaking）：
-
-```typescript
-// ✅ 正确：MOCK_ENABLED 生产构建时静态为 false，整个分支被 tree-shake 掉
-const helpContent = MOCK_ENABLED
-  ? '本页面用于管理订单，支持筛选、导出和批量操作'
-  : ''
-
-// ❌ 错误：字符串字面量会被直接打包进生产 bundle
-const helpContent = '本页面用于管理订单，支持筛选、导出和批量操作'
-```
-
-适用于所有仅面向开发/演示的辅助文本，包括但不限于 HelpBubble 的 `content` prop。
+> 完整 `mockDataStripPlugin` 源码、tree-shaking 原理与文案剥离代码示例见 `api-typescript-spec` 的 [mock-stripping.md](../api-typescript-spec/references/mock-stripping.md)。
 
 ## 项目特定规范
 
 ### 按钮防重复点击
 
-> **Admin 模板项目优先使用 useCrudTable / useActionLoading**：模板内置的 `useCrudTable` 和 `useActionLoading` 已封装操作锁机制（`isLoading` / `isAnyLoading` / `withLoading`）。在 Admin 模板中开发 CRUD 页面时，使用 `useCrudTable` 返回的操作锁替代手动管理 loading 状态。以下手动模式适用于非 Admin 模板项目或 Admin 模板中非 CRUD 场景。
+> **Admin 模板项目优先**：CRUD 页面用 `useCrudTable`，操作锁用 `useActionLoading`（`isLoading` / `isAnyLoading` / `withLoading`），禁止手写样板。详见 `admin-template-setup`。下方手动模式适用于非 Admin 模板项目或 Admin 中非 CRUD 场景。
 
-所有可交互按钮必须具备防重复点击机制，根据场景选择合适的策略：
+所有可交互按钮必须具备防重复点击机制：
 
-| 场景 | 推荐策略 | 说明 |
-| ---- | -------- | ---- |
-| 表单提交、删除确认等触发 API 的操作 | **Loading + disabled** | 首选方案，点击后立即 disable 并显示 loading，请求完成后恢复 |
-| 搜索输入、筛选切换 | **防抖（Debounce）** | 停止操作后才触发，连续操作只执行最后一次（300-500ms） |
-| 导出、下载等短时操作 | **节流（Throttle）** | 指定时间窗口内只允许触发一次（如 1000ms） |
-| 纯前端切换（展开/折叠、Tab 切换） | **节流（Throttle）** | 短时间内防止重复触发状态变更（300ms） |
+- **API 调用按钮（表单提交/删除确认等）** → Loading + disabled（点击即 disable，`try/finally` 恢复，`loading`/`disabled` 绑同一变量）—— Web 用 `:loading`/`:disabled`，移动端 Vant 同理可加 `loading-text`
+- **搜索输入/筛选切换** → 防抖 Debounce（300-500ms）
+- **导出/下载、纯前端 Tab 切换** → 节流 Throttle（300-1000ms）
 
-**Loading + disabled 模式（首选，适用于所有 API 调用按钮）：**
-
-Web 端（Element Plus）：
-```vue
-<el-button :loading="submitting" :disabled="submitting" @click="handleSubmit">
-  提交
-</el-button>
-
-<script setup lang="ts">
-const submitting = ref(false)
-
-async function handleSubmit() {
-  if (submitting.value) return
-  submitting.value = true
-  try {
-    await api.submit(formData)
-  } finally {
-    submitting.value = false
-  }
-}
-</script>
-```
-
-移动端（Vant）：
-```vue
-<van-button :loading="submitting" :disabled="submitting" loading-text="提交中..." @click="handleSubmit">
-  提交
-</van-button>
-```
-
-**强制规则：**
-- 涉及 API 调用的按钮，必须使用 Loading + disabled 模式，不允许仅靠防抖/节流替代
-- `loading` 和 `disabled` 应绑定同一个响应式变量，保持状态一致
-- `try/finally` 模式确保请求失败时也能恢复按钮状态
-- 禁止在按钮点击回调中不做任何保护直接调用 async 函数
+强制规则：涉及 API 调用的按钮必须用 Loading + disabled，禁止仅靠防抖/节流替代，禁止在点击回调中不做任何保护直接调用 async 函数。
 
 ### 并发错误去重
 
@@ -451,30 +385,7 @@ frontend/
 
 ### E2E 测试参考
 
-参考仓库 `code/frontend/e2e-tests/` 包含 48 个 Playwright E2E 测试，覆盖 Admin 模板全部主要模块，可作为新页面测试的参考模式：
-
-| 测试目录 | 覆盖模块 |
-|---------|---------|
-| `01-auth/` | 登录、密码过期、Token 生命周期 |
-| `02-user-lifecycle/` | 密码修改、密码重置、用户 CRUD |
-| `03-role-lifecycle/` | 角色 CRUD、角色权限分配 |
-| `04-menu-management/` | 菜单树管理 |
-| `05-dept-management/` | 部门树管理 |
-| `06-config-management/` | 配置 CRUD、配置生效 |
-| `07-dict-management/` | 字典 CRUD |
-| `08-gateway/` | 应用管理 |
-| `09-permission-matrix/` | 权限访问、权限视图 |
-| `12-security/` | 注入防护、上传安全 |
-| `13-api-management/` | API 端点列表、API 角色、应用、黑白名单、访问日志 |
-| `10-frontend-integration/` | 前后端联调、全栈集成 |
-| `11-operation-log/` | 操作日志记录与查询 |
-| `14-i18n/` | 国际化（多语言切换） |
-| `15-cache-management/` | 缓存管理（Redis 缓存域） |
-| `16-theme/` | 主题切换（6 套品牌色预设 + 亮/暗模式） |
-| `17-tags-view/` | 标签页导航（多标签打开/关闭/缓存） |
-| `18-error-pages/` | 错误页（404 等） |
-
-新增业务页面后，可参照上述测试目录的模式编写对应的 E2E 测试。
+参考仓库 `code/frontend/e2e-tests/` 包含 48 个 Playwright E2E 测试，覆盖 Admin 模板全部主要模块。新增业务页面后可参照其模式编写对应测试。完整 18 个测试目录索引见 [e2e-test-index](references/e2e-test-index.md)。
 
 ## 文件存放位置
 

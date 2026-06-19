@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.26.1 - 2026-06-19
+
+### Changed
+- `api-typescript-spec` 由 692 行瘦身至 389 行（回到 500 行上限内）：认证模块（HMAC-SM3 Basic / `RealAuthApi` / `MockAuthApi` / `signBasicAuth`）、请求适配器（`UniAdapter`）、生产构建排除（`mockDataStripPlugin`）三段实现下沉为 references 文件，正文保留摘要 + 指针；删除与 frontend-workflow 重复的「设计模式」段、与上文重复的「文件对应关系」表、与 admin-template-setup 重复的 useCrudTable 段（改指针）
+- `frontend-workflow` 由 487 行瘦身至 398 行：作为路由/摘要器，不再复述子技能正文——枚举规则、API 策略工厂、演示模式/HelpBubble、按钮防重复点击、模板代码保护、E2E 测试目录索引均改为摘要 + 指针；E2E 目录索引下沉到 references/e2e-test-index.md
+- 权威归属明确：模板代码保护路径 / `useCrudTable` 强制规则 → `admin-template-setup`；MOCK 生产剥离 → `api-typescript-spec/references/mock-stripping.md`；技术栈版本表 → `frontend-workflow`；SFC 拆分规则 → `vue-best-practices/references/sfc.md`（合并原 `frontend-workflow/references/sfc-large-component-refactoring.md`，后者改为指针文件）
+- `.env` 策略冲突修复：`frontend-workflow` 演示模式处补「Admin 模板项目例外：单一 `.env`，详见 admin-template-setup」
+
+### Added
+- `api-typescript-spec/references/adapter-implementation.md`、`mock-stripping.md`、`auth-module.md`
+- `frontend-workflow/references/e2e-test-index.md`
+- `plugin.json` 版本号 0.26.0 → 0.26.1，与 `marketplace.json` 对齐
+- 技能 frontmatter 版本同步：`api-typescript-spec` 2.1.0→2.2.0、`frontend-workflow` 2.2.0→2.3.0、`admin-template-setup` 1.1.0→1.2.0、`vue-best-practices` 18.0.0→18.1.0
+
 ## 0.26.0 - 2026-06-19
 
 ### Changed

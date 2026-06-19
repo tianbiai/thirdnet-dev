@@ -71,7 +71,7 @@ description: >
 
 1. **需求澄清**（AskUserQuestion）—— 明确服务范围、数据模型、接口需求、架构约束
 
-   > **例外：Admin 模板项目创建** —— 如果任务明确为"创建 Admin 管理后台项目"（使用 `dotnet new thirdnet-admin`），模板已内置全部模块（用户/角色/菜单/部门/字典/配置/操作日志/缓存、API 管理、认证授权），功能范围固定、无需澄清。此时跳过需求澄清的 3 轮提问，仅用一次 AskUserQuestion 确认项目名称（`{ProjectName}`，用于 `-n` 参数）后直接进入步骤 2。NuGet 源地址默认用内网 `http://192.168.1.156:8088/nuget`，内网不可达时改用外网 `http://61.164.57.61:8088/nuget`；数据库连接字符串均使用技能默认配置，无需额外确认。
+   > **例外：Admin 模板项目创建** —— 如果任务明确为"创建 Admin 管理后台项目"（使用 `dotnet new thirdnet-admin`），模板已内置全部模块（用户/角色/菜单/部门/字典/配置/操作日志/缓存、API 管理、认证授权），功能范围固定、无需澄清。此时跳过需求澄清的 3 轮提问，仅用一次 AskUserQuestion 确认项目名称（`{ProjectName}`，用于 `-n` 参数）后直接进入步骤 2。（例外说明——NuGet 源地址、连接字符串默认值、不适用场景——见「需求澄清」章节）
    >
    > 此例外**仅适用于创建新 Admin 模板项目**。在已有 Admin 项目上新增业务模块（如"通知管理"）时，仍须执行完整的需求澄清流程。
 
@@ -164,22 +164,14 @@ backend/
 # 前提：已有 Admin 项目
 dotnet new install ThirdNet.Service.Template --force
 cd backend
-dotnet new thirdnet-service -n {ServiceName} --AdminName {ProjectName}
+# 完整创建命令（含 --AdminName 说明）见 net-microservice-generator
 ```
 
 ## 双数据库架构
 
-Admin 项目使用两个独立的 PostgreSQL 数据库，各自拥有独立的 DbContext：
-
-| 数据库 | DbContext | 用途 | Schema |
-|--------|-----------|------|--------|
-| 框架数据库 | `ThirdNetDbContext`（来自 Vibe.WebAPI） | 用户 Token、权限目录、API 配置等框架表 | public |
-| 业务数据库 | `AdminDbContext` | 用户、角色、菜单、部门、字典等业务表 | admin |
+Admin 使用框架数据库（`ThirdNetDbContext`，public schema）+ 业务数据库（`AdminDbContext`，admin schema）双库；Service 用 `ServiceDbContext` 替代 `AdminDbContext` 并自定义 schema。完整对照见 net-efcore-developer「双数据库上下文区别」。
 
 关键点：
-- 两个数据库共享同一 PostgreSQL 实例，使用不同的连接字符串
-- `ThirdNetDbContext` 迁移文件存放在 APIService 项目
-- `AdminDbContext` 迁移文件存放在 Database 项目
 - Service 项目使用 `ServiceDbContext` 替代 `AdminDbContext`，自定义 schema
 
 ## Program.cs 与 Startup.cs DI 管道
@@ -315,7 +307,7 @@ Admin 项目的 Program.cs 和 Startup.cs 遵循固定的启动模式和 10 步 
 | 0.5 | 项目规划：生成 `backend/plan.md`（服务拆分、开发顺序、里程碑） |
 | 0.6 | 变更日志：生成 `backend/changelog.md`，初始版本 v0.1.0 |
 | 1 | 项目规格：生成 `backend/spec.md`（项目级规格说明书） |
-| 2 | 项目框架：使用模板创建标准化项目结构。**Admin 模板项目创建时，可直接从本阶段开始执行**（跳过阶段 0.5-1 的需求分析和 spec 生成，因为模板本身即是完整 spec） |
+| 2 | 项目框架：使用模板创建标准化项目结构。**Admin 模板项目创建时，可直接从本阶段开始执行**（例外说明见「需求澄清」章节） |
 | 3 | 功能开发：实体 → 配置 → Controller → API → 注册 → 测试 |
 | 4 | 完成校验：逐项检查（见下方校验清单） |
 
@@ -359,18 +351,25 @@ Admin 项目的 Program.cs 和 Startup.cs 遵循固定的启动模式和 10 步 
 
 ## 代码规范速查
 
-| 规范 | 要求 |
-|------|------|
-| HTTP 方法 | 仅 GET 和 POST，禁止 PUT/DELETE/PATCH |
-| 路由格式 | `api/manager/{entity}/{action}` |
-| 命名风格 | 全链路 snake_case（C# 属性、JSON、DB 列名） |
-| 表名 | `t_` 前缀（如 `t_sys_user`） |
-| 主键 | `long id`（bigint 自增） |
-| 错误处理 | `throw new WebApiException(HttpStatusCode.xxx, "msg")` |
-| DTO 命名 | `{Entity}{Action}Map`（CreateMap、UpdateMap、QueryMap、ItemMap、DetailMap） |
-| Controller 基类 | `AdminControllerBase`（非 ControllerBase） |
-| Service 生命周期 | Scoped |
-| Cache 生命周期 | Singleton |
-| DB 上下文获取 | `IDbContextFactory<T>`（非直接注入 DbContext） |
-| 权限注解 | `[PermissionAuthorize("module:entity:action")]` |
-| 操作日志 | `[OperLog(Title = "...", BusinessType = BusinessTypeEnum.xxx)]` |
+本表是索引——每条规则的完整定义见对应技能，不要据此推断细节。
+
+| 规范 | 要求要点 → 见 |
+|------|--------------|
+| HTTP 方法 | 仅 GET/POST（禁止 PUT/DELETE/PATCH） → 见 net-api-developer |
+| 路由格式 | `api/manager/{entity}/{action}` → 见 net-api-developer |
+| 命名风格 | 全链路 snake_case（C# 属性、JSON、DB 列名） → 见 net-api-developer / net-efcore-developer |
+| 表名 | `t_` 前缀 + snake_case → 见 net-efcore-developer |
+| 主键 | `long id`（bigint 自增） → 见 net-efcore-developer |
+| 错误处理 | `throw new WebApiException(HttpStatusCode.xxx, "msg")` → 见 net-api-developer |
+| DTO 命名 | `{Entity}{Action}Map`（CreateMap/UpdateMap/QueryMap/ItemMap/DetailMap） → 见 net-api-developer |
+| Controller 基类 | `AdminControllerBase`（非 ControllerBase） → 见 net-api-developer |
+| Service 生命周期 | Scoped → 见 net-api-developer |
+| Cache 生命周期 | Singleton → 见 net-cache-use |
+| DB 上下文获取 | `IDbContextFactory<T>`（非直接注入 DbContext） → 见 net-efcore-developer |
+| Fluent API / 数据注解 | 仅 Fluent API，禁止数据注解（`[DbBulk]` 例外） → 见 net-efcore-developer |
+| 权限注解 | `[PermissionAuthorize("module:entity:action")]`、`[ProviderAuthorize]` → 见 net-rbac |
+| 操作日志 | `[OperLog(Title = "...", BusinessType = BusinessTypeEnum.xxx)]` → 见 net-api-developer |
+| 认证 | Basic + Bearer(JWT) + ApiKey；`[Authorize(Policy=...)]` → 见 net-authentication |
+| 后台任务 | `BackgroundRunner`（设 SleepTime/Check，实现 WorkAsync） → 见 net-background-job |
+| 批量操作 | `IDbAsyncBulk`（CopyToServer/MergeToServer） → 见 net-database-bulkcopy |
+| 枚举/字典 | `[SystemDict]` + `[EnumMeta]`；自定义字典用 `DictCache` → 见 net-enum-dict |

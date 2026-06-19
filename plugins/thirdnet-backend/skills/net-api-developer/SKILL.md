@@ -40,6 +40,8 @@ AdminControllerBase 提供：
 
 ### Controllers 目录组织
 
+> 以下目录结构以 **Service 微服务项目**为例（`{ServiceName}.API`）；Admin 项目为 `{ProjectName}.Admin.APIService/Controllers/{Manager,App,Third}`，详见 backend-workflow。
+
 ```
 {ServiceName}.API/
 ├── Controllers/
@@ -243,7 +245,7 @@ public class XxxService
 
 ### 核心模式
 
-**1. 获取 DbContext**：每次方法调用 `await _dbFactory.CreateDbContextAsync()`，绝不直接注入。
+**1. 获取 DbContext**：每次方法调用 `await _dbFactory.CreateDbContextAsync()`。→ DbContext 必须用 `IDbContextFactory<T>` 获取，详见 net-efcore-developer。
 
 **2. 初始化 OperatorContext**：`_operatorContext.Initialize(operatorId)`（幂等）。需要权限校验的增删改方法必须调用。
 
@@ -266,7 +268,7 @@ queryable = queryable.Where(x => visibleDeptIds.Contains(x.dept_id));
 
 变更操作完成后，删除所有相关缓存键：单条 + 字典 + 关联缓存。
 
-**涉及用户/角色权限变更时，统一调用** `UserCacheInvalidation.InvalidateUserAuthAsync(_userCache, _tokenCache, userId)`（`{ProjectName}.Admin.APIService.Services`，模板生成层提供）——它一次清掉用户权限缓存 + 角色缓存，并设置 Token 失效时间（`TokenCache.SetTokenInvalidationTime`），使对应用户下次请求被 `AccountTokenCheckMiddleware` 拦截重签。不要手写散落的 `RemovePermissionCache`/`SetTokenInvalidationTime`。
+→ 涉及用户/角色权限变更时，统一调用 `UserCacheInvalidation.InvalidateUserAuthAsync`，详见 net-cache-use。
 
 ## DI 注册
 
@@ -327,7 +329,7 @@ queryable = queryable.Where(x => visibleDeptIds.Contains(x.dept_id));
 
 ## 相关技能
 
-- **backend-workflow**：后端开发入口与文档驱动开发流程（**编码前确认 `backend/spec.md` 已存在并已阅读**，否则文档驱动流程会被跳过）
+- **backend-workflow**：后端开发入口与文档驱动流程（→ 见该技能）
 - **net-efcore-developer**: 数据库实体开发
 - **net-cache-use**: 缓存集成
 - **net-rbac**: 权限体系

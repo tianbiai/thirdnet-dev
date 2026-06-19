@@ -226,7 +226,7 @@ public async Task<IdResult> Update(XxxUpdateMap dto, long operatorId)
 3. 下次读取时 Read-Through 自动从 DB 加载
 4. 多个 key 使用 `RemoveMultiple` 一次完成，减少 Redis 网络往返
 
-> **涉及用户/角色权限变更**：不要手写散落的 `UserCache`/`RoleCache` 失效 + `TokenCache.SetTokenInvalidationTime`。统一调用 `UserCacheInvalidation.InvalidateUserAuthAsync(_userCache, _tokenCache, userId)`（`{ProjectName}.Admin.APIService.Services`），一次清权限+角色缓存并写 Token 失效时间。详见 `net-api-developer`「缓存失效」。
+> **涉及用户/角色权限变更**：不要手写散落的 `UserCache`/`RoleCache` 失效 + `TokenCache.SetTokenInvalidationTime`。统一调用 `UserCacheInvalidation.InvalidateUserAuthAsync(_userCache, _tokenCache, userId)`（`{ProjectName}.Admin.APIService.Services`），一次清权限+角色缓存并写 Token 失效时间。本节是 `UserCacheInvalidation` 用法的权威定义，其他技能（net-api-developer、net-authentication）均指向此处。
 
 ## 分布式锁：RedisLock
 
@@ -304,7 +304,7 @@ Admin 项目已提供 9 个缓存域（UserCache、RoleCache、MenuCache、DeptC
 
 ## 相关技能
 
-- **backend-workflow**：后端开发入口与文档驱动开发流程（**编码前确认 `backend/spec.md` 已存在并已阅读**，否则文档驱动流程会被跳过）
+- **backend-workflow**：后端开发入口与文档驱动流程（→ 见该技能）
 - **net-efcore-developer**: 数据库实体开发（缓存基于实体创建 View 和 Query）
 - **net-api-developer**: API 接口开发（缓存通过 Service 层注入调用）
 - **net-database-bulkcopy**: 批量数据操作（批量导入后需删除对应缓存）

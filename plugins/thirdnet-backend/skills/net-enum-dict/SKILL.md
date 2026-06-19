@@ -211,33 +211,18 @@ builder.Property(x => x.user_source).HasComment("用户来源（自定义字典 
 | 枚举字典 | `EnumHelper.GetLabel(typeof(XxxEnum), intValue)` | C# 枚举反射（进程内缓存） |
 | 自定义字典 | **注入 `DictCache`，从缓存列表 LINQ 查找** | Redis 缓存（key `admin.dict.data.{dictType}`，TTL 24h，DB 回退） |
 
-自定义字典**没有现成的"按 value 反查 label"工具方法**——`EnumHelper.GetLabel` 只认 C# 枚举，自定义字典用不了；`DictDataView` 也只是缓存数据结构（POCO），**没有 `GetLabel` 方法**。需在 Service / DTO 映射处用 `DictCache.GetDictData(dictType)` 取列表后查找：
+自定义字典**没有现成的"按 value 反查 label"工具方法**——`EnumHelper.GetLabel` 只认 C# 枚举，自定义字典用不了；`DictDataView` 也只是缓存数据结构（POCO），**没有 `GetLabel` 方法**。需在 Service / DTO 映射处用 `DictCache.GetDictData(dictType)` 取缓存列表后 LINQ 查找：
 
 ```csharp
-public class XxxService
-{
-    private readonly DictCache _dictCache;   // 已注入
+// 自定义字典 *_label 填充的独特部分（Service 注入 DictCache）：
+var sourceDict = await _dictCache.GetDictData("user_source");         // 命中 Redis，未命中回退 DB
+var sourceLabelMap = sourceDict.ToDictionary(d => d.dict_value, d => d.dict_label);
 
-    public async Task<List<UserItemMap>> GetUserList(...)
-    {
-        // 1. 取该字典类型的缓存列表（命中 Redis，未命中回退 DB）
-        var sourceDict = await _dictCache.GetDictData("user_source");
-        // 2. 构建 value → label 查找表
-        var sourceLabelMap = sourceDict.ToDictionary(d => d.dict_value, d => d.dict_label);
-
-        // 3. 填充每条记录的 *_label（EF 表达式树内不能查字典，先 ToList 再回填）
-        var list = await q.Select(x => new UserItemMap
-                {
-                    // ...其他字段
-                    user_source = x.user_source,
-                }).ToListAsync();
-
-        foreach (var m in list)
-            m.user_source_label = sourceLabelMap.TryGetValue(m.user_source, out var lb) ? lb : m.user_source;
-
-        return list;
-    }
-}
+// 注意：EF 表达式树内不能查字典，必须在 ToListAsync() 之后回填
+var list = await q.Select(x => new UserItemMap { /* ... */ user_source = x.user_source })
+                  .ToListAsync();
+foreach (var m in list)
+    m.user_source_label = sourceLabelMap.TryGetValue(m.user_source, out var lb) ? lb : m.user_source;
 ```
 
 > `DictCache.GetDictData(dictType)` 返回 `List<DictDataView>`，`DictDataView` 含 `dict_value`/`dict_label`/`tag_type` 等字段。
@@ -280,7 +265,7 @@ public class XxxService
 ## 相关技能
 
 - **vue-enum-dict**：前端枚举字典与自定义字典使用规范（下拉/提交/表格/筛选四场景）——前后端配套技能
-- **backend-workflow**：后端开发入口与文档驱动开发流程（**编码前确认 `backend/spec.md` 已存在并已阅读**，否则文档驱动流程会被跳过）
+- **backend-workflow**：后端开发入口与文档驱动流程（→ 见该技能）
 - **net-efcore-developer**：数据库实体开发（实体中的状态/类型字段引用枚举；自定义字典字段用 string 列）
 - **net-api-developer**：API 接口开发（接口返回 `*_label`）
 - **net-cache-use**：缓存功能（自定义字典 `DictCache` 取值与刷新）

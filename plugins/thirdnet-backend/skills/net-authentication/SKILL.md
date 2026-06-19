@@ -116,38 +116,7 @@ Admin 项目内置完整的 API Key 管理功能（`ApiKeyService` + `ApiKeyMana
 
 ## 加密算法框架（AddCrypto）
 
-本系统的密码哈希、JWT 签名、应用 HMAC 都建立在框架的加密套件上——**国密（GM）与国际双标准统一通过 DI 注册，不要手写加密算法**。
-
-### 一次性注册整套算法
-
-`ThirdNet.Vibe.Common.Algorithm.CryptoServiceExtensions.AddCrypto(...)`（NuGet 包内 `algorithm/CryptoServiceExtensions.cs`）：
-
-```csharp
-// 选标准即注册全部 5 个算法接口：IHashAlgorithm / IHmacAlgorithm / ISymmetricAlgorithm / IAsymmetricAlgorithm / IPasswordHasher
-services.AddCrypto(CryptoStandard.NationalStandard);   // 国密：SM3/SM4/SM2，密码用 Pbkdf2SM3
-services.AddCrypto(CryptoStandard.International);      // 国际：SHA512/AES/RSA，密码用 BCrypt（可选 usePbkdf2:true 用 PBKDF2）
-// 可选参数：bcryptWorkFactor=11、usePbkdf2=false、pbkdf2Iterations=100000
-```
-
-需要混搭或单独替换某一项时，用构建器：`services.AddCrypto(b => b.UseHash<...>().UsePasswordHasher<...>())`。
-
-### 算法族对应
-
-| 接口 | 国际（International） | 国密（NationalStandard） |
-|------|---------------------|------------------------|
-| `IHashAlgorithm` | SHA512 | SM3 |
-| `IHmacAlgorithm` | HMACSHA512 | HMACSM3（Basic 应用加密认证用） |
-| `ISymmetricAlgorithm` | AES-128-CBC | SM4-CBC |
-| `IAsymmetricAlgorithm` | RSA | SM2 |
-| `IPasswordHasher` | BCrypt / PBKDF2(HMAC-SHA512) | PBKDF2(HMAC-SM3) |
-
-> `IPasswordHasher` 命名空间 `ThirdNet.Vibe.Common.Algorithm.Abstractions`，方法 `Hash(plain)` / `Verify(plain, hash)`。`AdminAccountValidator` 即注入它来校验密码。
-
-### JWT 签名
-
-签名算法由 `JwtSignType`（枚举 `SM2`/`RSA`，定义顺序即如此）配置，框架经 `ISigner` 抽象派发到 `RSASigner`/`SM2Signer`（`ThirdNet.Vibe.WebAPI.Authentication.Bearer.Signing`）。切换签名算法只改配置，不改业务代码。
-
-完整的算法类与签名类清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md) 的「加密算法」「认证」小节。
+本系统的密码哈希、JWT 签名、应用 HMAC 都建立在框架的加密套件上——**国密（GM）与国际双标准统一通过 `AddCrypto(CryptoStandard.xxx)` DI 注册，不要手写加密算法**。完整算法族对应表（IHashAlgorithm/IHmacAlgorithm/ISymmetricAlgorithm/IAsymmetricAlgorithm/IPasswordHasher 在国密与国际标准下的实现）与 JWT 签名机制见 [crypto-catalog.md](references/crypto-catalog.md)。
 
 ## IAccountValidator 实现
 
@@ -169,94 +138,16 @@ namespace ThirdNet.Vibe.WebAPI
 
 Admin 项目中的实现查询 AdminDbContext，使用 PBKDF2 验证密码，包含账户锁定和原子 SQL 操作。
 
-> 参考文件：生成项目 `Admin/{ProjectName}.Admin.APIService/Auth/AdminAccountValidator.cs`。
+**职责要点**：
+- 注入 `IDbContextFactory<AdminDbContext>`、`IPasswordHasher`、`ConfigCache`、`UserCache`、`RoleCache`、`ILogger`
+- 通过 `ConfigCache` 读取锁定策略配置（`MaxLoginAttempts` 默认 5、`LockoutDurationHours` 默认 12、`ShowLoginErrorDetail`）
+- 查 `SysUsers` 用户 → 校验 `status`（禁用抛错）→ 检查账户锁定状态
+- 用 `IPasswordHasher.Verify` 校验密码；失败时**原子递增**失败次数（防并发竞态），达上限抛锁定错误
+- 密码正确时**原子重置**失败次数
+- 从 `UserCache`/`RoleCache` 查用户关联的启用角色 key 集合
+- 构造 Claims：`user_id`、`dept_id`、`admin_roles`（逗号分隔）、`name`
 
-```csharp
-public class AdminAccountValidator : IAccountValidator
-{
-    private readonly IDbContextFactory<AdminDbContext> _dbContextFactory;
-    private readonly IPasswordHasher _passwordHasher;
-    private readonly ConfigCache _configCache;
-    private readonly UserCache _userCache;
-    private readonly RoleCache _roleCache;
-    private readonly ILogger<AdminAccountValidator> _logger;
-
-    public AdminAccountValidator(
-        IDbContextFactory<AdminDbContext> dbContextFactory,
-        IPasswordHasher passwordHasher,
-        ConfigCache configCache,
-        UserCache userCache,
-        RoleCache roleCache,
-        ILogger<AdminAccountValidator> logger)
-    {
-        _dbContextFactory = dbContextFactory;
-        _passwordHasher = passwordHasher;
-        _configCache = configCache;
-        _userCache = userCache;
-        _roleCache = roleCache;
-        _logger = logger;
-    }
-
-    public async Task<List<Claim>> Validate(string account, string password)
-    {
-        await using var dbContext = await _dbContextFactory.CreateDbContextAsync();
-
-        // 读取锁定策略配置
-        int maxAttempts = await _configCache.GetConfigInt(SystemConfigKeys.MaxLoginAttempts, 5);
-        int lockoutHours = await _configCache.GetConfigInt(SystemConfigKeys.LockoutDurationHours, 12);
-        bool showDetail = await _configCache.GetConfigBool(SystemConfigKeys.ShowLoginErrorDetail);
-
-        var user = await dbContext.SysUsers
-            .FirstOrDefaultAsync(u => u.user_name == account);
-
-        if (user == null)
-            throw new WebApiException(HttpStatusCode.BadRequest, "帐号密码错误");
-
-        if (user.status == StatusEnum.Disabled)
-            throw new WebApiException(HttpStatusCode.BadRequest,
-                showDetail ? "帐号已被禁用" : "帐号密码错误");
-
-        // 检查账户锁定状态（略，见完整源码）
-        // ...
-
-        // 密码验证
-        if (!_passwordHasher.Verify(password, user.password_hash))
-        {
-            // 原子递增失败次数（避免并发竞态）
-            var newAttempts = await AtomicIncrementFailedAttempts(
-                dbContext, user.id, maxAttempts, lockoutHours);
-
-            if (newAttempts >= maxAttempts)
-                throw new WebApiException(HttpStatusCode.BadRequest,
-                    showDetail ? $"连续登录失败{maxAttempts}次，账户已锁定{lockoutHours}小时" : "帐号密码错误");
-
-            throw new WebApiException(HttpStatusCode.BadRequest, "帐号密码错误");
-        }
-
-        // 密码正确：原子重置失败次数
-        await AtomicResetFailedAttempts(dbContext, user.id);
-
-        // 从缓存查询用户关联的角色
-        var roleIds = await _userCache.GetUserRoleIds(user.id);
-        var roleDic = await _roleCache.GetRoleDic();
-        var roleKeys = roleIds
-            .Where(id => roleDic.TryGetValue(id, out var r) && r.status == 0)
-            .Select(id => roleDic[id].role_key)
-            .ToList();
-
-        // 构造 JWT Claims
-        var claims = new List<Claim>
-        {
-            new Claim("user_id", user.id.ToString()),
-            new Claim("dept_id", user.dept_id.ToString()),
-            new Claim("admin_roles", string.Join(",", roleKeys)),
-            new Claim("name", user.user_name)
-        };
-
-        return claims;
-    }
-}
-```
+> 完整源码（含 `AtomicIncrementFailedAttempts`/`AtomicResetFailedAttempts` 等原子 SQL）见生成项目 `Admin/{ProjectName}.Admin.APIService/Auth/AdminAccountValidator.cs`。
 
 > 上例用到的 `SystemConfigKeys`（`{ProjectName}.Common.Constants`）是系统配置键常量，对应 `t_sys_config.config_key`，避免硬编码字符串。常用键：`MaxLoginAttempts`（默认 5）、`LockoutDurationHours`（默认 12）、`SessionTimeoutMinutes`、`PasswordExpiryDays`、`ShowLoginErrorDetail`、`CaptchaEnabled`、`UploadAllowedExtensions`、`HeartbeatIntervalSeconds`。配置值经 `ConfigCache.GetConfigInt/GetConfigBool` 读取。完整清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md)。
 
@@ -320,22 +211,7 @@ public interface ICheckClient
 
 ## 授权策略
 
-框架内置四个策略：
-
-| 策略名 | 认证方式 | 说明 |
-|-------|---------|------|
-| Default | Basic + Bearer + ApiKey | 默认策略，三种方式任一即可 |
-| Logon | Bearer | 必须用户登录 |
-| Basic | Basic | 仅应用调用 |
-| Both | Basic + Bearer | Basic 或 Bearer |
-
-```csharp
-[Authorize]                          // Default 策略
-[Authorize(Policy = "Logon")]        // 必须用户登录
-[Authorize(Policy = "Basic")]        // 仅应用调用
-```
-
-对于 PermissionAuthorize（权限码授权），详见 `net-rbac` 技能。
+→ 授权策略（Default/Logon/Basic/Both 四策略、`[Authorize]`、`[PermissionAuthorize]` 权限码授权、`[ProviderAuthorize]` 范围授权）见 net-rbac 技能（单一事实来源）。
 
 ## Token 过期检查（失效链路）
 
@@ -349,11 +225,11 @@ public interface ICheckClient
 
 ### 触发失效
 
-业务侧**不要直接调用** `_tokenCache.SetTokenInvalidationTime(userId)`——改用统一助手 `UserCacheInvalidation.InvalidateUserAuthAsync(_userCache, _tokenCache, userId)`（`{ProjectName}.Admin.APIService.Services`）：一次清掉用户权限缓存 + 角色缓存，并写入 Token 失效时间，用户下次请求即被中间件拦截重签。详见 `net-api-developer` 的「缓存失效」。
+业务侧**不要直接调用** `_tokenCache.SetTokenInvalidationTime(userId)`——改用统一助手 `UserCacheInvalidation.InvalidateUserAuthAsync(_userCache, _tokenCache, userId)`（`{ProjectName}.Admin.APIService.Services`）：一次清掉用户权限缓存 + 角色缓存，并写入 Token 失效时间，用户下次请求即被中间件拦截重签。详见 net-cache-use。
 
 ## 相关技能
 
-- **backend-workflow**：后端开发入口与文档驱动开发流程（**编码前确认 `backend/spec.md` 已存在并已阅读**，否则文档驱动流程会被跳过）
+- **backend-workflow**：后端开发入口与文档驱动流程（→ 见该技能）
 - **net-rbac**: 权限体系（PermissionAuthorize 三层授权）
 - **net-api-developer**: API 接口开发
 - **net-efcore-developer**: 数据库实体（认证器访问用户表）

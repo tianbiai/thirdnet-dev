@@ -8,7 +8,7 @@ description: >
   触发词：API、接口、Mock、请求、adapter、类型定义、DTO、策略模式、工厂模式、接口契约、IXxxApi。
 license: MIT
 metadata:
-  version: "2.1.0"
+  version: "2.2.0"
   author: thirdnet
 ---
 
@@ -32,21 +32,7 @@ API 层采用**接口契约的策略工厂模式**，通过 TypeScript 接口定
 
 ## 设计模式
 
-API 层组合运用三种设计模式：
-
-| 模式 | 体现 | 解决的问题 |
-|------|------|-----------|
-| **策略模式** | `IOrderApi` 定义接口，`RealOrderApi` 和 `MockOrderApi` 是可互换实现 | API 调用与具体实现解耦 |
-| **简单工厂** | `createOrderApi(): IOrderApi` 根据 `MOCK_ENABLED` 创建实例 | 环境配置自动选择策略 |
-| **适配器** | `RealXxxApi` 适配 HTTP，`MockXxxApi` 适配本地数据 | 两种数据源适配同一接口契约 |
-
-架构流程：
-
-```
-页面 → orderApi.getOrderList(params) → IOrderApi 接口
-                                          ├─ RealOrderApi → request<T>() → HTTP
-                                          └─ MockOrderApi → mock/data/ → 内存
-```
+API 层组合运用三种设计模式：策略模式（`IXxxApi` + Real/Mock 可互换）、简单工厂（`createXxxApi` 按 `MOCK_ENABLED` 选实例）、适配器（Real/Mock 适配 HTTP 与本地数据）。架构流程见各子技能概述；下方「文件职责分离」与「创建步骤」给出完整约定与示例。
 
 ## 文件职责分离
 
@@ -142,107 +128,9 @@ export enum OrderStatusEnum {
 
 ### 步骤 2：请求适配器
 
-适配器层实现双平台统一，业务代码只调用 `request<T>()`。Mock 拦截不在适配器层，由策略模式在 API 模块层面处理。
+适配器层实现双平台统一，业务代码只调用 `request<T>()`。Mock 拦截不在适配器层，由策略模式在 API 模块层面处理。`adapter.ts` 定义 `RequestAdapter { request<TResponse>(config): Promise<TResponse> }`，`adapter.web.ts` 用 Axios、`adapter.uni.ts` 用 uni.request 实现；401 触发 refreshToken 失败后 clearToken 跳登录；uniapp 需手动拼 GET query string。
 
-**接口定义** — `adapter.ts`：
-```typescript
-interface RequestAdapter {
-  request<TResponse>(config: RequestConfig): Promise<TResponse>
-}
-```
-
-**实现要点**（`adapter.web.ts` 用 Axios，`adapter.uni.ts` 用 uni.request）：
-- 请求拦截：从 storage 读取 token，添加 `Authorization: bearer {token}` 头
-- 401 处理：尝试 refreshToken，失败则 clearToken 并跳转登录页
-- uni.request 需手动拼接 query string，错误判断用 `statusCode >= 400`
-
-**`adapter.uni.ts` 参考实现**：
-```typescript
-import type { RequestAdapter, RequestConfig } from './adapter'
-import type { ApiError } from '@/api/types/common'
-import { getToken, clearToken } from '@/utils/token'
-
-export class UniAdapter implements RequestAdapter {
-  async request<TResponse>(config: RequestConfig): Promise<TResponse> {
-    const token = getToken()
-    const header: Record<string, string> = {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `bearer ${token}` } : {}),
-    }
-
-    // 拼接 URL（处理 GET 请求的 query string）
-    let url = config.url
-    if (config.method === 'GET' && config.params) {
-      const qs = Object.entries(config.params)
-        .filter(([, v]) => v !== undefined && v !== null)
-        .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(String(v))}`)
-        .join('&')
-      if (qs) url += (url.includes('?') ? '&' : '?') + qs
-    }
-
-    return new Promise<TResponse>((resolve, reject) => {
-      uni.request({
-        url,
-        method: config.method,
-        data: config.data,
-        header,
-        success: (res) => {
-          if (res.statusCode === 401) {
-            clearToken()
-            uni.reLaunch({ url: '/pages/login/index' })
-            reject({ status: 401, message: '登录已过期' } as ApiError)
-            return
-          }
-          if ((res.statusCode ?? 0) >= 400) {
-            reject({ status: res.statusCode, message: `请求失败: ${res.statusCode}` } as ApiError)
-            return
-          }
-          resolve(res.data as TResponse)
-        },
-        fail: (err) => {
-          reject({ status: 0, message: err.errMsg || '网络请求失败' } as ApiError)
-        },
-      })
-    })
-  }
-}
-```
-
-**要点**：
-- `uni.request` 不像 Axios 自动处理 query string，GET 请求需要手动拼接
-- 错误通过 `statusCode` 判断（不是 Axios 的 `response.status`）
-- 401 处理使用 `uni.reLaunch` 跳转登录页（不能用 `router.push`，小程序端无 window/router）
-
-**uniapp 项目适配器选择**：对于纯 uniapp 项目（同时编译 H5 和 MP-WEIXIN），两个平台均使用 `UniAdapter`，无需条件编译选择适配器。条件编译仅在 `token.ts` 等需要区分 `localStorage` 和 `uni.getStorageSync` 的场景中使用。
-
-**统一导出** — `request.ts`（根据项目类型选择）：
-
-**场景 A：纯 uniapp 项目**（H5 + 小程序均走 uni.request）：
-```typescript
-import { UniAdapter } from './adapter.uni'
-const adapter: RequestAdapter = new UniAdapter()
-
-export function request<TResponse>(config: RequestConfig): Promise<TResponse> {
-  return adapter.request<TResponse>(config)
-}
-```
-
-**场景 B：双平台项目**（Web 端用 Axios，小程序端用 uni.request）：
-```typescript
-// #ifdef H5
-import { AxiosAdapter } from './adapter.web'
-const adapter: RequestAdapter = new AxiosAdapter()
-// #endif
-
-// #ifdef MP-WEIXIN
-import { UniAdapter } from './adapter.uni'
-const adapter: RequestAdapter = new UniAdapter()
-// #endif
-
-export function request<TResponse>(config: RequestConfig): Promise<TResponse> {
-  return adapter.request<TResponse>(config)
-}
-```
+完整 `UniAdapter` 实现、双平台 `request.ts` 导出方式见 [adapter-implementation.md](references/adapter-implementation.md)，当实现/修改适配器或排查 uniapp 双平台请求问题时再读。
 
 ### 步骤 3：创建模块文件（5 个文件）
 
@@ -460,210 +348,19 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 #### 生产构建排除机制
 
-生产构建（`vite build`）时，通过自定义 Vite 插件 `mockDataStripPlugin()`（`vite.config.ts`）剥离 Mock 数据，配合 `MOCK_ENABLED` 静态为 `false` 让 Mock 分支成为死代码被 tree-shaking 移除。
+生产构建（`vite build`）时，自定义 Vite 插件 `mockDataStripPlugin()` 拦截 `/mock/data/` 导入替换为空对象桩，配合 `MOCK_ENABLED` 静态为 `false` 让 `new MockXxxApi()` 分支成为死代码被 Rollup tree-shaking 移除；开发模式插件不启用。切换由 `VITE_MOCK_ENABLED` 控制，工厂函数模块初始化执行一次。
 
-**真实机制**（与 `vite.config.ts` 一致，不是 alias 重定向）：
-
-```typescript
-// 仅在 command === 'build' 时启用
-function mockDataStripPlugin(): Plugin {
-  return {
-    name: 'mock-data-strip',
-    enforce: 'pre',
-    resolveId(source, importer) {
-      // 只拦截路径含 /mock/data/ 的导入
-      if (!source.includes('/mock/data/')) return null
-      // 解析到虚拟桩模块 ID
-      return '\0mock-stub:' + resolvedPath
-    },
-    load(id) {
-      if (!id.startsWith('\0mock-stub:')) return null
-      // 读取原 mock 数据文件，提取所有 export 的名称
-      const names = [...content.matchAll(/export\s+(?:const|let|var|function|class)\s+(\w+)/g)].map(m => m[1])
-      // 为每个具名导出生成空对象桩（死代码分支不会实际使用）
-      return names.map(n => `export const ${n} = {}`).join('\n') // 无具名导出则返回 'export {}'
-    },
-  }
-}
-```
-
-**原理**：生产构建时，所有 `/mock/data/**` 的导入被 `mockDataStripPlugin` 拦截，替换为"每个具名导出 = 空对象 `{}`"的虚拟桩模块（不是空数组、也不重定向整个 `@/mock`）。由于 `MOCK_ENABLED` 静态为 `false`，工厂函数中 `new MockXxxApi()` 所在分支不可达，Rollup tree-shaking 移除该分支；Mock 数据本身已被桩替换为空对象，最终产物中不含真实 Mock 数据。**注意**：拦截范围是 `/mock/data/`（Mock 数据文件），不含 `/mock/api/`；Mock API 类的剥离依赖 `MOCK_ENABLED=false` + tree-shaking。开发模式下插件不启用，Mock 模块正常加载。
-
-**切换流程**：通过环境变量 `VITE_MOCK_ENABLED`（开发期 `.env`）控制，无需手动改配置。工厂函数在模块初始化时执行一次，运行期间不再切换。
+完整 `mockDataStripPlugin()` 源码、tree-shaking 原理与开发辅助文案剥离示例见 [mock-stripping.md](references/mock-stripping.md)，当修改 `vite.config.ts` 或排查 tree-shaking 问题时再读。
 
 ## 认证模块（`auth.ts`）
 
-认证模块同样采用策略工厂模式和文件拆分，Admin 模板的特殊点：
-- **应用加密认证（HMAC-SM3 Basic 签名）**：登录 `POST /api/manager/auth/login`、刷新 `POST /api/manager/auth/refresh` 两个端点，请求前必须调用 `signBasicAuth(urlPath)` 生成 `Authorization: Basic ...` 头（见下方实现）；当前用户信息走 `GET /api/manager/auth/info`（普通 Bearer，无需 Basic 签名）。**这是 ThirdNet 后端的应用加密认证，不是 IdentityServer `/connect/token`**——因此**不要**用 `URLSearchParams` / `grant_type` / form-urlencoded，登录体是普通 JSON。
-- Token 工具（`src/utils/token.ts`）：Admin Web 端用 `sessionStorage`；若为移动端/小程序则用 `uni.getStorageSync`（双平台适配）。
-- 导出 `getToken`、`setToken`、`getRefreshToken`、`setRefreshToken`、`clearToken`
+认证模块同样采用策略工厂模式和文件拆分，Admin 模板的特殊点：登录/刷新端点必须用 `signBasicAuth(urlPath)`（HMAC-SM3，国密）生成 `Authorization: Basic ...` 头、请求体是普通 JSON（非 form-urlencoded、无 `grant_type`）、`login`/`refreshToken` 必须设 `skipAuthRefresh: true` 否则 401 死循环；`getCurrentUser` 走 `/api/manager/auth/info` 普通 Bearer。这是 ThirdNet 应用加密认证，不是 IdentityServer `/connect/token`。
 
-**`api/types/auth.ts`**（精简示意；真实 `CurrentUserResponse` 字段更多——含菜单树 `menus`、角色 `roles`、权限 `permissions` 等，以 `api/interfaces/auth.ts` 为准）：
-```typescript
-export interface LoginParams { username: string; password: string }
-export interface TokenResponse { access_token: string; refresh_token: string }
-export interface CurrentUserResponse {
-  /* 真实含 user_id、username、nick_name、roles、permissions、menus 等大量字段 */
-}
-
-**`api/interfaces/auth.ts`**（Admin 模板的 `api/interfaces/` 为扁平结构，无 `manager/` 子目录）：
-```typescript
-import type { LoginParams, TokenResponse, CurrentUserResponse } from '@/api/types/auth'
-
-export interface IAuthApi {
-  login(data: LoginParams): Promise<TokenResponse>
-  refreshToken(data: { refresh_token: string }): Promise<TokenResponse>
-  getCurrentUser(): Promise<CurrentUserResponse>
-}
-```
-
-**`api/modules/manager/auth.ts`** — Real 实现调用 `/api/manager/auth/login` + `signBasicAuth` Basic 签名，工厂函数 + 模块实例与普通模块相同：
-```typescript
-import { request } from '@/api/request'
-import { MOCK_ENABLED } from '@/config'
-import { signBasicAuth } from '@/utils/basicAuth'
-import type { IAuthApi } from '@/api/interfaces/auth'
-import type { LoginParams, TokenResponse, CurrentUserResponse } from '@/api/types/auth'
-import { MockAuthApi } from '@/mock/api/manager/auth'
-
-// ---- Real 实现（应用加密认证：HMAC-SM3 Basic 签名）----
-
-class RealAuthApi implements IAuthApi {
-  /** 登录：POST /api/manager/auth/login，需 Basic 认证签名 */
-  async login(data: LoginParams): Promise<TokenResponse> {
-    const { url, authHeader } = await signBasicAuth('/api/manager/auth/login')
-    return request<TokenResponse>({
-      url,                                   // 已含 timestamp 查询参数
-      method: 'POST',
-      data,                                  // JSON body: { username, password }
-      headers: { Authorization: authHeader }, // Basic base64(app:signature)
-      skipAuthRefresh: true,                 // 登录失败(401)=凭据错误，不触发刷新循环
-    })
-  }
-  /** 刷新：POST /api/manager/auth/refresh，同样需 Basic 签名 */
-  async refreshToken(data: { refresh_token: string }): Promise<TokenResponse> {
-    const { url, authHeader } = await signBasicAuth('/api/manager/auth/refresh')
-    return request<TokenResponse>({
-      url,
-      method: 'POST',
-      data,                                  // JSON body: { refresh_token }
-      headers: { Authorization: authHeader },
-      skipAuthRefresh: true,                 // refresh 自身 401 表示 refresh_token 也过期
-    })
-  }
-  /** 当前用户：GET /api/manager/auth/info（普通 Bearer，无需 Basic 签名） */
-  async getCurrentUser(): Promise<CurrentUserResponse> {
-    return request<CurrentUserResponse>({ url: '/api/manager/auth/info', method: 'GET' })
-  }
-}
-
-// ---- 工厂函数（Simple Factory）----
-
-export function createAuthApi(): IAuthApi {
-  return MOCK_ENABLED ? new MockAuthApi() : new RealAuthApi()
-}
-
-// ---- 模块实例（模块级单例）----
-
-export const authApi = createAuthApi()
-```
-
-**要点**：
-- 登录 / 刷新走 `/api/manager/auth/login`、`/api/manager/auth/refresh`，请求前用 `signBasicAuth(urlPath)` 生成 `Basic ...` 头（HMAC-SM3 签名，国密）；`signBasicAuth` 会返回带 `timestamp` 查询参数的 url 与对应 `Authorization` 头
-- 请求体是普通 JSON（`{ username, password }` / `{ refresh_token }`），**不是** form-urlencoded，也**没有** `grant_type`
-- `login`/`refreshToken` 必须设 `skipAuthRefresh: true`——否则 401 会触发"刷新 → 再 401 → 再刷新"死循环
-- `getCurrentUser` 走 `/api/manager/auth/info`，普通 Bearer 即可
-- 工厂函数和模块单例结构与普通模块完全一致
-
-**`mock/api/manager/auth.ts`** — Mock 实现返回固定 token：
-```typescript
-import type { IAuthApi } from '@/api/interfaces/auth'
-import type { TokenResponse, CurrentUserResponse } from '@/api/types/auth'
-import { mockCurrentUser } from '@/mock/data/manager/auth'
-
-export class MockAuthApi implements IAuthApi {
-  async login(): Promise<TokenResponse> {
-    // Mock 模式直接返回固定 token，无需校验用户名密码
-    return { access_token: 'mock_access_token_12345', refresh_token: 'mock_refresh_token_12345' }
-  }
-  async refreshToken(): Promise<TokenResponse> {
-    return { access_token: 'mock_access_token_refreshed', refresh_token: 'mock_refresh_token_refreshed' }
-  }
-  async getCurrentUser(): Promise<CurrentUserResponse> {
-    return mockCurrentUser
-  }
-}
-```
-
-**要点**：
-- Mock 登录不校验凭据，直接返回固定 token，开发阶段无需真实账号
-- 实现 `IAuthApi` 接口，方法签名与接口契约一致
-
-**`mock/data/manager/auth.ts`** — Mock 数据：
-```typescript
-import type { CurrentUserResponse } from '@/api/types/auth'
-
-export const mockCurrentUser: CurrentUserResponse = {
-  user_id: 1,
-  username: 'admin',
-  role: 'Administrator',
-}
-```
-
-**要点**：
-- 只导出 Mock 数据，不包含任何逻辑
-- `import type` 引入类型保持一致性
-
-## 文件对应关系
-
-每个 API 模块由 5 个文件组成，修改任一文件需检查关联文件是否需要同步：
-
-```
-api/types/order.ts            ← 类型定义（枚举 + 出入参）
-api/interfaces/app/order.ts   ← 接口契约（IXxxApi）
-api/modules/app/order.ts      ← Real 实现 + 工厂 + 单例
-mock/api/app/order.ts         ← Mock 实现
-mock/data/app/order.ts        ← Mock 数据
-```
-
-同步检查项：
-- 新增接口方法 → `api/interfaces/` 增方法签名 → `api/modules/` Real 实现同步 → `mock/api/` Mock 实现同步
-- 修改方法签名（参数或返回值）→ `api/types/` 类型同步 → 所有引用该类型的文件同步
-- 修改枚举值 → `api/types/` 同步 → `mock/data/` 数据引用同步
-- 新增模块 → 5 个文件全部创建
+完整 `RealAuthApi` / `MockAuthApi` / `mockCurrentUser` / `signBasicAuth` 实现与 `token.ts` 双平台适配见 [auth-module.md](references/auth-module.md)，当新增/修改 Admin 认证、排查 Basic 签名或 refresh 死循环时再读。
 
 ## 页面调用
 
-### Admin 模板项目：使用 useCrudTable（推荐）
-
-Admin 模板项目提供了 `useCrudTable` composable，封装了分页、搜索、加载、删除等全部 CRUD 列表页样板逻辑，禁止手写 `usePagination + useActionLoading + debounced search` 模式。
-
-```typescript
-import { orderApi } from '@/api/modules/app/order'
-import type { OrderItem, OrderQueryParams } from '@/api/types/order'
-import { useCrudTable } from '@/composables/useCrudTable'
-
-const {
-  loading, tableData, queryParams, pagination,
-  handleCurrentChange, handleSizeChange,
-  isLoading, isAnyLoading, withLoading,
-  loadTable, search, reset, remove,
-} = useCrudTable<OrderItem, OrderQueryParams>({
-  fetch: (p) => orderApi.getOrderList(p),
-  defaultQuery: { status: undefined, order_no: '' },
-})
-
-// 删除（内置 confirmAction 确认 + 操作锁 + 成功提示 + 刷新）
-async function handleDelete(row: OrderItem) {
-  await remove(row, {
-    id: row.id,
-    confirmMessage: `确认删除订单「${row.order_no}」？`,
-    api: orderApi.remove,
-  })
-}
-```
-
-> **完整 CRUD 页面开发指南**参见 `admin-template-setup` 技能的 [crud-page-development-guide](../admin-template-setup/references/crud-page-development-guide.md)。
+> → Admin 模板 CRUD 页面统一用 `useCrudTable`，见 `admin-template-setup`（含 `useCrudTable`/`useActionLoading`/`withLoading` 强制规则与 [crud-page-development-guide](../admin-template-setup/references/crud-page-development-guide.md)）。
 
 ### 非 Admin 模板项目：手动调用
 

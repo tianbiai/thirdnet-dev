@@ -7,14 +7,14 @@
 ```
 thirdnet-dev/
 ├── plugins/
-│   ├── thirdnet-backend/     # .NET 10 微服务后端开发插件 (v0.27.0)
-│   └── thirdnet-frontend/    # Vue 3 前端开发插件 (v0.26.0)
+│   ├── thirdnet-backend/     # .NET 10 微服务后端开发插件 (v0.27.1)
+│   └── thirdnet-frontend/    # Vue 3 前端开发插件 (v0.26.1)
 ├── skills/
-│   ├── thirdnet-fullstack/        # 全栈协调技能 (v1.5.1)
-│   ├── thirdnet-template-upgrade/ # 前后端模板升级指南 thirdnet-migrate / create-thirdnet-admin (v0.3.0)
+│   ├── thirdnet-fullstack/        # 全栈协调技能 (v1.5.3)
+│   ├── thirdnet-template-upgrade/ # 前后端模板升级指南 thirdnet-migrate / create-thirdnet-admin (v0.3.1)
 │   └── md-to-word/               # Markdown → Word 转换 (v0.1.0)
 └── .claude-plugin/
-    └── marketplace.json      # 插件集合注册清单 (v0.39.0)
+    └── marketplace.json      # 插件集合注册清单 (v0.40.0)
 ```
 
 ## 核心约定
@@ -24,7 +24,7 @@ thirdnet-dev/
 两个插件均强制执行文档驱动开发流程：
 
 ```
-需求分析 → 生成 plan.md → 生成 changelog.md → 生成 spec.md → 开发代码 → 同步更新文档
+需求分析 → 生成 plan.md → 生成 changelog.md → 生成 spec.md → 编码 → 校验 + 同步更新文档
 ```
 
 所有功能变更必须同步更新文档，Stop Hook 会在文档未更新时阻断完成。

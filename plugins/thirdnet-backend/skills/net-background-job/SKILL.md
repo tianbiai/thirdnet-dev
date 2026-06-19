@@ -127,9 +127,7 @@ public class DataSyncTask : BackgroundRunner
     public override async Task WorkAsync(CancellationToken cancellationToken)
     {
         using var scope = _scopeFactory.CreateScope();
-        // AdminDbContext 仅以 pooled DbContextFactory 注册（AddPooledDbContextFactory），
-        // DI 容器里没有裸 AdminDbContext——直接 GetRequiredService<AdminDbContext>() 会抛异常，
-        // 必须经 IDbContextFactory 取出（与 Service/Controller 注入 IDbContextFactory<T> 一致）。
+        // DbContext 必须经 IDbContextFactory 取出（DI 容器里没有裸 DbContext）→ 详见 net-efcore-developer
         var dbFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AdminDbContext>>();
         await using var dbContext = await dbFactory.CreateDbContextAsync();
         var userCache = scope.ServiceProvider.GetRequiredService<UserCache>();
@@ -181,7 +179,7 @@ services.AddSingleton<IOnlineUserHeartbeatLogger>(sp => sp.GetRequiredService<On
 services.AddHostedService(sp => sp.GetRequiredService<OnlineUserHeartbeatLogger>());
 ```
 
-负责维护在线用户状态（在线阈值 = 3 × 心跳间隔；默认心跳 `HeartbeatIntervalSeconds = 180`，故离线判定阈值约 **540 秒 / 9 分钟**——注意不是 90 秒；该任务自身 `SleepTime = 30000`，即每 30 秒扫描一次心跳）。
+负责维护在线用户状态（在线阈值 = 3 × 心跳间隔；默认心跳 `HeartbeatIntervalSeconds = 180`，故离线判定阈值约 **540 秒 / 9 分钟**；该任务自身 `SleepTime = 30000`，即每 30 秒扫描一次心跳）。
 
 ### 访问日志清理（VisitLogCleanupRunner）
 
@@ -299,7 +297,7 @@ public class LogCleanupTask : BackgroundRunner
 
 ## 相关技能
 
-- **backend-workflow**：后端开发入口与文档驱动开发流程（**编码前确认 `backend/spec.md` 已存在并已阅读**，否则文档驱动流程会被跳过）
+- **backend-workflow**：后端开发入口与文档驱动流程（→ 见该技能）
 - **net-efcore-developer**: 数据库实体（后台任务常操作数据库）
 - **net-cache-use**: 缓存功能（后台任务常刷新缓存）
 - **net-api-developer**: API 接口开发

@@ -8,7 +8,7 @@ description: >
   模板安装、品牌定制、初始化 admin 项目。
 license: MIT
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
   author: thirdnet
 ---
 # Admin 管理后台前端模板安装指南
@@ -21,7 +21,7 @@ metadata:
   - 系统管理：用户管理、角色管理（含权限分配）、菜单管理、部门管理、字典管理、配置管理、操作日志、缓存管理
   - API 管理：应用管理、IP 黑白名单、角色权限、访问日志
   - 认证授权：登录/登出、Token 自动刷新、RBAC 三层权限（角色/范围/权限码）、动态菜单路由
-- 前端采用**真实 API + Mock 数据并行**开发模式——通过 `VITE_MOCK_ENABLED` 环境变量切换，开发阶段无需后端即可完整运行。API 策略工厂的完整规范（5 文件模块结构、Real/Mock 实现、生产构建排除机制）详见 `api-typescript-spec` 技能
+- 前端采用**真实 API + Mock 数据并行**开发模式——通过单一 `.env` 中 `VITE_MOCK_ENABLED` 切换（见下方「生成项目结构概览」中的 `.env` 权威约定），开发阶段无需后端即可完整运行。API 策略工厂的完整规范（5 文件模块结构、Real/Mock 实现）详见 `api-typescript-spec` 技能；生产构建 Mock 剥离机制详见 [mock-stripping.md](../api-typescript-spec/references/mock-stripping.md)
 - **模板内置模块的业务逻辑受保护，安装后不可修改**——模板已实现的系统管理（用户、角色、菜单、部门、权限、操作日志、配置、字典、缓存）和 API 管理（应用、角色权限、IP 黑白名单、访问日志、接口列表、服务管理）功能模块的**业务逻辑代码**（script 部分、API 调用、组件嵌套关系、事件处理）属于模板资产，安装后禁止修改。页面样式（CSS/SCSS、布局、配色）可以自由调整。如需调整功能逻辑或扩展功能，应通过后端菜单配置新增页面，或新建独立的业务模块来实现。这条规则的目的是保证模板升级时不会与用户定制代码冲突。
 - 后端 API 服务需单独安装（参见 `thirdnet-backend:backend-workflow` 技能），本技能仅负责前端
 

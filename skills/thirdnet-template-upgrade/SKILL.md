@@ -12,7 +12,7 @@ description: >
   即便用户只说"项目模板是不是该更新了"、"怎么同步最新模板改动"、"把旧项目跟到新模板"、
   "前端项目怎么跟进模板改动"、"两端模板一起升"也要触发。前后端均适用——进入后先按项目类型选轨道。
 metadata:
-  version: "0.3.0"
+  version: "0.3.1"
 ---
 
 # ThirdNet 模板升级（前后端通用）
@@ -28,7 +28,7 @@ metadata:
 
 > 本技能是模板升级流程的**单一事实来源**（前后端通用、为逐条执行而写）。两端各自的具体命令、状态表、注册表、边界情况分别在 [backend-flow](references/backend-flow.md) 与 [frontend-flow](references/frontend-flow.md)；冲突决策、回滚预案、命令速查见对应 references。
 >
-> 若执行中发现工具行为与本技能不符，以工具源码为准（后端位于内部仓库 `code/backend/Template/ThirdNet.Migrate/`；前端位于 `code/frontend/create-thirdnet-admin/`，入口 `bin/create.js`、更新逻辑在 `lib/update/`）。发布 marketplace 不含 `code/` 目录，故这些路径不可从已安装技能解析。
+> 若执行中发现工具行为与本技能不符，具体实现以发布工具源码为准（`thirdnet-migrate` CLI 与 `create-thirdnet-admin` 包）。
 
 ## 适用范围
 
@@ -104,7 +104,7 @@ metadata:
 
 ## 全栈协同升级（两端都有时）
 
-ThirdNet 项目通常前后端都有（见 `thirdnet-fullstack` 的 `{项目根}/backend/ + /frontend/` 嵌套布局）。**当一次模板升级同时触碰了跨端契约，两端必须配套升级，否则只升一端会导致登录瘫痪。** 最典型的契约是认证（HMAC-SM3 Basic Auth：前端 `src/utils/basicAuth.ts` + `.env` 的 `VITE_BASIC_AUTH_*`，后端框架 `ICheckClient`/`HMACSM3Algorithm`），也包括 API 字段命名（snake_case）、权限字符串格式、路由格式等。
+ThirdNet 项目通常前后端都有（见 `thirdnet-fullstack` 的 `{项目根}/backend/ + /frontend/` 嵌套布局）。**当一次模板升级同时触碰了跨端契约，两端必须配套升级，否则只升一端会导致登录瘫痪。** 最典型的契约是认证（HMAC-SM3 Basic Auth：前端 `src/utils/basicAuth.ts` + `.env` 的 `VITE_BASIC_AUTH_*`，后端框架 `ICheckClient`/`HMACSM3Algorithm`）；其它跨端契约（API 字段命名、权限字符串格式、路由格式、认证三 scheme 等）以 `thirdnet-fullstack` 技能的「共享 API 约定」为准，本技能不复述。
 
 **判定是否属于跨端升级**——Phase 2 diff 里看到任一端触碰以下文件，就按本节配套处理：
 

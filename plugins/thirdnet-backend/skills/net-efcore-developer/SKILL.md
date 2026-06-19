@@ -372,7 +372,7 @@ await db.Database.ExecuteSqlInterpolatedAsync($@"WITH ... DELETE ...");
 
 ## 相关技能
 
-- **backend-workflow**：后端开发入口与文档驱动开发流程（**编码前确认 `backend/spec.md` 已存在并已阅读**，否则文档驱动流程会被跳过）
+- **backend-workflow**：后端开发入口与文档驱动流程（→ 见该技能）
 - **net-microservice-generator**: 微服务项目结构
 - **net-api-developer**: API 接口开发
 - **net-cache-use**: 缓存集成（View 模型与缓存配合）

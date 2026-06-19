@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Thirdnet 全栈开发插件集",
-    "version": "0.39.0"
+    "version": "0.40.0"
   },
   "plugins": [
     {
       "name": "thirdnet-backend",
       "source": "./plugins/thirdnet-backend",
       "description": "后端开发助手 - .NET 10 微服务：API 开发、EF Core 数据库、Redis 缓存、RBAC 权限体系、枚举字典、后台任务、批量操作、认证授权、文档驱动开发",
-      "version": "0.27.0",
+      "version": "0.27.1",
       "author": {
         "name": "thirdnet"
       },
@@ -34,7 +34,7 @@
       "name": "thirdnet-frontend",
       "source": "./plugins/thirdnet-frontend",
       "description": "前端开发助手 - Vue 3 页面、组件、样式开发，支持 TypeScript API 策略工厂模式（接口契约 + Real/Mock 可互换策略）、Admin 模板 CRUD 页面开发（useCrudTable + PaginationBar + validators）、枚举字典/自定义字典前端规范（useDict / getDictDataByType）、.env 无缝切换与演示模式控制",
-      "version": "0.26.0",
+      "version": "0.26.1",
       "author": {
         "name": "thirdnet"
       },
@@ -52,7 +52,7 @@
       "name": "thirdnet-fullstack",
       "source": "./skills/thirdnet-fullstack",
       "description": "全栈 Admin 功能开发协调 — 前端先行开发顺序、Admin 模板 CRUD 页面模式、前后端类型映射、RBAC 权限桥接、共享 API 约定同步、任务路由。需同时安装 thirdnet-backend 和 thirdnet-frontend 插件",
-      "version": "1.5.2",
+      "version": "1.5.3",
       "author": {
         "name": "thirdnet"
       },
@@ -103,7 +103,7 @@
       "name": "thirdnet-template-upgrade",
       "source": "./skills/thirdnet-template-upgrade",
       "description": "ThirdNet 模板升级操作指南（前后端通用）— 后端用 thirdnet-migrate CLI、前端用 npx create-thirdnet-admin check/diff/apply 把已生成项目升级到最新模板版本。覆盖 check/diff/apply 主流程、文件状态分类（后端 6 态/前端 4 态）、冲突逐个决策、清单/基线模式、override 品牌文件人工集成、全栈协同升级、读 changelog、加深验证、离线流程、版本漂移、回滚预案与禁止事项。触发：模板升级/迁移/同步/跟进、脚手架更新、对齐模板版本、跟版、前后端一起升级、thirdnet-migrate、create-thirdnet-admin、.template-version.json",
-      "version": "0.3.0",
+      "version": "0.3.1",
       "author": {
         "name": "thirdnet"
       },
