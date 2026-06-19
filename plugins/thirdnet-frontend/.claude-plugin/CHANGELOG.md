@@ -10,6 +10,7 @@
   - `crud-page-development-guide`：`StatusEnum.Enabled`（不存在）→ `StatusEnum.Normal`
   - `design-apple`：§9 新增「设计意图 → Admin 模板真实 token 映射」表（`--color-accent`→`--color-primary` 等，并说明模板未加载 SF Pro）；§10 Element Plus 覆盖改为真实实现（直接 `--el-color-primary: #0071e3` + 6 套品牌色预设经 `stores/theme.ts` 运行时覆写 `--el-color-primary*` 全套色阶）
   - `frontend-workflow`：E2E 测试目录表补全至 18 个（补 `10-frontend-integration`/`11-operation-log`/`14-i18n`/`15-cache-management`/`16-theme`/`17-tags-view`/`18-error-pages`）
+  - `frontend-workflow/references/project-spec-template.md`：App 端认证描述由虚构的 IdentityServer Connect 端点校正为 ThirdNet 应用加密认证（HMAC-SM3 Basic 签名），与 manager 端一致（消除与 `api-typescript-spec` 认证描述的矛盾）；并在 0.10.0 历史条目补注同一校正
 
 ### Added
 - `plugin.json` 版本号 0.25.0 → 0.26.0，与 `marketplace.json` 对齐
@@ -134,7 +135,7 @@
 - 新增 `api-typescript-spec` 技能：完整的 TypeScript API + Mock 全流程规范
 - 新增适配器模式：Web 端 Axios（`adapter.web.ts`）+ 移动端 uni.request（`adapter.uni.ts`），条件编译自动选择
 - 新增基础类型定义：`PaginationParams`、`PaginatedResponse<T>`、`RequestConfig<TData>`、`ApiError`、`SortParams`
-- 新增认证接口模块：`api/modules/app/auth.ts`（IdentityServer Connect）+ `utils/token.ts`（双平台 Token 管理）
+- 新增认证接口模块：`api/modules/app/auth.ts`（IdentityServer Connect）+ `utils/token.ts`（双平台 Token 管理） *(注：IdentityServer 为当时虚构描述，后端从未接入；App 端认证于 0.26.0 校正为 ThirdNet 应用加密认证 HMAC-SM3 Basic，与 manager 端一致)*
 - 新增 Mock 类型系统：`mock/types.ts`（`MockRoute`、`MockConfig`）+ `mock/handler.ts` 统一路由注册
 
 ### Changed

@@ -52,7 +52,7 @@
       "name": "thirdnet-fullstack",
       "source": "./skills/thirdnet-fullstack",
       "description": "全栈 Admin 功能开发协调 — 前端先行开发顺序、Admin 模板 CRUD 页面模式、前后端类型映射、RBAC 权限桥接、共享 API 约定同步、任务路由。需同时安装 thirdnet-backend 和 thirdnet-frontend 插件",
-      "version": "1.5.1",
+      "version": "1.5.2",
       "author": {
         "name": "thirdnet"
       },

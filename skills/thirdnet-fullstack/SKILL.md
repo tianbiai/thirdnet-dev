@@ -8,7 +8,7 @@ description: >
   适用于新增完整 Admin 模块、修改跨前后端 API 契约、排查前后端数据格式不一致。
 license: MIT
 metadata:
-  version: "1.5.1"
+  version: "1.5.2"
   author: thirdnet
 ---
 
@@ -224,7 +224,7 @@ const canModify = computed(() => hasPermiOr(['sys:notice:edit', 'sys:notice:remo
 | HTTP 状态码错误 | 401/403/404/500 区分错误类型 | `net-api-developer` | `api-typescript-spec` |
 | DTO Map 后缀 | 后端 `{Entity}{Action}Map` | `net-api-developer` | `api-typescript-spec` URL 命名规范 |
 | 路由格式 | `/api/{endpoint}/{module}/{action}` | `net-api-developer` | `api-typescript-spec` URL 命名规范 |
-| 认证方式 | IdentityServer `/connect/token` | `net-authentication` | `api-typescript-spec` 认证模块 |
+| 认证方式 | JWT（国密 SM2 签名）+ HMAC-SM3 Basic Auth（登录/刷新）+ API-Key 三 scheme；登录/刷新走 `/api/manager/auth/login`、`/api/manager/auth/refresh`，**非 IdentityServer `/connect/token`** | `net-authentication` | `api-typescript-spec` 认证模块 |
 
 ## 约定同步检查清单
 
@@ -246,7 +246,7 @@ const canModify = computed(() => hasPermiOr(['sys:notice:edit', 'sys:notice:remo
 
 | 模块 | 后端 Controller | 前端 API 模块 |
 |------|----------------|--------------|
-| 认证 | `AuthManagerController`（`/connect/token` 等端点由框架内置处理） | `api/modules/manager/auth.ts` |
+| 认证 | `AuthManagerController`（`/api/manager/auth/login`、`/api/manager/auth/refresh` 等；JWT 国密 SM2 + HMAC-SM3 Basic + API-Key 三 scheme，由 `ThirdNet.Vibe.WebAPI` 框架内置，**非 IdentityServer**） | `api/modules/manager/auth.ts`、`src/utils/basicAuth.ts`（`sm-crypto`） |
 | 用户管理 | `UserManagerController` | `api/modules/manager/user.ts` |
 | 角色管理 | `RoleManagerController` | `api/modules/manager/role.ts` |
 | 菜单管理 | `MenuManagerController` | `api/modules/manager/menu.ts` |
