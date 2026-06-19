@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.27.3 - 2026-06-20
+
+### Changed
+- `backend-workflow`、`net-microservice-generator` 的 `dotnet new install` 模板安装命令统一加 `--force`（Admin/Service 模板共 3 处），保留前置 `uninstall` 清除混装旧版本残留，确保每次安装都强制重新注册并拉取最新模板
+
+### Added
+- `plugin.json` 版本号 0.27.2 → 0.27.3，`marketplace.json` 0.40.1 → 0.40.2 对齐
+
 ## 0.27.1 - 2026-06-19
 
 ### Changed

@@ -8,7 +8,7 @@ description: >
   适用于新增完整 Admin 模块、修改跨前后端 API 契约、排查前后端数据格式不一致。
 license: MIT
 metadata:
-  version: "1.5.3"
+  version: "1.5.4"
   author: thirdnet
 ---
 
@@ -64,7 +64,7 @@ metadata:
 {项目根}/
 ├── README.md                 # 项目总览 + 三端协调说明
 ├── backend/                  # .NET Admin 后端（dotnet new thirdnet-admin）
-│   └── {ProjectName}.Admin/  # 模板产物（Admin/、Tools/、plan.md/changelog.md/spec.md）
+│   └── {ProjectName}.Admin/  # 后端工程根：模板产物仅 {ProjectName}.Admin.slnx、Admin/、Tools/；plan.md/changelog.md/spec.md 由 backend-workflow「文档先行」生成（Admin 模板创建例外不生成）
 └── frontend/
     ├── web/                  # 管理后台前端（create-thirdnet-admin，项目名传 web）
     └── minigram/             # 用户端小程序（uni-app + Vant，按需创建）
@@ -76,7 +76,7 @@ metadata:
 
 1. **建顶层目录**：在工作区根目录创建 `backend/` 与 `frontend/` 两个文件夹（小程序按需再建 `frontend/minigram/`）。
 
-2. **后端**（`backend-workflow` 例外流程）：用一次 `AskUserQuestion` 确认项目名 `{ProjectName}`，然后**在工作区根目录执行** `dotnet new thirdnet-admin -n {ProjectName} -o {ProjectName}.Admin`（backend-workflow 自带 `mkdir -p backend; cd backend`，产出 `backend/{ProjectName}.Admin/`；`-n` 传裸 `{ProjectName}` 作为命名空间前缀，`-o` 保留 `.Admin` 文件夹名）。跳过需求澄清直接进入项目框架阶段（NuGet 源、连接串用默认配置）。
+2. **后端**（`backend-workflow` 例外流程）：用一次 `AskUserQuestion` 确认项目名 `{ProjectName}`，然后**在工作区根目录执行** `dotnet new thirdnet-admin -n {ProjectName} -o {ProjectName}.Admin`（backend-workflow 自带 `mkdir -p backend; cd backend`，产出 `backend/{ProjectName}.Admin/`；`-n` 传裸 `{ProjectName}` 作为命名空间前缀，`-o` 保留 `.Admin` 文件夹名）。跳过需求澄清直接进入项目框架阶段（NuGet 源用默认内网/外网地址）。注意：模板仅生成连接串/Redis/SM2 占位符、无可运行默认值；EF 迁移与运行前需由用户在 `appsettings.json` 填真实值（细节见 backend-workflow）。
 
 3. **前端 Admin**（`frontend-workflow` + `admin-template-setup` 例外流程）：确认品牌参数（`--brand`、`--initial`、`--abbr`，可用默认值），然后**在 `frontend/` 目录内执行** `npm exec --registry http://192.168.1.207:4873/ -- create-thirdnet-admin web --brand …`，项目名传 `web`（落地为 `frontend/web/`，npm 包名为 `web`）。后端 API 地址默认 `http://localhost:5000`。若内网 registry 不可达，外网地址为 `http://61.164.57.61:14873/`。
 

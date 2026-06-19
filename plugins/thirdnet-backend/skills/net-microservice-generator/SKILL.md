@@ -34,7 +34,9 @@ Admin 项目                    Service 项目
 ### 创建命令
 
 ```bash
-# 安装模板
+# 安装模板（先卸载清除混装的旧版本；再用 --force 强制安装，确保拿到最新模板；
+#    首次卸载报"找不到"属正常）
+dotnet new uninstall ThirdNet.Service.Template 2>/dev/null || true
 dotnet new install ThirdNet.Service.Template --force
 
 # 创建微服务（在 backend/ 目录内）
@@ -61,12 +63,16 @@ dotnet new thirdnet-service -n {ServiceName} --AdminName {ProjectName}
 ```bash
 cd backend
 
-# 添加 Service 项目到已有解决方案（模板 sourceName 为 "ThirdNetVibe.Service"，
+# Admin 解决方案根在 backend/{ProjectName}.Admin/，slnx 在其内部；
+# Service 创建在 backend/{ServiceName}/（模板 sourceName 为 "ThirdNetVibe.Service"，
 # dotnet new 生成 {ServiceName}/ 包装层，下含 {ServiceName}.API 与 {ServiceName}.Database，无 Service/ 子层）
-dotnet sln {ProjectName}.Admin.slnx add \
+dotnet new thirdnet-service -n {ServiceName}
+# 加入 Admin 解决方案的 "Service" 文件夹：
+#   -s 用裸名字；--include-references:false 防止把 Service 引用的 Admin.Common/Admin.Cache 拖进 Service 文件夹
+dotnet sln {ProjectName}.Admin/{ProjectName}.Admin.slnx add \
   {ServiceName}/{ServiceName}.API/{ServiceName}.API.csproj \
   {ServiceName}/{ServiceName}.Database/{ServiceName}.Database.csproj \
-  -s /src/Service/
+  -s Service --include-references:false
 ```
 
 #### 场景 B：创建独立解决方案
@@ -83,22 +89,24 @@ dotnet new sln -n {ServiceName} -o .
 dotnet sln {ServiceName}.slnx add \
   {ServiceName}/{ServiceName}.API/{ServiceName}.API.csproj \
   {ServiceName}/{ServiceName}.Database/{ServiceName}.Database.csproj \
-  -s /src/Service/
+  -s Service --include-references:false
 ```
 
 ### 生成的项目结构
 
 ```
 backend/
-├── plan.md
-├── changelog.md
-├── spec.md                              # 项目级规格说明书（全局唯一）
-├── Admin/                               ← 已有的 Admin 项目
-│   ├── {ProjectName}.Admin.APIService/
-│   └── {ProjectName}.Admin.Database/
-├── Tools/                               ← 已有的工具类库
-│   ├── {ProjectName}.Common/
-│   └── {ProjectName}.Cache/
+├── {ProjectName}.Admin/                  ← 已有 Admin 解决方案根
+│   ├── {ProjectName}.Admin.slnx
+│   ├── plan.md
+│   ├── changelog.md
+│   ├── spec.md                           # 项目级规格说明书（全局唯一）
+│   ├── Admin/
+│   │   ├── {ProjectName}.Admin.APIService/
+│   │   └── {ProjectName}.Admin.Database/
+│   └── Tools/
+│       ├── {ProjectName}.Common/
+│       └── {ProjectName}.Cache/
 └── {ServiceName}/              ← 新创建的 Service 项目（dotnet new 生成的包装层）
     ├── {ServiceName}.API/       # API 宿主
     │   ├── Controllers/Manager/

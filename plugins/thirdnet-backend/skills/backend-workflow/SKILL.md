@@ -108,7 +108,10 @@ dotnet nuget add source http://192.168.1.156:8088/nuget -n ThirdNet
 # 内网不可达时改用外网源：
 # dotnet nuget add source http://61.164.57.61:8088/nuget -n ThirdNet
 
-# 2. 安装模板
+# 2. 安装模板（先卸载清除本地路径 / NuGet id 混装的旧版本，避免重复注册；
+#    再用 --force 强制安装，即使已注册也重新拉取注册最新模板；
+#    首次安装时 uninstall 报"找不到"属正常，已用 || true 吞掉）
+dotnet new uninstall ThirdNet.Admin.Template 2>/dev/null || true
 dotnet new install ThirdNet.Admin.Template --force
 
 # 3. 创建项目（在 backend/ 目录内）
@@ -116,23 +119,28 @@ mkdir -p backend
 cd backend
 dotnet new thirdnet-admin -n {ProjectName} -o {ProjectName}.Admin
 
-# 4. 创建解决方案文件并添加项目（必需）
-dotnet new sln -n {ProjectName}.Admin -o .
+# 4. 进入解决方案根目录，创建 .slnx 并按解决方案文件夹归集项目
+#    （cwd = backend/{ProjectName}.Admin/，步骤 4–7 所有相对路径以此为准）
+cd {ProjectName}.Admin
+dotnet new sln -n {ProjectName}.Admin
+# Admin 层项目 → "Admin" 解决方案文件夹：
+#   -s 用裸名字（不是 /src/Admin/）；--include-references:false 防止把 Common/Cache 递归拖进 Admin
 dotnet sln {ProjectName}.Admin.slnx add \
   Admin/{ProjectName}.Admin.APIService/{ProjectName}.Admin.APIService.csproj \
   Admin/{ProjectName}.Admin.Database/{ProjectName}.Admin.Database.csproj \
-  -s /src/Admin/
+  -s Admin --include-references:false
+# Tools 层项目 → "Tools" 解决方案文件夹
 dotnet sln {ProjectName}.Admin.slnx add \
   Tools/{ProjectName}.Common/{ProjectName}.Common.csproj \
   Tools/{ProjectName}.Cache/{ProjectName}.Cache.csproj \
-  -s /src/Tools/
+  -s Tools --include-references:false
 
 # 5. 配置数据库连接字符串
-#    编辑 backend/Admin/{ProjectName}.Admin.APIService/appsettings.json
+#    编辑 backend/{ProjectName}.Admin/Admin/{ProjectName}.Admin.APIService/appsettings.json
 #    ConnectionString — Admin 业务数据库
 #    DefaultConnectionString — 框架数据库（ThirdNetDbContext）
 
-# 6. 执行 EF Core 迁移（首次）
+# 6. 执行 EF Core 迁移（首次，cwd 仍为 backend/{ProjectName}.Admin/）
 dotnet ef database update \
   --project Admin/{ProjectName}.Admin.Database \
   --startup-project Admin/{ProjectName}.Admin.APIService
@@ -141,19 +149,21 @@ dotnet ef database update \
 dotnet run --project Admin/{ProjectName}.Admin.APIService
 ```
 
-生成的项目结构：
+生成结果（`dotnet new thirdnet-admin` 模板产物 = `{ProjectName}.Admin.slnx`、`Admin/`、`Tools/`；`plan.md`/`changelog.md`/`spec.md` **不是模板产物**，由后续「文档先行」阶段生成，Admin 模板创建例外流程暂不生成）：
 
 ```
 backend/
-├── plan.md
-├── changelog.md
-├── spec.md                               # 项目级规格说明书（全局唯一）
-├── Admin/
-│   ├── {ProjectName}.Admin.APIService/       # API 宿主（Controllers、Services、DTOs）
-│   └── {ProjectName}.Admin.Database/         # AdminDbContext + 实体 + EntityConfigurations
-└── Tools/
-    ├── {ProjectName}.Common/           # 常量、枚举、DI 扩展、AdminControllerBase
-    └── {ProjectName}.Cache/            # Redis 缓存域
+└── {ProjectName}.Admin/                       # 解决方案根（dotnet new thirdnet-admin -o 产物）
+    ├── {ProjectName}.Admin.slnx
+    ├── plan.md                                # 非模板产物——backend-workflow「文档先行」生成（Admin 创建例外暂不生成）
+    ├── changelog.md                           # 非模板产物——同上
+    ├── spec.md                                # 非模板产物——项目级规格说明书（全局唯一），同上
+    ├── Admin/
+    │   ├── {ProjectName}.Admin.APIService/    # API 宿主（Controllers、Services、DTOs）
+    │   └── {ProjectName}.Admin.Database/      # AdminDbContext + 实体 + EntityConfigurations
+    └── Tools/
+        ├── {ProjectName}.Common/              # 常量、枚举、DI 扩展、AdminControllerBase
+        └── {ProjectName}.Cache/               # Redis 缓存域
 ```
 
 ### 创建 Service 微服务项目
@@ -162,6 +172,8 @@ backend/
 
 ```bash
 # 前提：已有 Admin 项目
+# 安装模板：先卸载清除混装的旧版本，再用 --force 强制安装最新模板
+dotnet new uninstall ThirdNet.Service.Template 2>/dev/null || true
 dotnet new install ThirdNet.Service.Template --force
 cd backend
 # 完整创建命令（含 --AdminName 说明）见 net-microservice-generator
@@ -248,7 +260,9 @@ Admin 项目的 Program.cs 和 Startup.cs 遵循固定的启动模式和 10 步 
 
 如果当前任务为**创建 Admin 管理后台项目**（用户明确提出"创建 admin"、"新建管理后台"、"thirdnet-admin"等），**直接跳过本节后续的 3 轮澄清流程**。原因：Admin 模板已内置完整的系统管理和 API 管理模块，功能范围固定不变，无需确认。
 
-**替代操作**：使用一次 `AskUserQuestion` 仅确认项目名称（`{ProjectName}`，用于 `dotnet new thirdnet-admin -n {ProjectName} -o {ProjectName}.Admin`）。NuGet 源地址默认用内网 `http://192.168.1.156:8088/nuget`，内网不可达时改用外网 `http://61.164.57.61:8088/nuget`；数据库连接字符串均使用技能默认配置，无需确认。
+**替代操作**：使用一次 `AskUserQuestion` 仅确认项目名称（`{ProjectName}`，用于 `dotnet new thirdnet-admin -n {ProjectName} -o {ProjectName}.Admin`）。NuGet 源地址默认用内网 `http://192.168.1.156:8088/nuget`，内网不可达时改用外网 `http://61.164.57.61:8088/nuget`。
+
+> ⚠️ 模板生成的 `appsettings.json` 仅含占位符（`DefaultConnectionString`/`ConnectionString` 是中文描述串、`RedisExtension.Connection` 为 `"Redis连接地址（host:port,password=xxx）"`、`JwtOptions` 的 `public_key`/`private_key` 为 `"JWT公钥（SM2）"`/`"JWT私钥（SM2）"`、`AdminSecret` 为空串），无可运行默认值。创建阶段不确认这些值，但执行步骤 6（`dotnet ef database update`）/ 步骤 7（`dotnet run`）前，需由用户在 `backend/Admin/{ProjectName}.Admin.APIService/appsettings.json` 中填入真实的 PostgreSQL / Redis / SM2 配置；若本次只想生成代码、暂不运行，可保留占位符并跳过步骤 6/7。
 
 确认后直接跳转至「开发阶段」的阶段 2（项目框架：使用模板创建标准化项目结构）。
 
