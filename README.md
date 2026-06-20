@@ -59,9 +59,9 @@ git clone https://github.com/tianbiai/thirdnet-dev.git
 ```
 thirdnet-dev/
 ├── .claude-plugin/
-│   └── marketplace.json              # 插件集合注册清单 (v0.41.0)
+│   └── marketplace.json              # 插件集合注册清单 (v0.42.0)
 ├── plugins/
-│   └── thirdnet-fullstack/           # 全栈开发插件（自包含，v1.6.1）
+│   └── thirdnet-fullstack/           # 全栈开发插件（自包含，v1.7.0）
 │       ├── .claude-plugin/
 │       │   ├── plugin.json
 │       │   ├── hooks/                # 文档驱动 Stop Hook + 技能合规 PreToolUse/PostToolUse（6 条）

@@ -1,138 +1,176 @@
 ---
 name: thirdnet-template-upgrade
-description: >
-  ThirdNet 模板升级操作指南（前后端通用）——把已生成的 ThirdNet 项目升级到最新模板版本：
-  后端用 thirdnet-migrate CLI（admin/service），前端用 npx create-thirdnet-admin check/diff/apply。
-  覆盖预检、check/diff/apply 主流程、文件状态分类（后端 6 态 / 前端 4 态）、冲突逐个决策、
-  清单/基线模式、override 品牌文件人工集成、离线流程、版本漂移处理、回滚预案与禁止事项。
-  当用户提到"模板升级"、"模板迁移"、"升级模板"、"跟进模板"、"同步模板"、"模板更新"、
-  "脚手架更新"、"脚手架升级"、"对齐模板版本"、"跟版"、"thirdnet-migrate"、"create-thirdnet-admin"、
-  "upgrade template"、"template sync"、"scaffold"、".template-version.json"、".template-manifest.json"、
-  "前端模板升级"、"升级前端"、"前后端一起升级"时，必须使用此技能；
-  即便用户只说"项目模板是不是该更新了"、"怎么同步最新模板改动"、"把旧项目跟到新模板"、
-  "前端项目怎么跟进模板改动"、"两端模板一起升"也要触发。前后端均适用——进入后先按项目类型选轨道。
-metadata:
-  version: "0.4.0"
+description: Upgrade existing ThirdNet-based projects (.NET Admin/Service backends and Vue frontends) to the latest template version — refresh the upgrade tools, detect what changed, apply non-conflicting updates automatically, and resolve real conflicts via AI semantic 3-way merge. Use this whenever the user wants to pull template/scaffold updates into an already-generated project, sync bugfixes or structural changes from a newer ThirdNet release, "升级/更新/同步模板", migrate a template project, or fix conflicts between their customizations and template changes — even if they don't name the tool. Also use it right after a new ThirdNet package ships and the user wants existing projects to follow. Covers both `thirdnet-migrate` (backend dotnet tool) and `create-thirdnet-admin` (frontend npx).
 ---
 
-# ThirdNet 模板升级（前后端通用）
+# ThirdNet 模板升级（前后端统一）
 
-模板（脚手架）会持续修 bug、优化结构，但用模板生成的旧项目是**一次性快照**——模板改了，旧项目不会自动跟着改。本技能指导你在**任意一个已用 ThirdNet 模板创建的旧项目**上执行模板升级，让它跟进模板的新版本，且**绝不覆盖用户的业务代码**。
+把用 ThirdNet 模板生成的旧项目，升级到模板的最新版本——包括装/升级工具本身、对比变更、套用非冲突更新、用 AI 语义合并真正的冲突文件。
 
-两条轨道，机制高度平行：
+## 何时用
 
-- **后端轨道**：用 `thirdnet-migrate` CLI（命令名 `thirdnet-migrate`，≥ 0.0.23），针对 `dotnet new thirdnet-admin` / `thirdnet-service` 创建的项目。
-- **前端轨道**：用 `create-thirdnet-admin` 包内嵌的更新子命令（`npx create-thirdnet-admin check|diff|apply`），针对 `create-thirdnet-admin` 创建的项目。
+- 用户想把已有 ThirdNet 项目（后端 Admin/Service 或前端）跟进到模板新版
+- 新版 ThirdNet 包发布后，用户想让老项目跟着升级
+- 用户改动与模板变更出现冲突，需要调和
+- 用户说"升级/更新/同步模板""模板出新版了""migrate template"等
 
-两者共享同一套心智模型：`check`（查是否最新）→ `diff`（只读预览差异）→ `apply`（应用，冲突逐个决策）→ 验证 → 收尾出报告；共享同名版本标记 `.template-version.json`、同样的 `.thirdnet-backup/<时间戳>/` 备份机制、同样的安全铁律。
+## 心智模型（先建立这个，流程才说得通）
 
-> 本技能是模板升级流程的**单一事实来源**（前后端通用、为逐条执行而写）。两端各自的具体命令、状态表、注册表、边界情况分别在 [backend-flow](references/backend-flow.md) 与 [frontend-flow](references/frontend-flow.md)；冲突决策、回滚预案、命令速查见对应 references。
->
-> 若执行中发现工具行为与本技能不符，具体实现以发布工具源码为准（`thirdnet-migrate` CLI 与 `create-thirdnet-admin` 包）。
+- **模板是"活的"，项目是"快照"**：模板持续修 bug / 改结构，但用模板生成的项目是一次性的，不会自动跟进——本技能就是把这个"跟进"做成安全、可回退的流程。
+- **文件分 6 态**，工具会自动归类（详见 `references/commands.md`）：
+  - `UpstreamOnly` 🔄 —— 你没动过、模板改了 → 工具**自动套用**
+  - `UserOnly` 🔒 —— 你改过、模板没动 → **原样保留**（你的业务代码安全）
+  - `Conflict` ⚠️ —— 两边都改了 → **需要决策**，交给 AI 合并
+  - `Added` / `Deleted` / `Unchanged` —— 模板新增 / 模板已删（永不删你的）/ 无变化
+- **确定性边界（关键）**：工具负责找冲突、准备 3-way、备份、哈希校验、落盘、推进版本；**AI 只负责"冲突文件这一处该听用户的还是听模板的"这一步语义裁决**。不要让 AI 去手动备份、手改项目文件、自己推进版本——工具已经把这些做对、做安全了。
 
-## 适用范围
+## 私有 registry 地址
 
-- ✅ 后端：用 `dotnet new thirdnet-admin` 创建的 Admin 项目，或 `dotnet new thirdnet-service` 创建的微服务。
-- ✅ 前端：用 `create-thirdnet-admin` 创建的 Admin 管理后台前端项目。
-- ❌ 非 ThirdNet 模板创建的项目。
+下面所有命令默认用**内网**地址；内网不通时换**外网**——同一服务，二选一。
 
-> **多服务仓库**：一个仓库里有多个 ThirdNet 后端服务时，每个含 `.template-version.json` 的解决方案**各自独立**运行一次 check/diff/apply（工具不批量处理）；若升级带了新的框架库版本，所有引用 `ThirdNet.Vibe.Common`/`WebAPI` 的 `.csproj` 须统一同步版本号，否则 `dotnet restore` 失败。
+| 仓库 | 内网（优先） | 外网（内网不通时） |
+|---|---|---|
+| NuGet（后端） | `http://192.168.1.156:8088/nuget` | `http://61.164.57.61:8088/nuget` |
+| npm（前端） | `http://192.168.1.207:4873/` | `http://61.164.57.61:14873/`（端口 **14873**，非 4873） |
 
-## 第一步：判断项目类型（选轨道）
+---
 
-读项目根的 `.template-version.json`，按 `templateIdentity` 选轨道：
+## 完整流程
 
-| 判定 | 轨道 | 接下来读 |
-|------|------|----------|
-| `templateIdentity === "ThirdNet.Admin.Frontend"`（或根目录有 `package.json` + `vite.config.ts`） | **前端** | [frontend-flow](references/frontend-flow.md) |
-| 其它（根目录有 `.csproj` / `Tools/` 子项目 / Admin·Service 结构） | **后端** | [backend-flow](references/backend-flow.md) |
-| 无 `.template-version.json` | 非 ThirdNet 模板项目 | 退出，本技能不适用 |
+### Phase 0 — 先升级工具本身
 
-选好轨道后，按该 flow 文档的 Phase 0–5 执行。下文的安全铁律、核心概念、主流程骨架对**两条轨道都适用**，先在这里建立共识。
+用户点名要"卸载老的装最新"。先确保用的是最新版工具，否则流程里查到的是旧模板。
 
-## 安全铁律（SAFETY INVARIANTS —— 任何情况下不得违反）
+**后端（dotnet 全局工具）**——在任意目录：
 
-这些是不可妥协的硬约束，两端通用。违反即视为升级失败，必须回滚。理解它们存在的原因：模板升级最怕的是**误删/误覆盖用户的业务代码**，而这些规则把"不可逆的破坏"全部堵死。
+```bash
+dotnet tool uninstall -g ThirdNet.Migrate
+# 内网源（优先）；内网不通则把 --add-source 换成 http://61.164.57.61:8088/nuget
+dotnet tool install -g ThirdNet.Migrate --add-source http://192.168.1.156:8088/nuget
+# 验证版本：
+dotnet tool list -g | grep -i migrate
+```
 
-1. **绝不覆盖用户业务代码。** 任何被工具识别为用户改动/用户专属的文件——后端是业务 Controller / 实体 / EntityConfiguration / 业务 DbContext / Service / DTO 等；前端是 `src/views/` 下的业务页面与任何用户自定义——**一律保留**，绝不套用模板版。业务代码是用户最宝贵的资产，模板升级只动框架结构。
-2. **绝不自动删除用户文件。** 即便模板删除了某文件（🗑️ `Deleted`），apply 也只提示、永不删。**不得手动删除任何用户文件。** 模板删某个文件可能只是因为重构，但用户项目里那文件可能仍承载业务——删了找不回。
-3. **冲突文件必须逐个决定**，不得用 `--force` 批量覆盖业务相关改动。`--force` 仅允许用于确认为「纯框架基础设施、无业务逻辑」的文件。`--force` 绕过逐个确认，等于盲覆盖，对业务文件是灾难。
-4. **每次覆盖既有文件前，工具会自动备份到 `.thirdnet-backup/<时间戳>/`**；但更可靠的保险是**升级前 VCS 工作区干净**（见各轨道 Phase 0）。备份是第二道防线，干净的版本控制工作区才是第一道。
-   - git：`git status --porcelain` 为空。
-   - svn：`svn status` 为空（无 `?`、`M`、`A` 等未处理改动）。
-5. **升级全程不手动编辑命名空间 / 品牌占位符引用。** 工具会在比对前自动完成占位符替换——后端是 `sourceName`（`ThirdNetVibe`→项目前缀）+ 版本占位符（`VIBE_COMMON_VERSION` 等）；前端是品牌 token（`__BRAND_NAME__` / `__BRAND_INITIAL__` / `__BRAND_ABBR__` / `__PROJECT_NAME__` / `__API_PROXY_TARGET__`）。手动改这些会制造伪冲突，让干净的安全更新变成假的需确认项。
-6. **升级目标版本必须已发布到对应注册表**。后端发到 NuGet（内网 `192.168.1.156:8088/nuget`，可用 `--nupkg` 离线）；前端发到 Verdaccio（内网 `192.168.1.207:4873`，**无离线模式**）。未发布的模板改动无法迁移。
+更轻的等价做法：`dotnet tool update -g ThirdNet.Migrate --add-source <内网或外网源>`（内/外网二选一）。
 
-完整的禁止事项清单见 [rollback-and-do-not](references/rollback-and-do-not.md)。
+**前端（npx，无持久安装）**——`npx create-thirdnet-admin@latest <cmd>` 每次从 registry 拉最新。
+- registry 默认内网 `http://192.168.1.207:4873/`；外网用 `--registry http://61.164.57.61:14873/`，或改项目 `.npmrc`。
+- 若曾 `npm i -g create-thirdnet-admin`，先 `npm uninstall -g create-thirdnet-admin` 清掉全局旧版，避免 npx 命中缓存。
+- 前端升级子命令**必须在前端项目目录内**运行（该目录 `.npmrc` 指向私有 registry）。
 
-## 核心概念（读懂工具输出必备）
+### Phase 1 — 检测 + 对比（在要升级的项目目录内）
 
-### check → diff → apply 心智模型
+```bash
+# 后端（cd 进 .slnx 所在的项目根）
+thirdnet-migrate check     # 查最新版 + 当前清单状态
+thirdnet-migrate diff      # 预览差异，按 6 态分组 + 每个文件的建议
 
-| 阶段 | 作用 | 是否写盘 |
-|------|------|----------|
-| `check` | 读版本标记、查注册表最新版，报告是否需要升级 | 否 |
-| `diff` | 下载最新模板、替换占位符、与项目逐文件比对，按类别预览差异 | **否（只读）** |
-| `apply` | 应用差异：安全的自动套用、用户改过的逐个决策、品牌文件跳过、模板删除只提示 | 是（覆盖前自动备份） |
+# 前端（cd 进前端项目根）
+npx create-thirdnet-admin@latest check
+npx create-thirdnet-admin@latest diff
+```
 
-### 文件状态分类
+**边缘情况**：后端若报缺 `.template-manifest.json`（项目早于清单机制），先跑一次 `thirdnet-migrate init-manifest` 生成清单（不动业务文件），再继续。
 
-工具把每个模板下发文件分到一个状态。两端状态数不同（**后端 6 态、前端 4 态**），但判定内核一致——「用户是否改过 × 模板是否改过」：
+### Phase 2 — 套用非冲突更新
 
-- 两端共有：`Unchanged`（无变化）、`Added` 📄（新增）、`Deleted` 🗑️（模板已删、仅提示永不删）。
-- 后端把"模板改了/用户改了"细分为 `UpstreamOnly` 🔄（自动套用）/ `UserOnly` 🔒（保留）/ `Conflict` ⚠️（逐个决策）三态；详见 [backend-flow](references/backend-flow.md)。
-- 前端用单个 `Modified` 态，再按 `userModified × isOverride` 细分为 ✅安全自动 / ⚠️需确认 / 🔒品牌跳过；详见 [frontend-flow](references/frontend-flow.md)。
-- 项目里既不在新模板、也不在旧基线/清单中的文件 = **用户业务代码**，工具完全忽略，不参与对比。
+```bash
+thirdnet-migrate apply                          # 后端，交互式逐文件确认
+thirdnet-migrate apply --non-interactive        # 非交互：UpstreamOnly 套用、UserOnly 保留、Conflict 保留并退出码 2
+# 前端同理：npx create-thirdnet-admin@latest apply [--dry-run|--force]
+```
 
-### 关键产物文件
+`apply` 会自动套用 `UpstreamOnly`、保留 `UserOnly`。**`Conflict` 文件不会被 apply 触碰**——这些就是 Phase 3 要处理的对象。`--dry-run` 先预览，`--force` 强制覆盖你的改动（会先备份，慎用）。
 
-| 文件 | 适用 | 作用 | 何时关心 |
-|------|------|------|----------|
-| `.template-version.json` | 两端 | 记录项目当前所用模板版本（diff 基准） | `check` 读它判断是否过期；apply 成功后自动前进 |
-| `.template-manifest.json` | **仅后端** | 逐文件哈希清单（清单模式基准） | 有它=清单模式；无它=基线/2-way 模式 |
-| `.thirdnet-backup/<时间戳>/` | 两端 | 被覆盖文件的备份（文件名扁平化） | 仅当确有文件被覆盖时才生成；回滚用 |
-| `<file>.thirdnet.merge` | **仅后端** | 冲突标记文件（选 `[m]` 生成） | 需在编辑器手动合并后落地；**前端无此文件** |
+### Phase 3 — 用 AI 合并冲突（核心）
 
-## 升级主流程（Phase 0–5，共享骨架）
+对真正两边都改过的文件，做语义 3-way 合并：
 
-两端流程对仗，每阶段的**共性**如下；**具体命令、判定与边界见所属轨道的 flow 文档**。
+```bash
+# 1) 导出冲突文件的工作目录（base/mine/theirs + meta）
+thirdnet-migrate export-merge -o ./.tw          # 后端
+npx create-thirdnet-admin@latest export-merge -o ./.tw   # 前端
+#   前端想连 package.json 等品牌文件一起合并，加 --include-override
 
-- **Phase 0 预检**：环境/工具就绪（后端 `dotnet tool` ≥ 0.0.23；前端 Node ≥ 18 / npm ≥ 9）；确认注册表可达并记下最新版本号；**VCS 工作区必须干净**（git 查 `git status --porcelain`、svn 查 `svn status`）；确定在线/离线（后端可离线，前端不可）；**读本次升级涉及的 changelog**（前端 `public/changelog.md`、后端 `code/backend/changelog.md`，详见各 flow 的 Phase 0）——diff 只告诉你"改了什么"，changelog 告诉你"为什么、是否破坏性、是否跨端"，直接影响 ⚠️ 冲突的取舍。
-- **Phase 1 check**：探测项目，判定是否需要升级（已是最新则结束）。
-- **Phase 2 diff（只读）**：**必须完整阅读**，重点记录所有需确认/冲突文件与品牌文件的相对路径。若 ⚠️ 冲突/需确认数量异常多（大量你并未改过的框架文件报冲突）→ **停在 Phase 2**，先按各轨道 Phase 0 检查清单模式/基线/占位符是否正确，不要直接进 apply。
-- **Phase 3 apply**：先 `--dry-run`，再正式应用。需确认/冲突文件逐个决策（后端 `[a]/[k]/[m]/[v]/[e]`；前端 `[a]/[s]/[v]`，无 `[m]`），遵循 [conflict-resolution](references/conflict-resolution.md)。
-- **Phase 4 验证**：构建必须通过（后端 `dotnet build`；前端 `npm run build`），再 `check` 确认已是最新；**若本次升级触碰了认证/API/mock 等关键模块，加跑单测 + mock 模式冒烟**——`build` 通过 ≠ 行为正确，签名/权限/路由的回归编译期发现不了。此外，apply 后必须核对「实际套用/新增文件数」与 Phase 2 diff 预期是否一致；若 `.template-version.json` 已前进但实际变更文件数远少于预期（甚至为 0），视为升级异常，**不得收尾、不得建议落库**，退回 Phase 2 按命名空间/占位符/清单/基线重新诊断。
-- **Phase 5 收尾**：审阅改动汇总、确认产物文件更新、按 [commands-and-report](references/commands-and-report.md) 输出升级报告，并**列出建议的落库操作但交用户执行**；git 与 svn 各给命令示例，agent 不得自动执行 `git commit` 或 `svn commit`。消息建议：`chore: 升级 ThirdNet 模板至 <新版本>`。
+# 2) Claude 充当合并器：逐个 unit 写 merged（或 declined）—— 见下方协议
 
-## 全栈协同升级（两端都有时）
+# 3) 安全落盘
+thirdnet-migrate import-merge -i ./.tw          # 后端：备份→写入→推进版本→重算清单
+npx create-thirdnet-admin@latest import-merge -i ./.tw   # 前端
+#   全部已决且无陈旧/放弃时，加 --purge 清理工作目录（默认保留作审计）
+```
 
-ThirdNet 项目通常前后端都有（见 `thirdnet-fullstack` 的 `{项目根}/backend/ + /frontend/` 嵌套布局）。**当一次模板升级同时触碰了跨端契约，两端必须配套升级，否则只升一端会导致登录瘫痪。** 最典型的契约是认证（HMAC-SM3 Basic Auth：前端 `src/utils/basicAuth.ts` + `.env` 的 `VITE_BASIC_AUTH_*`，后端框架 `ICheckClient`/`HMACSM3Algorithm`）；其它跨端契约（API 字段命名、权限字符串格式、路由格式、认证三 scheme 等）以 `thirdnet-fullstack` 技能的「共享 API 约定」为准，本技能不复述。
+**备选（批量/无人值守）**：用 headless 脚本逐文件调 Claude API（工作目录格式两端一致，后端导出的也能用）：
 
-**判定是否属于跨端升级**——Phase 2 diff 里看到任一端触碰以下文件，就按本节配套处理：
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...   # 绝不作 CLI 参数
+npx create-thirdnet-admin@latest merge-workdir ./.tw   # 退出码 0=全决 / 2=有放弃 / 1=致命错误
+```
 
-- 后端：`Authentication/`、`Startup.cs` 的认证/DI 注册、`appsettings.json` 认证节、`PermissionCatalog` 相关、API 路由/控制器基类。
-- 前端：`src/api/adapter.web.ts`、`src/utils/basicAuth.ts`、`src/stores/auth.ts`、`.env` 的 `VITE_BASIC_AUTH_*`/`VITE_API_BASE_URL`、`src/api/types/`、`src/api/interfaces/`。
+---
 
-**推荐顺序**：先升后端（契约权威源在后端）→ 后端 `dotnet build` + 认证相关单测通过 → 再升前端 → 前端 mock 模式（`VITE_MOCK_ENABLED=true`）独立验证 → 最后 `VITE_MOCK_ENABLED=false` 联调。
+## Claude 合并协议（Phase 3 你亲自合并时按这个来）
 
-**配套验证清单**（至少过一遍）：登录、Token 刷新、一个 `v-permission` 按钮、一条分页列表——一次覆盖 HMAC 签名 + JWT + RBAC + snake_case 四类契约。
+这是本技能的核心。当你（Claude）作为合并器，对 `.tw/units/*/` 里的每个 unit 操作：
 
-跨端契约变更的完整复核表见 `thirdnet-fullstack` 技能的「约定同步检查清单」。非跨端变更（纯前端样式、纯后端业务逻辑）按各自轨道独立升级即可。
+1. **读上下文**：先读 `.tw/manifest.json`（tool / mode / templateIdentity / targetTemplateVersion），再列出 `.tw/units/` 下所有 unit 目录。
 
-## 参考文件索引
+2. **逐 unit 处理**，每个先读它的 `meta.json`。
 
-| 文件 | 内容 | 何时读取 |
-|------|------|----------|
-| [backend-flow.md](references/backend-flow.md) | 后端轨道：`thirdnet-migrate` 命令、6 态分类、清单/基线模式、框架库同步、NuGet 源、离线流程、后端 checklist | 升级**后端**项目时 |
-| [frontend-flow.md](references/frontend-flow.md) | 前端轨道：`npx create-thirdnet-admin` 命令、4 态分类、override 品牌文件人工集成、Verdaccio、前端能力差距、前端 checklist | 升级**前端**项目时 |
-| [conflict-resolution.md](references/conflict-resolution.md) | 冲突决策矩阵、逐文件决策步骤、`.thirdnet.merge` 合并规范、前端冲突处理 | Phase 3 遇需确认/冲突文件时**必读** |
-| [edge-cases.md](references/edge-cases.md) | 旧项目无清单/标记过期、离线流程、版本漂移、命名空间与占位符；前端边界（无离线/2-way 降级/package.json 人工合并） | check/diff 报异常、或需离线时 |
-| [rollback-and-do-not.md](references/rollback-and-do-not.md) | 回滚预案 + 禁止事项清单（DO NOT，前后端通用） | 升级出问题时回滚；执行前复核红线 |
-| [commands-and-report.md](references/commands-and-report.md) | 速查命令表（前后端）+ 升级报告格式模板（前后端） | 查命令速查、收尾出报告时 |
+3. **跳过规则**（写一个空 `declined` 文件，不自己合并）：
+   - `meta.isBinary === true` → 二进制，放弃
+   - `meta.role === "brand"` → 品牌文件（package.json / brand.ts / index.html 等），交回人工
+   - 该 unit 已有 `merged` 或 `declined` → 跳过（幂等，支持断点续做）
 
-## 执行 Checklist
+4. **读三份内容**：`base`（仅 `3-way` 模式有，共同祖先）/ `mine`（用户当前）/ `theirs`（新模板）。按**角色信任矩阵**裁决每一处：
 
-按第一步判定项目类型，使用对应轨道的完整 checklist：
+   | role | 信任倾向 | 含义 |
+   |---|---|---|
+   | `framework` / `config` / `infra` | 信 **THEIRS** | 吸收模板的 bugfix 与结构调整 |
+   | `business` | 信 **MINE** | 保留用户的业务逻辑、自定义、注释 |
+   | `unknown` | 当 `business`（保守） | 优先保留用户改动 |
+   | `brand` | **DECLINED** | （上方已跳过） |
 
-- 后端项目 → [backend-flow 的执行 Checklist](references/backend-flow.md#后端执行-checklist)
-- 前端项目 → [frontend-flow 的执行 Checklist](references/frontend-flow.md#前端执行-checklist)
+5. **产出 `merged`**——把合并后的**完整文件内容**写入 unit 目录的 `merged` 文件：
+   - **只写完整文件内容本身**，不要解释、前言、"以下是合并结果"、代码围栏（```）
+   - 保留原文件的缩进、换行风格、编码
+   - 只调和真正冲突的区域；不要重排或重格式化无关代码
+
+6. **DECLINED 纪律**——拿不准时写一个空 `declined` 文件（不写 `merged`），把该文件交回人工：
+   - `mine` 与 `theirs` 在**同一处**做了真正冲突的编辑，且你没有 >90% 把握 → DECLINED
+   - `meta.mode === "2-way"`（无 BASE 共同祖先）→ 更保守，任何拿不准的块都 DECLINED
+
+7. **收尾**：所有 unit 处理完，运行 `import-merge -i ./.tw`。
+
+完整规范（工作目录格式、`meta.json` 全字段、角色分类规则、与 `merge-workdir.js` 提示词对齐的权威版本）见 `references/merge-protocol.md`。
+
+## 工具的安全保证（知道这些，就不必反复猜疑）
+
+- `import-merge` 覆盖前自动备份到 `.thirdnet-backup/<时间戳>/`，可回退
+- **陈旧检查**：导出时记录 `mineHash`，导入时重算磁盘哈希；不一致（导出后文件又被改）→ 该 unit 报 `stale`、**不覆盖、不推进版本**
+- 版本标记**仅在 `applied > 0` 时推进**
+- `UserOnly` 文件**永不进工作目录**——你的纯业务代码零风险
+- 工具**永不删文件**（`Deleted` 态只提示，不动手）
+
+所以你（Claude）的唯一职责是产出正确的 `merged`（或 `declined`）。不要手动备份、不要手改项目文件、不要自己改版本号——交给工具。
+
+## 验证升级成功
+
+```bash
+# 后端
+thirdnet-migrate check                 # 应显示已是最新 / 无冲突
+dotnet build                           # 编译通过
+dotnet test                            # 测试通过
+
+# 前端
+npx create-thirdnet-admin@latest check
+npm run build                          # vue-tsc + vite 构建通过
+npm test                               # Vitest 通过
+```
+
+## 深入参考
+
+- 完整命令、flag、6 态详解、离线模式 → `references/commands.md`
+- 合并协议权威规范、工作目录格式、角色矩阵、DECLINED 全规则 → `references/merge-protocol.md`
+- 设计原文 → `docs/ai-template-merge.md`
+- 权威实现：后端 `backend/Template/ThirdNet.Migrate/`（`Services/WorkDirWriter.cs` / `WorkDirReader.cs`）、前端 `frontend/create-thirdnet-admin/scripts/merge-workdir.js`
