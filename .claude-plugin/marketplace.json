@@ -6,53 +6,14 @@
   },
   "metadata": {
     "description": "Thirdnet 全栈开发插件集",
-    "version": "0.40.2"
+    "version": "0.42.0"
   },
   "plugins": [
     {
-      "name": "thirdnet-backend",
-      "source": "./plugins/thirdnet-backend",
-      "description": "后端开发助手 - .NET 10 微服务：API 开发、EF Core 数据库、Redis 缓存、RBAC 权限体系、枚举字典、后台任务、批量操作、认证授权、文档驱动开发",
-      "version": "0.27.3",
-      "author": {
-        "name": "thirdnet"
-      },
-      "keywords": [
-        "backend",
-        "dotnet",
-        "api",
-        "database",
-        "rbac",
-        "cache",
-        "redis",
-        "efcore"
-      ],
-      "category": "development",
-      "strict": false
-    },
-    {
-      "name": "thirdnet-frontend",
-      "source": "./plugins/thirdnet-frontend",
-      "description": "前端开发助手 - Vue 3 页面、组件、样式开发，支持 TypeScript API 策略工厂模式（接口契约 + Real/Mock 可互换策略）、Admin 模板 CRUD 页面开发（useCrudTable + PaginationBar + validators）、枚举字典/自定义字典前端规范（useDict / getDictDataByType）、.env 无缝切换与演示模式控制",
-      "version": "0.26.1",
-      "author": {
-        "name": "thirdnet"
-      },
-      "keywords": [
-        "frontend",
-        "vue",
-        "development",
-        "enum",
-        "dict"
-      ],
-      "category": "development",
-      "strict": false
-    },
-    {
       "name": "thirdnet-fullstack",
-      "source": "./skills/thirdnet-fullstack",
-      "description": "全栈 Admin 功能开发协调 — 前端先行开发顺序、Admin 模板 CRUD 页面模式、前后端类型映射、RBAC 权限桥接、共享 API 约定同步、任务路由。需同时安装 thirdnet-backend 和 thirdnet-frontend 插件",
-      "version": "1.5.4",
+      "source": "./plugins/thirdnet-fullstack",
+      "description": "ThirdNet 全栈 Admin 开发插件（自包含）— 后端 .NET 10 微服务（8 个技能）+ 前端 Vue 3（11 个技能）+ 全栈协调技能一体，统一 thirdnet-fullstack: 命名空间，开箱即用；含前后端子代理（backend-developer / frontend-developer）、文档驱动与技能合规钩子。前后端开发统一由此插件提供。",
+      "version": "1.7.0",
       "author": {
         "name": "thirdnet"
       },
@@ -61,7 +22,8 @@
         "coordination",
         "admin",
         "rbac",
-        "api-contract"
+        "api-contract",
+        "subagent"
       ],
       "category": "development",
       "strict": false

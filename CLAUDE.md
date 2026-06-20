@@ -7,21 +7,19 @@
 ```
 thirdnet-dev/
 ├── plugins/
-│   ├── thirdnet-backend/     # .NET 10 微服务后端开发插件 (v0.27.1)
-│   └── thirdnet-frontend/    # Vue 3 前端开发插件 (v0.26.1)
+│   └── thirdnet-fullstack/        # 全栈开发插件（自包含）(v1.7.0)：后端 .NET 微服务 + 前端 Vue 3 + 全栈协调
 ├── skills/
-│   ├── thirdnet-fullstack/        # 全栈协调技能 (v1.5.3)
 │   ├── thirdnet-template-upgrade/ # 前后端模板升级指南 thirdnet-migrate / create-thirdnet-admin (v0.4.0)
 │   └── md-to-word/               # Markdown → Word 转换 (v0.1.0)
 └── .claude-plugin/
-    └── marketplace.json      # 插件集合注册清单 (v0.40.0)
+    └── marketplace.json      # 插件集合注册清单 (v0.42.0)
 ```
 
 ## 核心约定
 
 ### 文档驱动开发
 
-两个插件均强制执行文档驱动开发流程：
+本插件强制执行文档驱动开发流程：
 
 ```
 需求分析 → 生成 plan.md → 生成 changelog.md → 生成 spec.md → 编码 → 校验 + 同步更新文档
@@ -31,35 +29,26 @@ thirdnet-dev/
 
 ### 技能体系
 
-每个插件通过 `skills/` 目录组织领域知识：
+`thirdnet-fullstack` 插件通过 `skills/` 目录组织全部领域知识（共 20 个技能）：
 
-- **Backend**：10 个技能覆盖微服务生成、API 开发、EF Core、认证、RBAC 权限、缓存、后台任务、批量操作、枚举字典、后端工作流
-- **Frontend**：11 个技能覆盖 Vue 3 最佳实践、设计规范、API TypeScript 规范、Admin 模板安装、前端工作流、Pinia、Router、JSX、Composable 设计、Apple 设计规范、枚举字典规范（vue-enum-dict）
+- **后端（8 个）**：微服务生成、API 开发、EF Core（含批量操作）、认证授权、缓存、后台任务、枚举字典、后端工作流
+- **前端（11 个）**：Vue 3 最佳实践、设计规范、API TypeScript 规范、Admin 模板安装、前端工作流、Pinia、Router、JSX、Composable 设计、Apple 设计规范、枚举字典规范（vue-enum-dict）
+- **全栈协调（1 个）**：`thirdnet-fullstack` 协调技能——前端先行开发顺序、Admin CRUD 页面模式、前后端类型映射、RBAC 桥接、子代理调度
 
 ## 插件说明
 
-### thirdnet-backend
+### thirdnet-fullstack
 
-.NET 10 微服务后端开发专家，技术栈：
+ThirdNet 全栈 Admin 开发插件（自包含），是前后端开发技能的唯一来源。技术栈：
 
-- .NET 10 + PostgreSQL + EF Core
-- ThirdNet.Vibe 框架（自定义模板）
-- Redis 缓存 + JWT 认证
-- 仅允许 GET/POST 方法（网关限制）
+- **后端**：.NET 10 + PostgreSQL + EF Core；ThirdNet.Vibe 框架（自定义模板）；Redis 缓存 + JWT（国密）认证；仅允许 GET/POST 方法（网关限制）
+- **前端**：Vue 3 + Element Plus + Vite（Web 端）；uniapp + Vant（移动端，发布为微信小程序 mp-weixin）
+- **全栈协调**：前端先行、Admin CRUD 页面模式、前后端类型映射、RBAC 权限桥接、共享 API 约定同步；含 `backend-developer` / `frontend-developer` 两个子代理隔离重型阶段
 
-**使用方式**：通过 `backend-workflow` 技能进入（全栈场景由 `thirdnet-fullstack` 协调）。技能可被 PreToolUse 钩子按编辑的文件类型自动触发，或用 Skill 工具手动调用。
-
-### thirdnet-frontend
-
-Vue 3 前端开发专家，支持双平台：
-
-- **Web 端**：Vue 3 + Element Plus + Vite
-- **移动端**：uniapp + Vant（发布为微信小程序 mp-weixin）
-
-**使用方式**：通过 `frontend-workflow` 技能进入（全栈场景由 `thirdnet-fullstack` 协调）。技能可被 PreToolUse 钩子按编辑的文件类型自动触发，或用 Skill 工具手动调用。
+**使用方式**：全栈场景由 `thirdnet-fullstack` 协调技能进入（可派发子代理）；纯后端/纯前端单侧任务直接用 `backend-workflow` / `frontend-workflow` 技能。技能可被 PreToolUse 钩子按编辑的文件类型自动触发，或用 Skill 工具手动调用。
 
 ## 开发注意事项
 
 - 所有文档和 commit message 使用中文
 - 插件内的技能（skills/）和钩子（hooks/）定义了具体的开发规范
-- 修改插件内容后，注意同步更新 `marketplace.json` 中的版本号
+- 修改插件内容后，注意同步更新版本号：插件 `plugin.json`、协调技能 `SKILL.md` 的 `metadata.version`、`marketplace.json` 中对应条目三处须保持一致

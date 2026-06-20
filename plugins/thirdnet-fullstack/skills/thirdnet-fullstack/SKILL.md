@@ -4,38 +4,31 @@ description: >
   全栈 Admin 功能开发协调指南。当同时开发前端页面与后端 API 时使用：前端先行开发顺序、
   Admin 模板 CRUD 页面模式（useCrudTable + PaginationBar）、前后端类型映射、RBAC 权限桥接、
   共享 API 约定同步检查清单，以及任务路由（全栈 vs 仅前端/仅后端）与全新项目创建路径。
-  执行前检查 thirdnet-backend 与 thirdnet-frontend 是否已安装，缺一则阻止并提示安装。
+  本插件自包含（后端 .NET + 前端 Vue 技能全集，统一 thirdnet-fullstack: 命名空间），开箱即用。
   适用于新增完整 Admin 模块、修改跨前后端 API 契约、排查前后端数据格式不一致。
+  以及子代理调度（backend-developer / frontend-developer，通过 Task 工具派发重型阶段）。
 license: MIT
 metadata:
-  version: "1.5.4"
+  version: "1.7.0"
   author: thirdnet
 ---
 
-> **结构约定**：本技能以 skill 形式被 marketplace 直接加载（`source: ./skills/thirdnet-fullstack`），不单独维护 `.claude-plugin/plugin.json`。版本号以本文件 frontmatter `metadata.version` 与根目录 `marketplace.json` 中的 `thirdnet-fullstack` 条目为准。
+> **结构约定**：本技能位于 `plugins/thirdnet-fullstack/` 插件包内（`skills/thirdnet-fullstack/`），由 `marketplace.json` 的 `thirdnet-fullstack` 条目以 `source: ./plugins/thirdnet-fullstack` 加载。插件同时提供两个瘦封装子代理（`agents/backend-developer.md`、`agents/frontend-developer.md`），用于重型阶段的隔离派发（见下文「子代理调度（推荐）」）。版本号以 `.claude-plugin/plugin.json`、本文件 frontmatter `metadata.version` 与根目录 `marketplace.json` 三处为准，三者保持一致。
 
 ---
 
 # 全栈 Admin 功能开发协调指南
 
-本技能是前后端协同开发的桥梁，定义全栈功能开发顺序、类型映射规则、权限桥接和约定同步机制。需要 `thirdnet-backend` 和 `thirdnet-frontend` 插件同时安装。
+本技能是前后端协同开发的桥梁，定义全栈功能开发顺序、类型映射规则、权限桥接和约定同步机制。本插件收录前后端全部开发技能（后端 .NET + 前端 Vue），统一 `thirdnet-fullstack:` 命名空间，开箱即用。
 
-> 后端可复用的框架/模板能力（命名空间 + 用途）见 `thirdnet-backend` 的 [framework-and-template-catalog](../../plugins/thirdnet-backend/skills/backend-workflow/references/framework-and-template-catalog.md)；各能力的"参考文件"列已标注生成项目内相对路径。
+> 后端可复用的框架/模板能力（命名空间 + 用途）见 `backend-workflow` 的 [framework-and-template-catalog](../backend-workflow/references/framework-and-template-catalog.md)；各能力的"参考文件"列已标注生成项目内相对路径。
 
-## 前置条件检查
+## 自包含说明
 
-本技能依赖以下两个插件，**执行任何任务前必须先检查它们是否可用**：
+本插件（`thirdnet-fullstack`）是 ThirdNet 前后端开发技能的唯一来源：后端 .NET 微服务与前端 Vue 3 的全部技能均收录于此，统一 `thirdnet-fullstack:` 命名空间，开箱即用，无需另装任何插件。本插件自带 PreToolUse 钩子，编辑前后端代码前强制调用对应技能。
 
-- **thirdnet-backend** — 提供 `net-api-developer`、`net-efcore-developer`、`net-rbac` 等后端技能
-- **thirdnet-frontend** — 提供 `api-typescript-spec`、`vue-best-practices`、`frontend-workflow` 等前端技能
-
-**检查方法**：查看当前环境中的可用技能列表，确认是否包含 `thirdnet-backend:` 和 `thirdnet-frontend:` 前缀的技能。
-
-**缺少任一插件时，必须阻止执行并提示用户**：
-
-> ⚠️ 全栈技能依赖检查失败：未检测到 `[插件名]` 插件。本技能需要 `thirdnet-backend` 和 `thirdnet-frontend` 两个插件同时安装。请在项目的 `.claude-plugin/marketplace.json` 中注册缺失的插件后重试。
-
-不要在缺少插件的情况下继续执行，否则产出的代码可能不符合两端约定。
+- **后端技能**：`backend-workflow`、`net-api-developer`、`net-efcore-developer`（含批量操作）、`net-auth`、`net-cache-use`、`net-background-job`、`net-enum-dict`、`net-microservice-generator`
+- **前端技能**：`frontend-workflow`、`api-typescript-spec`、`vue-best-practices`、`admin-template-setup`、`vue-pinia-best-practices`、`vue-router-best-practices`、`vue-jsx-best-practices`、`vue-enum-dict`、`create-adaptable-composable`、`design-apple`、`frontend-design`
 
 ## 任务路由（何时用本技能）
 
@@ -45,12 +38,105 @@ metadata:
 |---------|------|
 | **全新 Admin 全栈项目**（后端 + 前端从零创建） | 见下文「全栈项目创建（Admin 模板）」，两端各自走模板创建例外流程 |
 | **同时改前端页面 + 后端 API**（新增模块、改跨端契约） | 用本技能的「全栈功能开发流程」（前端先行） |
-| **仅后端**（实体/接口/权限/缓存/任务） | 委派 `thirdnet-backend:backend-workflow`，不必进本技能 |
-| **仅前端**（页面/组件/路由/类型） | 委派 `thirdnet-frontend:frontend-workflow`，不必进本技能 |
-| **新建 Service 微服务** | 委派 `thirdnet-backend:net-microservice-generator`，不必进本技能 |
+| **仅后端**（实体/接口/权限/缓存/任务） | 委派 `thirdnet-fullstack:backend-workflow`，不必进本技能 |
+| **仅前端**（页面/组件/路由/类型） | 委派 `thirdnet-fullstack:frontend-workflow`，不必进本技能 |
+| **新建 Service 微服务** | 委派 `thirdnet-fullstack:net-microservice-generator`，不必进本技能 |
 | **排查前后端数据/格式/权限不一致** | 用本技能的「类型映射」「RBAC 桥接」「共享 API 约定」对照排查 |
 
 本技能与 `backend-workflow`、`frontend-workflow` 互为入口：单侧任务直接用对应工作流，跨端协同用本技能协调。
+
+## 子代理调度（推荐）
+
+对于**重型、自包含**的阶段——一整段前端契约 + CRUD 页面搭建，或一整段后端模块实现（实体 → DTO → Service → Controller → 权限 → DI → 菜单数据）——**优先**通过 Task 工具派发给本插件提供的子代理，而不是在主上下文里逐技能 prose 委派。子代理在隔离上下文中运行，自带 Skill 工具调用与 TodoWrite 步进，完成后返回简洁摘要。这样主上下文只持有契约与协调，显著缓解全栈开发的上下文压力。
+
+本插件提供两个子代理（定义在 `agents/`，分别专精本插件集成的后端/前端工作流）：
+
+- **`backend-developer`**：按前端契约实现后端模块，强制先调 `thirdnet-fullstack:backend-workflow` 等技能
+- **`frontend-developer`**：前端先行产出契约 + CRUD 页面，强制先调 `thirdnet-fullstack:frontend-workflow` 等技能
+
+> 子代理上下文与主上下文隔离：它看不到父级的完整对话历史，**只看到你在 Task 派发 prompt 里给它的内容**，因此派发 prompt 必须自包含（见下）。本插件自带的 PreToolUse 钩子（强制编辑前先调对应技能）在子代理上下文里同样生效，故子代理会自然合规。
+
+### 何时派发子代理 vs 直接 prose 委派
+
+| 情形 | 走法 |
+|------|------|
+| **整段前端契约 + CRUD 页面搭建**（前端阶段步骤 1-6 全套） | Task → `frontend-developer`（**推荐**） |
+| **整段后端模块实现**（实体/缓存/DTO/Service/Controller/权限/DI/菜单） | Task → `backend-developer`（**推荐**） |
+| **单步轻量任务**（仅加一个枚举、改一个字段、加一个权限按钮） | 直接 prose 委派对应工作流/子技能（见下文「Prose 委派（回退）」） |
+| **需要跨端对照 / 类型映射 / 同步检查 / 协调** | 留在主上下文，不派发 |
+
+### 派发前必须留在主上下文的工作
+
+子代理是执行单元，**契约定义与协调**仍在主上下文：
+
+1. **任务路由判断**（用上文「任务路由」表）—— 决定是全栈、仅前端、仅后端
+2. **自包含确认**（见上文「自包含说明」）—— 本插件已集成全部技能，直接可用
+3. **契约与字段定义** —— 与用户对齐模块名 / 实体名 / 字段 / 枚举 / 权限前缀（这些是派发 prompt 的输入）
+4. **派发后的「约定同步检查清单」**（见下文）—— 对照子代理返回的摘要核验跨端一致性
+
+### 派发 prompt 必须包含
+
+派发给 `frontend-developer` 或 `backend-developer` 时，Task 的 prompt 必须自包含：
+
+- **模块名 / 实体名**（如 `notice` / `Notice`，含权限前缀 `sys:notice`）
+- **字段清单与枚举**（字段名、类型、是否可空、枚举值）
+- **文件路径约束**（按全栈布局，如 `frontend/web/...` 或 `backend/{ProjectName}.Admin/...`）
+- 派发给 `backend-developer` 时，**额外附上前端已定义的 `I{Entity}Api` 接口签名与 TypeScript 类型清单**（前端先行的契约）
+- 明确「按契约实现，不要改契约；如发现契约歧义，用 `AskUserQuestion` 反问」
+
+### Task 工具派发示例（以「通知管理 notice」为例）
+
+前端阶段派发（产出契约 + CRUD 页面，前端先行）：
+
+```
+Task(
+  subagent_type: "frontend-developer",
+  description: "通知管理模块 - 前端契约与 CRUD 页面",
+  prompt: """
+    模块：通知管理（notice / Notice），权限前缀 sys:notice。布局：frontend/web/。
+    字段：notice_id:number(long)、title:string、content:string、notice_type:enum(0=系统,1=业务)、
+          status:enum(0=正常,1=停用)、created_by:string?、created_time:string(ISO 8601)
+    分页/查询：page_index,page_size；title(模糊)、notice_type、status、date_range
+    权限按钮：sys:notice:list/add/edit/remove/query
+    要求：1) 按 api-typescript-spec 产出 api/types、api/interfaces/manager/notice.ts(INoticeApi)、mock、api/modules/manager/notice.ts(Real+工厂)
+          2) 按 admin-template-setup+vue-best-practices 产出 src/views/notice/index.vue(复用 useCrudTable/PaginationBar/validators)
+          3) 用 Mock 验证页面可独立运行  4) 返回文件清单 + INoticeApi 方法签名/URL + 类型清单(供后端实现)
+  """
+)
+```
+
+后端阶段派发（依据前端契约实现，跟随）：
+
+```
+Task(
+  subagent_type: "backend-developer",
+  description: "通知管理模块 - 后端实现",
+  prompt: """
+    模块：通知管理（notice / Notice），权限前缀 sys:notice。布局：backend/Thirdnet.Admin/。
+    前端已定义契约（前端先行，按此实现）：
+      INoticeApi: getNoticeList(POST /api/manager/notice/list)、getNoticeDetail(/detail)、
+                  addNotice(/add)、updateNotice(/update)、removeNotice(/delete)
+      类型字段：（同前端子代理返回的类型清单）
+    要求：1) 按 backend-workflow 实现 Notice 实体→(缓存按需)→DTO/Service/NoticeManagerController→
+          [PermissionAuthorize]→Startup.cs DI→t_sys_menu 数据
+          2) DTO 字段与前端类型一一对应(snake_case+Map 后缀)，权限串 sys:notice:list/add/edit/remove/query
+          3) API 仅 GET/POST，路由 /api/manager/notice/{action}
+          4) 返回文件清单+端点路由/权限+DI 项+菜单条目+任何契约偏差
+  """
+)
+```
+
+### Prose 委派（回退）
+
+对于**单步轻量任务**或不希望启动子代理的场景，仍可直接 prose 委派给对应工作流技能（即本技能历史上一直使用的方式）：
+
+- 整段后端工作 → 委派 `thirdnet-fullstack:backend-workflow`
+- 整段前端工作 → 委派 `thirdnet-fullstack:frontend-workflow`
+- 具体子技能（如仅加权限注解、仅改一个 DTO 字段）→ 直接委派对应子技能（`net-api-developer` / `net-efcore-developer` / `api-typescript-spec` / `vue-best-practices` 等）
+
+详见下文「全栈功能开发流程」各步骤表中的「调用技能」列。子代理派发与 prose 委派产出的代码一致——区别仅在执行上下文与摘要回报方式。
+
+> **自包含说明仍适用**：无论派发子代理还是 prose 委派，请先确认本插件已启用（见上文「自包含说明」）。
 
 ## 全栈项目创建（Admin 模板）
 
@@ -94,6 +180,8 @@ metadata:
 
 ### 前端阶段（先行）
 
+> 下方步骤 1-6 可作为一整段通过 Task 工具派发给 `frontend-developer` 子代理（见上文「子代理调度（推荐）」）。下表用于 prose 委派或单步操作时的技能对照。
+
 先定义前端 API 接口契约和页面，明确需要哪些数据结构和接口：
 
 | 步骤 | 内容 | 调用技能 | 产出文件 |
@@ -109,11 +197,13 @@ metadata:
 
 **步骤 6 详细指引**：Admin 模板提供了完整的 CRUD 页面开发基础设施，新增页面时复用既有 composables / 组件（`useCrudTable`、`PaginationBar`、`useDialogFocus`、`validators`、`confirmAction`、`formatDateTime` 等，并遵守「禁止手写 `usePagination + useActionLoading` 样板」「禁止直接使用 `el-pagination`」等约束）。
 
-具体清单与使用方式以 `admin-template-setup` 为权威源，参见 [crud-page-development-guide](../../plugins/thirdnet-frontend/skills/admin-template-setup/references/crud-page-development-guide.md)。
+具体清单与使用方式以 `admin-template-setup` 为权威源，参见 [crud-page-development-guide](../admin-template-setup/references/crud-page-development-guide.md)。
 
 **标准参考实现**：`src/views/api/blacklist/index.vue`
 
 ### 后端阶段（跟随前端契约）
+
+> 下方整套后端实现可作为一整段通过 Task 工具派发给 `backend-developer` 子代理（见上文「子代理调度（推荐）」），派发时附上前端已定义的 `I{Entity}Api` 契约与类型清单。下文要点用于 prose 委派或主上下文协调时的对照。
 
 后端阶段的完整步骤（实体 → 缓存 → DTO/Service/Controller → 权限 → DI 注册 → 菜单/路由数据配置）委派给 `backend-workflow` 的「功能开发流程」执行，本技能不复述。要点：
 
@@ -121,7 +211,7 @@ metadata:
 - 权限字符串格式 `{module}:{entity}:{action}`（如 `sys:notice:list/add/edit/remove`），DI 注册位于 `Startup.cs`
 - 菜单/路由为**数据配置**（非技能）：在 `t_sys_menu` 插入目录/页面/按钮三级菜单条目（含 `permission`），启动后经 `PermissionCatalog` 自动同步
 
-详细步骤表见 [backend-workflow 功能开发流程](../../plugins/thirdnet-backend/skills/backend-workflow/SKILL.md)。
+详细步骤表见 [backend-workflow 功能开发流程](../backend-workflow/SKILL.md)。
 
 后端 API 开发完成后，前端切换 `VITE_MOCK_ENABLED=false` 即可对接真实 API。
 
@@ -199,7 +289,7 @@ const canModify = computed(() => hasPermiOr(['sys:notice:edit', 'sys:notice:remo
 | entity | 实体名称 | `user`、`role`、`notice` |
 | action | 操作类型 | `list`、`query`、`add`、`edit`、`remove`；模块特例如 `resetPwd`、`kick`（用户）、`info`/`clear`（缓存）、`view-key`（API 服务）等，以控制器实际 `[PermissionAuthorize]` 为准 |
 
-> **权限 action 以后端 `net-rbac` 为权威源**（`PermissionCatalog` 启动时按 `[PermissionAuthorize]` 实际标注扫描）。注意区分两个命名空间：**权限 action** 用 `query`（详情）、`edit`（编辑）、`remove`（删除）；而前端 **URL 路由 action** 用 `/detail`、`/update`、`/delete`（见 `api-typescript-spec` 的 URL 命名规范）。两者不要混用——例如详情权限是 `sys:notice:query`，不是 `sys:notice:detail`。
+> **权限 action 以后端 `net-auth` 为权威源**（`PermissionCatalog` 启动时按 `[PermissionAuthorize]` 实际标注扫描）。注意区分两个命名空间：**权限 action** 用 `query`（详情）、`edit`（编辑）、`remove`（删除）；而前端 **URL 路由 action** 用 `/detail`、`/update`、`/delete`（见 `api-typescript-spec` 的 URL 命名规范）。两者不要混用——例如详情权限是 `sys:notice:query`，不是 `sys:notice:detail`。
 
 **后端定义权限字符串 → 注册到 `PermissionCatalog` 自动同步 → 前端通过 `v-permission` 或 `usePermission()` 使用**。前端不需要硬编码权限列表，权限数据从后端 API 动态获取。
 
@@ -207,7 +297,7 @@ const canModify = computed(() => hasPermiOr(['sys:notice:edit', 'sys:notice:remo
 
 两端工作流各自独立描述这些契约，此处仅作协调要点提示：API 仅允许 GET/POST（网关限制）、字段统一 snake_case、成功响应直接返回 JSON 不做包装、认证采用 JWT（国密 SM2）+ HMAC-SM3 Basic Auth + API-Key 三 scheme（登录/刷新走 `/api/manager/auth/login`、`/api/manager/auth/refresh`，非 IdentityServer）。
 
-完整约定（响应包装细节、HTTP 状态码语义、DTO `Map` 后缀规则、路由格式 `/api/{endpoint}/{module}/{action}`、认证流程等）以两端工作流为权威源：[`backend-workflow`](../../plugins/thirdnet-backend/skills/backend-workflow/SKILL.md) 与 [`frontend-workflow`](../../plugins/thirdnet-frontend/skills/frontend-workflow/SKILL.md)（及 `net-api-developer`、`net-authentication`、`api-typescript-spec` 子技能）。
+完整约定（响应包装细节、HTTP 状态码语义、DTO `Map` 后缀规则、路由格式 `/api/{endpoint}/{module}/{action}`、认证流程等）以两端工作流为权威源：[`backend-workflow`](../backend-workflow/SKILL.md) 与 [`frontend-workflow`](../frontend-workflow/SKILL.md)（及 `net-api-developer`、`net-auth`、`api-typescript-spec` 子技能）。
 
 ## 约定同步检查清单
 
@@ -217,8 +307,8 @@ const canModify = computed(() => hasPermiOr(['sys:notice:edit', 'sys:notice:remo
 - [ ] 字段命名规则变更 → 检查 `backend-workflow` 代码规范速查和 `api-typescript-spec` 核心约定
 - [ ] 响应格式变更 → 检查 `net-api-developer` 和 `api-typescript-spec`
 - [ ] DTO 命名后缀变更 → 检查 `net-api-developer` 和 `api-typescript-spec` 映射规则
-- [ ] 认证流程变更 → 检查 `net-authentication` 和 `api-typescript-spec` 认证模块
-- [ ] 权限字符串格式变更 → 检查 `net-rbac` 和前端权限组件
+- [ ] 认证流程变更 → 检查 `net-auth` 和 `api-typescript-spec` 认证模块
+- [ ] 权限字符串格式变更 → 检查 `net-auth` 和前端权限组件
 - [ ] API 路由格式变更 → 检查 `net-api-developer` 和 `api-typescript-spec` URL 命名规范
 
 **原则**：前端先定义接口契约，后端按契约实现。当前端契约变更时，需同步检查后端实现是否匹配；当后端架构约束变更时（如网关规则），需同步检查前端约定是否需调整。

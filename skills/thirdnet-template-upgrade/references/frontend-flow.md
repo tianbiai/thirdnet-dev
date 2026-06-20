@@ -209,7 +209,7 @@ npx create-thirdnet-admin check
 
 - **框架资产**（信模板、倾向 `[a]`）：`src/api/`、`src/stores/`、`src/composables/`、`src/layouts/`、`src/router/`、`src/utils/`、`src/directives/`、`src/mock/`、`src/styles/`、`src/components/`。
 - **业务代码**（信用户、倾向 `[s]` 或手动合并）：`src/views/` 下你新增的业务页面、以及任何用户自定义。
-- **受保护目录**：按 `thirdnet-frontend:frontend-workflow` 的"模板功能代码保护"规则，`src/views/system`、`src/views/api`、`src/api/modules/manager` 的**业务逻辑**本就不该被改动。若你遵守了这条，这些目录在升级时应是干净的安全自动套用；若曾违反，预期会在 ⚠️ 需确认里见到它们——按业务优先处理。
+- **受保护目录**：按 `thirdnet-fullstack:frontend-workflow` 的"模板功能代码保护"规则，`src/views/system`、`src/views/api`、`src/api/modules/manager` 的**业务逻辑**本就不该被改动。若你遵守了这条，这些目录在升级时应是干净的安全自动套用；若曾违反，预期会在 ⚠️ 需确认里见到它们——按业务优先处理。
 
 ## 前端相对后端的能力差距（如实知晓）
 
