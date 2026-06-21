@@ -1,12 +1,12 @@
 ---
 name: thirdnet-template-upgrade
-version: 0.6.0
-description: 把用 ThirdNet 模板生成的旧项目（.NET Admin/Service 后端、Vue 前端）升级到模板最新版本——刷新升级工具、对比变更、自动套用非冲突更新、用 AI 语义 3-way 合并解决真正的冲突文件。凡是用户想把模板/脚手架更新拉进已生成项目、同步新版 ThirdNet 的 bugfix 或结构调整、说"升级/更新/同步模板""模板出新版了""迁移模板项目"、或要调和自己的自定义改动与模板变更时，都要用本技能——即使用户没点名工具也要用；新版 ThirdNet 包发布后用户想让老项目跟着升级时同样适用。覆盖后端 `thirdnet-migrate`（dotnet 工具）与前端 `create-thirdnet-admin`（npx）。尽量通过 AI 合并——brand/override 文件（package.json、brand.ts、index.html）也由 AI 合并，默认不再交人工。每次升级收尾产出一份修改清单，明确区分已更新与未更新的文件，让用户一眼看清改了什么。
+version: 0.8.0
+description: 把用 ThirdNet 模板生成的旧项目（.NET Admin/Service 后端、Vue 前端）升级到模板最新版本——**工具只做 diff 对比，由 AI 全量判定并直接升级文件**。凡是用户想把模板/脚手架更新拉进已生成项目、同步新版 ThirdNet 的 bugfix 或结构调整、说"升级/更新/同步模板""模板出新版了""迁移模板项目"、或要调和自己的自定义改动与模板变更时，都要用本技能——即使用户没点名工具也要用；新版 ThirdNet 包发布后用户想让老项目跟着升级时同样适用。覆盖后端 `thirdnet-migrate`（dotnet 工具）与前端 `create-thirdnet-admin`（npx）。AI 对每个变更文件做语义判定（可覆盖工具 6 态默认动作），用 Edit/Write 直接改项目文件——**不再走 apply/import-merge**，由 AI 手动备份 + VCS 兜底保证安全。升级收尾产出修改清单 + 合并后潜在风险清单（🟢🟡🔴 分级 + 验证建议）。
 ---
 
-# ThirdNet 模板升级（前后端统一）
+# ThirdNet 模板升级（前后端统一·AI 主导）
 
-把用 ThirdNet 模板生成的旧项目，升级到模板的最新版本——包括装/升级工具本身、对比变更、套用非冲突更新、用 AI 语义合并真正的冲突文件。
+把用 ThirdNet 模板生成的旧项目升级到模板最新版本。**工具只负责 diff 对比；对比之后，由 AI 逐文件判定、直接升级**——判定权与合并权都在 AI，工具退化为纯对比 oracle。
 
 ## 何时用
 
@@ -17,13 +17,16 @@ description: 把用 ThirdNet 模板生成的旧项目（.NET Admin/Service 后�
 
 ## 心智模型（先建立这个，流程才说得通）
 
-- **模板是"活的"，项目是"快照"**：模板持续修 bug / 改结构，但用模板生成的项目是一次性的，不会自动跟进——本技能就是把这个"跟进"做成安全、可回退的流程。
-- **文件分 6 态**，工具会自动归类（详见 `references/commands.md`）：
-  - `UpstreamOnly` 🔄 —— 你没动过、模板改了 → 工具**自动套用**
-  - `UserOnly` 🔒 —— 你改过、模板没动 → **原样保留**（你的业务代码安全）
-  - `Conflict` ⚠️ —— 两边都改了 → **需要决策**，交给 AI 合并
-  - `Added` / `Deleted` / `Unchanged` —— 模板新增 / 模板已删（永不删你的）/ 无变化
-- **确定性边界（关键）**：工具负责找冲突、准备 3-way、备份、哈希校验、落盘、推进版本；**AI 负责"冲突文件 + brand/override 文件这一处该听用户的还是听模板的"语义裁决——尽量合并、少交人工**。不要让 AI 去手动备份、手改项目文件、自己推进版本——工具已经把这些做对、做安全了。
+- **模板是"活的"，项目是"快照"**：模板持续修 bug / 改结构，但用模板生成的项目是一次性的，不会自动跟进——本技能就是把这个"跟进"做成 AI 主导、可回退的流程。
+- **文件分 6 态**，工具 `diff` 会自动归类（详见 `references/commands.md`）——但**6 态只是 AI 判定的输入，不是最终决策**：
+  - `UpstreamOnly` 🔄 —— 你没动过、模板改了（工具默认"自动套用"，AI 可改判）
+  - `UserOnly` 🔒 —— 你改过、模板没动（保留）
+  - `Conflict` ⚠️ —— 两边都改了（需要 AI 合并）
+  - `Added` / `Deleted` / `Unchanged` —— 模板新增 / 模板已删 / 无变化
+- **确定性边界（关键·本版已重定义）**：
+  - **工具只做确定性对比**：`diff` / `export-merge` 出对比素材（6 态 + base/mine/theirs），**不写任何项目文件**。
+  - **AI 做全部判定与升级**：逐文件语义决策（可覆盖 6 态默认动作）、用 Edit/Write 直接改项目文件、手动备份、推进版本标记。
+  - **安全网从"工具内置"改为"AI 显式 + VCS 兜底"**：放弃了 apply/import-merge 的自动备份/陈旧检查，代价是 AI 必须自觉执行「改前备份、改前重读、不删、不盲推版本」（见下方「AI 升级的安全清单」）。这是用户明确选择"工具只对比、AI 升级"的必然后果——权力与责任一起交给了 AI。
 
 ## 私有 registry 地址
 
@@ -40,7 +43,7 @@ description: 把用 ThirdNet 模板生成的旧项目（.NET Admin/Service 后�
 
 ### Phase 0 — 先升级工具本身
 
-用户点名要"卸载老的装最新"。先确保用的是最新版工具，否则流程里查到的是旧模板。
+确保 diff 用的是最新版工具，否则查到的是旧模板。
 
 **后端（dotnet 全局工具）**——在任意目录：
 
@@ -57,120 +60,86 @@ dotnet tool list -g | grep -i migrate
 **前端（npx，无持久安装）**——`npx create-thirdnet-admin@latest <cmd>` 每次从 registry 拉最新。
 - registry 默认内网 `http://192.168.1.207:4873/`；外网用 `--registry http://61.164.57.61:14873/`，或改项目 `.npmrc`。
 - 若曾 `npm i -g create-thirdnet-admin`，先 `npm uninstall -g create-thirdnet-admin` 清掉全局旧版，避免 npx 命中缓存。
-- 前端升级子命令**必须在前端项目目录内**运行（该目录 `.npmrc` 指向私有 registry）。
+- 前端命令**必须在前端项目目录内**运行（该目录 `.npmrc` 指向私有 registry）。
 
-### Phase 1 — 检测 + 对比（在要升级的项目目录内）
+### Phase 1 — 对比（工具的唯一职责）
+
+工具只出对比素材，**不跑 apply、不跑 import-merge**：
 
 ```bash
 # 后端（cd 进 .slnx 所在的项目根）
 thirdnet-migrate check     # 查最新版 + 当前清单状态
-thirdnet-migrate diff      # 预览差异，按 6 态分组 + 每个文件的建议
+thirdnet-migrate diff      # 预览差异，按 6 态分组 + 每文件建议（AI 判定的主输入）
 
 # 前端（cd 进前端项目根）
 npx create-thirdnet-admin@latest check
 npx create-thirdnet-admin@latest diff
 ```
 
-**边缘情况**：后端若报缺 `.template-manifest.json`（项目早于清单机制），先跑一次 `thirdnet-migrate init-manifest` 生成清单（不动业务文件），再继续。
-
-### Phase 2 — 套用非冲突更新
+**需要 3-way 素材时**（对 Conflict / brand 文件做语义合并，AI 要读 base/mine/theirs）：
 
 ```bash
-thirdnet-migrate apply                          # 后端，交互式逐文件确认
-thirdnet-migrate apply --non-interactive        # 非交互：UpstreamOnly 套用、UserOnly 保留、Conflict 保留并退出码 2
-# 前端同理：npx create-thirdnet-admin@latest apply [--dry-run|--force]
+thirdnet-migrate export-merge -o ./.tw          # 后端
+npx create-thirdnet-admin@latest export-merge -o ./.tw --include-override   # 前端：带 --include-override 把 package.json 等 brand 文件也导出
 ```
 
-`apply` 会自动套用 `UpstreamOnly`、保留 `UserOnly`。**`Conflict` 文件不会被 apply 触碰**——这些就是 Phase 3 要处理的对象。`--dry-run` 先预览，`--force` 强制覆盖你的改动（会先备份，慎用）。
+`export-merge` 也属于"出对比素材"——它把 base/mine/theirs 落成可读文件供 AI 读，但 **AI 不写它的 `merged`/`declined`，也不跑 `import-merge`**（AI 直接改项目文件，见 Phase 3）。
 
-**异常冲突强制门（apply 前必查）**：若 `diff` 报告的 Conflict 文件**数量异常多**，且大多是你没印象改过的框架/配置文件（`Program.cs`、`Startup.cs`、`*DbContext.cs`、`appsettings*`、`_GlobalVibeUsings.cs` 等），**先别 apply**——这通常是占位符/命名空间未正确替换（namespace、`sourceName`、tokens）或基线缺失导致大面积 2-way 降级的信号，会把一堆本不该进冲突集的文件塞进 Phase 3。先排查：
+**边缘情况**：后端若报缺 `.template-manifest.json`（项目早于清单机制），先跑一次 `thirdnet-migrate init-manifest` 生成清单（不动业务文件），再继续。
 
-1. `.template-manifest.json`（后端）/ `.template-version.json`（前端）是否存在，`templateIdentity` 是否与目标模板一致（后端缺清单先跑 `thirdnet-migrate init-manifest`）
+**异常冲突强制门（diff 后必查）**：若 `diff` 报告的 Conflict 文件**数量异常多**，且大多是你没印象改过的框架/配置文件（`Program.cs`、`Startup.cs`、`*DbContext.cs`、`appsettings*`、`_GlobalVibeUsings.cs` 等），先别往下走——这通常是占位符/命名空间未正确替换或基线缺失导致大面积 2-way 降级的信号。排查：
+1. `.template-manifest.json`（后端）/ `.template-version.json`（前端）是否存在，`templateIdentity` 是否与目标模板一致（后端缺清单先跑 `init-manifest`）
 2. 命名空间/项目名占位符是否在 diff 里大面积未替换
 3. 是否因缺 `--base-nupkg` / 旧版 tgz 而整体降级 2-way
 
-排查清楚再 `apply`；否则 Phase 3 会被假冲突淹没。
+排查清楚再进 Phase 2；否则假冲突会淹没 AI 判定。
 
-### Phase 3 — 用 AI 合并冲突（核心）
+### Phase 2 — AI 全量判定（核心·判定权在 AI）
 
-对真正两边都改过的文件，做语义 3-way 合并：
+AI 读 Phase 1 的 `diff` 输出（必要时读 `.tw/units/*/` 的 base/mine/theirs），对**每个有变更的文件**做语义判定，产出 per-file 升级计划。**6 态只是输入，AI 可覆盖其默认动作**：
 
-```bash
-# 1) 导出冲突文件的工作目录（base/mine/theirs + meta）
-thirdnet-migrate export-merge -o ./.tw          # 后端
-npx create-thirdnet-admin@latest export-merge -o ./.tw --include-override   # 前端：默认带 --include-override，把 package.json 等 brand 文件也纳入 AI 合并（见下方 brand-merge 规则）
+| AI 判定结果 | 含义 | 何时这样判 |
+|---|---|---|
+| `take-template` | 采纳模板版 | 工具判 UpstreamOnly/Added 且变更安全（无破坏性签名、无依赖 major 跳） |
+| `merge` | 语义合并 base/mine/theirs | 工具判 Conflict/brand，或 UpstreamOnly 但 AI 发现有破坏性需调和 |
+| `keep-user` | 保留用户版 | UserOnly，或模板变更与本项目无关 |
+| `flag-human` | 标记交人工，不改 | 真冲突无连贯解、二进制、2-way 同处歧义、拿不准的破坏性变更 |
 
-# 2) Claude 充当合并器：逐个 unit 写 merged（或 declined）—— 见下方协议
+**AI 覆盖工具默认动作的典型场景**：
+- 工具判 `UpstreamOnly`（默认自动套用），但 AI 发现模板把某 public 方法重命名/删了 → 改判 `flag-human` 或 `merge`（盲套会破坏调用方）
+- 工具判 `Conflict`，但两侧改的是不同区域、平凡可合 → AI 直接 `merge`，不交人工
+- 工具判 `UserOnly`，但内容其实是占位符残留 → 视情况处理
 
-# 3) 安全落盘
-thirdnet-migrate import-merge -i ./.tw          # 后端：备份→写入→推进版本→重算清单
-npx create-thirdnet-admin@latest import-merge -i ./.tw   # 前端
-#   全部已决且无陈旧/放弃时，加 --purge 清理工作目录（默认保留作审计）
-```
+判定依据（角色信任矩阵、brand-merge 规则）见 `references/merge-protocol.md`。判定结果汇总成一张表，先在对话里给用户过目（高风险项可让用户确认），再进 Phase 3 执行。
 
-**备选（批量/无人值守）**：用 headless 脚本逐文件调 Claude API（工作目录格式两端一致，后端导出的也能用）：
+### Phase 3 — AI 直接升级（核心·合并权在 AI）
 
-```bash
-export ANTHROPIC_API_KEY=sk-ant-...   # 绝不作 CLI 参数
-npx create-thirdnet-admin@latest merge-workdir ./.tw   # 退出码 0=全决 / 2=有放弃 / 1=致命错误
-```
+按 Phase 2 的计划，AI 用 Edit/Write 直接改项目文件。**严格按下面顺序，先备份后改**：
 
----
+1. **改前必备份**：把即将改动的文件复制到 `.thirdnet-backup/<时间戳>/`（复刻原 import-merge 的备份行为）。项目在 git/svn 下时，先确认工作区干净或做一个 commit-checkpoint，VCS 是兜底安全网。
+2. **改前必重读**：编辑每个文件前**重新 Read 一遍**（防 diff 之后用户又改了），再 Edit/Write——这替代了原工具的陈旧哈希检查。
+3. **逐文件执行**：
+   - `take-template`：把模板版写入项目对应文件（来源：`.tw/units/<id>/theirs`，或 diff 给出的新版内容；拿不准确切模板内容时改判 `flag-human`，不猜）
+   - `merge`：读 base/mine/theirs，按角色信任矩阵产出合并结果，写入项目文件（合并纪律见 `merge-protocol.md`）
+   - `keep-user`：跳过，不改
+   - `flag-human`：不动，记入 Phase 4 报告
+4. **更新版本标记**：有文件落地后，AI 更新版本标记——前端改 `.template-version.json`；后端改 `.template-manifest.json` 的 `targetTemplateVersion`，并跑 `thirdnet-migrate init-manifest` 重算清单避免漂移。
+5. **不删文件**：`Deleted` 态只 `flag-human` 提示，AI 不删用户文件。
+6. **不自动提交**：agent 不执行 `git commit` / `svn commit`；用户审阅报告后自行落库。
 
-## Claude 合并协议（Phase 3 你亲自合并时按这个来）
+## AI 升级的安全清单（放弃工具安全网后，AI 必须自觉执行）
 
-这是本技能的核心。当你（Claude）作为合并器，对 `.tw/units/*/` 里的每个 unit 操作：
+原 apply/import-merge 提供的保证，现在由 AI 显式补齐——这 5 条是 AI 直接改文件不丢数据的底线：
 
-1. **读上下文**：先读 `.tw/manifest.json`（tool / mode / templateIdentity / targetTemplateVersion），再列出 `.tw/units/` 下所有 unit 目录。
-
-2. **逐 unit 处理**，每个先读它的 `meta.json`。
-
-3. **跳过规则**（写一个空 `declined` 文件，不自己合并）：
-   - `meta.isBinary === true` → 二进制，放弃
-   - 该 unit 已有 `merged` 或 `declined` → 跳过（幂等，支持断点续做）
-   - `meta.role === "brand"` **不再自动 DECLINED**——brand 文件（package.json / brand.ts / index.html 等）现在按下方 brand-merge 规则尝试合并，尽量少交人工
-
-4. **读三份内容**：`base`（仅 `3-way` 模式有，共同祖先）/ `mine`（用户当前）/ `theirs`（新模板）。按**角色信任矩阵**裁决每一处：
-
-   | role | 信任倾向 | 含义 |
-   |---|---|---|
-   | `framework` / `config` / `infra` | 信 **THEIRS** | 吸收模板的 bugfix 与结构调整 |
-   | `business` | 信 **MINE** | 保留用户的业务逻辑、自定义、注释 |
-   | `unknown` | 当 `business`（保守） | 优先保留用户改动 |
-   | `brand` | **结构/版本信 THEIRS，品牌字段信 MINE** | 见下方 brand-merge 规则 |
-
-   **brand-merge 规则**（`role === "brand"`，如 package.json / brand.ts / index.html / vite.config.ts）——不要整份 DECLINED，逐项调和：
-   - **吸收 THEIRS 的结构性/版本性变更**：依赖版本号升级、新增 scripts、新增配置键、构建配置调整、结构性 meta/脚本引用。
-   - **原样保留 MINE 的品牌身份值**：项目名（`name`）、公司名/Logo/品牌色、自定义 `<title>`、用户自加的依赖、用户定制的配置值。
-   - 仅当两侧改的是**同一处**且无合理解（如用户手改了模板也在升的同一个键）→ 该 unit 才 DECLINED。
-
-5. **产出 `merged`**——把合并后的**完整文件内容**写入 unit 目录的 `merged` 文件：
-   - **只写完整文件内容本身**，不要解释、前言、"以下是合并结果"、代码围栏（```）
-   - 保留原文件的缩进、换行风格、编码
-   - 只调和真正冲突的区域；不要重排或重格式化无关代码
-
-6. **DECLINED 纪律**——原则是**能产出连贯结果就合并**：只要你能给出一个语法合法、能通过编译/类型检查的合并文件，就写 `merged`（不必 100% 确定）。只有下列情况写空 `declined`、交回人工：
-   - `mine` 与 `theirs` 在**同一处**做了真正冲突的编辑，且你给不出一个连贯（可编译/类型自洽）的解 → DECLINED
-   - `meta.mode === "2-way"`（无 BASE 共同祖先）→ 仍偏保守，但**非重叠的增量改动**（纯新增块）允许合并；仅同处歧义才 DECLINED
-   - 二进制，或 brand 文件里无解的同一处冲突 → DECLINED
-
-7. **收尾**：所有 unit 处理完，运行 `import-merge -i ./.tw`。
-
-完整规范（工作目录格式、`meta.json` 全字段、角色分类规则、与 headless 合并脚本提示词对齐的权威版本）见 `references/merge-protocol.md`。
-
-## 工具的安全保证（知道这些，就不必反复猜疑）
-
-- `import-merge` 覆盖前自动备份到 `.thirdnet-backup/<时间戳>/`，可回退
-- **陈旧检查**：导出时记录 `mineHash`，导入时重算磁盘哈希；不一致（导出后文件又被改）→ 该 unit 报 `stale`、**不覆盖、不推进版本**
-- 版本标记**仅在 `applied > 0` 时推进**
-- `UserOnly` 文件**永不进工作目录**——你的纯业务代码零风险
-- 工具**永不删文件**（`Deleted` 态只提示，不动手）
-
-所以你（Claude）的唯一职责是产出正确的 `merged`（或 `declined`）。不要手动备份、不要手改项目文件、不要自己改版本号——交给工具。
+1. **改前必备份** → `.thirdnet-backup/<时间戳>/`
+2. **VCS 兜底** → 推荐项目在 git/svn 下，改前确认工作区状态
+3. **改前重读** → Edit 前重新 Read 目标文件（替代陈旧检查）
+4. **不删 / 不盲推版本** → Deleted 只 flag；版本仅在确有落地时推进
+5. **不自动提交** → 用户审阅后自行 commit
 
 ## 回滚预案（升级出问题时）
 
-工具已自动备份到 `.thirdnet-backup/<时间戳>/`，可整目录还原。项目若纳入版本控制，配合 VCS 回滚（git/svn 成对）：
+AI 已把改动前的文件备份到 `.thirdnet-backup/<时间戳>/`，可整目录还原。项目若纳入版本控制，配合 VCS 回滚（git/svn 成对）：
 
 - **git**：`git restore <文件>` 还原单个；`git checkout -- .` 还原全部已跟踪改动；新增未跟踪文件（`.tw/`、`.thirdnet-backup/`）手动删，并写入 `.gitignore`。
 - **svn**：`svn revert -R .` 还原已跟踪改动；删掉本次新增但尚未 `svn add` 的文件；对 `.tw/`、`.thirdnet-backup/` 设置 `svn:ignore`，避免误入库。
@@ -191,11 +160,18 @@ npm run build                          # vue-tsc + vite 构建通过
 npm test                               # Vitest 通过
 ```
 
-## Phase 4 — 出具修改清单（让用户一眼看清改了什么）
+## Phase 4 — 出具修改清单 + 合并后风险（让用户看清改了什么、哪里可能出问题）
 
-升级收尾**必须**产出一份修改清单：把本次"动了哪些文件、没动哪些文件、为什么"汇总成报告，在对话里展示，并落盘到项目根 `模板升级报告.md`（别写进 `.tw/`——它可能被 `--purge` 清掉）。这是用户确认"本次升级到底改了什么"的依据。
+升级收尾**必须**产出一份报告：既罗列"动了哪些文件、没动哪些、为什么"（修改清单），也指出"合并后哪些地方可能有隐患"（合并后潜在风险）。在对话里展示，并落盘到项目根 `模板升级报告.md`。这是用户确认"本次升级到底改了什么、要不要担心"的依据。
 
-**数据来源**：`diff` 输出（6 态分组与计数）+ `.tw/units/*/meta.json`（每个 unit 的 role/mode、是 `merged` 还是 `declined`）+ `import-merge` stdout（applied 数、stale、是否推进版本）+ 构建验证结果。你（Claude）把这些合成下面的报告——这正是"尽量通过 AI 合并"的收尾环节。
+本阶段分四步：
+
+1. **构建验证**：按上方"验证升级成功"跑 `check` / `build` / `test`，确认编译与测试状态（结果写进报告头）。
+2. **AI 影响分析**：遍历**全部已落地文件**（take-template + Added + merge + Brand·merge），按 `references/merge-protocol.md` 的「AI 影响分析」维度逐条推理——这个变更会不会破坏调用方签名、改 DI 注册顺序、引入依赖升级冲突、改配置语义……对疑似破坏性变更（方法重命名 / 删除签名 / 依赖 major 升级），用 **Grep 在项目里检索旧符号名 / 旧版本引用**，命中就坐实 🔴、并在建议里记下检索路径。产出 `risk-items[]`（文件、来源、等级 🟢🟡🔴、问题、建议）。
+3. **合成报告**：把 diff 统计 + AI 的 Phase 2 判定表 + 构建结果 + `risk-items[]` 合成下面的报告模板。
+4. **展示 + 写盘**：在对话里展示，并写入项目根 `模板升级报告.md`。
+
+**数据来源**：`diff` 输出（6 态分组与计数）+ AI 的 Phase 2 判定表（每个文件的 take-template/merge/keep-user/flag-human）+ 构建验证结果 + Step 2 的 `risk-items[]`。
 
 报告模板（前后端通用，`<...>` 填实际值）：
 
@@ -205,45 +181,57 @@ npm test                               # Vitest 通过
 - 项目：<路径>
 - 模板类型：后端 ThirdNet.Admin/Service.Template ｜ 前端 ThirdNet.Admin.Frontend
 - 升级前版本 <X> → 升级后版本 <Y>
-- 模式：3-way / 2-way（基线降级）｜ 清单 / 离线
+- 模式：AI 主导（工具仅 diff）｜ 3-way / 2-way（基线降级）｜ 清单 / 离线
+- 备份位置：.thirdnet-backup/<时间戳>/
 - 构建验证：dotnet build / npm run build → ✅ 通过 ｜ ❌ 失败（原因）
 
 ## 落地核对（先核对，再信任下面的数字）
 - diff 预期变更数 <M> ｜ 实际落地数 <N> ｜ 一致性 ✅ / ❌
-- 若 ❌（版本号前进了，但落地远少于预期或为 0）→ 这是「空升级」，本报告数字不可信，回 Phase 2 排查清单/基线/命名空间/占位符
+- 若 ❌（版本号前进了，但落地远少于预期或为 0）→ 这是「空升级」，本报告数字不可信，回 Phase 1/2 排查清单/基线/命名空间/占位符与 AI 判定
 
 ## 变更汇总（计数）
-**已更新（本次已落地）**
-- 🔄 UpstreamOnly 自动套用：<N>
-- 📄 Added 新增：<N>
-- 🔀 Conflict · AI 合并：<N>
-- 🏷️ Brand/override · AI 合并：<N>
+**已更新（本次已落地·AI 直接写入）**
+- 🔄 take-template（AI 采纳模板版）：<N>
+- 📄 Added 新增（AI 写入）：<N>
+- 🔀 merge（AI 语义合并）：<N>
+- 🏷️ Brand·merge（AI brand-merge）：<N>
 
 **未更新（本次未落地）**
-- 🔒 UserOnly 保留（用户改动，按设计保留，无需处理）：<N>
-- ⚠️ Conflict DECLINED（交人工合并）：<N>
-- 🏷️ Brand DECLINED（交人工合并）：<N>
-- 🕓 Stale（导出后文件又被改，未覆盖，需重新导出）：<N>
+- 🔒 keep-user（保留用户版）：<N>
+- ⚠️ flag-human（AI 标记需人工，未改）：<N>
 - 🗑️ Deleted 模板已删（仅提示，未删用户文件，确认是否手动清理）：<N>
 
 ## 已更新文件明细
-| 文件 | 来源态 | 决策 | 说明（吸收了什么 / 保留了什么） |
-|------|--------|------|--------------------------------|
-| Admin/.../Startup.cs | Conflict | blended | 保留业务注册，吸收模板新增的 DI 扩展 |
+| 文件 | 工具 6 态 | AI 决策 | 说明（吸收了什么 / 保留了什么） |
+|------|----------|---------|--------------------------------|
+| Admin/.../Startup.cs | Conflict | merge | 保留业务注册，吸收模板新增的 DI 扩展 |
 
 ## 未更新文件明细
 | 文件 | 原因 | 后续建议 |
 |------|------|----------|
-| src/views/xxx/index.vue | DECLINED | 业务页面同处冲突，需人工合并 |
+| src/views/xxx/index.vue | flag-human | 业务页面同处冲突，需人工合并 |
+
+## 合并后潜在风险（AI 影响分析结论，按风险等级排序）
+> 以下为 AI 对**全部已落地文件**逐条推理的影响分析。等级仅供参考，最终以本地构建 + 回归测试为准。
+
+| 文件 | 变更来源 | 风险 | 潜在问题与验证建议 |
+|------|----------|------|---------------------|
+| Admin/.../Program.cs | 🔀 merge | 🔴 高 | 模板新增 Serilog 中间件、注册早于自定义中间件，可能改变异常处理顺序 → 本地启动并触发一次异常验证 |
+| src/package.json | 🏷️ Brand·merge | 🟡 中 | vue 3.4→3.5，存在未声明子依赖 → npm i 后跑 vue-tsc + 回归关键页面 |
+| Admin/appsettings.json | 🔄 take-template | 🟢 低 | 仅新增健康检查配置项，无破坏性 |
+
+**风险等级判定**：🔴 公开签名/方法重命名（破坏调用方）、DI 注册或中间件顺序变更、依赖 major 升级、删除对外 API、2-way 不确定块 ｜ 🟡 依赖 minor/patch 升级、配置键或默认值语义变化、brand 结构吸收影响构建产物 ｜ 🟢 纯新增（配置项/文件）、注释/格式、非破坏性补全
+
+**本节统计**：🔴 高 <N> ｜ 🟡 中 <N> ｜ 🟢 低 <N> ｜ 无明显风险 <N>
 
 ## 待人工跟进 / 落库建议
-- DECLINED 的 <N> 个文件需人工合并后再次 `export-merge` → `import-merge`
+- flag-human 的 <N> 个文件需人工合并后由 AI 再次评估写入，或人工直接改
 - 本报告仅为审阅用，**不自动提交**；由你确认后自行 `git commit` / `svn commit`
 ```
 
-> 决策列取值：`trust-template`（信模板）/ `trust-user`（信用户）/ `blended`（两侧调和，如 brand-merge）。每条已更新文件给一句话说明吸收/保留了什么，让用户不看 diff 也能判断本次升级是否合预期。
+> 决策列取值：`take-template`（采纳模板）/ `merge`（语义合并）/ `keep-user`（保留用户）/ `flag-human`（交人工）。每条已更新文件给一句话说明吸收/保留了什么，让用户不看 diff 也能判断本次升级是否合预期。
 
 ## 深入参考
 
 - 完整命令、flag、6 态详解、离线模式 → `references/commands.md`
-- 合并协议权威规范、工作目录格式、角色矩阵、DECLINED 全规则 → `references/merge-protocol.md`
+- 合并语义权威规范、角色矩阵、brand-merge 规则、**AI 影响分析（推理维度 + 等级映射 + `risk-items[]` 格式）** → `references/merge-protocol.md`

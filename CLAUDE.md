@@ -9,7 +9,7 @@ thirdnet-dev/
 ├── plugins/
 │   └── thirdnet-fullstack/        # 全栈开发插件（自包含）(v1.7.0)：后端 .NET 微服务 + 前端 Vue 3 + 全栈协调
 ├── skills/
-│   ├── thirdnet-template-upgrade/ # 前后端模板升级指南 thirdnet-migrate / create-thirdnet-admin (v0.5.0)
+│   ├── thirdnet-template-upgrade/ # 前后端模板升级指南 thirdnet-migrate / create-thirdnet-admin (v0.8.0)
 │   └── md-to-word/               # Markdown → Word 转换 (v0.1.0)
 └── .claude-plugin/
     └── marketplace.json      # 插件集合注册清单 (v0.42.0)

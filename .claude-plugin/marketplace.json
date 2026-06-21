@@ -64,8 +64,8 @@
     {
       "name": "thirdnet-template-upgrade",
       "source": "./skills/thirdnet-template-upgrade",
-      "description": "ThirdNet 模板升级操作指南（前后端通用）— 后端用 thirdnet-migrate CLI、前端用 npx create-thirdnet-admin check/diff/apply 把已生成项目升级到最新模板版本。覆盖 check/diff/apply 主流程、文件状态分类（前后端统一 6 态）、冲突逐个决策、清单/基线模式、override 品牌文件 AI 合并（brand-merge 规则，尽量少交人工）、全栈协同升级、读 changelog、加深验证、离线流程、版本漂移、回滚预案、收尾产出修改清单（区分已更新/未更新）。触发：模板升级/迁移/同步/跟进、脚手架更新、对齐模板版本、跟版、前后端一起升级、thirdnet-migrate、create-thirdnet-admin、.template-version.json",
-      "version": "0.6.0",
+      "description": "ThirdNet 模板升级操作指南（前后端通用·AI 主导）— 工具只做 diff 对比，由 AI 全量判定并直接升级文件（可覆盖工具 6 态默认动作，用 Edit/Write 改项目文件，不再走 apply/import-merge，AI 手动备份 + VCS 兜底）。后端用 thirdnet-migrate、前端用 npx create-thirdnet-admin 的 check/diff/export-merge 出对比素材。覆盖 6 态分类（AI 判定输入，可覆盖）、AI 逐文件语义判定（take-template/merge/keep-user/flag-human）、角色信任矩阵与 brand-merge 规则、清单/基线模式、离线流程、版本漂移、回滚预案、收尾产出修改清单 + 合并后潜在风险清单（🟢🟡🔴 分级 + 验证建议）。触发：模板升级/迁移/同步/跟进、脚手架更新、对齐模板版本、跟版、前后端一起升级、thirdnet-migrate、create-thirdnet-admin、.template-version.json",
+      "version": "0.8.0",
       "author": {
         "name": "thirdnet"
       },

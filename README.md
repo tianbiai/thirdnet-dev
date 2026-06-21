@@ -40,9 +40,9 @@ ThirdNet 全栈 Admin 开发插件（自包含），是前后端开发技能的*
 
 将 Markdown 文件转换为 Word (.docx) 文件，支持标题、粗体、斜体、代码、列表、表格等格式。
 
-### thirdnet-template-upgrade (v0.4.0)
+### thirdnet-template-upgrade (v0.8.0)
 
-ThirdNet 模板升级操作指南（前后端通用）——把已生成的 ThirdNet 项目升级到最新模板版本：后端用 `thirdnet-migrate` CLI（admin/service），前端用 `npx create-thirdnet-admin check/diff/apply`。覆盖预检、check/diff/apply 主流程、文件状态分类（后端 6 态/前端 4 态）、冲突逐个决策、清单/基线模式、override 品牌文件人工集成、离线流程、版本漂移、回滚预案与禁止事项。
+ThirdNet 模板升级操作指南（前后端通用·AI 主导）——工具只做 diff 对比，由 AI 全量判定并直接升级文件（可覆盖工具 6 态默认动作，用 Edit/Write 改项目文件，不再走 apply/import-merge）。后端用 `thirdnet-migrate`、前端用 `create-thirdnet-admin` 的 check/diff/export-merge 出对比素材。覆盖 6 态分类（AI 判定输入，可覆盖）、AI 逐文件语义判定（take-template/merge/keep-user/flag-human）、brand-merge 规则、清单/基线模式、离线流程、版本漂移、回滚预案、收尾修改清单 + 合并后风险清单。
 
 ## 安装
 
