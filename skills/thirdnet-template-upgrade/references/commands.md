@@ -1,8 +1,6 @@
 # 命令参考（`commands.md`）
 
-`thirdnet-template-upgrade` 技能的完整命令与 flag 参考。源码权威：
-- 后端 `backend/Template/ThirdNet.Migrate/Program.cs`（命令分发 + help）
-- 前端 `frontend/create-thirdnet-admin/bin/create.js`（子命令分发）
+`thirdnet-template-upgrade` 技能的完整命令与 flag 参考。
 
 所有命令默认用**内网** registry；内网不通换**外网**（NuGet `http://61.164.57.61:8088/nuget`、npm `http://61.164.57.61:14873/`，npm 外网端口 **14873**）。
 
@@ -64,7 +62,7 @@
 | `--version <ver>` | 最新 | 指定目标版本 |
 | `-o, --output <dir>` | `./.thirdnet-merge-work` | export-merge 工作目录 |
 | `-i, --input <dir>` | `./.thirdnet-merge-work` | import-merge 工作目录 |
-| `--include-override` | — | export-merge 纳入品牌 override 文件（如 package.json 依赖升级）；默认跳过 |
+| `--include-override` | — | export-merge 纳入品牌 override 文件（如 package.json 依赖升级）；默认跳过。**推荐默认带上**——配合 brand-merge 规则，brand 文件由 AI 合并而非交人工 |
 | `--dry-run` | — | 仅预览（仅 `apply`） |
 | `--force` | — | 强制应用所有变更（仅 `apply`） |
 | `--purge` | — | import-merge 全部已决且无陈旧/放弃时清理工作目录 |
@@ -76,7 +74,7 @@
 
 ## 6 态分类详解
 
-每个被对比的文件归为下列之一（源码：后端 `Models/FileDiffResult.cs` 的 `FileDiffKind` 枚举）：
+每个被对比的文件归为下列之一：
 
 | 态 | 含义 | `apply` 默认动作 | 进 export-merge 工作目录？ |
 |---|---|---|---|
@@ -89,7 +87,7 @@
 
 > 关键：`export-merge` 只导出 `Conflict` 态。纯业务代码（`UserOnly`）和纯模板更新（`UpstreamOnly`）都不会进工作目录——前者工具自动保留，后者工具自动套用。
 
-前端命名略有不同：冲突条件为"文件已修改 **且** 用户也改过"（`export-merge.js` 的 `Modified && userModified`），语义同 `Conflict`。
+前端命名略有不同：冲突条件为"文件已修改 **且** 用户也改过"，语义同 `Conflict`。
 
 ## 离线模式
 

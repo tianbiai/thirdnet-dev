@@ -1,6 +1,6 @@
 # 合并协议（`merge-protocol.md`）
 
-`thirdnet-template-upgrade` 技能里"Claude 充当合并器"的权威规范。本文件镜像前端 `frontend/create-thirdnet-admin/scripts/merge-workdir.js` 的 `buildPrompt()` / `resolveOutput()`，以及后端 `backend/Template/ThirdNet.Migrate/Services/WorkDirWriter.cs` / `WorkDirReader.cs` / `RoleClassifier.cs` 的行为——以源码为最终事实源。
+`thirdnet-template-upgrade` 技能里"Claude 充当合并器"的权威规范——工作目录格式、`meta.json` 全字段、角色分类规则、DECLINED 全规则的定义。
 
 ## 工作目录布局
 
@@ -39,23 +39,23 @@
 | 字段 | 说明 |
 |---|---|
 | `relativePath` | 文件相对项目根的路径 |
-| `role` | 语义角色：`config` / `framework` / `unknown`（后端 RoleClassifier）；前端另有 `brand` |
+| `role` | 语义角色：`config` / `framework` / `unknown`（后端按路径自动归类）；前端另有 `brand` |
 | `mode` | `3-way`（有 base）/ `2-way`（无 base，更保守） |
 | `mineHash` / `baseHash` / `theirsHash` | 三份内容哈希；`mineHash` 供 import 陈旧检查 |
 | `isBinary` | 二进制 → 合并器放弃 |
 | `upstreamDiff` | base→theirs 的 unified diff（参考用） |
-| `recommendation` | `trust-template` / `trust-user` / `merge`（来自 RecommendationEngine） |
+| `recommendation` | `trust-template` / `trust-user` / `merge`（工具按角色自动给出） |
 
 ---
 
 ## 角色分类规则
 
-后端 `RoleClassifier.Classify(relPath)`（前端 `brand` 由 override 清单判定）：
+后端按文件路径归类（前端 `brand` 由 override 清单判定）：
 
 - **`config`**：文件名为 `appsettings*`、`*.csproj`、`*.props`、`*.targets`、`web.config`、`launchSettings.json`、`.npmrc`
 - **`framework`**：`Program.cs`、`Startup.cs`、`_GlobalVibeUsings.cs`、`*DbContext.cs`；或路径含 `/Authentication/` `/Authorization/` `/Middlewares/` `/Middleware/` `/Filters/` `/Extensions/` `/HealthManager`
 - **`unknown`**：以上都不命中（业务代码多落此，但业务代码通常根本不在 Conflict 集）
-- **`brand`**（前端）：品牌 override 文件（package.json / brand.ts / index.html 等）；默认 export 跳过，`--include-override` 才纳入
+- **`brand`**（前端）：品牌 override 文件（package.json / brand.ts / index.html 等）；默认 export 跳过，`--include-override` 才纳入。纳入后**按 brand-merge 规则合并**（见下），不再整份 DECLINED
 
 ## 信任矩阵（按 `meta.role` 给倾向，非硬规则——仍读全文判断）
 
@@ -63,29 +63,39 @@
 |---|---|---|
 | `framework` / `infra` / `config` | 信 **THEIRS** | 吸收模板的 bugfix 与结构调整 |
 | `business` | 信 **MINE** | 保留用户的业务逻辑、自定义、注释 |
-| `brand` | **DECLINED** | 不合并，交回人工 |
+| `brand` | **结构/版本信 THEIRS，品牌字段信 MINE** | 见 brand-merge 规则 |
 | `unknown` | 当 `business`（保守） | 优先保留用户改动 |
+
+### brand-merge 规则（`role === "brand"`）
+
+`role === "brand"` 时**不再整份 DECLINED**，按"结构/版本信 THEIRS，品牌字段信 MINE"逐项调和：
+
+- **吸收 THEIRS 的结构性/版本性变更**：`package.json` 依赖版本号升级、新增 scripts/配置键；`vite.config.ts` 构建配置调整；`index.html` 结构性 meta/脚本引用。
+- **原样保留 MINE 的品牌身份值**：项目名（`name`）、公司名/Logo/品牌色（`brand.ts`）、自定义 `<title>`、用户自加的依赖、用户定制的配置值。
+- 仅当两侧改的是**同一处**且无合理解（如用户手改了模板也在升的同一个 JSON 键）→ 该 unit 才 DECLINED。
+
+> ⚠️ **headless 脚本的局限**：以上 brand-merge 规则适用于**交互式合并**（Claude 在对话里亲自合并）。`merge-workdir` 脚本目前仍对 `role=brand` 直接写 `declined`、不调 API——这是脚本内置的固定行为。要合并 brand 文件：走交互式路径，或 `export-merge --include-override` 后对 brand unit 交互式合并、再 `import-merge`。
 
 ## 产出纪律（写 `merged` 时）
 
 - **只输出合并后的完整文件内容**。不要任何解释、前言、代码围栏（```）、"以下是合并结果"之类。
 - 保留原文件缩进、换行风格、编码。
 - 只做必要的调和；不要重排或重格式化无关代码。
-- 这是镜像 `merge-workdir.js` 的 system prompt 铁律——目的是让 `merged` 文件可直接落盘，无需任何后处理。
+- 这与 headless 合并脚本的 system prompt 一致——目的是让 `merged` 文件可直接落盘，无需任何后处理。
 
 ## DECLINED 纪律（写空 `declined` 而非 `merged`）
 
-判定放弃（交回人工）的情形：
+总原则：**能产出连贯结果就合并**——只要能给一个语法合法、能通过编译/类型检查的合并文件，就写 `merged`（不必 100% 确定）。只有下列情形才放弃（交回人工）：
 
-- `mine` 与 `theirs` 在**同一处**做了真正冲突的编辑，且没有 >90% 把握 → DECLINED
-- `meta.mode === "2-way"`（无 BASE 共同祖先）→ 更保守，任何拿不准的块都 DECLINED
+- `mine` 与 `theirs` 在**同一处**做了真正冲突的编辑，且给不出一个连贯（可编译/类型自洽）的解 → DECLINED
+- `meta.mode === "2-way"`（无 BASE 共同祖先）→ 仍偏保守，但**非重叠的增量改动**（纯新增块）允许合并；仅同处歧义才 DECLINED
 - `meta.isBinary === true` → DECLINED（二进制不能按文本合并）
-- `meta.role === "brand"` → DECLINED（品牌文件）
+- brand 文件里**无解的同一处冲突** → DECLINED（其余按 brand-merge 规则合并）
 - headless 脚本额外情形：`stop_reason === 'max_tokens'`（输出可能截断）→ DECLINED；API 调用报错 → DECLINED
 
 放弃 = 在 unit 目录写一个**空 `declined` 文件**（不写 `merged`）。`import-merge` 据此报"未决"，文件保持原样、版本不推进。
 
-> 解析细节（headless 脚本 `resolveOutput`）：整份输出被成对 \`\`\` 围栏包裹时解包当 `merged`；输出（trim 后）恰为单词 `DECLINED` 时算放弃。
+> 解析细节（headless 脚本的输出判定）：整份输出被成对 \`\`\` 围栏包裹时解包当 `merged`；输出（trim 后）恰为单词 `DECLINED` 时算放弃。
 
 ## 2-way 何时降级
 
@@ -112,22 +122,12 @@ npx create-thirdnet-admin@latest merge-workdir ./.tw [--model claude-sonnet-4-6]
 ```
 
 - 逐 unit 调一次 Claude（`thinking: disabled`，纯文件输出，不要推理链）
-- 跳过：已有 `merged`/`declined`、`isBinary`、`role=brand`（后两者直接写 `declined`，不调 API）
+- 跳过：已有 `merged`/`declined`、`isBinary`、`role=brand`（后两者直接写 `declined`，不调 API）。⚠️ 注意：脚本对 `role=brand` 的跳过是**脚本内置的固定行为**，与上方 brand-merge 规则（适用于交互式合并）不同——要合并 brand 文件请走交互式路径
 - 退出码：`0` 全部已决；`2` 有放弃/未决（CI 据此失败）；`1` 致命错误（无 SDK / 无 key / workdir 无效）
 - 依赖 `@anthropic-ai/sdk`（懒加载；核心 scaffold/update 流程不依赖它）
 
 ## 失败模式速查
 
-- **AI 放弃（declined）**：二进制、品牌文件、`max_tokens` 截断、同线冲突无把握、调用报错 → 写空 `declined`，import 报未决（退出 2），文件保持原样
+- **AI 放弃（declined）**：二进制、`max_tokens` 截断、同线冲突无连贯解、调用报错、headless 脚本的品牌文件 → 写空 `declined`，import 报未决（退出 2），文件保持原样（交互式合并下，品牌文件已尽量按 brand-merge 规则合并，不再无条件放弃）
 - **部分合并**：只合并了部分文件 → 版本仍推进（`applied>0`），其余未决；可再次 `export-merge`（已解决文件自动移出冲突集）
 - **2-way 降级**：基线不可得 → 该 unit 标 `2-way`，合并器更保守
-
-## 权威实现位置
-
-- 后端导出/导入：`backend/Template/ThirdNet.Migrate/Services/WorkDirWriter.cs`、`WorkDirReader.cs`
-- 后端共用辅助：`Services/ApplyHelpers.cs`（备份/复制/版本/清单，apply 与 import 共用）
-- 后端分类/检测：`Services/RoleClassifier.cs`、`BinaryDetector.cs`、`RecommendationEngine.cs`
-- 后端命令：`Commands/ExportMergeCommand.cs`、`ImportMergeCommand.cs`
-- 前端工作目录：`frontend/create-thirdnet-admin/lib/update/workdir.js`
-- 前端合并脚本（提示词权威）：`frontend/create-thirdnet-admin/scripts/merge-workdir.js`
-- 设计原文：`docs/ai-template-merge.md`
