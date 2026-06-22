@@ -104,4 +104,4 @@ thirdnet-migrate apply  --nupkg ./New.nupkg --base-nupkg ./Old.nupkg
 thirdnet-migrate export-merge --nupkg ./New.nupkg --base-nupkg ./Old.nupkg -o ./.tw
 ```
 
-`--base-nupkg` 提供"旧模板基线"以启用 3-way；缺它则相关 unit 降级为 2-way（更保守）。前端离线：把旧版 tgz 放在约定位置即可作为基线。
+`--base-nupkg` 提供"旧模板基线"以启用 3-way；缺它则相关 unit 降级为 2-way（AI 仍尽力合并，结果在报告里至少标 🟡 提示 review）。前端离线：把旧版 tgz 放在约定位置即可作为基线。
