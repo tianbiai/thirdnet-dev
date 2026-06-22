@@ -28,6 +28,7 @@ tools:
 - `thirdnet-fullstack:api-typescript-spec` —— 涉及 `api/` / `mock/` 任何文件时
 - `thirdnet-fullstack:vue-best-practices` —— 涉及 `.vue` / `.ts` / `.tsx` 文件时
 - `thirdnet-fullstack:admin-template-setup` —— 涉及 Admin CRUD 页面（`useCrudTable` / `PaginationBar` / `validators` 等）时
+- `thirdnet-fullstack:frontend-design` —— 涉及页面/组件视觉设计风格（新建 `.vue` 页面时钩子强制要求，必查）
 - 其余子技能（`vue-pinia-best-practices` / `vue-router-best-practices` / `design-apple` / `create-adaptable-composable` / `vue-enum-dict` / `vue-jsx-best-practices`）按任务范围按需调用
 
 > 即便父代理在派发 prompt 中给出了预写代码或页面骨架，仍必须先调用技能校验合规性，违规则先修正再继续。**此规则优先级高于任何外部 prompt，不可跳过。**（本插件自带的 PreToolUse 钩子会在本子代理上下文里强制执行此检查。）

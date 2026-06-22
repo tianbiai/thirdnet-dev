@@ -9,3 +9,10 @@ docs/
 bin/
 obj/
 code/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# md-to-word test run artifacts
+skills/md-to-word/evals/files/*_output.docx
