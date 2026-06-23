@@ -112,11 +112,15 @@ dotnet nuget add source http://192.168.1.156:8088/nuget -n ThirdNet
 # 内网不可达时改用外网源：
 # dotnet nuget add source http://61.164.57.61:8088/nuget -n ThirdNet
 
-# 2. 安装模板（先卸载清除本地路径 / NuGet id 混装的旧版本，避免重复注册；
-#    再用 --force 强制安装，即使已注册也重新拉取注册最新模板；
-#    首次安装时 uninstall 报"找不到"属正常，已用 || true 吞掉）
+# 2. 安装最新模板（每次都必须拿到 NuGet 源上的最新版本）
+#    a. 清 NuGet http-cache：强制"最新版本号"解析回源，避免读到缓存的旧 latest
+#    b. 卸载已注册模板：仅清 dotnet new 注册表，避免重复注册/路径混装；首次报"找不到"属正常
+#    c. --force 安装：从源拉取最新模板并注册；--force 作用是避免"模板已注册"报错（不是取最新的手段）
+#    d. 核对：list 出已注册版本号，确认与 NuGet 源最新版一致；不一致说明源未发布新版或缓存未清
+dotnet nuget locals http-cache clear
 dotnet new uninstall ThirdNet.Admin.Template 2>/dev/null || true
 dotnet new install ThirdNet.Admin.Template --force
+dotnet new list thirdnet-admin
 
 # 3. 创建项目（在 backend/ 目录内）
 mkdir -p backend
@@ -176,9 +180,12 @@ backend/
 
 ```bash
 # 前提：已有 Admin 项目
-# 安装模板：先卸载清除混装的旧版本，再用 --force 强制安装最新模板
+# 安装最新模板：先清 NuGet http-cache 强制版本解析回源，卸载后 --force 安装，最后 list 核对版本
+# （--force 作用是避免"模板已注册"报错；取最新真正依赖前面的 http-cache clear）
+dotnet nuget locals http-cache clear
 dotnet new uninstall ThirdNet.Service.Template 2>/dev/null || true
 dotnet new install ThirdNet.Service.Template --force
+dotnet new list thirdnet-service
 cd backend
 # 完整创建命令（含 --AdminName 说明）见 net-microservice-generator
 ```
