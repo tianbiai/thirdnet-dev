@@ -85,11 +85,11 @@
 | `Unchanged` | 用户文件 == 新模板（无变化） | — | 否 |
 | `Added` | 模板新增（用户项目无此文件） | 新增进来 | 否（AI 据 diff 处理） |
 | `Deleted` | 旧基线/清单有、新模板已删、用户仍保留 | **永不删除**，仅提示 | 否（AI flag-human，不删） |
-| `UpstreamOnly` 🔄 | 用户未改 + 模板改了 | 自动套用模板版（AI 可改判 take-template / merge / flag-human） | 否 |
+| `UpstreamOnly` 🔄 | 用户未改 + 模板改了 | 自动套用模板版（AI 可改判 take-template / merge / flag-with-plan / flag-human） | 否 |
 | `UserOnly` 🔒 | 用户改了 + 模板未改 | 保留用户版 | 否（业务代码安全） |
-| `Conflict` ⚠️ | 用户改了 + 模板也改了 | 保留（AI 合并） | **是** —— 只有这类进 workdir |
+| `Conflict` ⚠️ | 用户改了 + 模板也改了 | 保留（AI 合并；影响流程时 flag-with-plan） | **是** —— 只有这类进 workdir |
 
-> 关键：`export-merge` 只导出 `Conflict` 态（+ brand 需 `--include-override`）。非冲突的 `UpstreamOnly`/`Added` 不进 workdir，AI 据 `diff` 输出判定与处理。6 态是 AI 判定的**起点**，不是终判——AI 发现有破坏性可把 `UpstreamOnly` 改判为 `flag-human` 或 `merge`。
+> 关键：`export-merge` 只导出 `Conflict` 态（+ brand 需 `--include-override`）。非冲突的 `UpstreamOnly`/`Added` 不进 workdir，AI 据 `diff` 输出判定与处理。6 态是 AI 判定的**起点**，不是终判——AI 发现有破坏性可把 `UpstreamOnly` 改判为 `merge`/`flag-with-plan`/`flag-human`；Conflict 影响当前流程时改判 `flag-with-plan`（不强行合并）。判定纪律见 `merge-protocol.md`。
 
 前端命名略有不同：冲突条件为"文件已修改 **且** 用户也改过"，语义同 `Conflict`。
 
