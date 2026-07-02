@@ -64,7 +64,7 @@
     {
       "name": "thirdnet-template-upgrade",
       "source": "./skills/thirdnet-template-upgrade",
-      "description": "ThirdNet 模板升级操作指南（前后端通用·AI 主导）— **执行铁律：禁止询问用户"升前端还是后端还是全更新""用内网还是外网"，默认前后端齐升 + 内网优先、连接失败自动转外网，直接执行不询问**。工具只做 diff 对比，由 AI 全量判定并直接升级文件（可覆盖工具 6 态默认动作，用 Edit/Write 改项目文件，不再走 apply/import-merge，AI 手动备份 + VCS 兜底）。默认行为不询问：前后端一起升级（检测到两端就都跑），网络内网优先、连接失败自动转外网、只有双网都挂才在报告里上报。后端用 thirdnet-migrate、前端用 npx create-thirdnet-admin 的 check/diff/export-merge 出对比素材。覆盖 6 态分类（AI 判定输入，可覆盖）、AI 逐文件语义判定（take-template/merge/keep-user/flag-with-plan/flag-human）、冲突分流（独立改动合并；影响当前流程的冲突不自动合并，罗列冲突+逻辑+合并建议交人工）、角色信任矩阵与 brand-merge 规则、清单/基线模式、离线流程、版本漂移、回滚预案、收尾产出修改清单 + 合并后潜在风险清单（🟢🟡🔴 分级 + 验证建议）。触发：模板升级/迁移/同步/跟进、脚手架更新、对齐模板版本、跟版、前后端一起升级、thirdnet-migrate、create-thirdnet-admin、.template-version.json",
+      "description": "ThirdNet 模板升级操作指南（前后端通用·AI 主导）— **执行铁律：禁止询问用户“升前端还是后端还是全更新”“用内网还是外网”，默认前后端齐升 + 内网优先、连接失败自动转外网，直接执行不询问**。工具只做 diff 对比，由 AI 全量判定并直接升级文件（可覆盖工具 6 态默认动作，用 Edit/Write 改项目文件，不再走 apply/import-merge，AI 手动备份 + VCS 兜底）。默认行为不询问：前后端一起升级（检测到两端就都跑），网络内网优先、连接失败自动转外网、只有双网都挂才在报告里上报。后端用 thirdnet-migrate、前端用 npx create-thirdnet-admin 的 check/diff/export-merge 出对比素材。覆盖 6 态分类（AI 判定输入，可覆盖）、AI 逐文件语义判定（take-template/merge/keep-user/flag-with-plan/flag-human）、冲突分流（独立改动合并；影响当前流程的冲突不自动合并，罗列冲突+逻辑+合并建议交人工）、角色信任矩阵与 brand-merge 规则、清单/基线模式、离线流程、版本漂移、回滚预案、收尾产出修改清单 + 合并后潜在风险清单（🟢🟡🔴 分级 + 验证建议）。触发：模板升级/迁移/同步/跟进、脚手架更新、对齐模板版本、跟版、前后端一起升级、thirdnet-migrate、create-thirdnet-admin、.template-version.json",
       "version": "0.11.0",
       "author": {
         "name": "thirdnet"
