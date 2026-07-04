@@ -1,6 +1,6 @@
 {
   "name": "thirdnet-fullstack",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "ThirdNet 全栈 Admin 开发插件（自包含）— 后端 .NET 10 微服务（8 技能）+ 前端 Vue 3（11 技能）+ 全栈协调技能一体，统一 thirdnet-fullstack: 命名空间，开箱即用；含前后端子代理（backend-developer / frontend-developer）、文档驱动与技能合规钩子。前后端开发统一由此插件提供。",
   "author": {
     "name": "thirdnet"

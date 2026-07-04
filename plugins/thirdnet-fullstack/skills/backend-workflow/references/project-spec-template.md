@@ -106,6 +106,7 @@
 - [ ] jsonb/数组列配 GIN 索引
 - [ ] 高频过滤列/FK 关联列建索引（含 `dept_id` 等数据权限过滤列）
 - [ ] `DateTime` 列映射为 `timestamptz`
+- [ ] 应用层写入时间字段使用 `DateTime.UtcNow`（禁止 `DateTime.Now`）
 - [ ] 慢查询经 `EXPLAIN (ANALYZE, BUFFERS)` 验证
 
 > 完整最佳实践（索引策略/连接管理/监控诊断/迁移安全/并发锁）见 [net-efcore-developer → postgres-best-practices.md](../../net-efcore-developer/references/postgres-best-practices.md)。

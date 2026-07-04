@@ -53,7 +53,7 @@ namespace {ProjectName}.Admin.Database.Models
         public DateTime? updated_time { get; set; }
         public string? remark { get; set; }
 
-        // 安全字段
+        // 安全字段（这些业务时间字段由应用层赋值时用 DateTime.UtcNow）
         public int failed_login_attempts { get; set; }  // 连续登录失败次数
         public DateTime? lockout_end { get; set; }      // 锁定截止时间
         public DateTime? password_changed_time { get; set; } // 密码最后修改时间
@@ -303,14 +303,16 @@ public static void ConfigureAuditFields<T>(this EntityTypeBuilder<T> builder)
     where T : class, IAuditableEntity
 {
     builder.Property(x => x.created_by).HasComment("创建人");
-    builder.Property(x => x.created_time).HasDefaultValueSql("now()").HasComment("创建时间");
+    builder.Property(x => x.created_time).HasDefaultValueSql("now()").HasColumnType("timestamptz").HasComment("创建时间");
     builder.Property(x => x.updated_by).HasComment("更新人");
-    builder.Property(x => x.updated_time).HasComment("更新时间");
+    builder.Property(x => x.updated_time).HasColumnType("timestamptz").HasComment("更新时间");
     builder.Property(x => x.remark).HasComment("备注");
 }
 ```
 
 **特点**：
 - `created_time` 有数据库默认值 `now()`，Service 层无需手动赋值
+- `created_time` / `updated_time` 列类型为 `timestamptz`（时间字段统一带时区）
 - `updated_by` 和 `updated_time` 可空（首次创建时无更新）
 - 只有实现 `IAuditableEntity` 的实体才能调用（泛型约束保证编译时类型安全）
+- **业务时间字段**（非审计字段）由应用层赋值时必须用 `DateTime.UtcNow`，详见主技能「核心规则 · 时间字段类型」

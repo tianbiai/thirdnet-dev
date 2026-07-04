@@ -310,13 +310,15 @@ END $$;
 
 ---
 
-## 八、时区类型（schema-data-types）—— 潜在隐患
+## 八、时区类型（schema-data-types）—— 硬性约定
 
-### 插件现状
+> 本节是主技能「核心规则 · 时间字段类型（timestamptz）」的展开说明。
 
-实体审计字段为 `DateTime created_time`，`HasDefaultValueSql("now()")`。但 Npgsql **默认把 `DateTime` 映射为 `timestamp without time zone`**，而最佳实践要求 `timestamptz`（带时区）。混用时区时（服务器时区不一致、跨时区查询）会踩坑。
+### 为什么必须 timestamptz
 
-### 建议
+实体审计字段为 `DateTime created_time`，`HasDefaultValueSql("now()")`。但 Npgsql **默认把 `DateTime` 映射为 `timestamp without time zone`**（不带时区），而项目约定要求 `timestamptz`（带时区、库内存 UTC）。混用时区时（服务器时区不一致、跨时区查询、跨节点部署）数据会错位——因此 `timestamptz` 是**硬性约定**而非建议。
+
+### 落地方式
 
 全局把时间列映射为 `timestamptz`。两种做法：
 
@@ -334,10 +336,21 @@ protected override void OnModelCreating(ModelBuilder modelBuilder)
 }
 
 // 方法二：逐列显式（更可控）
-builder.Property(x => x.created_time).HasColumnType("timestamptz");
+builder.Property(x => x.last_active_time).HasColumnType("timestamptz");
 ```
 
-> 注：切换列类型属破坏性变更，需经 expand/contract（先加 timestamptz 新列 → 回填 → 切换 → 删旧列）。新项目可在建库时直接用。
+### 配套：应用层写入必须用 DateTime.UtcNow
+
+`timestamptz` 列要求写入的 `DateTime` 为 `Kind == Utc`。应用层对**业务时间字段**赋值（如 `login_date`、`lockout_end`、`last_active_time`、各类计划/截止时间，以及批量入库时提供的时间值）时，**必须用 `DateTime.UtcNow`，禁止 `DateTime.Now`**——后者 `Kind == Local`，Npgsql 会抛 `InvalidCastException`。
+
+```csharp
+user.last_active_time = DateTime.UtcNow;  // ✅
+user.last_active_time = DateTime.Now;     // ❌ Local Kind，写入 timestamptz 抛异常
+```
+
+> 审计字段 `created_time` / `updated_time` 仍走 `now()` 数据库默认值（`now()` 返回的本身就是 `timestamptz`），Service 层无需赋值，不涉及此处约束。
+
+> 注：既有库切换列类型属破坏性变更，需经 expand/contract（先加 timestamptz 新列 → 回填 → 切换 → 删旧列）。新项目 / 新实体直接建为 `timestamptz` 即可。
 
 ---
 
@@ -372,7 +385,7 @@ ORDER BY rank DESC;
 | Query Performance | `query-` | 本文补齐 GIN/覆盖/部分/列序 |
 | Connection Management | `conn-` | 本文补齐 PgBouncer/超时/prepared |
 | Security & RLS | `security-` | 设计取舍（见主技能「设计取舍说明」） |
-| Schema Design | `schema-` | 主约定已对齐；本文补 timestamptz、迁移幂等 |
+| Schema Design | `schema-` | 主约定已对齐；本文补 timestamptz 硬性约定 + UtcNow 配套、迁移幂等 |
 | Concurrency & Locking | `lock-` | 本文补 SKIP LOCKED/advisory/短事务 |
 | Data Access Patterns | `data-` | 本文补 N+1、keyset 分页 |
 | Monitoring & Diagnostics | `monitor-` | 本文全部新增 |

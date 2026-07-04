@@ -4,14 +4,16 @@ description: >
   ThirdNet 数据库开发规范（实体 + 查询 + 批量）：DbContext 约定（schema、t_ 前缀、long id、
   xmin 乐观并发）、IAuditableEntity 审计字段、EntityConfiguration 模式、Pooled DbContextFactory、
   迁移命令、双数据库上下文、Fluent API（禁止 Data Annotations）、CTE 与原生 SQL 查询、复杂类型配置，
+  时间字段统一映射为 timestamptz（应用层写入用 DateTime.UtcNow，禁止 DateTime.Now），
   以及批量数据操作（PostgresqlAsyncBulk：CopyToServer/MergeToServer/UpdateToServer，含 BulkCopy-vs-CTE 决策）。
   当用户提到"实体"、"数据库"、"DbContext"、"migration"、"xmin"、"schema"、
   "创建实体"、"建张表"、"加个字段"、"数据库迁移"、"EF Core"、"CTE"、"批量"、"导入"、
-  "同步"、"大数据量"、"Excel 导入"、"数据迁移"、"Upsert"、"Merge"、"CopyToServer"、"BulkCopy"时，
+  "同步"、"大数据量"、"Excel 导入"、"数据迁移"、"Upsert"、"Merge"、"CopyToServer"、"BulkCopy"、
+  "时间字段"、"时间类型"、"时区"、"timestamptz"、"timestamp with time zone"、"DateTime.UtcNow"、"UtcNow"时，
   必须使用此技能。
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   author: thirdnet
 ---
 
@@ -53,6 +55,40 @@ public class UserModel
 ### 字符串映射
 
 字符串属性**不设置 HasMaxLength**，让 EF Core 默认映射为 PostgreSQL `text` 类型。`text` 与 `varchar(n)` 性能相同且无长度限制，避免未来迁移成本。
+
+### 时间字段类型（timestamptz）
+
+所有 `DateTime` / `DateTime?` 属性**统一映射为 `timestamp with time zone`（`timestamptz`）**。Npgsql 默认把 `DateTime` 映射成 `timestamp without time zone`（不带时区），服务器时区不一致或跨时区查询时数据会错位；`timestamptz` 在数据库内统一存 UTC，是唯一可靠的列类型。
+
+与列类型绑定的硬规则——**应用层对任何时间字段赋值时必须用 `DateTime.UtcNow`，禁止 `DateTime.Now`**：`timestamptz` 列要求写入的 `DateTime` 为 `Kind == Utc`，写 `DateTime.Now`（`Kind == Local`）Npgsql 会直接抛 `InvalidCastException`。
+
+```csharp
+// ✅ 正确：业务时间字段用 UTC
+user.last_active_time = DateTime.UtcNow;
+
+// ❌ 禁止：Local Kind 写入 timestamptz 会抛异常
+user.last_active_time = DateTime.Now;
+```
+
+落地方式（优先全局约定，逐列显式兜底）：
+
+```csharp
+// 方法一：DbContext 全局约定（推荐，新实体零配置即合规）
+foreach (var prop in modelBuilder.Model.GetEntityTypes()
+    .SelectMany(e => e.GetProperties())
+    .Where(p => p.ClrType == typeof(DateTime) || p.ClrType == typeof(DateTime?)))
+{
+    prop.SetColumnType("timestamptz");
+}
+
+// 方法二：逐列显式（更可控）
+builder.Property(x => x.last_active_time).HasColumnType("timestamptz");
+```
+
+- **审计字段** `created_time` / `updated_time` 仍走 `now()` 数据库默认值（`HasDefaultValueSql("now()")`，服务端返回的本身就是 `timestamptz`），Service 层无需赋值——这条规则针对的是**业务时间字段**（如 `login_date`、`lockout_end`、`last_active_time`、各类计划/截止时间）以及批量入库时由应用层提供的时间值。
+- **既有库改 `timestamptz`** 属破坏性变更，须 expand/contract（加 `timestamptz` 新列 → 回填 → 切换 → 删旧列）；**新项目 / 新实体直接建为 `timestamptz`** 即可。
+
+完整背景与迁移细节见 [postgres-best-practices.md](references/postgres-best-practices.md)「八、时区类型」。
 
 ### 索引策略
 
@@ -145,7 +181,7 @@ namespace {ProjectName}.Admin.Database.Models
         /// <summary>主键（bigint 自增）</summary>
         public long id { get; set; }
 
-        // 业务字段...
+        // 业务字段...（业务时间字段由应用层赋值时用 DateTime.UtcNow，详见「核心规则 · 时间字段类型」）
 
         /// <summary>创建人</summary>
         public string? created_by { get; set; }
@@ -168,6 +204,8 @@ namespace {ProjectName}.Admin.Database.Models
 > **可空性**：`created_by`/`updated_by`/`remark` 均为 `string?`（可空）。框架的 `IAuditableEntity` 已统一迁空，实体模板里这几个字段务必写 `string?`，否则会触发 CS8618「非空属性未初始化」警告——这与真实模板（`SysUserModel` 等）保持一致。
 
 **不适用 IAuditableEntity 的实体**：日志表（本身就是审计记录）、中间关联表。
+
+> 审计字段（`created_time` / `updated_time`）保留 `now()` 数据库默认值，列类型为 `timestamptz`；**业务时间字段**的列类型与赋值规则见上文「核心规则 · 时间字段类型（timestamptz）」。
 
 ## EntityConfiguration 规范
 
@@ -205,6 +243,7 @@ public class XxxConfiguration : IEntityTypeConfiguration<XxxModel>
 | 主键 | `long id`（bigint 自增） |
 | 审计字段 | `ConfigureAuditFields()` 一行配置 |
 | 默认时间 | `HasDefaultValueSql("now()")` 在 ConfigureAuditFields 中已包含 |
+| 时间列类型 | 全局映射为 `timestamptz`（详见「核心规则 · 时间字段类型」） |
 | 索引命名 | `HasDatabaseName("idx_xxx_field")` |
 | 唯一索引 | `HasIndex(x => x.field).IsUnique()` |
 | 复合唯一索引 | `HasIndex(x => new { x.a, x.b }).IsUnique()` |
