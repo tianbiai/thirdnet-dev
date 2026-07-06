@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.9.0 - 2026-07-06
+
+### Added
+- **`skills/fullstack-review/`（新技能，全栈代码审查与验证）**：填补开发完成后缺少统一验证环节的空白。功能开发完成后对已实现的前后端模块做全方位审查，覆盖七大维度——后端规范遵守、前端规范遵守、跨端契约一致性、业务功能正确性、性能、安全性、文档与流程；严格编排既有规范技能（`net-*` / `vue-*` / `api-typescript-spec` / `thirdnet-fullstack` 的 `代码审查清单` / `开发完成校验` / `约定同步检查清单`），不重述其正文。产出 `review-report.md`（问题清单 + 严重级别 Critical/Major/Minor/Info + 整体优缺点 + 歧义与待确认 + 优先级排序的修改方案 + 阻断结论）。含三份 references：`review-rules.md`（可检查规则目录）、`report-format.md`（严重级别与报告模板、子代理派发 prompt）、`scope-and-vcs.md`（SVN 未提交/最近提交/整个项目三种范围 + git 兜底 + 模块推断）。
+- **Stop Hook 第 3 条（全栈质量收尾门）**：在 `hooks.json` 的 Stop 数组新增一个 prompt 钩子——检测到前后端功能性代码变更（`backend/**/*.cs` 或 `frontend/**/src/**/*.{vue,ts,tsx}`）且尚未通过 `fullstack-review` 审查（或仍有 Critical/Major）时，阻断会话结束并提示调用本技能。与既有两条文档完整性 Stop 钩子叠加，形成「文档 + 注释 + 全栈质量」三重收尾门。
+
+### Changed
+- 版本号同步：`plugin.json`、协调技能 `thirdnet-fullstack/SKILL.md` 的 `metadata.version`、`marketplace.json` 中 `thirdnet-fullstack` 条目 `version` 三处由 `1.8.0` → `1.9.0`；`marketplace.json` 目录 `metadata.version` 由 `0.43.0` → `0.44.0`。
+- `thirdnet-fullstack` 协调技能：任务路由表新增「功能开发完成 / 上线前检查 → 委派 `fullstack-review`」一行；约定同步检查清单补一条「审查发现跨端不一致 → 调 fullstack-review 复核」。
+- `backend-workflow` / `frontend-workflow`：「开发完成校验」末尾新增「最终建议调用 `thirdnet-fullstack:fullstack-review` 做全栈审查（由 Stop Hook 强制）」；路由表加入审查入口。
+- 仓库根 `CLAUDE.md`：技能总数 20 → 21，新增「质量保障（1 个）：`fullstack-review`」分类；文档驱动开发段补注 Stop Hook 现含全栈质量门。
+- `plugin.json` / `marketplace.json` 的 `thirdnet-fullstack` description 更新，体现审查技能与质量收尾门。
+
+### Benefits
+- 开发完成后的验证从「碎片化」（6 钩子 + 2 域清单 + 2 交付清单 + 1 同步清单）升级为「一站式全栈审查 + 强制收尾门」，跨端契约不一致、缺权限注解、时间类型错误、缓存误用等高频问题在交付前被统一拦截。
+- 审查范围适配目标项目的 SVN 工作流（未提交 / 最近提交 / 整个项目），git 兜底，模块推断自动定位前后端完整产物。
+- 报告带严重级别与可执行修改方案，审查与开发职责分离（默认只报告不改码），避免审查客观性被修复动作稀释。
+
 ## 1.7.0 - 2026-06-20
 
 ### Changed（技能精简与合并，后端 10 → 8，总数 22 → 20）

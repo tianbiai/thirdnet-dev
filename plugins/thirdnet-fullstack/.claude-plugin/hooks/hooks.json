@@ -21,6 +21,16 @@
             "timeout": 30
           }
         ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "你是 ThirdNet 全栈代码审查收尾检查器。此检查在用户尝试结束会话时触发，确保功能性代码变更在交付前通过全栈审查。\n\n步骤 1：判断本次对话是否涉及了对前后端**功能性代码**的修改（通过 Write/Edit 工具输入的文件路径判断）。功能性代码文件模式：\n- 后端：backend/**/*.cs、**/*.csproj（排除 spec.md/changelog.md/plan.md 等文档、appsettings*.json 配置、测试代码）\n- 前端：**/src/**/*.vue、**/src/**/*.ts、**/src/**/*.tsx\n\n如果上下文历史中**没有**对这些功能性代码文件的 Write/Edit 操作（例如仅修改文档、注释、配置，或纯对话/查询），返回：{\"decision\": \"approve\"}\n\n步骤 2：如果用户已在本次对话中**明确要求跳过审查**（如\"不审查了\"\"跳过审查\"\"先这样就行\"\"完成，不用查了\"），返回：{\"decision\": \"approve\"}\n\n步骤 3：检查上下文历史中是否已同时满足以下全部条件：\n- 存在对 `thirdnet-fullstack:fullstack-review` 技能的 Skill 工具调用记录\n- 已生成 review-report.md 审查报告\n- 该报告中**不存在** Critical 或 Major 级别问题（即阻断结论为 PASS）\n\n如果以上条件全部满足，返回：{\"decision\": \"approve\"}\n\n如果审查尚未进行，或审查后仍存在 Critical/Major 问题，返回：\n{\"decision\": \"block\", \"reason\": \"检测到前后端功能性代码变更，但尚未通过全栈代码审查。请调用 thirdnet-fullstack:fullstack-review 技能对本次变更进行全方位审查（覆盖前后端规范、API、数据库、跨端契约、业务正确性、性能、安全、文档），并解决所有 Critical/Major 问题后再结束。如确需跳过审查，请明确说明原因（如本次仅为文档/注释修改）。\"}",
+            "timeout": 30
+          }
+        ]
       }
     ],
     "PreToolUse": [

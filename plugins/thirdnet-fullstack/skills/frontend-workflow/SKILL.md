@@ -86,6 +86,7 @@ metadata:
 | 创建或修改路由配置（`router/**/*.ts`）            | `thirdnet-fullstack:vue-router-best-practices`   |
 | 设计 UI 布局或编写 CSS/SCSS                       | `thirdnet-fullstack:design-apple`                |
 | 新建页面/组件时确定设计方向和创意风格               | `thirdnet-fullstack:frontend-design`             |
+| 功能开发完成后 / 交付前全栈审查（编码后）            | `thirdnet-fullstack:fullstack-review`（Stop Hook 强制） |
 
 ### 按需技能
 
@@ -382,6 +383,8 @@ frontend/
 - [ ] Store 在 `src/stores/`，路由在 `src/router/`
 
 **发现不合规项时，先修正再交付，不要遗留问题。**
+
+> **交付前最后一步（全栈审查）**：完成上述自检后，调用 `thirdnet-fullstack:fullstack-review` 对本次变更做一次全栈代码审查——覆盖前端规范、后端规范、跨端契约一致性（类型映射 / 权限串 / URL 约定）、业务正确性、性能、安全、文档，产出 `review-report.md`（问题清单 + 严重级别 + 修改方案）。本插件 Stop Hook 会在存在未审查或仍有 Critical/Major 的功能性变更时强制阻断完成。
 
 ### E2E 测试参考
 

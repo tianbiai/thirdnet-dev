@@ -7,12 +7,12 @@
 ```
 thirdnet-dev/
 ├── plugins/
-│   └── thirdnet-fullstack/        # 全栈开发插件（自包含）(v1.7.0)：后端 .NET 微服务 + 前端 Vue 3 + 全栈协调
+│   └── thirdnet-fullstack/        # 全栈开发插件（自包含）(v1.9.0)：后端 .NET 微服务 + 前端 Vue 3 + 全栈协调 + 全栈审查
 ├── skills/
 │   ├── thirdnet-template-upgrade/ # 前后端模板升级指南 thirdnet-migrate / create-thirdnet-admin (v0.8.0)
 │   └── md-to-word/               # Markdown → Word 转换 (v0.1.0)
 └── .claude-plugin/
-    └── marketplace.json      # 插件集合注册清单 (v0.42.0)
+    └── marketplace.json      # 插件集合注册清单 (v0.44.0)
 ```
 
 ## 核心约定
@@ -25,15 +25,16 @@ thirdnet-dev/
 需求分析 → 生成 plan.md → 生成 changelog.md → 生成 spec.md → 编码 → 校验 + 同步更新文档
 ```
 
-所有功能变更必须同步更新文档，Stop Hook 会在文档未更新时阻断完成。
+所有功能变更必须同步更新文档，Stop Hook 会在文档未更新时阻断完成。另有**全栈质量收尾门** Stop Hook：检测到功能性代码变更（后端 `*.cs` 或前端 `*.vue`/`*.ts`）未通过 `fullstack-review` 审查、或仍有 Critical/Major 问题时，阻断会话结束。
 
 ### 技能体系
 
-`thirdnet-fullstack` 插件通过 `skills/` 目录组织全部领域知识（共 20 个技能）：
+`thirdnet-fullstack` 插件通过 `skills/` 目录组织全部领域知识（共 21 个技能）：
 
 - **后端（8 个）**：微服务生成、API 开发、EF Core（含批量操作）、认证授权、缓存、后台任务、枚举字典、后端工作流
 - **前端（11 个）**：Vue 3 最佳实践、设计规范、API TypeScript 规范、Admin 模板安装、前端工作流、Pinia、Router、JSX、Composable 设计、Apple 设计规范、枚举字典规范（vue-enum-dict）
 - **全栈协调（1 个）**：`thirdnet-fullstack` 协调技能——前端先行开发顺序、Admin CRUD 页面模式、前后端类型映射、RBAC 桥接、子代理调度
+- **质量保障（1 个）**：`fullstack-review`——功能开发完成后的全栈代码审查与验证（前后端规范、API、数据库、跨端契约、业务正确性、性能、安全、文档），产出审查报告与修改方案
 
 ## 插件说明
 

@@ -249,6 +249,7 @@ Admin 项目的 Program.cs 和 Startup.cs 遵循固定的启动模式和 10 步 
 | 认证（IAccountValidator/Token/JWT）与授权（权限/角色/菜单 RBAC） | `net-auth` |
 | 后台任务（BackgroundRunner） | `net-background-job` |
 | 新增下拉选项枚举、[SystemDict] 字典 | `net-enum-dict` |
+| 功能开发完成后 / 交付前全栈审查（编码后） | `fullstack-review`（Stop Hook 强制） |
 
 ### 编码前检查清单
 
@@ -369,6 +370,8 @@ Admin 项目的 Program.cs 和 Startup.cs 遵循固定的启动模式和 10 步 
 - [ ] Swagger 文档完整，所有端点有描述
 
 **发现不合规项时，先修正再交付，不要遗留问题。**
+
+> **交付前最后一步（全栈审查）**：完成上述自检后，调用 `thirdnet-fullstack:fullstack-review` 对本次变更做一次全栈代码审查——覆盖后端规范、前端规范、跨端契约一致性、业务正确性、性能、安全、文档，产出 `review-report.md`（问题清单 + 严重级别 + 修改方案）。本插件 Stop Hook 会在存在未审查或仍有 Critical/Major 的功能性变更时强制阻断完成。
 
 ## 代码规范速查
 

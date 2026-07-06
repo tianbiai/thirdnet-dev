@@ -9,7 +9,7 @@ description: >
   以及子代理调度（backend-developer / frontend-developer，通过 Task 工具派发重型阶段）。
 license: MIT
 metadata:
-  version: "1.8.0"
+  version: "1.9.0"
   author: thirdnet
 ---
 
@@ -29,6 +29,7 @@ metadata:
 
 - **后端技能**：`backend-workflow`、`net-api-developer`、`net-efcore-developer`（含批量操作）、`net-auth`、`net-cache-use`、`net-background-job`、`net-enum-dict`、`net-microservice-generator`
 - **前端技能**：`frontend-workflow`、`api-typescript-spec`、`vue-best-practices`、`admin-template-setup`、`vue-pinia-best-practices`、`vue-router-best-practices`、`vue-jsx-best-practices`、`vue-enum-dict`、`create-adaptable-composable`、`design-apple`、`frontend-design`
+- **质量保障**：`fullstack-review`——功能开发完成后的全栈代码审查与验证（前后端规范、API、数据库、跨端契约、业务正确性、性能、安全、文档），产出审查报告与修改方案；由 Stop Hook 在收尾时强制
 
 ## 任务路由（何时用本技能）
 
@@ -41,7 +42,8 @@ metadata:
 | **仅后端**（实体/接口/权限/缓存/任务） | 委派 `thirdnet-fullstack:backend-workflow`，不必进本技能 |
 | **仅前端**（页面/组件/路由/类型） | 委派 `thirdnet-fullstack:frontend-workflow`，不必进本技能 |
 | **新建 Service 微服务** | 委派 `thirdnet-fullstack:net-microservice-generator`，不必进本技能 |
-| **排查前后端数据/格式/权限不一致** | 用本技能的「类型映射」「RBAC 桥接」「共享 API 约定」对照排查 |
+| **功能开发完成 / 上线前检查** | 委派 `thirdnet-fullstack:fullstack-review` 做全栈审查 |
+| **排查前后端数据/格式/权限不一致** | 用本技能的「类型映射」「RBAC 桥接」「共享 API 约定」对照排查（或直接调 `fullstack-review` 跑维度 C） |
 
 本技能与 `backend-workflow`、`frontend-workflow` 互为入口：单侧任务直接用对应工作流，跨端协同用本技能协调。
 
@@ -310,6 +312,7 @@ const canModify = computed(() => hasPermiOr(['sys:notice:edit', 'sys:notice:remo
 - [ ] 认证流程变更 → 检查 `net-auth` 和 `api-typescript-spec` 认证模块
 - [ ] 权限字符串格式变更 → 检查 `net-auth` 和前端权限组件
 - [ ] API 路由格式变更 → 检查 `net-api-developer` 和 `api-typescript-spec` URL 命名规范
+- [ ] 审查 / 交付前校验 → 功能开发完成后调用 `fullstack-review` 做全栈审查（含本清单 7 项的跨端一致性复核）；发现跨端不一致时以本技能的「类型映射」「RBAC 桥接」为对照基准
 
 **原则**：前端先定义接口契约，后端按契约实现。当前端契约变更时，需同步检查后端实现是否匹配；当后端架构约束变更时（如网关规则），需同步检查前端约定是否需调整。
 
