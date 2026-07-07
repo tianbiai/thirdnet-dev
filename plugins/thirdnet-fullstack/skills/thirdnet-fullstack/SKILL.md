@@ -9,7 +9,7 @@ description: >
   以及子代理调度（backend-developer / frontend-developer，通过 Task 工具派发重型阶段）。
 license: MIT
 metadata:
-  version: "2.2.0"
+  version: "2.4.0"
   author: thirdnet
 ---
 
@@ -30,7 +30,7 @@ metadata:
 - **后端技能**：`backend-workflow`、`net-api-developer`、`net-efcore-developer`（含批量操作）、`net-auth`、`net-cache-use`、`net-background-job`、`net-enum-dict`、`net-microservice-generator`
 - **前端技能**：`frontend-workflow`、`api-typescript-spec`、`vue-best-practices`、`admin-template-setup`、`vue-pinia-best-practices`、`vue-router-best-practices`、`vue-jsx-best-practices`、`vue-enum-dict`、`create-adaptable-composable`、`design-apple`、`frontend-design`
 - **质量保障**：`fullstack-review`——功能开发完成后的全栈代码审查与验证（前后端规范、API、数据库、跨端契约、业务正确性、性能、安全、文档），产出审查报告与修改方案；由 Stop Hook 在收尾时强制
-- **文档交付**：`doc-generator`——功能开发完成后基于代码库功能模块生成项目交付文档（需求规格说明书、系统设计文档、用户手册、测试用例文档等，每类有专属模板），输出 Markdown 并可转 Word；与 `fullstack-review` 同级，属交付类技能
+- **文档交付**：`thirdnet-doc-generator`——功能开发完成后基于代码库功能模块生成项目交付文档（需求规格说明书、系统设计文档、用户手册、测试用例文档等，每类有专属模板），输出 Markdown 并可转 Word；与 `fullstack-review` 同级，属交付类技能
 
 ## 任务路由（何时用本技能）
 
@@ -44,7 +44,7 @@ metadata:
 | **仅前端**（页面/组件/路由/类型） | 委派 `thirdnet-fullstack:frontend-workflow`，不必进本技能 |
 | **新建 Service 微服务** | 委派 `thirdnet-fullstack:net-microservice-generator`，不必进本技能 |
 | **功能开发完成 / 上线前检查** | 委派 `thirdnet-fullstack:fullstack-review` 做全栈审查 |
-| **生成项目交付文档**（需求规格说明书 / 系统设计文档 / 用户手册 / 测试用例文档等） | 委派 `thirdnet-fullstack:doc-generator` 基于代码库生成文档 |
+| **生成项目交付文档**（需求规格说明书 / 系统设计文档 / 用户手册 / 测试用例文档等） | 委派 `thirdnet-fullstack:thirdnet-doc-generator` 基于代码库生成文档 |
 | **排查前后端数据/格式/权限不一致** | 用本技能的「类型映射」「RBAC 桥接」「共享 API 约定」对照排查（或直接调 `fullstack-review` 跑维度 C） |
 
 本技能与 `backend-workflow`、`frontend-workflow` 互为入口：单侧任务直接用对应工作流，跨端协同用本技能协调。

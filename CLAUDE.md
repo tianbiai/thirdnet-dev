@@ -32,7 +32,7 @@ thirdnet-dev/
 - **前端（11 个）**：Vue 3 最佳实践、设计规范、API TypeScript 规范、Admin 模板安装、前端工作流、Pinia、Router、JSX、Composable 设计、Apple 设计规范、枚举字典规范（vue-enum-dict）
 - **全栈协调（1 个）**：`thirdnet-fullstack` 协调技能——前端先行开发顺序、Admin CRUD 页面模式、前后端类型映射、RBAC 桥接、子代理调度
 - **质量保障（1 个）**：`fullstack-review`——功能开发完成后的全栈代码审查与验证（前后端规范、API、数据库、跨端契约、业务正确性、性能、安全、文档），产出审查报告与修改方案
-- **文档交付（1 个）**：`doc-generator`——功能开发完成后基于代码库功能模块生成项目交付文档（需求规格说明书、系统设计文档、用户手册、测试用例文档等，每类有专属模板，输出 Markdown 可转 Word）
+- **文档交付（1 个）**：`thirdnet-doc-generator`——功能开发完成后基于代码库功能模块生成项目交付文档（需求规格说明书、系统设计文档、用户手册、测试用例文档等，每类有专属模板，输出 Markdown 可转 Word）
 - **模板升级（1 个）**：`thirdnet-template-upgrade`——前后端模板升级操作指南（thirdnet-migrate / create-thirdnet-admin），工具出 diff 素材、AI 全量判定并直接升级文件
 - **工具（1 个）**：`md-to-word`——Markdown 转 Word（.docx）转换工具技能
 

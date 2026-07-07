@@ -1,5 +1,35 @@
 # Changelog
 
+## 2.4.0 - 2026-07-07
+
+### Added
+- **`thirdnet-doc-generator` 支持批量生成（交付套件）**：在原「一次一份」基础上新增「全部 4 类」与「多类子集」批量路径。用户明确点名一类时仍走单类线性 5 步快路径（行为不变）；含糊/泛指（如"生成项目交付文档"）时，Step 1 的 `AskUserQuestion` 把「全部 4 类（交付套件）」作为推荐首选。批量路径核心：Step 2 **共享扫描**一次（采集所选类型采集项的并集，4 类同源、不重复扫 N 遍）→ Step 3 **一次裁剪**（适用全集，保障跨文档一致）→ 新增 Step 3.6 **批量事实确认**（一次合并 `AskUserQuestion` 收集代码无法确定的业务背景/优先级/验收标准/非功能性指标，避免每个填充子代理分别打断用户）→ Step 4 **并行填充**（每类派 1 个 `general-purpose` 子代理并发产出，规避长上下文后半段质量下滑）→ Step 5 多文件输出（逐个转 Word）。
+
+### Changed
+- Step 1 由「确定文档类型」改为「确定文档集合」；description 增补触发词「交付套件 / 全套文档 / 四件套 / 一次性生成所有文档」，并把含糊时的推荐默认从「强制单选询问」改为「推荐全部 4 类，其次单类/自定义」。
+- Step 3.5 触发条件由「仅当文档类型为用户手册」改为「仅当 用户手册 ∈ 文档集合」（单类用户手册、批量含用户手册均执行逐页截图）。
+- `references/doc-scan-guide.md` 通用约定补「批量并集扫描」一条。
+- 版本号同步：`plugin.json`、协调技能 `thirdnet-fullstack/SKILL.md` 的 `metadata.version`、`marketplace.json` 中 `thirdnet-fullstack` 条目 `version` 三处由 `2.3.0` → `2.4.0`；`marketplace.json` 顶层 `metadata.version` 由 `0.47.0` → `0.48.0`；`thirdnet-doc-generator` 技能自身 `metadata.version` 由 `1.2.0` → `1.3.0`。
+
+### Benefits
+- 交付/归档/验收场景从「跑 4 次技能、扫 4 遍代码、答 4 轮问题」缩短为「一次共享扫描 + 并行填充」，且 4 份文档的模块清单/角色/实体天然一致，消除跨文档漂移。
+- 单类定向场景快路径完全不变，无回归。
+
+## 2.3.0 - 2026-07-07
+
+### Changed
+- **技能重命名 `doc-generator` → `thirdnet-doc-generator`**：技能目录、`SKILL.md` 的 `name:` 字段、调用 ID（`thirdnet-fullstack:doc-generator` → `thirdnet-fullstack:thirdnet-doc-generator`）同步更新。目录名与 `name:` 字段保持一致（沿用 `thirdnet-fullstack`、`thirdnet-template-upgrade` 的约定）。
+- **引用同步**：协调技能 `thirdnet-fullstack/SKILL.md` 的任务路由表与技能清单、`plugin.json` 与 `marketplace.json` 的 description、仓库根 `CLAUDE.md`、技能内 6 个 reference 模板（`user-manual-template` / `user-manual-screenshot-guide` / `requirement-spec-template` / `doc-scan-guide` / `test-case-template` / `system-design-template`）的 prose 自引用，全部由 `doc-generator` 改为 `thirdnet-doc-generator`。
+- **版本号同步**：`plugin.json`、协调技能 `thirdnet-fullstack/SKILL.md` 的 `metadata.version`、`marketplace.json` 中 `thirdnet-fullstack` 条目 `version` 三处由 `2.2.0` → `2.3.0`；`marketplace.json` 顶层 `metadata.version` 由 `0.46.0` → `0.47.0`；`thirdnet-doc-generator` 技能自身 `metadata.version` 由 `1.1.0` → `1.2.0`。
+
+### 说明
+- `thirdnet-` 前缀此前仅用于品牌/伞型技能（`thirdnet-fullstack` 协调技能、`thirdnet-template-upgrade` 工具技能）；本次为有意的局部前缀扩展，其余交付类技能（`fullstack-review`、`md-to-word`）暂不迁移，保持现状。
+- 2.2.0 条目中的 `skills/doc-generator/`、`新增 doc-generator` 等表述为历史记录，按仓库惯例保留不重写。
+- `hooks.json`、`agents/*.md`、`README.md` 均不引用该技能，无需改动。
+
+### Benefits
+- 技能命名与插件命名空间（`thirdnet-fullstack:`）及品牌前缀（`thirdnet-`）更一致，便于在 marketplace 中识别为 ThirdNet 自有技能。
+
 ## 2.2.0 - 2026-07-07
 
 ### Added
