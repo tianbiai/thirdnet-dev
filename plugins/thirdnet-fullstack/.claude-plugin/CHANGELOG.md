@@ -1,5 +1,40 @@
 # Changelog
 
+## 2.2.0 - 2026-07-07
+
+### Added
+- **`skills/doc-generator/`（新技能，项目交付文档生成）**：功能开发完成后基于代码库功能模块生成项目交付文档，覆盖需求规格说明书、系统设计文档、用户手册、测试用例文档四类，每类配专属模板（`requirement-spec-template.md` / `system-design-template.md` / `user-manual-template.md` / `test-case-template.md`），并附 `user-manual-screenshot-guide.md`、`custom-doc-guide.md`、`doc-scan-guide.md` 三份操作指南。输出 Markdown 可由 `md-to-word` 转 Word。description 含明确触发词 + AskUserQuestion 兜底确认文档类型。
+
+### Changed
+- 技能总数 21 → 24（新增 doc-generator；此前迁入的 fullstack-review、thirdnet-template-upgrade、md-to-word 一并纳入计数）。
+- `README.md`、`CLAUDE.md` 中 `thirdnet-fullstack` 版本标注统一为 v2.2.0（修正历史漂移：README 曾标 v1.7.0、CLAUDE 曾标 v2.1.0）。
+- `md-to-word` / `thirdnet-template-upgrade` 两个技能的 SKILL.md frontmatter 规范化：顶层 `version:` 迁移为 `metadata.version`，补 `license: MIT` 与 `metadata.author`，与全插件其他 thirdnet 技能风格一致。
+
+### Benefits
+- 项目交付文档从手工拼装升级为「扫描代码库 → 套模板 → 一键转 Word」的闭环，doc-generator 产 Markdown、md-to-word 转 docx，两技能协同。
+- 插件内技能 frontmatter 结构统一，便于版本跟踪与漂移管理。
+
+## 2.1.0 - 2026-07-06
+
+### Changed
+- **`md-to-word` 工具技能迁入插件**：从仓库根 `skills/md-to-word/` 移至 `plugins/thirdnet-fullstack/skills/md-to-word/`，纳入 `thirdnet-fullstack:` 命名空间。`scripts/md_to_docx.py`、`evals/evals.json` 及 10 个 eval fixtures 一并随迁；SKILL.md 内脚本调用路径改用 `${CLAUDE_PLUGIN_ROOT}/skills/md-to-word/scripts/md_to_docx.py`。
+- 根目录 `skills/md-to-word/` 删除（git 索引标记 deleted），仓库根不再保留独立技能目录，插件成为唯一来源。
+
+### Benefits
+- Markdown 转 Word 能力与全栈开发流程同插件内闭环，无需跨目录引用。
+
+## 2.0.0 - 2026-07-06
+
+### Added
+- **`skills/thirdnet-template-upgrade/`（模板升级技能迁入）**：前后端模板升级操作指南（`thirdnet-migrate` / `create-thirdnet-admin`）从独立位置迁入本插件，纳入 `thirdnet-fullstack:` 命名空间。工具只做 diff 对比、AI 全量判定并直接升级文件，覆盖 `references/commands.md` 与 `references/merge-protocol.md`。
+
+### Changed
+- 主版本号升至 2.x，标志插件成为完全自包含的全栈开发技能全集（不再依赖任何外部/独立技能目录）。
+- 配合 1.9.0 引入的 `fullstack-review` 审查技能与 Stop Hook「全栈质量收尾门」，形成「文档驱动（Stop Hook #1/#2）+ 全栈质量审查（Stop Hook #3）」三重收尾门。
+
+### Benefits
+- 模板升级流程由 AI 主导语义判定，工具退化为纯 diff oracle，合并权与判定权收归 AI。
+
 ## 1.9.0 - 2026-07-06
 
 ### Added

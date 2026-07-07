@@ -4,7 +4,7 @@ Claude Code 全栈开发插件集合，为 .NET 后端和 Vue 前端提供专业
 
 ## 插件列表
 
-### thirdnet-fullstack (v1.7.0)
+### thirdnet-fullstack (v2.2.0)
 
 ThirdNet 全栈 Admin 开发插件（自包含），是前后端开发技能的**唯一来源**——后端 .NET 10 微服务（8 个技能）+ 前端 Vue 3（11 个技能）+ 全栈协调技能一体，统一 `thirdnet-fullstack:` 命名空间，开箱即用。
 
@@ -40,7 +40,7 @@ ThirdNet 全栈 Admin 开发插件（自包含），是前后端开发技能的*
 
 将 Markdown 文件转换为 Word (.docx) 文件，支持标题、粗体、斜体、代码、列表、表格等格式。已并入 `thirdnet-fullstack` 插件（技能 `thirdnet-fullstack:md-to-word`）。
 
-### thirdnet-template-upgrade (v0.8.0)
+### thirdnet-template-upgrade (v0.11.0)
 
 ThirdNet 模板升级操作指南（前后端通用·AI 主导）。已并入 `thirdnet-fullstack` 插件（技能 `thirdnet-fullstack:thirdnet-template-upgrade`）。
 
@@ -61,7 +61,7 @@ thirdnet-dev/
 ├── .claude-plugin/
 │   └── marketplace.json              # 插件集合注册清单 (v0.46.0)
 ├── plugins/
-│   └── thirdnet-fullstack/           # 全栈开发插件（自包含，v2.1.0）
+│   └── thirdnet-fullstack/           # 全栈开发插件（自包含，v2.2.0）
 │       ├── .claude-plugin/
 │       │   ├── plugin.json
 │       │   ├── hooks/                # 文档驱动 Stop Hook + 技能合规 PreToolUse/PostToolUse（6 条）

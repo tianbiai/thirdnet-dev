@@ -7,7 +7,7 @@
 ```
 thirdnet-dev/
 ├── plugins/
-│   └── thirdnet-fullstack/        # 全栈开发插件（自包含）(v2.1.0)：后端 .NET 微服务 + 前端 Vue 3 + 全栈协调 + 全栈审查 + 项目文档生成 + 模板升级 + Markdown 转 Word（全部技能内聚于此）
+│   └── thirdnet-fullstack/        # 全栈开发插件（自包含）(v2.2.0)：后端 .NET 微服务 + 前端 Vue 3 + 全栈协调 + 全栈审查 + 项目文档生成 + 模板升级 + Markdown 转 Word（全部技能内聚于此）
 └── .claude-plugin/
     └── marketplace.json      # 插件集合注册清单 (v0.46.0)
 ```
