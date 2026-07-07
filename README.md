@@ -38,11 +38,11 @@ ThirdNet 全栈 Admin 开发插件（自包含），是前后端开发技能的*
 
 ### md-to-word (v0.1.0)
 
-将 Markdown 文件转换为 Word (.docx) 文件，支持标题、粗体、斜体、代码、列表、表格等格式。
+将 Markdown 文件转换为 Word (.docx) 文件，支持标题、粗体、斜体、代码、列表、表格等格式。已并入 `thirdnet-fullstack` 插件（技能 `thirdnet-fullstack:md-to-word`）。
 
 ### thirdnet-template-upgrade (v0.8.0)
 
-ThirdNet 模板升级操作指南（前后端通用·AI 主导）——工具只做 diff 对比，由 AI 全量判定并直接升级文件（可覆盖工具 6 态默认动作，用 Edit/Write 改项目文件，不再走 apply/import-merge）。后端用 `thirdnet-migrate`、前端用 `create-thirdnet-admin` 的 check/diff/export-merge 出对比素材。覆盖 6 态分类（AI 判定输入，可覆盖）、AI 逐文件语义判定（take-template/merge/keep-user/flag-human）、brand-merge 规则、清单/基线模式、离线流程、版本漂移、回滚预案、收尾修改清单 + 合并后风险清单。
+ThirdNet 模板升级操作指南（前后端通用·AI 主导）。已并入 `thirdnet-fullstack` 插件（技能 `thirdnet-fullstack:thirdnet-template-upgrade`）。
 
 ## 安装
 
@@ -59,18 +59,15 @@ git clone https://github.com/tianbiai/thirdnet-dev.git
 ```
 thirdnet-dev/
 ├── .claude-plugin/
-│   └── marketplace.json              # 插件集合注册清单 (v0.42.0)
+│   └── marketplace.json              # 插件集合注册清单 (v0.46.0)
 ├── plugins/
-│   └── thirdnet-fullstack/           # 全栈开发插件（自包含，v1.7.0）
+│   └── thirdnet-fullstack/           # 全栈开发插件（自包含，v2.1.0）
 │       ├── .claude-plugin/
 │       │   ├── plugin.json
 │       │   ├── hooks/                # 文档驱动 Stop Hook + 技能合规 PreToolUse/PostToolUse（6 条）
 │       │   └── CHANGELOG.md
 │       ├── agents/                   # 子代理：backend-developer / frontend-developer
-│       └── skills/                   # 全部技能（20 个：1 全栈协调 + 8 后端 + 11 前端）
-├── skills/
-│   ├── thirdnet-template-upgrade/    # 前后端模板升级指南
-│   └── md-to-word/                   # Markdown 转 Word 工具技能
+│       └── skills/                   # 全部技能（24 个：1 全栈协调 + 8 后端 + 11 前端 + 1 审查 + 1 文档 + 1 模板升级 + 1 工具）
 └── CLAUDE.md
 ```
 

@@ -32,7 +32,7 @@ pip install python-docx markdown Pillow
 使用内置的转换脚本进行转换：
 
 ```bash
-python ${CLAUDE_PLUGIN_ROOT}/scripts/md_to_docx.py <input.md> [output.docx]
+python ${CLAUDE_PLUGIN_ROOT}/skills/md-to-word/scripts/md_to_docx.py <input.md> [output.docx]
 ```
 
 参数说明：
@@ -76,7 +76,7 @@ python ${CLAUDE_PLUGIN_ROOT}/scripts/md_to_docx.py <input.md> [output.docx]
 
 **执行命令**：
 ```bash
-python ${CLAUDE_PLUGIN_ROOT}/scripts/md_to_docx.py documents/report.md
+python ${CLAUDE_PLUGIN_ROOT}/skills/md-to-word/scripts/md_to_docx.py documents/report.md
 ```
 
 **输出**：
@@ -91,7 +91,7 @@ python ${CLAUDE_PLUGIN_ROOT}/scripts/md_to_docx.py documents/report.md
 
 **执行命令**：
 ```bash
-python ${CLAUDE_PLUGIN_ROOT}/scripts/md_to_docx.py notes.md output/notes-v1.docx
+python ${CLAUDE_PLUGIN_ROOT}/skills/md-to-word/scripts/md_to_docx.py notes.md output/notes-v1.docx
 ```
 
 ## 错误处理

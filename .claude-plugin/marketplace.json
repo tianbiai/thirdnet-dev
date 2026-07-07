@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Thirdnet 全栈开发插件集",
-    "version": "0.44.0"
+    "version": "0.46.0"
   },
   "plugins": [
     {
       "name": "thirdnet-fullstack",
       "source": "./plugins/thirdnet-fullstack",
-      "description": "ThirdNet 全栈 Admin 开发插件（自包含）— 后端 .NET 10 微服务（8 个技能）+ 前端 Vue 3（11 个技能）+ 全栈协调与审查技能一体（含 thirdnet-fullstack 协调技能与 fullstack-review 全栈代码审查技能），统一 thirdnet-fullstack: 命名空间，开箱即用；含前后端子代理（backend-developer / frontend-developer）、文档驱动与技能合规钩子、以及开发完成后的全栈质量收尾门（Stop Hook 强制审查）。前后端开发统一由此插件提供。",
-      "version": "1.9.0",
+      "description": "ThirdNet 全栈 Admin 开发插件（自包含）— 后端 .NET 10 微服务（8 个技能）+ 前端 Vue 3（11 个技能）+ 全栈协调、审查、文档交付、模板升级与文档转换技能一体（含 thirdnet-fullstack 协调技能、fullstack-review 全栈代码审查技能、doc-generator 项目文档生成技能、thirdnet-template-upgrade 模板升级技能与 md-to-word 文档转换技能），统一 thirdnet-fullstack: 命名空间，开箱即用；含前后端子代理（backend-developer / frontend-developer）、文档驱动与技能合规钩子、以及开发完成后的全栈质量收尾门（Stop Hook 强制审查）。前后端开发统一由此插件提供。",
+      "version": "2.2.0",
       "author": {
         "name": "thirdnet"
       },
@@ -42,48 +42,6 @@
         "ref": "main"
       },
       "homepage": "https://github.com/obra/superpowers"
-    },
-    {
-      "name": "md-to-word",
-      "source": "./skills/md-to-word",
-      "description": "将 Markdown 文件转换为 Word (.docx) 文件，支持标题、粗体、斜体、代码、列表、表格等格式",
-      "version": "0.1.0",
-      "author": {
-        "name": "thirdnet"
-      },
-      "keywords": [
-        "markdown",
-        "word",
-        "docx",
-        "convert",
-        "document"
-      ],
-      "category": "utility",
-      "strict": false
-    },
-    {
-      "name": "thirdnet-template-upgrade",
-      "source": "./skills/thirdnet-template-upgrade",
-      "description": "ThirdNet 模板升级操作指南（前后端通用·AI 主导）— **执行铁律：禁止询问用户“升前端还是后端还是全更新”“用内网还是外网”，默认前后端齐升 + 内网优先、连接失败自动转外网，直接执行不询问**。工具只做 diff 对比，由 AI 全量判定并直接升级文件（可覆盖工具 6 态默认动作，用 Edit/Write 改项目文件，不再走 apply/import-merge，AI 手动备份 + VCS 兜底）。默认行为不询问：前后端一起升级（检测到两端就都跑），网络内网优先、连接失败自动转外网、只有双网都挂才在报告里上报。后端用 thirdnet-migrate、前端用 npx create-thirdnet-admin 的 check/diff/export-merge 出对比素材。覆盖 6 态分类（AI 判定输入，可覆盖）、AI 逐文件语义判定（take-template/merge/keep-user/flag-with-plan/flag-human）、冲突分流（独立改动合并；影响当前流程的冲突不自动合并，罗列冲突+逻辑+合并建议交人工）、角色信任矩阵与 brand-merge 规则、清单/基线模式、离线流程、版本漂移、回滚预案、收尾产出修改清单 + 合并后潜在风险清单（🟢🟡🔴 分级 + 验证建议）。触发：模板升级/迁移/同步/跟进、脚手架更新、对齐模板版本、跟版、前后端一起升级、thirdnet-migrate、create-thirdnet-admin、.template-version.json",
-      "version": "0.11.0",
-      "author": {
-        "name": "thirdnet"
-      },
-      "keywords": [
-        "template",
-        "migration",
-        "upgrade",
-        "backend",
-        "frontend",
-        "scaffold",
-        "fullstack",
-        "thirdnet-migrate",
-        "create-thirdnet-admin",
-        "dotnet",
-        "vue"
-      ],
-      "category": "development",
-      "strict": false
     },
     {
       "name": "supabase-postgres-best-practices",

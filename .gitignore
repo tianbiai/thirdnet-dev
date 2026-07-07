@@ -15,4 +15,4 @@ __pycache__/
 *.pyc
 
 # md-to-word test run artifacts
-skills/md-to-word/evals/files/*_output.docx
+plugins/thirdnet-fullstack/skills/md-to-word/evals/files/*_output.docx
