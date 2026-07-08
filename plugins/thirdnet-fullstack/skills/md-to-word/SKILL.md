@@ -9,45 +9,44 @@ metadata:
 
 # Markdown 转 Word 技能
 
-## 功能
+将用户提供的 Markdown 文件转换为格式良好的 Microsoft Word（.docx）文档。转换脚本 `${CLAUDE_PLUGIN_ROOT}/skills/md-to-word/scripts/md_to_docx.py` 是唯一转换工具——直接调用它，不要手写 docx 生成逻辑。
 
-将指定的 Markdown 文件转换为格式良好的 Microsoft Word (.docx) 文档。
+## 执行步骤
 
-## 使用步骤
+按顺序执行，每步确认后再进入下一步。
 
 ### 1. 确认输入文件
 
 确认用户提供的 Markdown 文件路径：
-- 路径可以是相对路径或绝对路径
-- 文件必须存在且可读
-- 支持标准 Markdown 格式（.md 或 .markdown）
+- 接受相对路径或绝对路径；
+- 文件必须存在且可读（用 Read 工具核对）；
+- 仅处理标准 Markdown（`.md` / `.markdown`）；若含非标语法，先告警再继续。
 
-### 2. 检查/安装依赖
+### 2. 准备依赖
 
-运行转换脚本前，确保安装了必要的 Python 库：
+运行脚本前确保 Python 依赖已安装：
 
 ```bash
 pip install python-docx markdown Pillow
 ```
 
-### 3. 执行转换
-
-使用内置的转换脚本进行转换：
+### 3. 调用转换脚本
 
 ```bash
 python ${CLAUDE_PLUGIN_ROOT}/skills/md-to-word/scripts/md_to_docx.py <input.md> [output.docx]
 ```
 
-参数说明：
-- `input.md` - 输入的 Markdown 文件路径（**必需**）
-- `output.docx` - 输出的 Word 文件路径（**可选**，默认与输入文件同名，仅扩展名改为 .docx）
+- `input.md`：输入 Markdown 路径（**必需**）；
+- `output.docx`：输出 Word 路径（**可选**，缺省与输入同名、扩展名换 `.docx`）。
 
-### 4. 验证输出
+### 4. 校验输出
 
-转换完成后，检查以下内容：
-- [ ] 输出文件已生成
-- [ ] 文件大小合理（不为 0 字节）
-- [ ] 文档内容完整，包含所有章节
+转换完成后核验：
+- [ ] 输出文件已生成；
+- [ ] 文件大小合理（非 0 字节）；
+- [ ] 文档章节完整。
+
+校验失败则按"错误处理"排查后重跑。
 
 ## 支持的 Markdown 格式
 

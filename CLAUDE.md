@@ -7,9 +7,9 @@
 ```
 thirdnet-dev/
 ├── plugins/
-│   └── thirdnet-fullstack/        # 全栈开发插件（自包含）(v2.2.0)：后端 .NET 微服务 + 前端 Vue 3 + 全栈协调 + 全栈审查 + 项目文档生成 + 模板升级 + Markdown 转 Word（全部技能内聚于此）
+│   └── thirdnet-fullstack/        # 全栈开发插件（自包含）(v2.5.0)：后端 .NET 微服务 + 前端 Vue 3 + 全栈协调 + 全栈审查 + 项目文档生成 + 模板升级 + Markdown 转 Word（全部技能内聚于此）
 └── .claude-plugin/
-    └── marketplace.json      # 插件集合注册清单 (v0.46.0)
+    └── marketplace.json      # 插件集合注册清单 (v0.49.0)
 ```
 
 ## 核心约定
@@ -22,7 +22,7 @@ thirdnet-dev/
 需求分析 → 生成 plan.md → 生成 changelog.md → 生成 spec.md → 编码 → 校验 + 同步更新文档
 ```
 
-所有功能变更必须同步更新文档，Stop Hook 会在文档未更新时阻断完成。另有**全栈质量收尾门** Stop Hook：检测到功能性代码变更（后端 `*.cs` 或前端 `*.vue`/`*.ts`）未通过 `fullstack-review` 审查、或仍有 Critical/Major 问题时，阻断会话结束。
+所有功能变更必须同步更新文档——**文档完整性 Stop Hook（后端文档门 + 前端文档门，共两个）** 会在文档未更新时阻断完成。另有**全栈质量收尾门 Stop Hook**：检测到功能性代码变更（后端 `*.cs` 或前端 `*.vue`/`*.ts`）未通过 `fullstack-review` 审查、或仍有 Critical/Major 问题时，阻断会话结束。合计**三个 Stop Hook**。
 
 ### 技能体系
 

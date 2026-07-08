@@ -38,11 +38,7 @@ Admin 项目                    Service 项目
 ### 创建命令
 
 ```bash
-# 安装最新模板（每次都必须拿到 NuGet 源上的最新版本）
-#    a. 清 NuGet http-cache：强制"最新版本号"解析回源，避免读到缓存的旧 latest
-#    b. 卸载已注册模板：仅清 dotnet new 注册表，避免重复注册/路径混装；首次报"找不到"属正常
-#    c. --force 安装：从源拉取最新模板并注册；--force 作用是避免"模板已注册"报错（不是取最新的手段）
-#    d. 核对：list 出已注册版本号，确认与 NuGet 源最新版一致；不一致说明源未发布新版或缓存未清
+# 安装最新模板（强制流程与四步作用见 ../backend-workflow/references/template-install.md）
 dotnet nuget locals http-cache clear
 dotnet new uninstall ThirdNet.Service.Template 2>/dev/null || true
 dotnet new install ThirdNet.Service.Template --force

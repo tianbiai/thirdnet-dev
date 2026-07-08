@@ -9,7 +9,7 @@ description: >
   以及子代理调度（backend-developer / frontend-developer，通过 Task 工具派发重型阶段）。
 license: MIT
 metadata:
-  version: "2.4.0"
+  version: "2.5.0"
   author: thirdnet
 ---
 
@@ -168,7 +168,7 @@ Task(
 
 2. **后端**（`backend-workflow` 例外流程）：用一次 `AskUserQuestion` 确认项目名 `{ProjectName}`，然后**在工作区根目录执行** `dotnet new thirdnet-admin -n {ProjectName} -o {ProjectName}.Admin`（backend-workflow 自带 `mkdir -p backend; cd backend`，产出 `backend/{ProjectName}.Admin/`；`-n` 传裸 `{ProjectName}` 作为命名空间前缀，`-o` 保留 `.Admin` 文件夹名）。跳过需求澄清直接进入项目框架阶段（NuGet 源用默认内网/外网地址）。**模板每次必须取最新**：安装前先 `dotnet nuget locals http-cache clear` 再 `--force` 安装，并 `dotnet new list` 核对版本（`--force` 只为避免"模板已注册"报错，取最新真正靠清 http-cache；完整命令见 backend-workflow）。注意：模板仅生成连接串/Redis/SM2 占位符、无可运行默认值；EF 迁移与运行前需由用户在 `appsettings.json` 填真实值（细节见 backend-workflow）。
 
-3. **前端 Admin**（`frontend-workflow` + `admin-template-setup` 例外流程）：确认品牌参数（`--brand`、`--initial`、`--abbr`，可用默认值），然后**在 `frontend/` 目录内执行** `npm exec --registry http://192.168.1.207:4873/ -- create-thirdnet-admin web --brand …`，项目名传 `web`（落地为 `frontend/web/`，npm 包名为 `web`）。后端 API 地址默认 `http://localhost:5000`。若内网 registry 不可达，外网地址为 `http://61.164.57.61:14873/`。
+3. **前端 Admin**（`frontend-workflow` + `admin-template-setup` 例外流程）：确认品牌参数（`--brand`、`--initial`、`--abbr`，可用默认值），然后**在 `frontend/` 目录内执行** `npm exec --registry http://192.168.1.207:4873/ -- create-thirdnet-admin web --brand …`，项目名传 `web`（落地为 `frontend/web/`，npm 包名为 `web`）。后端 API 地址默认 `http://localhost:5000`。registry 内/外网地址与端口差异见 [internal-registry](../backend-workflow/references/internal-registry.md)。
 
    > `create-thirdnet-admin` 的项目名即目录名，无 `--out-dir`/`--parent` 参数，故必须用 cwd 控制落点。
 

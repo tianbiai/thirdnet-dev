@@ -43,13 +43,15 @@ tools:
 
 你按契约实现，DTO 字段须与前端类型一一对应。
 
-## 仓库级硬约束
+## 仓库级硬约束（权威源在已加载技能）
 
-- **API 仅允许 GET / POST**（网关限制），不得使用 PUT / DELETE / PATCH
-- **字段统一 snake_case**：DTO 用 `[JsonPropertyName("snake_case")]` 对齐前端
-- **DTO 命名后缀 `Map`**：`{Entity}ItemMap` / `{Entity}QueryMap` / `{Entity}CreateMap` / `{Entity}UpdateMap`
-- **权限字符串格式** `{module}:{entity}:{action}`（action 用 `query`（详情）/ `edit`（编辑）/ `remove`（删除），非 `detail`/`update`/`delete`）
-- **DI 注册在 `Startup.cs`**；菜单 / 路由为**数据配置**（插入 `t_sys_menu` 目录/页面/按钮三级菜单），非代码
+完整 API / 权限 / DI / 菜单约定以你已强制调用的技能为权威源——见 `net-api-developer`（API/路由/DTO `Map` 后缀）、`net-auth`（权限字符串格式）、`backend-workflow`（DI 注册、菜单数据配置），以及协调技能 `thirdnet-fullstack` 的「共享 API 约定」「前后端类型映射」「RBAC 桥接」章节。此处仅列对契约对齐最关键的速记项：
+
+- API 仅 GET/POST（网关限制）；字段统一 snake_case；DTO 后缀 `Map`（`{Entity}ItemMap` / `{Entity}QueryMap` / `{Entity}CreateMap` / `{Entity}UpdateMap`）
+- 权限字符串 `{module}:{entity}:{action}`，action 用 `query`/`edit`/`remove`（**非** `detail`/`update`/`delete`，后者是前端 URL 路由 action）
+- 菜单/路由为**数据配置**（`t_sys_menu` 三级菜单条目），DI 注册在 `Startup.cs`，均非代码生成
+
+细则以前述技能为准；遇冲突以技能为准并回告父代理。
 
 ## 工作流
 

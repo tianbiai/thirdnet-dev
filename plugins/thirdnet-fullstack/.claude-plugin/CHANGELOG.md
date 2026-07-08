@@ -1,5 +1,38 @@
 # Changelog
 
+## 2.5.0 - 2026-07-08
+
+### Fixed
+- **移除 `hooks.json` 非法 `_comment` 键**：前端 PreToolUse 钩子对象内的 `_comment` 不属于 Claude Code 钩子 schema，已删除；其注释语义并入 hooks.json 顶层 `description`。
+- **补齐缺失的 `README.md`**：仓库根插件目录长期无 README（CHANGELOG 历史条目曾引用、但磁盘上不存在），本次新建，含概述、24 技能清单（按类分组，6 个英文第三方技能标注来源）、安装、使用入口。
+
+### Changed（去重与瘦身）
+- **模板安装命令三重复收敛**：`backend-workflow`、`net-microservice-generator`、`thirdnet-template-upgrade` 三处逐字重复的「清 NuGet http-cache → 卸载 → --force 安装 → list 核对」命令与 a/b/c/d 注释，抽取到新共享参考 `backend-workflow/references/template-install.md`，三处正文改为一行引用 + 可执行命令。
+- **内部源地址单点化**：NuGet / npm 内外网地址散落 5+ 处（`thirdnet-template-upgrade` 单文件内重复 3 次），统一到新参考 `backend-workflow/references/internal-registry.md`（含 npm 外网端口 14873 非 4873 的坑）；`backend-workflow`、`frontend-workflow`、`thirdnet-fullstack`、`thirdnet-template-upgrade` 正文改引用。
+- **`thirdnet-template-upgrade` 瘦身**：Phase 4 报告模板（~270 行内联）外移到新参考 `references/report-template.md`；「执行铁律」三处重复（14-25 / 52-63 / 78-83）合并为单一定义节；frontmatter `description` 由 580 字符政令式长段重写为第三人称摘要 + 触发词。正文由 1516 词降至 ~900 词。
+- **`design-apple` 拆分（渐进披露）**：19KB（479 行）全内联 SKILL.md 拆为精瘦正文（~165 行：视觉主题原则 + 色板/排版/布局速查 + Do's & Don'ts + Agent 提示词）+ 4 份参考（`color.md` / `typography.md` / `layout.md` / `components.md`，后者含 Admin 模板真实 token 映射与 Element Plus 主题覆盖）。技能自身版本 `1.0.0 → 1.1.0`。
+- **`md-to-word` 正文口吻**：由产品文档描述口吻（"将 Markdown 转换为…"）改为祈使指令（"使用 scripts/md_to_docx.py 转换，校验…"）。
+- **子代理内联契约精简**：`agents/backend-developer.md`、`agents/frontend-developer.md` 内联重述的共享 API 契约改为「权威源在已加载技能」+ 3 条速记 + 链接到协调技能「共享 API 约定」，去除与 `net-api-developer` / `net-auth` / `api-typescript-spec` 的重复。
+
+### Added（元数据）
+- `plugin.json` 补 `homepage`、`repository`、`keywords`；`marketplace.json` 的 `thirdnet-fullstack` 条目补 `homepage`（与其余 4 个第三方插件条目对齐）。
+- 新增 7 份参考文件：`backend-workflow/references/{template-install,internal-registry}.md`、`thirdnet-template-upgrade/references/report-template.md`、`design-apple/references/{color,typography,layout,components}.md`（design-apple 的 `references/` 目录为新建，另两目录原有参考）。
+
+### 文档同步
+- 仓库根 `CLAUDE.md`：项目结构注释版本号 `v2.2.0 → v2.5.0`、`marketplace v0.46.0 → v0.49.0`；Stop Hook 描述明确为「后端文档门 + 前端文档门 + 全栈质量收尾门」共三个。
+- `frontend-workflow` 路由表 `design-apple` 行措辞收紧（落地 Apple 风格视觉系统 / 编写 CSS-SCSS），与 `frontend-design`（设计方向与创意风格）分工更清晰。
+
+### 版本号同步
+- `plugin.json`、协调技能 `thirdnet-fullstack/SKILL.md` 的 `metadata.version`、`marketplace.json` 中 `thirdnet-fullstack` 条目 `version` 三处由 `2.4.0 → 2.5.0`；`marketplace.json` 顶层 `metadata.version` 由 `0.48.0 → 0.49.0`。
+
+### Benefits
+- 消除命令/地址/契约的多处重复，单一事实源后改一处即生效，降低维护漂移。
+- 两个最臃肿的 SKILL.md（template-upgrade、design-apple）回归渐进披露，正文聚焦决策与速查，细节按需读取参考。
+- 元数据与文档补齐，插件在 marketplace 中更规范、更易发现。
+
+### 本轮不做（Tier 3，记录在案）
+- 技能命名前缀统一（9 个无前缀技能）、`thirdnet-fullstack` 协调技能自命名冲突、frontmatter schema 统一（metadata vs 顶层 version）——级联改动 hooks.json/agents/跨技能引用，风险高，留作下一轮 v3.0 专项。
+
 ## 2.4.0 - 2026-07-07
 
 ### Added

@@ -107,16 +107,11 @@ metadata:
 ### 创建 Admin 管理后台项目
 
 ```bash
-# 1. 配置 NuGet 源（一次性）
+# 1. 配置 NuGet 源（一次性；地址与内外网切换见 references/internal-registry.md）
 dotnet nuget add source http://192.168.1.156:8088/nuget -n ThirdNet
-# 内网不可达时改用外网源：
-# dotnet nuget add source http://61.164.57.61:8088/nuget -n ThirdNet
 
-# 2. 安装最新模板（每次都必须拿到 NuGet 源上的最新版本）
-#    a. 清 NuGet http-cache：强制"最新版本号"解析回源，避免读到缓存的旧 latest
-#    b. 卸载已注册模板：仅清 dotnet new 注册表，避免重复注册/路径混装；首次报"找不到"属正常
-#    c. --force 安装：从源拉取最新模板并注册；--force 作用是避免"模板已注册"报错（不是取最新的手段）
-#    d. 核对：list 出已注册版本号，确认与 NuGet 源最新版一致；不一致说明源未发布新版或缓存未清
+# 2. 安装最新模板（强制流程：清 http-cache → 卸载 → --force 安装 → list 核对；
+#    四步作用与"为何要清 http-cache"见 references/template-install.md）
 dotnet nuget locals http-cache clear
 dotnet new uninstall ThirdNet.Admin.Template 2>/dev/null || true
 dotnet new install ThirdNet.Admin.Template --force
@@ -180,8 +175,7 @@ backend/
 
 ```bash
 # 前提：已有 Admin 项目
-# 安装最新模板：先清 NuGet http-cache 强制版本解析回源，卸载后 --force 安装，最后 list 核对版本
-# （--force 作用是避免"模板已注册"报错；取最新真正依赖前面的 http-cache clear）
+# 安装最新模板（强制流程与四步作用见 references/template-install.md）
 dotnet nuget locals http-cache clear
 dotnet new uninstall ThirdNet.Service.Template 2>/dev/null || true
 dotnet new install ThirdNet.Service.Template --force
@@ -268,7 +262,7 @@ Admin 项目的 Program.cs 和 Startup.cs 遵循固定的启动模式和 10 步 
 
 如果当前任务为**创建 Admin 管理后台项目**（用户明确提出"创建 admin"、"新建管理后台"、"thirdnet-admin"等），**直接跳过本节后续的 3 轮澄清流程**。原因：Admin 模板已内置完整的系统管理和 API 管理模块，功能范围固定不变，无需确认。
 
-**替代操作**：使用一次 `AskUserQuestion` 仅确认项目名称（`{ProjectName}`，用于 `dotnet new thirdnet-admin -n {ProjectName} -o {ProjectName}.Admin`）。NuGet 源地址默认用内网 `http://192.168.1.156:8088/nuget`，内网不可达时改用外网 `http://61.164.57.61:8088/nuget`。
+**替代操作**：使用一次 `AskUserQuestion` 仅确认项目名称（`{ProjectName}`，用于 `dotnet new thirdnet-admin -n {ProjectName} -o {ProjectName}.Admin`）。NuGet 源地址见 [internal-registry](references/internal-registry.md)（默认内网，不可达改外网）。
 
 > ⚠️ 模板生成的 `appsettings.json` 仅含占位符（`DefaultConnectionString`/`ConnectionString` 是中文描述串、`RedisExtension.Connection` 为 `"Redis连接地址（host:port,password=xxx）"`、`JwtOptions` 的 `public_key`/`private_key` 为 `"JWT公钥（SM2）"`/`"JWT私钥（SM2）"`、`AdminSecret` 为空串），无可运行默认值。创建阶段不确认这些值，但执行步骤 6（`dotnet ef database update`）/ 步骤 7（`dotnet run`）前，需由用户在 `backend/Admin/{ProjectName}.Admin.APIService/appsettings.json` 中填入真实的 PostgreSQL / Redis / SM2 配置；若本次只想生成代码、暂不运行，可保留占位符并跳过步骤 6/7。
 

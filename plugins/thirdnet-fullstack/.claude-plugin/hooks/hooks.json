@@ -1,5 +1,5 @@
 {
-  "description": "thirdnet-fullstack 自包含钩子 — 技能命名空间统一为 thirdnet-fullstack:",
+  "description": "thirdnet-fullstack 自包含钩子 — 技能命名空间统一为 thirdnet-fullstack:。前端 PreToolUse 仅检查可路由到具体技能的文件，不检查 frontend-workflow 流程技能（由 SKILL.md 技能路由表保证调用、Stop Hook 文档门兜底）。",
   "hooks": {
     "Stop": [
       {
@@ -45,7 +45,6 @@
         ]
       },
       {
-        "_comment": "frontend-workflow 是流程技能，不在此检查。Command 通过 SKILL.md 中的技能路由表保证调用，Stop Hook 检查文档输出作为兜底。",
         "matcher": "Write|Edit",
         "hooks": [
           {

@@ -1,20 +1,33 @@
 ---
 name: design-apple
 description: >
-  Apple 设计规范，所有前端项目（Web + 移动端）的默认设计参考，覆盖页面设计、组件视觉规范、
-  配色、排版与布局。当用户提到"Apple 风格"、"苹果设计"、"设计规范"、"UI 设计"、
-  "视觉规范"、"配色"、"排版"、"布局"时，必须使用此技能。
+  Apple 风格设计系统与具体 CSS/SCSS 规范——所有前端项目（Web + 移动端）的默认视觉参考：
+  色板（Apple Blue 强调色 + 纯黑/浅灰双色节奏）、SF Pro 排版层级、组件样式（药丸 CTA / 卡片 / 玻璃导航）、
+  布局与响应式、Vue/Admin CSS 变量与 Element Plus 主题覆盖。当用户要"编写 CSS/SCSS"、"落地 Apple 风格视觉规范"、
+  "配色 / 排版 / 布局 / 圆角 / 阴影"，或在 Admin 模板写样式时，必须使用此技能。
+  与 frontend-design 分工：本技能管具体视觉系统与样式实现，frontend-design 管设计方向与创意风格决策。
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   author: thirdnet
 ---
 
 # Apple 设计规范
 
-所有前端项目（Web 端 + 移动端）的默认设计参考。基于 Apple 官网设计系统提炼，涵盖视觉主题、色板、排版、组件样式、布局、阴影与深度、Do's & Don'ts、响应式策略。
+所有前端项目（Web 端 + 移动端）的默认视觉参考。基于 Apple 官网设计系统提炼。
 
-**何时使用**：所有前端页面的设计实现（Web 端和移动端均适用），或用户明确要求 Apple 风格设计时。
+**何时使用**：所有前端页面的样式实现（Web 端和移动端均适用），或用户明确要求 Apple 风格设计时。
+
+## 参考文件索引
+
+详细色值表、类型刻度、断点、组件 CSS、Admin 模板 token 映射等已拆分到参考文件，按需读取：
+
+| 主题 | 文件 |
+|------|------|
+| 色板（主色/交互色/文字色阶/深色表面/阴影/按钮态）与深度层级 | [color.md](references/color.md) |
+| 排版（SF Pro 字体、完整类型刻度表、排版原则） | [typography.md](references/typography.md) |
+| 布局（间距刻度、容器、留白哲学、圆角层级）与响应式（断点、折叠、触控） | [layout.md](references/layout.md) |
+| 组件 CSS（按钮/药丸/卡片/导航）+ Vue CSS 变量集成 + Admin 模板 token 映射 + Element Plus 主题覆盖 | [components.md](references/components.md) |
 
 ## 1. 视觉主题
 
@@ -27,221 +40,48 @@ Apple 设计的核心是"克制的戏剧感"——大面积纯黑与近白色作
 - **药丸形 CTA**（980px radius），柔和而易于接近的行动按钮
 - **充裕的区块间距**，让每个产品时刻都有呼吸空间
 
-## 2. 色板
+## 2. 色板（速查）
 
-### 主色
+| 角色 | 色值 | 用途 |
+|------|------|------|
+| 纯黑 | `#000000` | Hero 区/沉浸式背景 |
+| 浅灰 | `#f5f5f7` | 交替区/信息区背景 |
+| 近黑 | `#1d1d1f` | 浅底主文字、深色按钮填充 |
+| Apple Blue | `#0071e3` | **唯一强调色**——主 CTA、焦点环 |
+| Link Blue | `#0066cc` / `#2997ff`（深底） | 正文链接 |
 
-| 角色 | 色值 | CSS 变量 | 用途 |
-|------|------|----------|------|
-| 纯黑 | `#000000` | `--color-bg-dark` | Hero 区背景、沉浸式产品展示 |
-| 浅灰 | `#f5f5f7` | `--color-bg-light` | 交替区背景、信息区域（非纯白，微蓝灰调防止冷感） |
-| 近黑 | `#1d1d1f` | `--color-text-dark` | 浅底上的主文字、深色按钮填充 |
+完整色阶（文字色阶、深色表面 Surface 1-4、阴影值、按钮态）见 [color.md](references/color.md)。
 
-### 交互色
+> ⚠️ **Admin 模板**：写样式时以 `styles/variables.css` 的真实 token 为准（如 `--color-primary`/`--color-bg-page`/`--color-text-primary`），**不要**假设本技能的设计意图变量名（`--color-accent` 等）存在。设计意图 → Admin 真实 token 映射见 [components.md](references/components.md)。
 
-| 角色 | 色值 | CSS 变量 | 用途 |
-|------|------|----------|------|
-| Apple Blue | `#0071e3` | `--color-accent` | 主 CTA 背景、焦点环、**唯一的彩色** |
-| Link Blue | `#0066cc` | `--color-link` | 浅底正文链接（略深以保证可读性） |
-| Bright Blue | `#2997ff` | `--color-link-dark` | 深底上的链接（更高亮度保证对比度） |
+## 3. 排版（速查）
 
-### 文字色阶
+- **标题（20px+）**：`SF Pro Display`；**正文（≤19px）**：`SF Pro Text`；回退 `Helvetica Neue, Arial, sans-serif`
+- **全局负字间距**：正文也用（17px→-0.374px、14px→-0.224px、12px→-0.12px）
+- **字重克制**：多数文字 400/600；300 仅装饰大字，700 仅粗体卡片标题
+- **行高即层级**：标题压缩到 1.07，正文展开到 1.47
 
-| 角色 | 色值 | CSS 变量 |
-|------|------|----------|
-| 白（深底文字） | `#ffffff` | `--color-text-on-dark` |
-| 主文字（浅底） | `#1d1d1f` | `--color-text-dark` |
-| 次要文字 | `rgba(0, 0, 0, 0.8)` | `--color-text-secondary` |
-| 辅助文字 | `rgba(0, 0, 0, 0.48)` | `--color-text-tertiary` |
+完整类型刻度表（Display Hero 56px → Nano 10px 共 14 级）见 [typography.md](references/typography.md)。
 
-### 深色表面
-
-| 层级 | 色值 | CSS 变量 |
-|------|------|----------|
-| Surface 1 | `#272729` | `--color-surface-1` |
-| Surface 2 | `#262628` | `--color-surface-2` |
-| Surface 3 | `#28282a` | `--color-surface-3` |
-| Surface 4 | `#2a2a2d` | `--color-surface-4` |
-
-### 阴影
-
-| 角色 | 值 | CSS 变量 |
-|------|----|----|
-| 卡片阴影 | `rgba(0, 0, 0, 0.22) 3px 5px 30px 0px` | `--shadow-card` |
-| 导航玻璃 | `rgba(0,0,0,0.8)` + `backdrop-filter: saturate(180%) blur(20px)` | `--nav-glass` |
-
-### 按钮态
-
-| 角色 | 色值 |
-|------|------|
-| Active | `#ededf2` |
-| Default Light | `#fafafc` |
-| Overlay | `rgba(210, 210, 215, 0.64)` |
-| Hover White | `rgba(255, 255, 255, 0.32)` |
-
-## 3. 排版
-
-### 字体
-
-- **标题（20px+）**：`SF Pro Display`，回退：`SF Pro Icons, Helvetica Neue, Helvetica, Arial, sans-serif`
-- **正文（≤19px）**：`SF Pro Text`，回退同上
-- SF Pro Display / Text 自动切换光学尺寸——大号更宽松、小号更紧凑
-
-### 排版层级
-
-| 角色 | 字号 | 字重 | 行高 | 字间距 | 用途 |
-|------|------|------|------|--------|------|
-| Display Hero | 56px (3.5rem) | 600 | 1.07 | -0.28px | 产品发布标题，最大冲击 |
-| Section Heading | 40px (2.5rem) | 600 | 1.10 | normal | 特性区块标题 |
-| Tile Heading | 28px (1.75rem) | 400 | 1.14 | 0.196px | 产品卡片标题 |
-| Card Title | 21px (1.31rem) | 700 | 1.19 | 0.231px | 粗体卡片标题 |
-| Sub-heading | 21px (1.31rem) | 400 | 1.19 | 0.231px | 常规卡片标题 |
-| Nav Heading | 34px (2.13rem) | 600 | 1.47 | -0.374px | 大导航标题 |
-| Sub-nav | 24px (1.5rem) | 300 | 1.50 | normal | 浅色子导航 |
-| Body | 17px (1.06rem) | 400 | 1.47 | -0.374px | 标准正文 |
-| Body Emphasis | 17px (1.06rem) | 600 | 1.24 | -0.374px | 强调正文、标签 |
-| Button Large | 18px (1.13rem) | 300 | 1.00 | normal | 大按钮文字 |
-| Button | 17px (1.06rem) | 400 | 2.41 | normal | 标准按钮 |
-| Link | 14px (0.88rem) | 400 | 1.43 | -0.224px | 正文链接 |
-| Caption | 14px (0.88rem) | 400 | 1.29 | -0.224px | 次要文字、描述 |
-| Micro | 12px (0.75rem) | 400 | 1.33 | -0.12px | 脚注 |
-| Nano | 10px (0.63rem) | 400 | 1.47 | -0.08px | 法律文本 |
-
-### 排版原则
-
-1. **全局负字间距**：与多数系统只在标题用负 tracking 不同，Apple 在正文也用（17px 时 -0.374px、14px 时 -0.224px、12px 时 -0.12px），创造普遍紧凑的文字
-2. **字重克制**：300-700 范围，但大多数文字在 400（常规）和 600（半粗）。300 仅用于装饰性大文字，700 仅用于粗体卡片标题
-3. **极端行高范围**：标题压缩到 1.07，正文展开到 1.47，按钮场景可达 2.41——行高本身就是层级信号
+> ⚠️ **Admin 模板未加载 SF Pro**，沿用 Element Plus 默认字体栈——不要在 Admin 模板里强制 `font-family: 'SF Pro Display'`。
 
 ## 4. 组件样式
 
-### 主按钮（CTA）
+按钮（CTA / 深色）、药丸链接（Learn More/Shop，980px 圆角透明底蓝字）、搜索筛选按钮、卡片（无边框、多数无阴影）、玻璃导航栏（`backdrop-filter: saturate(180%) blur(20px)`）的完整 CSS 见 [components.md](references/components.md)；从零搭建时的 `:root` CSS 变量定义与使用示例亦在其中。
 
-```css
-.btn-primary {
-  background: #0071e3;
-  color: #ffffff;
-  padding: 8px 15px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  font: 400 17px 'SF Pro Text', sans-serif;
-}
-.btn-primary:hover { filter: brightness(1.1); }
-.btn-primary:active { background: #ededf2; color: #1d1d1f; }
-.btn-primary:focus { outline: 2px solid #0071e3; }
-```
+## 5. 布局（速查）
 
-### 深色按钮
+- **间距基准 8px**（精细刻度 2-11px 间 1px 递增，大尺寸跳跃）
+- **容器最大宽度 ~980px**；Hero 全视口宽、内容居中
+- **电影式留白**：每个产品区块接近全视口高，用黑/浅灰交替背景创造节奏
+- **内紧外松**：文字块紧凑（负字间距、紧凑行高），周围留白巨大
+- **圆角**：按钮/卡片 8px、筛选 11px、特性面板 12px、药丸 CTA 980px
 
-```css
-.btn-dark {
-  background: #1d1d1f;
-  color: #ffffff;
-  padding: 8px 15px;
-  border-radius: 8px;
-  font: 400 17px 'SF Pro Text', sans-serif;
-}
-```
+完整间距刻度、容器规则、圆角层级表、响应式断点（8 档 <360px→>1440px）、折叠策略、触控目标见 [layout.md](references/layout.md)。
 
-### 药丸链接（Learn More / Shop）
+## 6. 阴影哲学
 
-Apple 标志性的行内 CTA——透明底、蓝色文字、药丸形容器。
-
-```css
-.pill-link {
-  background: transparent;
-  color: #0066cc; /* 浅底 */ /* #2997ff 深底 */
-  border-radius: 980px;
-  border: 1px solid #0066cc;
-  font: 400 14px-17px 'SF Pro Text', sans-serif;
-}
-.pill-link:hover { text-decoration: underline; }
-```
-
-### 搜索/筛选按钮
-
-```css
-.btn-filter {
-  background: #fafafc;
-  color: rgba(0, 0, 0, 0.8);
-  padding: 0 14px;
-  border-radius: 11px;
-  border: 3px solid rgba(0, 0, 0, 0.04);
-}
-.btn-filter:focus { outline: 2px solid #0071e3; }
-```
-
-### 卡片
-
-```css
-.card {
-  background: #f5f5f7; /* 浅底 */ /* #272729 深底 */
-  border: none; /* Apple 几乎不用可见边框 */
-  border-radius: 8px;
-  box-shadow: none; /* 多数卡片无阴影 */
-  /* 仅产品展示卡片用阴影 */
-  /* box-shadow: rgba(0, 0, 0, 0.22) 3px 5px 30px 0px; */
-}
-```
-
-### 导航栏
-
-```css
-.nav-apple {
-  position: sticky;
-  height: 48px;
-  background: rgba(0, 0, 0, 0.8);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  color: #ffffff;
-  font: 400 12px 'SF Pro Text', sans-serif;
-}
-```
-
-## 5. 布局原则
-
-### 间距
-
-- 基准单位：8px
-- 精细刻度：2px, 4px, 5px, 6px, 7px, 8px, 9px, 10px, 11px, 14px, 15px, 17px, 20px, 24px
-- 小尺寸密集（2-11px 间 1px 递增），大尺寸跳跃——便于精确的排版和图标对齐
-
-### 容器
-
-- 最大内容宽度：~980px
-- Hero：全视口宽度，内容居中
-- 产品网格：2-3 列居中布局
-- 单列用于 Hero 时刻——一个产品、一个信息、全部注意力
-- 无可见网格线——间距创造隐含结构
-
-### 留白哲学
-
-- **电影式呼吸空间**：每个产品区块占接近整个视口高度。区块之间的空白不是空——是电影场景间的停顿
-- **颜色块创造节奏**：用交替的背景色（黑 → `#f5f5f7` → 黑）分隔区块，而非仅靠间距
-- **内紧外松**：文字块紧凑设置（负字间距、紧凑行高），而周围的留白巨大——密度与开放之间的张力
-
-### 圆角层级
-
-| 场景 | 圆角 |
-|------|------|
-| 微小容器、链接标签 | 5px |
-| 按钮、卡片、图片容器 | 8px |
-| 搜索输入、筛选按钮 | 11px |
-| 特性面板、生活方式图片 | 12px |
-| CTA 链接（药丸） | 980px |
-| 媒体控制按钮 | 50% |
-
-## 6. 阴影与深度
-
-| 层级 | 处理 | 用途 |
-|------|------|------|
-| 平面 | 无阴影、纯色背景 | 标准内容区块 |
-| 导航玻璃 | `backdrop-filter: saturate(180%) blur(20px)` | 粘性导航栏 |
-| 轻抬升 | `rgba(0, 0, 0, 0.22) 3px 5px 30px 0px` | 产品卡片 |
-| 媒体控制 | `rgba(210, 210, 215, 0.64)` + scale 变换 | 播放/暂停按钮 |
-| 焦点 | `2px solid #0071e3` outline | 所有交互元素的键盘焦点 |
-
-**阴影哲学**：Apple 极少使用阴影。主阴影（`3px 5px 30px` 0.22 透明度）柔和、宽幅、偏移——模拟漫射影棚光投射的自然阴影。大多数元素完全没有阴影；层次感来自背景色对比（深底上的深色卡片，或不同灰度的浅色卡片对比）。
+Apple **极少使用阴影**。唯一主阴影（`rgba(0,0,0,0.22) 3px 5px 30px 0px`）柔和、宽幅、偏移——模拟漫射影棚光。大多数元素完全没有阴影；层次感来自**背景色对比**（深底上的深色卡片，或不同灰度的浅色卡片对比），而非阴影或边框（Apple 几乎不用可见边框）。深度层级表见 [color.md](references/color.md)。
 
 ## 7. Do's & Don'ts
 
@@ -268,199 +108,7 @@ Apple 标志性的行内 CTA——透明底、蓝色文字、药丸形容器。
 - 不居中对齐正文——Apple 正文左对齐，仅标题居中
 - 不在矩形元素上使用超过 12px 的圆角（980px 仅用于药丸）
 
-## 8. 响应式策略
-
-### 断点
-
-| 名称 | 宽度 | 关键变化 |
-|------|------|----------|
-| 小手机 | <360px | 最小支持，单列 |
-| 手机 | 360-480px | 标准移动布局 |
-| 大手机 | 480-640px | 更宽单列，更大图片 |
-| 小平板 | 640-834px | 2 列产品网格开始 |
-| 平板 | 834-1024px | 完整平板布局，展开导航 |
-| 小桌面 | 1024-1070px | 标准桌面布局开始 |
-| 桌面 | 1070-1440px | 完整布局，最大内容宽度 |
-| 大桌面 | >1440px | 居中，充裕边距 |
-
-### 折叠策略
-
-- **标题**：56px → 40px → 28px，保持紧凑行高比例
-- **网格**：3 列 → 2 列 → 单列堆叠
-- **导航**：完整水平 → 紧凑移动菜单（汉堡）
-- **背景节奏**：所有断点都保持全宽色块——电影节奏从不中断
-- **图片**：产品图等比缩放，不裁切——产品轮廓是神圣的
-
-### 触控目标
-
-- 主 CTA：8px 15px 内边距，约 44px 触控高度
-- 导航链接：48px 高度，充足间距
-- 媒体控制：50% 圆形按钮，最小 44×44px
-
-## 9. Vue 3 CSS 变量集成
-
-> ⚠️ **与 Admin 模板真实 token 的关系**：下文 CSS 变量是 Apple 设计规范的**设计意图**命名。**ThirdNet Admin 模板的 `styles/variables.css` 已经内置了一套真实 token，命名与下文不同**，且**未加载 SF Pro 字体**（沿用 Element Plus 默认字体栈）。在 Admin 模板中写样式时，**务必以 `variables.css` 的真实变量为准**，不要假设下文的 `--color-accent`/`--color-bg-dark`/`--nav-glass-bg`/`--radius-pill` 等存在。
->
-> 设计意图 → Admin 模板真实 token 映射：
->
-> | 设计意图（本技能） | Admin 模板真实 token（`styles/variables.css`） |
-> |---|---|
-> | Apple Blue `--color-accent` | `--color-primary: #0071e3`（运行时由 `stores/theme.ts` 的 6 套预设覆写，见 §10） |
-> | `--color-bg-light` | `--color-bg-page: #f4f5f7`（页面底）/ `--color-bg-base: #ffffff`（卡片/表面底） |
-> | `--color-bg-dark`（纯黑） | 无纯黑 token；侧边栏用渐变 `--color-sidebar-bg: linear-gradient(180deg,#0d1117,#010409)` |
-> | `--color-text-dark` | `--color-text-primary: #1d1d1f` |
-> | `--color-text-secondary` | `--color-text-secondary: #6e6e73` |
-> | `--radius-md`（8px） | `--radius-md: 8px`（一致）；另有 `--radius-sm:4px` / `--radius-lg:12px` |
-> | `--radius-pill`（980px 药丸） | 无对应（Admin 管理后台不使用药丸 CTA） |
-> | `--space-unit`（8px） | `--space-xs/sm/md/lg/xl`（4/8/16/24/32px） |
-> | `--shadow-card` | `--shadow-xs/sm/md/lg/xl` |
-> | `--font-display`/`--font-text`（SF Pro） | 无；模板未加载 SF Pro，沿用 Element Plus 默认字体栈 |
-> | `--nav-glass-bg`（深色玻璃） | `--color-navbar-bg: rgba(255,255,255,0.78)`（浅色玻璃，非深色） |
-
-下面 `:root` 是**从零搭建 Apple 风格项目时的参考 token 定义**（设计意图命名）。**在 Admin 模板中不要照抄这套变量名**——直接复用 `variables.css` 的真实 token（见上表）。
-
-在 Vue 项目中，将上述色板定义为 CSS 变量，全局可用：
-
-```css
-/* styles/variables.css 或 styles/apple-design.css */
-
-:root {
-  /* 背景色 */
-  --color-bg-dark: #000000;
-  --color-bg-light: #f5f5f7;
-
-  /* 文字色 */
-  --color-text-dark: #1d1d1f;
-  --color-text-on-dark: #ffffff;
-  --color-text-secondary: rgba(0, 0, 0, 0.8);
-  --color-text-tertiary: rgba(0, 0, 0, 0.48);
-
-  /* 强调色 */
-  --color-accent: #0071e3;
-  --color-link: #0066cc;
-  --color-link-dark: #2997ff;
-
-  /* 深色表面 */
-  --color-surface-1: #272729;
-  --color-surface-2: #262628;
-  --color-surface-3: #28282a;
-  --color-surface-4: #2a2a2d;
-
-  /* 阴影 */
-  --shadow-card: rgba(0, 0, 0, 0.22) 3px 5px 30px 0px;
-
-  /* 导航玻璃 */
-  --nav-glass-bg: rgba(0, 0, 0, 0.8);
-  --nav-glass-blur: saturate(180%) blur(20px);
-
-  /* 圆角 */
-  --radius-sm: 5px;
-  --radius-md: 8px;
-  --radius-lg: 11px;
-  --radius-xl: 12px;
-  --radius-pill: 980px;
-  --radius-circle: 50%;
-
-  /* 字体 */
-  --font-display: 'SF Pro Display', 'SF Pro Icons', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
-  --font-text: 'SF Pro Text', 'SF Pro Icons', 'Helvetica Neue', 'Helvetica', 'Arial', sans-serif;
-
-  /* 字号 */
-  --text-hero: 3.5rem;      /* 56px */
-  --text-section: 2.5rem;   /* 40px */
-  --text-tile: 1.75rem;     /* 28px */
-  --text-card: 1.31rem;     /* 21px */
-  --text-body: 1.06rem;     /* 17px */
-  --text-link: 0.88rem;     /* 14px */
-  --text-caption: 0.88rem;  /* 14px */
-  --text-micro: 0.75rem;    /* 12px */
-
-  /* 间距基准 */
-  --space-unit: 8px;
-}
-```
-
-### 使用示例
-
-```vue
-<template>
-  <section class="hero-section">
-    <h1 class="hero-title">产品名称</h1>
-    <p class="hero-subtitle">一句话描述</p>
-    <div class="hero-ctas">
-      <a class="pill-link" href="#">了解更多</a>
-      <a class="btn-primary" href="#">购买</a>
-    </div>
-  </section>
-</template>
-
-<style scoped>
-.hero-section {
-  background: var(--color-bg-dark);
-  text-align: center;
-  padding: 120px 24px;
-}
-.hero-title {
-  font-family: var(--font-display);
-  font-size: var(--text-hero);
-  font-weight: 600;
-  line-height: 1.07;
-  letter-spacing: -0.28px;
-  color: var(--color-text-on-dark);
-}
-.hero-subtitle {
-  font-family: var(--font-display);
-  font-size: var(--text-card);
-  font-weight: 400;
-  line-height: 1.19;
-  color: var(--color-text-on-dark);
-}
-.hero-ctas {
-  display: flex;
-  gap: 16px;
-  justify-content: center;
-  margin-top: 24px;
-}
-</style>
-```
-
-## 10. Element Plus 主题覆盖（Admin 模板真实实现）
-
-Admin 模板的 `styles/variables.css` **直接**用 Apple Blue 覆盖 Element Plus 主色（不经过中间变量），并覆写完整的 `--el-*` 派生色：
-
-```css
-:root {
-  --el-color-primary: #0071e3;          /* Apple Blue，默认品牌色 */
-  --el-border-radius-base: 8px;          /* Apple 圆角 */
-  /* 另有 --el-bg-color / --el-text-color-primary/regular / --el-border-color 等整块覆写 */
-}
-```
-
-### 运行时主题预设（6 套品牌色）
-
-模板支持运行时切换 6 套品牌色预设，定义在 `styles/themes.ts` 的 `THEME_PRESETS`：
-
-| 预设键 | 主色 | 渐变 |
-|--------|------|------|
-| `blue`（默认） | `#0071e3` | `linear-gradient(135deg,#0071e3,#00a8ff)` |
-| `green` | `#34c759` | `linear-gradient(135deg,#34c759,#30d158)` |
-| `purple` | `#8b5cf6` | `linear-gradient(135deg,#8b5cf6,#a78bfa)` |
-| `orange` | `#f97316` | `linear-gradient(135deg,#f97316,#fb923c)` |
-| `red` | `#ef4444` | `linear-gradient(135deg,#ef4444,#f87171)` |
-| `cyan` | `#06b6d4` | `linear-gradient(135deg,#06b6d4,#22d3ee)` |
-
-切换由 `stores/theme.ts` 的 `applyColorPreset(presetKey)` 完成——它经 `document.documentElement.style.setProperty` 动态写入 `--color-primary`/`--color-primary-light`/`--color-primary-gradient`/`--color-avatar-gradient`，**并同步覆写整套 `--el-color-primary` 与 `--el-color-primary-light-3/5/7/8/9`、`--el-color-primary-dark-2`**（经 `mixColor` 计算色阶），保证 Element Plus 所有派生色（按钮、链接、focus 环、禁用态）随之变化。改默认色须同时改 `themes.ts` 的 `blue.primary`。
-
-### 其它尺寸 token（CRUD 页面应复用，勿硬编码）
-
-`variables.css` 还定义了对话框与表单的尺寸分级：
-
-- 对话框宽度：`--dialog-sm: 440px` / `--dialog-md: 560px` / `--dialog-lg: 680px` / `--dialog-xl: 900px`
-- 表单标签宽度：`--form-label-sm: 80px` / `--form-label-md: 90px` / `--form-label-lg: 110px`
-
-> **不要**在 Admin 模板里重新定义 `--color-accent`/`--font-display`/`--radius-pill` 等设计意图变量——要么用 `variables.css` 的真实 token，要么走主题预设。
-
-## 11. Agent 组件提示词参考
+## 8. Agent 组件提示词参考
 
 ### Hero 区
 

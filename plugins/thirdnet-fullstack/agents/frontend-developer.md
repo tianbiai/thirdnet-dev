@@ -45,13 +45,16 @@ tools:
 
 你按输入产出契约层与页面，契约层为后端实现依据。
 
-## 仓库级硬约束
+## 仓库级硬约束（权威源在已加载技能）
+
+完整 API / 契约 / CRUD 基础设施 / 权限约定以你已强制调用的技能为权威源——见 `api-typescript-spec`（URL action 命名、策略工厂、snake_case）、`admin-template-setup`（CRUD 基础设施 `useCrudTable`/`PaginationBar`/`validators` 等）、`vue-best-practices`，以及协调技能 `thirdnet-fullstack` 的「共享 API 约定」「前后端类型映射」「RBAC 桥接」章节。此处仅列对契约对齐最关键的速记项：
 
 - **前端先行**：先定义 `I{Entity}Api` 接口契约与 TypeScript 类型，后端按契约实现
-- **API 仅允许 GET / POST**（与后端网关一致）；URL action 用 `/list` / `/detail` / `/add` / `/update` / `/delete`
-- **字段统一 snake_case**，与后端 DTO 对齐
-- **CRUD 页面强制复用** `useCrudTable` / `PaginationBar` / `useDialogFocus` / `validators` / `confirmAction` / `formatDateTime`；**禁止**手写 `usePagination + useActionLoading` 样板、**禁止**直接用 `el-pagination`（详见 `admin-template-setup`）
-- **权限按钮**用 `v-permission="['{module}:{entity}:{action}']"`（接收数组，支持 OR）
+- API 仅 GET/POST；URL action 用 `/list`/`/detail`/`/add`/`/update`/`/delete`（与权限 action `query`/`edit`/`remove` 区分）；字段统一 snake_case
+- CRUD 页面强制复用模板基础设施（`useCrudTable` 等），禁止手写 `usePagination+useActionLoading` 样板、禁止直接用 `el-pagination`（细则见 `admin-template-setup`）
+- 权限按钮 `v-permission="['{module}:{entity}:{action}']"`（数组，支持 OR）
+
+细则以前述技能为准；遇冲突以技能为准并回告父代理。
 
 ## 工作流
 
