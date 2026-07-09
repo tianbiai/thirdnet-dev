@@ -7,11 +7,7 @@
   },
   "license": "MIT",
   "homepage": "https://github.com/tianbiai/thirdnet-dev/tree/main/plugins/thirdnet-fullstack",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/tianbiai/thirdnet-dev.git",
-    "directory": "plugins/thirdnet-fullstack"
-  },
+  "repository": "https://github.com/tianbiai/thirdnet-dev.git",
   "keywords": [
     "fullstack",
     "coordination",
