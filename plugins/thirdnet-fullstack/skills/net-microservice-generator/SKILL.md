@@ -8,7 +8,7 @@ description: >
   "创建微服务"、"新建服务"、"AddThirdNetMvc"、"appsettings"、"中间件"时，必须使用此技能。
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   author: thirdnet
 ---
 
@@ -124,6 +124,52 @@ backend/
         │   └── ServiceDbContext.cs
         └── Models/                     # 空，待开发
 ```
+
+## 生成后校验与修复（已知模板缺陷）
+
+> 以下两处源自 `ThirdNet.Service.Template`（当前 0.0.43）的已知缺陷。执行 `dotnet new thirdnet-service` 后**必须立即修补**，否则 Service 项目无法编译。待模板包发布修复版后本节可移除。
+
+### 修复 A —— Tools 的 ProjectReference 路径
+
+模板在 `{ServiceName}.API.csproj` 里写死了 `..\..\Tools\ADMIN_NAME.*` 的引用路径。`ADMIN_NAME` 会被正确替换为 `{ProjectName}`，但 `..\..\Tools\` 前缀是写死的——它隐含假设 Service 创建在 Admin 解决方案根**内部**。而本技能的命令把 Service 放在与 `{ProjectName}.Admin/` **平级**的 `backend/{ServiceName}/`，于是 `..\..\` 落在 `backend/`，`..\..\Tools\` 解析到不存在的 `backend/Tools/`（真实路径是 `backend/{ProjectName}.Admin/Tools/`）。
+
+文件：`{ServiceName}/{ServiceName}.API/{ServiceName}.API.csproj`
+
+把两条 ProjectReference 在 `..\..\` 之后插入 `{ProjectName}.Admin\`：
+
+```xml
+<!-- 生成出的（错误） -->
+<ProjectReference Include="..\..\Tools\{ProjectName}.Cache\{ProjectName}.Cache.csproj" />
+<ProjectReference Include="..\..\Tools\{ProjectName}.Common\{ProjectName}.Common.csproj" />
+
+<!-- 改为 -->
+<ProjectReference Include="..\..\{ProjectName}.Admin\Tools\{ProjectName}.Cache\{ProjectName}.Cache.csproj" />
+<ProjectReference Include="..\..\{ProjectName}.Admin\Tools\{ProjectName}.Common\{ProjectName}.Common.csproj" />
+```
+
+### 修复 B —— 残留的 `ThirdNetVibe.` 命名空间字面量
+
+模板 `sourceName` 为 `ThirdNetVibe.Service`，`dotnet new` 只替换字面量 `ThirdNetVibe.Service`。模板里凡 bare `ThirdNetVibe.`（其后**不**紧跟 `Service`）的字面量都不在替换范围内，会原样残留。已知命中点：`{ServiceName}/{ServiceName}.API/MigrateHelper.cs` 的 `using ThirdNetVibe.Cache.Domain;`（引用 Admin 层的 Cache.Domain，本应为 `{ProjectName}.Cache.Domain`）。
+
+扫描 `{ServiceName}/` 下所有 `.cs`，把 bare `ThirdNetVibe.`（其后不紧跟 `Service`）替换为 `{ProjectName}.`：
+
+```csharp
+// 生成出的（错误）
+using ThirdNetVibe.Cache.Domain;
+// 改为
+using {ProjectName}.Cache.Domain;
+```
+
+**红线**：`ThirdNet.Vibe.*`（带点，框架 NuGet 命名空间，如 `ThirdNet.Vibe.WebAPI` / `ThirdNet.Vibe.Common`）**不可**替换，必须原样保留。只有 bare `ThirdNetVibe.`（不带点，模板 sourceName 前缀）才是缺陷。
+
+### 验证
+
+```bash
+cd {ServiceName}/{ServiceName}.API
+dotnet build
+```
+
+通过即修复完成。同时确认 csproj 两条 ProjectReference 指向真实存在的 `backend/{ProjectName}.Admin/Tools/...` 文件、`MigrateHelper.cs` 无残留 bare `ThirdNetVibe.`（且 `ThirdNet.Vibe.*` 仍在）。
 
 ## 模板升级
 
