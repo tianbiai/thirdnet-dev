@@ -1,0 +1,72 @@
+{
+  "skill_name": "thirdnet-digital-twin",
+  "evals": [
+    {
+      "id": 1,
+      "name": "text-interview-new-park",
+      "prompt": "帮我给『滨江科创园』做一个智慧运行驾驶舱的3D数字孪生大屏。园区有三栋楼：研发楼12层、办公楼6层、会展中心3层，还有一个地下车库大概400个车位差不多九成满。配色就用现在的赛博蓝。先别急着写一堆代码——我想先看到你整理出来的园区规格（每栋楼的尺寸、位置、类别、车库占用、图例、楼幢切换标签），确认没问题再生成场景。",
+      "expected_output": "A validated Park Spec JSON for 滨江科创园 with 3 buildings (研发楼 building 12F, 办公楼 building 6F, 会展中心 building 3F) + one garage building + garage {capacity:400, occupied~360, empty~40} + legend (楼幢/地下车库) + switcher tabs (全局视角/研发楼/办公楼/会展中心/地下车库), written to the output dir. Followed by the generated data file + ParkScene.ts wiring the grid.glsl floor + category-colored buildings + garage sign.",
+      "files": [],
+      "expectations": [
+        "Produces a spec.json that passes scripts/validate_spec.py (exit 0)",
+        "Spec has exactly 3 non-garage buildings + 1 garage-category building",
+        "All three non-garage buildings are category:building",
+        "Spec garage.capacity is 400 and occupied > empty (~90% full)",
+        "Generated ParkScene.ts imports gridGround.glsl?raw and wires a ShaderMaterial floor",
+        "Buildings are colored by category (cyan/mint) from tokens, not hardcoded",
+        "Switcher list includes 全局视角 and 地下车库",
+        "Generated ParkScene.ts derives the ortho frustum from spec geometry with content fill K≈0.66 (park occupies ~2/3 of the frame, surrounding roads/greenery visible), instead of the v1.1 K=0.88 close-up",
+        "Generated scene builds the §10 park environment (internal loop road + surface parking + street trees + surrounding municipal roads + wall + gate + street lamps), driven by spec.environment or smart defaults"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "pen-design-source",
+      "prompt": "用项目根目录的 数字孪生.pen 这个设计稿，把全局视角的3D数字孪生场景按稿子还原出来。现在代码里那个地面是深色沥青贴图、不是设计稿里的发光网格，图例也没了——要按赛博风格修好。先把规格从设计稿里抽出来给我看。",
+      "expected_output": "Runs scripts/extract_pen.py on 数字孪生.pen to draft a spec (tokens, grid uniforms u_cell=46/u_gridColor=#2a7fff/u_strength=0.85, buildings 综合楼5F/主楼10F/服务楼3F, garage 320 spots 96 empty, legend), fills id/category/w/d/x/z from the Scene, generates the cyber-spec-correct scene wiring the grid shader. All outputs saved to the output dir.",
+      "files": [],
+      "expectations": [
+        "Produces a spec.json derived from 数字孪生.pen (title contains 智慧运行驾驶舱, 3 buildings from the headers)",
+        "Spec shaders.grid matches the .pen fill uniforms (u_gridColor #2a7fff, u_cell 46, u_strength 0.85)",
+        "Spec garage.capacity is 320 and empty is 96 (from the 车库标牌)",
+        "All non-garage buildings are category:building",
+        "Generated ParkScene.ts wires the grid.glsl ShaderMaterial floor",
+        "Generated scene includes a garage building + an occupancy sign showing 空位 96 / 320",
+        "Generated scene default framing shows the full park panorama (K≈0.66) and includes the §10 environment (roads/greenery/surrounding) from the .pen decorative layers"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "fix-extend-existing",
+      "prompt": "现在的数字孪生大屏有几个问题想修：1）地面是深色沥青贴图、不是发光网格；2）没有图例，楼的颜色没按类别（楼幢/地下车库）区分；3）楼幢切换里没有『地下车库』这一项。帮我按赛博风格把这些修好。给出改动的关键文件就行。",
+      "expected_output": "Identifies the exemplar gaps (shader not wired, no legend, no category coloring, missing 地下车库 tab) and produces the corrected key files (ParkScene.ts with shader floor + category colors + legend overlay, the garage building + sign, and the 5-entry switcher list), saved to the output dir, without rewriting the whole app.",
+      "files": [],
+      "expectations": [
+        "Output diagnoses the 3 stated problems (shader, legend/category, 地下车库 tab)",
+        "Corrected ParkScene.ts imports and wires gridGround.glsl (ShaderMaterial floor)",
+        "Corrected scene colors buildings by category and includes a Legend overlay with 楼幢/地下车库",
+        "Corrected switcher list has 5 entries including 地下车库",
+        "Does not reintroduce hardcoded park content — references a spec/tokens"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "environment-richer-default",
+      "prompt": "给『云栖智造园』做个数字孪生大屏，赛博风格就行。园区有 4 栋楼和一个地下车库，具体你看着安排。我想看到的是一张能看全整个园区和周边环境的全景大图，不要那种把楼怼到镜头前的特写。",
+      "expected_output": "A validated Park Spec for 云栖智造园 (4 buildings + 1 garage, cyber style). Because the user gave no environment details, spec.environment is either omitted (smart defaults) or populated with sensible defaults — in either case the generated scene is NOT a bare 'buildings + empty ground' anymore. The scene includes internal roads, surface parking, street trees / green patches, surrounding municipal roads, a perimeter wall + main gate, and street lamps; cyber ground-glow markings on. Default framing is a panorama: park content fills ~2/3 of the frame (K≈0.66) with surrounding roads/greenery/wall visible around it, and the wheel can zoom out further (~0.45).",
+      "files": [],
+      "expectations": [
+        "Produces a spec.json that passes scripts/validate_spec.py (exit 0); environment is either omitted or a valid object",
+        "Generated ParkScene.ts frames the park at K≈0.66 (park ~2/3 of frame, surrounding environment visible) — NOT the v1.1 K=0.88 close-up",
+        "OrbitControls zoom clamp min is ~0.45 so the user can zoom out to see the whole panorama",
+        "Generated scene builds internal roads (loop/cross/grid) inside the boundary",
+        "Generated scene includes surface parking stalls (with vehicle proxies matching occupancy) — count derived from building scale when not specified",
+        "Generated scene includes greenery: grass patches + street trees (trunk + canopy), density 'normal' by default",
+        "Generated scene includes surrounding municipal roads on all 4 sides + perimeter wall + main entrance gate",
+        "Generated scene includes street lamps; cyber ground-glow markings (Line2 emissive road lines) are visible",
+        "Environment meshes do NOT enter pickables[] — building floor raycast selection still works correctly",
+        "All environment colors come from the cyber theme tokens environment block, not hardcoded hex"
+      ]
+    }
+  ]
+}

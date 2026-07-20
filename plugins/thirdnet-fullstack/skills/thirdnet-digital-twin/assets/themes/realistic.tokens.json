@@ -1,0 +1,101 @@
+{
+  "_comment": "Realistic (真实物体) theme — daytime PBR. Natural daylight palette: hazy sky background, glass-blue buildings, greenery garage, warm sun accent. NO shader grid — the scene uses PMREM environment + sun directional light + soft shadows + textured ground instead. Same key names as the cyber theme so the generator derives colors the same way; only the values change. To retheme, edit values here only.",
+  "palette": {
+    "void-bg": "#a9c8e0",
+    "panel-top": "#eef2f7",
+    "panel-bot": "#dde5ee",
+    "divider": "#cdd6e2",
+    "text-hi": "#16233a",
+    "text-mid": "#3a4a60",
+    "text-lo": "#7a8aa0",
+    "cyan": "#2f7fd0",
+    "cyan-bright": "#5aa0e0",
+    "cyan-dim": "#1c5aa0",
+    "magenta": "#b5604a",
+    "magenta-bright": "#cf7a64",
+    "magenta-dim": "#7a3f30",
+    "mint": "#3fa86a"
+  },
+  "accents": {
+    "blue": "#2f7fd0",
+    "blue-deep": "#1c5aa0",
+    "bright-cyan": "#7fb8e8",
+    "title-text": "#16233a",
+    "body-hi": "#2a3a52",
+    "body-lo": "#6a7a92",
+    "date-text": "#5a6a82",
+    "caption": "#7a8aa0",
+    "online": "#3fa86a",
+    "online-light": "#5fc488",
+    "amber": "#e8a04a",
+    "amber-light": "#f0bd76",
+    "amber-bright": "#f5c850",
+    "select-yellow": "#e8b53a",
+    "live-red": "#d0505a",
+    "stat-cool": "#5a7896",
+    "hairline": "#bcc6d4",
+    "panel-stroke": "#b4c0d0",
+    "row-bg": "#e3e9f0",
+    "tile-bg": "#d9e0ea",
+    "active-tab-bg": "#cfdbe8"
+  },
+  "category": {
+    "_comment": "Legend category → color. building = glass blue, garage = greenery green. On-screen Legend swatches use these.",
+    "building": "#4a7fb5",
+    "garage": "#5aa070"
+  },
+  "building": {
+    "_comment": "v1.4 楼栋楼层/房间层次（§4）。日间写实：中等明度阶梯模拟玻璃幕墙反射差异；dividerColor 用中性深色作楼层虚线。",
+    "roomShade": 0.14,
+    "dividerColor": "#2a3a52"
+  },
+  "shaders": {
+    "_comment": "Not used by the realistic style — no grid floor. Kept for schema symmetry; the generator skips grid.glsl when spec.style != 'cyber'.",
+    "grid": null
+  },
+  "environment": {
+    "_comment": "v1.2 园区环境配色（§10）。日间写实气质：哑光沥青 + 白黄标线 + 自然草绿 + 棕干绿冠。路灯仅作金属玻璃灯头，日光下不挂 PointLight。",
+    "city-ground": "#c5cdd6",
+    "road": "#3a3f47",
+    "roadLine": "#f5d44a",
+    "sidewalk": "#b8c0ca",
+    "grass": "#5fa05a",
+    "treeTrunk": "#6e4a2e",
+    "treeCanopy": "#3f8a45",
+    "wall": "#9aa3ad",
+    "lampGlow": "#e8eef5",
+    "vehicle": "#5a6470"
+  },
+  "garageEntrance": {
+    "_comment": "v1.4 地下车库入口标记（§5）。PBR 金属玻璃感 + 接受阳光阴影。signBg/signFg 高对比（浅底深字）。",
+    "frame": "#5aa070",
+    "signBg": "#f5f5f0",
+    "signFg": "#2c5a3a",
+    "sign": "#5aa070"
+  },
+  "surfaceParking": {
+    "_comment": "v1.4 地面车位（§10）。长方形车位，哑光沥青底 + 白描边，浅底深字 P，真实车身色。旧 frame/sign 已废弃保留兼容。",
+    "stallFill": "#3a3f47",
+    "stallLine": "#f5f5f0",
+    "pMarkBg": "#f5f5f0",
+    "pMark": "#2c5a3a",
+    "car": "#5a6470",
+    "frame": "#f5f5f0",
+    "sign": "#5aa070"
+  },
+  "poi": {
+    "_comment": "v1.3 兴趣点（§11）类型→颜色。日间：自然饱和、接受阴影、不发光。",
+    "entrance": "#5aa070",
+    "exit": "#d0505a",
+    "camera": "#e8a04a",
+    "gate": "#2f7fd0",
+    "service": "#5fc488",
+    "landmark": "#b5604a",
+    "parking": "#5aa070",
+    "custom": "#5a7896"
+  },
+  "fonts": {
+    "zh": "Noto Sans SC",
+    "latin": "Inter"
+  }
+}

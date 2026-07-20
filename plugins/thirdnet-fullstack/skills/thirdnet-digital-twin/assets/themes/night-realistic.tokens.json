@@ -1,0 +1,101 @@
+{
+  "_comment": "Night-realistic (夜间写实) theme — PBR under a deep-blue night sky. Buildings lit by warm emissive windows, amber street lamps, subtle ground reflection. Same key names as the cyber theme; only values change. To retheme, edit values here only.",
+  "palette": {
+    "void-bg": "#0a1430",
+    "panel-top": "#0e1a38",
+    "panel-bot": "#060c1e",
+    "divider": "#16244a",
+    "text-hi": "#e6eeff",
+    "text-mid": "#b8c6e0",
+    "text-lo": "#6a7aa0",
+    "cyan": "#3a6fb0",
+    "cyan-bright": "#5f93d0",
+    "cyan-dim": "#1f3f70",
+    "magenta": "#ffb24a",
+    "magenta-bright": "#ffcb6e",
+    "magenta-dim": "#7a5520",
+    "mint": "#2fa37f"
+  },
+  "accents": {
+    "blue": "#3a6fb0",
+    "blue-deep": "#1f3f70",
+    "bright-cyan": "#6f9fd6",
+    "title-text": "#e6eeff",
+    "body-hi": "#cad6f0",
+    "body-lo": "#7e8eb0",
+    "date-text": "#9fadcf",
+    "caption": "#7e8eb0",
+    "online": "#2fa37f",
+    "online-light": "#48c090",
+    "amber": "#ffb24a",
+    "amber-light": "#ffd08a",
+    "amber-bright": "#ffcb6e",
+    "select-yellow": "#ffd400",
+    "live-red": "#ff6a78",
+    "stat-cool": "#9fb2d8",
+    "hairline": "#243a66",
+    "panel-stroke": "#3a5a90",
+    "row-bg": "#0e1c3a",
+    "tile-bg": "#091632",
+    "active-tab-bg": "#16306a"
+  },
+  "category": {
+    "_comment": "Legend category → color. building = cool blue (glass at night), garage = deep green.",
+    "building": "#4a78c0",
+    "garage": "#2fa37f"
+  },
+  "building": {
+    "_comment": "v1.4 楼栋楼层/房间层次（§4）。夜景：明度阶梯配合窗户自发光 emissiveMap；dividerColor 用自发光暖色作楼层虚线（夜间可见）。",
+    "roomShade": 0.16,
+    "dividerColor": "#ffb24a"
+  },
+  "shaders": {
+    "_comment": "Not used by the night-realistic style. Window glow is via emissive maps on the building facades. Generator skips grid.glsl when spec.style != 'cyber'.",
+    "grid": null
+  },
+  "environment": {
+    "_comment": "v1.2 园区环境配色（§10）。夜景气质：湿润沥青深色反光 + 暖琥珀路灯 glow（每盏挂 PointLight）+ 深绿树冠。bloom 会让所有亮部在夜里溢出。",
+    "city-ground": "#070d20",
+    "road": "#0e1426",
+    "roadLine": "#ffb24a",
+    "sidewalk": "#1a2240",
+    "grass": "#1c3a2a",
+    "treeTrunk": "#1a1208",
+    "treeCanopy": "#1f4a36",
+    "wall": "#162038",
+    "lampGlow": "#ffb24a",
+    "vehicle": "#1f2a44"
+  },
+  "garageEntrance": {
+    "_comment": "v1.4 地下车库入口标记（§5）。PBR + 自发光描边，P 牌自发光。signBg/signFg 高对比（深底亮字，夜间可见）。",
+    "frame": "#2fa37f",
+    "signBg": "#060c1e",
+    "signFg": "#48c090",
+    "sign": "#2fa37f"
+  },
+  "surfaceParking": {
+    "_comment": "v1.4 地面车位（§10）。长方形车位，深色湿润沥青 + 自发光暖描边，深底亮字 P（自发光），深色车身。旧 frame/sign 已废弃保留兼容。",
+    "stallFill": "#0e1426",
+    "stallLine": "#ffb24a",
+    "pMarkBg": "#060c1e",
+    "pMark": "#ffb24a",
+    "car": "#1f2a44",
+    "frame": "#ffb24a",
+    "sign": "#2fa37f"
+  },
+  "poi": {
+    "_comment": "v1.3 兴趣点（§11）类型→颜色。夜景：暖/冷发光色，bloom 让标记在夜里跳出来。",
+    "entrance": "#2fa37f",
+    "exit": "#ff6a78",
+    "camera": "#ffcb6e",
+    "gate": "#5f93d0",
+    "service": "#48c090",
+    "landmark": "#ffcb6e",
+    "parking": "#2fa37f",
+    "custom": "#9fb2d8"
+  },
+  "fonts": {
+    "zh": "Noto Sans SC",
+    "latin": "Rajdhani"
+  }
+}

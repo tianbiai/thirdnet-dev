@@ -1,0 +1,43 @@
+{
+  "title": "XX园区 智慧运行驾驶舱",
+  "style": "cyber",
+  "stage": { "width": 1920, "height": 1080 },
+  "tokens": {
+    "void-bg": "#06030f", "panel-top": "#160a30", "panel-bot": "#070314",
+    "cyan": "#1de9ff", "cyan-bright": "#7ff5ff", "mint": "#3df0c8",
+    "magenta": "#ff2bd6", "text-hi": "#f3eaff", "text-mid": "#e8f6ff", "text-lo": "#9b8fb5"
+  },
+  "shaders": {
+    "grid": { "u_gridColor": "#2a7fff", "u_cell": 46, "u_strength": 0.85 }
+  },
+  "floorHeight": 24,
+  "boundary": { "x": 360, "z": 220 },
+  "buildings": [
+    { "id": "zonghe", "name": "综合楼", "category": "building",  "w": 82,  "d": 68, "floors": 5,  "x": -235, "z": -25, "header": "5F · 6单位" },
+    { "id": "zhulou", "name": "主楼",   "category": "building",  "w": 100, "d": 82, "floors": 10, "x": 5,    "z": 15,  "header": "10F · 12单位", "highlightedFloor": 4 },
+    { "id": "fuwu",   "name": "服务楼", "category": "building",  "w": 82,  "d": 60, "floors": 3,  "x": 245,  "z": 55,  "header": "3F · 4单位" },
+    { "id": "garage", "name": "地下车库","category": "garage",    "w": 150, "d": 90, "x": 0, "z": 175, "facing": "S" }
+  ],
+  "legend": [
+    { "label": "楼幢",     "category": "building", "color": "#27a8ff" },
+    { "label": "地下车库", "category": "garage",   "color": "#3df0c8" }
+  ],
+  "switcher": ["全局视角", "主楼", "综合楼", "服务楼", "地下车库"],
+  "environment": {
+    "internalRoads": "loop",
+    "surfaceParking": { "stalls": 24 },
+    "greenery": { "treeDensity": "normal", "centralPlaza": true },
+    "surrounding": { "roads": true, "sidewalk": true, "wall": true, "gate": true },
+    "ambiance": { "streetLamps": true, "groundGlow": true, "vehicles": true }
+  },
+  "pois": [
+    { "id": "south-gate", "type": "entrance", "label": "南门入口", "x": 0, "z": 210,
+      "tooltip": { "description": "园区主出入口，7×24 开放。", "meta": { "负责人": "王保安", "电话": "110-0001" } } },
+    { "id": "cam-main", "type": "camera", "label": "主楼监控", "x": 5, "z": 15, "buildingId": "zhulou", "floorIndex": 0,
+      "tooltip": { "meta": { "状态": "在线", "通道": "CH-01" } } },
+    { "id": "service-center", "type": "service", "label": "服务中心", "x": 245, "z": 95,
+      "tooltip": { "description": "物业 / 报修 / 卡务。", "meta": { "营业": "09:00-18:00" } } },
+    { "id": "garage-in", "type": "parking", "label": "地下车库入口", "x": 0, "z": 160 },
+    { "id": "landmark-fountain", "type": "landmark", "label": "中央旱喷", "x": 0, "z": 0 }
+  ]
+}

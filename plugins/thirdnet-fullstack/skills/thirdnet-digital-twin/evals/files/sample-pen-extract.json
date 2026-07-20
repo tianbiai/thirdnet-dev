@@ -1,0 +1,76 @@
+{
+  "title": "XX园区 智慧运行驾驶舱",
+  "style": "cyber",
+  "tokens": {
+    "void-bg": "#06030f",
+    "panel-top": "#160a30",
+    "panel-bot": "#070314",
+    "cyan": "#1de9ff",
+    "cyan-bright": "#7ff5ff",
+    "cyan-dim": "#0a4a6e",
+    "magenta": "#ff2bd6",
+    "magenta-bright": "#ff7aec",
+    "magenta-dim": "#5a0a4a",
+    "mint": "#3df0c8",
+    "text-hi": "#f3eaff",
+    "text-mid": "#e8f6ff",
+    "text-lo": "#9b8fb5",
+    "divider": "#1a1030"
+  },
+  "shaders": {
+    "grid": {
+      "u_cell": 46,
+      "u_gridColor": "#2a7fff",
+      "u_strength": 0.85
+    }
+  },
+  "legend": [
+    "楼幢",
+    "地下车库"
+  ],
+  "buildings": [
+    {
+      "id": null,
+      "name": "综合楼",
+      "category": "building",
+      "floors": 5,
+      "units": 6,
+      "w": null,
+      "d": null,
+      "x": null,
+      "z": null,
+      "header": "综合楼  5F · 6单位"
+    },
+    {
+      "id": null,
+      "name": "主楼",
+      "category": "building",
+      "floors": 10,
+      "units": 12,
+      "w": null,
+      "d": null,
+      "x": null,
+      "z": null,
+      "header": "主楼  10F · 12单位"
+    },
+    {
+      "id": null,
+      "name": "服务楼",
+      "category": "building",
+      "floors": 3,
+      "units": 4,
+      "w": null,
+      "d": null,
+      "x": null,
+      "z": null,
+      "header": "服务楼  3F · 4单位"
+    }
+  ],
+  "pois": [],
+  "notes": [
+    "Auto-extracted DRAFT. Fill in per-building id/category/w/d/x/z by inspecting the Scene (pencil MCP get_screenshot on the Scene frame, or its absolutely-positioned children).",
+    "Ensure exactly one garage building (category 'garage') if 地下车库 is in the legend; v1.3 renders it as a half-pyramid entrance + P sign (no occupancy numbers).",
+    "Fill in per-POI id/x/z (and optionally buildingId/floorIndex/tooltip) for each entry in `pois`; leave [] if the park has no POIs.",
+    "If a building's floors/units header was missing, add it manually."
+  ]
+}

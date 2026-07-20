@@ -1,0 +1,101 @@
+{
+  "_comment": "Cyber theme palette — the single source of truth for color. Mirrors the `variables` block of 数字孪生.pen plus the inline accents the design uses directly. The skill derives BOTH SCSS variables and Three.js Color instances from this file — never duplicate hex literals across files. To retheme for a different park, edit the values here (and only here).",
+  "palette": {
+    "void-bg": "#06030f",
+    "panel-top": "#160a30",
+    "panel-bot": "#070314",
+    "divider": "#1a1030",
+    "text-hi": "#f3eaff",
+    "text-mid": "#e8f6ff",
+    "text-lo": "#9b8fb5",
+    "cyan": "#1de9ff",
+    "cyan-bright": "#7ff5ff",
+    "cyan-dim": "#0a4a6e",
+    "magenta": "#ff2bd6",
+    "magenta-bright": "#ff7aec",
+    "magenta-dim": "#5a0a4a",
+    "mint": "#3df0c8"
+  },
+  "accents": {
+    "blue": "#27a8ff",
+    "blue-deep": "#1e6fff",
+    "bright-cyan": "#7fe3ff",
+    "title-text": "#eaf6ff",
+    "body-hi": "#dbeeff",
+    "body-lo": "#8aafda",
+    "date-text": "#9fc4ee",
+    "caption": "#8aafda",
+    "online": "#27e0a0",
+    "online-light": "#5cf2b6",
+    "amber": "#ffc24a",
+    "amber-light": "#ffd98a",
+    "amber-bright": "#ffe23d",
+    "select-yellow": "#ffd400",
+    "live-red": "#ff5a6e",
+    "stat-cool": "#b8d4f5",
+    "hairline": "#1b4a8e",
+    "panel-stroke": "#2f93e8",
+    "row-bg": "#091a3a",
+    "tile-bg": "#06122c",
+    "active-tab-bg": "#0e3a78"
+  },
+  "category": {
+    "_comment": "Legend category → color mapping. Buildings are colored by category in the 3D scene and the on-screen Legend uses these swatches.",
+    "building": "#27a8ff",
+    "garage": "#3df0c8"
+  },
+  "building": {
+    "_comment": "v1.4 楼栋楼层/房间层次（§4）。roomShade = 每层 1–5 间房间相对类别色的明度偏移幅度（HSL lightness ±），用于在幕墙纹理上画出深浅不一的房间色块；dividerColor = 楼层之间贯穿横向虚线分隔的颜色（自发光青）。",
+    "roomShade": 0.16,
+    "dividerColor": "#7ff5ff"
+  },
+  "shaders": {
+    "_comment": "Default uniform values carried by the .pen's shader fills. Override per-park if needed.",
+    "grid": { "u_gridColor": "#2a7fff", "u_cell": 46, "u_strength": 0.85 }
+  },
+  "environment": {
+    "_comment": "v1.2 园区环境配色（道路/车位/绿化/围墙/路灯等，§10）。赛博气质：深蓝灰沥青 + 发光青色标线 + 暗紫青草地 + 霓虹树冠边光。所有颜色经此派生，不散落 hex。",
+    "city-ground": "#080418",
+    "road": "#0c1430",
+    "roadLine": "#2bd4ff",
+    "sidewalk": "#13204a",
+    "grass": "#13304a",
+    "treeTrunk": "#1a1028",
+    "treeCanopy": "#1c4a5a",
+    "wall": "#16204a",
+    "lampGlow": "#7ff5ff",
+    "vehicle": "#1e6fff"
+  },
+  "garageEntrance": {
+    "_comment": "v1.4 地下车库入口标记（§5）：半金字塔三角门框架 + P 牌。signBg/signFg 为高对比配对（深底亮字），取代旧的单色 sign——避免霓虹底+白字看不清。",
+    "frame": "#3df0c8",
+    "signBg": "#06030f",
+    "signFg": "#7ff5ff",
+    "sign": "#3df0c8"
+  },
+  "surfaceParking": {
+    "_comment": "v1.4 地面车位（§10）：长方形车位。stallFill=车位铺装底色、stallLine=车位描边、pMarkBg/pMark=每位印的 P 字底/字（高对比）、car=示意停放车辆车身色。旧 frame/sign 已废弃保留兼容。",
+    "stallFill": "#0c1430",
+    "stallLine": "#7ff5ff",
+    "pMarkBg": "#06030f",
+    "pMark": "#7ff5ff",
+    "car": "#1e6fff",
+    "frame": "#7ff5ff",
+    "sign": "#3df0c8"
+  },
+  "poi": {
+    "_comment": "v1.3 兴趣点（§11）类型→颜色映射。cyber 下全部自发光霓虹，bloom 让标记在夜里溢出。custom 为兜底色。",
+    "entrance": "#3df0c8",
+    "exit": "#ff2bd6",
+    "camera": "#ffd400",
+    "gate": "#27a8ff",
+    "service": "#7ff5ff",
+    "landmark": "#ff7aec",
+    "parking": "#3df0c8",
+    "custom": "#1de9ff"
+  },
+  "fonts": {
+    "zh": "Noto Sans SC",
+    "latin": "Rajdhani"
+  }
+}
