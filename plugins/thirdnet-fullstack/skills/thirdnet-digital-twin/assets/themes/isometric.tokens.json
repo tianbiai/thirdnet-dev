@@ -1,0 +1,101 @@
+{
+  "_comment": "Isometric (等距插画 / 信息图) theme — warm off-white ground, flat-shaded (cel) colorful buildings via flatShading, vibrant harmonious illustration palette. The 'flat but good-looking' look — friendlier and more alive than the flat minimal style, still reporting-friendly. Buildings use MeshStandardMaterial with flatShading:true so each face takes a flat shade under a warm directional light → cel/illustration feel. No shader grid — warm flat paving. Same key names as the cyber theme; only the values change. To retheme, edit values here only.",
+  "palette": {
+    "void-bg": "#fbf7f0",
+    "panel-top": "#ffffff",
+    "panel-bot": "#f3ede2",
+    "divider": "#e8e0d2",
+    "text-hi": "#2a3548",
+    "text-mid": "#44526a",
+    "text-lo": "#8a96aa",
+    "cyan": "#5b8def",
+    "cyan-bright": "#7ea8f5",
+    "cyan-dim": "#3a6fd0",
+    "magenta": "#f0988a",
+    "magenta-bright": "#f6b4a8",
+    "magenta-dim": "#c46a5a",
+    "mint": "#48c78a"
+  },
+  "accents": {
+    "blue": "#5b8def",
+    "blue-deep": "#3a6fd0",
+    "bright-cyan": "#7ea8f5",
+    "title-text": "#2a3548",
+    "body-hi": "#3a4660",
+    "body-lo": "#6a7588",
+    "date-text": "#5a6478",
+    "caption": "#8a96aa",
+    "online": "#48c78a",
+    "online-light": "#6dd8a8",
+    "amber": "#f59e0b",
+    "amber-light": "#fbbf52",
+    "amber-bright": "#fcd34d",
+    "select-yellow": "#f5c518",
+    "live-red": "#ef4444",
+    "stat-cool": "#64748b",
+    "hairline": "#e8e0d2",
+    "panel-stroke": "#d8cfbe",
+    "row-bg": "#f3ede2",
+    "tile-bg": "#ece4d4",
+    "active-tab-bg": "#e0d8c4"
+  },
+  "category": {
+    "_comment": "Legend category → color. building = friendly blue, garage = friendly green. flatShading gives each face a flat cel shade of these colors.",
+    "building": "#5b8def",
+    "garage": "#48c78a"
+  },
+  "building": {
+    "_comment": "v1.4 楼栋楼层/房间层次（§4）。等距插画：roomShade 较大强化 cel 阶梯；dividerColor 用深海军蓝楼层虚线（在彩色面上可读）。",
+    "roomShade": 0.18,
+    "dividerColor": "#3a4660"
+  },
+  "shaders": {
+    "_comment": "Not used by the isometric style — flatShading + warm directional light carry the cel/illustration look. Generator skips grid.glsl.",
+    "grid": null
+  },
+  "environment": {
+    "_comment": "v1.2 园区环境配色（§10）。等距插画气质：鲜活但和谐的插画配色——暖棕沥青、奶油标线、鲜活草绿/树冠、暖棕树干。",
+    "city-ground": "#f0e8d6",
+    "road": "#c8bea8",
+    "roadLine": "#fff8e8",
+    "sidewalk": "#e0d8c4",
+    "grass": "#8fd17a",
+    "treeTrunk": "#a9744f",
+    "treeCanopy": "#5fbf5f",
+    "wall": "#d8cfbe",
+    "lampGlow": "#ffe8a8",
+    "vehicle": "#6a8dbf"
+  },
+  "garageEntrance": {
+    "_comment": "v1.4 地下车库入口标记（§5）。半金字塔三角门友好绿色 + 描边，P 牌高对比（白底深字）。",
+    "frame": "#48c78a",
+    "signBg": "#ffffff",
+    "signFg": "#2c5a3a",
+    "sign": "#48c78a"
+  },
+  "surfaceParking": {
+    "_comment": "v1.4 地面车位（§10）。长方形车位，暖色铺装 + 深描边，浅底深字 P，友好色车身。旧 frame/sign 已废弃保留兼容。",
+    "stallFill": "#e0d8c4",
+    "stallLine": "#44526a",
+    "pMarkBg": "#ffffff",
+    "pMark": "#2c5a3a",
+    "car": "#6a8dbf",
+    "frame": "#ffffff",
+    "sign": "#48c78a"
+  },
+  "poi": {
+    "_comment": "v1.3 兴趣点（§11）类型→颜色。等距插画：鲜活友好、不发光（保持扁平插画统一）。",
+    "entrance": "#48c78a",
+    "exit": "#ef4444",
+    "camera": "#f59e0b",
+    "gate": "#5b8def",
+    "service": "#6dd8a8",
+    "landmark": "#f0988a",
+    "parking": "#48c78a",
+    "custom": "#64748b"
+  },
+  "fonts": {
+    "zh": "Noto Sans SC",
+    "latin": "Inter"
+  }
+}

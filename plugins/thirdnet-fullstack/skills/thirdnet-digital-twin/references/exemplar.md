@@ -23,8 +23,8 @@
 - `272-327` —— 地面。**替换**程序化沥青画布为**着色器地面**（`scene-recipe.md §3`）。
 - `424-465, 766-890` —— 楼栋：`BoxGeometry`、6 材质数组、`makeFacadeTexture` 画布、`addFloorRings`、`addDoors`、屋顶 + `EdgesGeometry`。**拷贝幕墙/楼层环线模式；按类别重上色。**
 - `509-560, 623-725` —— 楼层拾取板 + 指针悬停/点击/射线投射。**原样拷贝。**
-- `708` —— `setSelection(buildingId, floorIndex)` 金色光晕（`LineSegments2` + 半透明填充）。**拷贝。**
-- `1368-1416` —— 聚焦补间（`target.lerp`）。**借鉴其相机过渡思路，但改写成「事件触发 + 有限时长」tween，勿照搬「每帧无条件 lerp zoom/target」**——那会与 `OrbitControls` 滚轮缩放/平移冲突（见 `scene-recipe.md` §9 警告）。
+- `setSelection(buildingId, floorIndex)` —— 金色光晕（`LineSegments2` + 半透明填充）的方法体。**拷贝方法体**；但驱动它的是 Vue 端 `watch eff(悬停 ?? 已选)` 接线（见 `scene-recipe.md` §8.2，**必须照抄**），否则金色高亮不会随悬停/选中更新。按方法名定位（行号随范例版本漂移，不固化）。
+- `1368-1416` —— 聚焦补间（`target.lerp`）。**借鉴其相机过渡思路，但改写成「事件触发 + 有限时长」tween，勿照搬「每帧无条件 lerp zoom/target」**——那会与 `OrbitControls` 滚轮缩放/平移冲突（见 `scene-recipe.md` §8 警告）。
 - `1434-1452` —— 动画循环。**拷贝。**
 - `1454` —— `dispose()` 完整拆除。**拷贝。**
 

@@ -213,8 +213,9 @@ def build_draft(pen):
             "`pois`; remove the array or leave [] if the park has no POIs.",
             "If a building's floors/units header was missing, add it manually.",
             "style defaults to 'cyber'. If the .pen clearly implies a different look (e.g. realistic "
-            "rendering), change style to one of: cyber | realistic | minimal | night-realistic "
-            "(see references/styles.md) and confirm with the user.",
+            "rendering), change style to one of: cyber | realistic | night-realistic | blueprint "
+            "| holographic | white-model | isometric (see references/styles.md) and confirm with "
+            "the user.",
         ],
     }
     return draft

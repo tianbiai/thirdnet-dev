@@ -1,0 +1,101 @@
+{
+  "_comment": "Holographic (全息 / 未来科技) theme — near-black space ground, translucent cyan-glass buildings with bright emissive edges (Fresnel-rim feel), bloom. The premium 'clean future-tech' look that minimal failed to deliver. No shader grid — the floor is a dark plane + emissive cyan contour lines + radial glow. Same key names as the cyber theme so the generator derives colors the same way; only the values change. To retheme, edit values here only.",
+  "palette": {
+    "void-bg": "#050816",
+    "panel-top": "#0a1228",
+    "panel-bot": "#03060f",
+    "divider": "#0e1a36",
+    "text-hi": "#d6ecff",
+    "text-mid": "#9fc4e8",
+    "text-lo": "#5a7896",
+    "cyan": "#3ad4ff",
+    "cyan-bright": "#7fe9ff",
+    "cyan-dim": "#1a8ab8",
+    "magenta": "#b8a0ff",
+    "magenta-bright": "#d0bcff",
+    "magenta-dim": "#5a4a9e",
+    "mint": "#2fe0c0"
+  },
+  "accents": {
+    "blue": "#3ad4ff",
+    "blue-deep": "#1a8ab8",
+    "bright-cyan": "#7fe9ff",
+    "title-text": "#d6ecff",
+    "body-hi": "#b8d4f0",
+    "body-lo": "#7a96b8",
+    "date-text": "#9fb4d8",
+    "caption": "#7a96b8",
+    "online": "#2fe0c0",
+    "online-light": "#5cf0d0",
+    "amber": "#ffb24a",
+    "amber-light": "#ffc878",
+    "amber-bright": "#ffd08a",
+    "select-yellow": "#ffd400",
+    "live-red": "#ff6a78",
+    "stat-cool": "#8fb0d8",
+    "hairline": "#1a3a5e",
+    "panel-stroke": "#2a6090",
+    "row-bg": "#08122a",
+    "tile-bg": "#050c1e",
+    "active-tab-bg": "#0e2a4e"
+  },
+  "category": {
+    "_comment": "Legend category → color. building = cyan (edge/emissive), garage = cyan-green.",
+    "building": "#3ad4ff",
+    "garage": "#2fe0c0"
+  },
+  "building": {
+    "_comment": "v1.4 楼栋楼层/房间层次（§4）。全息：半透体上的明度阶梯 + 自发光青色楼层虚线（边缘辉光的一部分）。",
+    "roomShade": 0.14,
+    "dividerColor": "#3ad4ff"
+  },
+  "shaders": {
+    "_comment": "Not used by the holographic style — translucent bodies + emissive edges + bloom carry the look. Generator skips grid.glsl; floor = dark MeshBasicMaterial + emissive cyan Line2 contour.",
+    "grid": null
+  },
+  "environment": {
+    "_comment": "v1.2 园区环境配色（§10）。全息气质：极暗深空底 + 自发光青色标线/勾边 + 深蓝绿抽象绿植；bloom 让亮部溢出。",
+    "city-ground": "#030610",
+    "road": "#050a1c",
+    "roadLine": "#3ad4ff",
+    "sidewalk": "#0a1428",
+    "grass": "#0a2a36",
+    "treeTrunk": "#0a1020",
+    "treeCanopy": "#0e2e3a",
+    "wall": "#081224",
+    "lampGlow": "#3ad4ff",
+    "vehicle": "#1a8ab8"
+  },
+  "garageEntrance": {
+    "_comment": "v1.4 地下车库入口标记（§5）。半金字塔三角门用半透体 + 自发光描边，P 牌自发光（深底亮字）。",
+    "frame": "#2fe0c0",
+    "signBg": "#050816",
+    "signFg": "#7fe9ff",
+    "sign": "#2fe0c0"
+  },
+  "surfaceParking": {
+    "_comment": "v1.4 地面车位（§10）。长方形车位，深色铺装 + 自发光青描边，深底亮字 P（自发光），深色车身。旧 frame/sign 已废弃保留兼容。",
+    "stallFill": "#050a1c",
+    "stallLine": "#3ad4ff",
+    "pMarkBg": "#050816",
+    "pMark": "#7fe9ff",
+    "car": "#1a8ab8",
+    "frame": "#3ad4ff",
+    "sign": "#2fe0c0"
+  },
+  "poi": {
+    "_comment": "v1.3 兴趣点（§11）类型→颜色。全息：自发光青/暖色，bloom 让标记在暗底跳出来。",
+    "entrance": "#2fe0c0",
+    "exit": "#ff6a78",
+    "camera": "#ffd08a",
+    "gate": "#5f93d0",
+    "service": "#7fe9ff",
+    "landmark": "#d0bcff",
+    "parking": "#2fe0c0",
+    "custom": "#8fb0d8"
+  },
+  "fonts": {
+    "zh": "Noto Sans SC",
+    "latin": "Rajdhani"
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "_comment": "Blueprint (蓝图 / 工程蓝图) theme — deep blueprint-blue ground with a pale white-blue coordinate grid, white wireframe-dominant buildings with faint blue fill. Engineering/BIM aesthetic — the 'clean technical' look done right (replaces the flat minimal style). Reuses gridGround.glsl (same shader asset as cyber) but with a blueprint palette (deep blue ground + pale grid lines). Same key names as the cyber theme so the generator derives colors the same way; only the values change. To retheme, edit values here only.",
+  "palette": {
+    "void-bg": "#0a2d6e",
+    "panel-top": "#0f3a82",
+    "panel-bot": "#082356",
+    "divider": "#1a4a9e",
+    "text-hi": "#eaf2ff",
+    "text-mid": "#c8dcf5",
+    "text-lo": "#7e9bc8",
+    "cyan": "#cfe4ff",
+    "cyan-bright": "#ffffff",
+    "cyan-dim": "#8fb8e6",
+    "magenta": "#7fb5ff",
+    "magenta-bright": "#a8caff",
+    "magenta-dim": "#3a6aa0",
+    "mint": "#7fe3ff"
+  },
+  "accents": {
+    "blue": "#2a6fd6",
+    "blue-deep": "#1d4ed8",
+    "bright-cyan": "#cfe4ff",
+    "title-text": "#eaf2ff",
+    "body-hi": "#c8dcf5",
+    "body-lo": "#8fb0d8",
+    "date-text": "#a8c4e8",
+    "caption": "#8fb0d8",
+    "online": "#7fe3ff",
+    "online-light": "#a8eeff",
+    "amber": "#ffd86b",
+    "amber-light": "#ffe49a",
+    "amber-bright": "#ffe88a",
+    "select-yellow": "#ffd400",
+    "live-red": "#ff6a6a",
+    "stat-cool": "#8fb8e6",
+    "hairline": "#2a5a9e",
+    "panel-stroke": "#3a78c8",
+    "row-bg": "#0c2f6b",
+    "tile-bg": "#0a2562",
+    "active-tab-bg": "#1a4a9e"
+  },
+  "category": {
+    "_comment": "Legend category → color. building = pale blue-white wireframe fill, garage = cyan accent.",
+    "building": "#cfe4ff",
+    "garage": "#7fe3ff"
+  },
+  "building": {
+    "_comment": "v1.4 楼栋楼层/房间层次（§4）。蓝图：roomShade 极小（线框主导、弱填充），dividerColor 用淡白青作楼层虚线。",
+    "roomShade": 0.08,
+    "dividerColor": "#cfe4ff"
+  },
+  "shaders": {
+    "_comment": "Blueprint reuses gridGround.glsl (same asset as cyber) but with a blueprint palette: deep blue ground + pale white-blue coordinate grid. u_gridColor is the pale grid line color.",
+    "grid": { "u_gridColor": "#cfe4ff", "u_cell": 46, "u_strength": 0.6 }
+  },
+  "environment": {
+    "_comment": "v1.2 园区环境配色（§10）。蓝图气质：深蓝单色调，绿植压成蓝灰抽象块以维持工程图氛围；标线/发光取淡白青。",
+    "city-ground": "#061a45",
+    "road": "#0a2562",
+    "roadLine": "#cfe4ff",
+    "sidewalk": "#102e6b",
+    "grass": "#143a6b",
+    "treeTrunk": "#1a3a6e",
+    "treeCanopy": "#1c4a8e",
+    "wall": "#0e2c66",
+    "lampGlow": "#cfe4ff",
+    "vehicle": "#2a6fd6"
+  },
+  "garageEntrance": {
+    "_comment": "v1.4 地下车库入口标记（§5）。半金字塔三角门 + 描边，P 牌高对比（深蓝图底 + 淡白青字）。",
+    "frame": "#7fe3ff",
+    "signBg": "#0a2d6e",
+    "signFg": "#cfe4ff",
+    "sign": "#7fe3ff"
+  },
+  "surfaceParking": {
+    "_comment": "v1.4 地面车位（§10）。长方形车位，深蓝铺装 + 淡白青描边，深底亮字 P。旧 frame/sign 已废弃保留兼容。",
+    "stallFill": "#0a2562",
+    "stallLine": "#cfe4ff",
+    "pMarkBg": "#0a2d6e",
+    "pMark": "#cfe4ff",
+    "car": "#2a6fd6",
+    "frame": "#cfe4ff",
+    "sign": "#7fe3ff"
+  },
+  "poi": {
+    "_comment": "v1.3 兴趣点（§11）类型→颜色。蓝图：在深蓝底上高可读的亮色，克制不发光（或极弱自发光勾边）。",
+    "entrance": "#7fe3ff",
+    "exit": "#ff7a8a",
+    "camera": "#ffd86b",
+    "gate": "#8fb8e6",
+    "service": "#cfe4ff",
+    "landmark": "#a8caff",
+    "parking": "#7fe3ff",
+    "custom": "#8fb8e6"
+  },
+  "fonts": {
+    "zh": "Noto Sans SC",
+    "latin": "Rajdhani"
+  }
+}

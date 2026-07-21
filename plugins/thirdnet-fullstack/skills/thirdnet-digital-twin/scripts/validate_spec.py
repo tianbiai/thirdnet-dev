@@ -22,7 +22,10 @@ import sys
 from pathlib import Path
 
 VALID_CATEGORIES = {"building", "garage"}
-VALID_STYLES = {"cyber", "realistic", "minimal", "night-realistic"}
+VALID_STYLES = {
+    "cyber", "realistic", "night-realistic",
+    "blueprint", "holographic", "white-model", "isometric",
+}
 VALID_ROAD_SHAPES = {"loop", "cross", "grid", "none"}
 VALID_TREE_DENSITY = {"sparse", "normal", "lush"}
 VALID_FACING = {"N", "S", "E", "W"}

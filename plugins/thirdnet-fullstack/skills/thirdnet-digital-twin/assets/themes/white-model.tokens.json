@@ -1,0 +1,101 @@
+{
+  "_comment": "White-model (白模 / 建筑模型) theme — light gray gradient ground, all-white matte buildings with soft ambient occlusion / contact shadow, museum/scale-model feel. The 'clean' look done right: clean BUT volumetric (unlike the flat minimal style). Buildings are pure-white bodies; the category color (building blue / garage green) is carried by the ROOF outline / edges so the Legend and category system still hold. No shader grid — flat neutral paving. Same key names as the cyber theme; only the values change. To retheme, edit values here only.",
+  "palette": {
+    "void-bg": "#e8ebf0",
+    "panel-top": "#f4f6f9",
+    "panel-bot": "#dde1e8",
+    "divider": "#d0d5dd",
+    "text-hi": "#1a2330",
+    "text-mid": "#44526a",
+    "text-lo": "#8a96aa",
+    "cyan": "#5b8def",
+    "cyan-bright": "#7ea8f5",
+    "cyan-dim": "#3a6fd0",
+    "magenta": "#b0b8c4",
+    "magenta-bright": "#c8d0da",
+    "magenta-dim": "#7a8290",
+    "mint": "#48c78a"
+  },
+  "accents": {
+    "blue": "#5b8def",
+    "blue-deep": "#3a6fd0",
+    "bright-cyan": "#7ea8f5",
+    "title-text": "#1a2330",
+    "body-hi": "#2a3548",
+    "body-lo": "#6a7588",
+    "date-text": "#5a6478",
+    "caption": "#8a96aa",
+    "online": "#48c78a",
+    "online-light": "#6dd8a8",
+    "amber": "#f59e0b",
+    "amber-light": "#fbbf52",
+    "amber-bright": "#fcd34d",
+    "select-yellow": "#f5c518",
+    "live-red": "#ef4444",
+    "stat-cool": "#64748b",
+    "hairline": "#d6dce4",
+    "panel-stroke": "#c4ccd8",
+    "row-bg": "#eaeef3",
+    "tile-bg": "#e0e5ec",
+    "active-tab-bg": "#d8e2f0"
+  },
+  "category": {
+    "_comment": "Legend category → color. Building bodies are pure white; category color is carried by the roof outline / edges (building blue, garage green) so the Legend and category system still hold.",
+    "building": "#5b8def",
+    "garage": "#48c78a"
+  },
+  "building": {
+    "_comment": "v1.4 楼栋楼层/房间层次（§4）。白模：roomShade 极弱（仅读楼层，不破坏单色），dividerColor 用浅灰楼层虚线。",
+    "roomShade": 0.05,
+    "dividerColor": "#c8ced8"
+  },
+  "shaders": {
+    "_comment": "Not used by the white-model style — pure-white matte + soft AO/contact shadow carry the look. Generator skips grid.glsl.",
+    "grid": null
+  },
+  "environment": {
+    "_comment": "v1.2 园区环境配色（§10）。白模气质：低饱和鼠尾草绿植 + 中性灰铺装，保留景观语义但不破坏单色氛围；路灯浅色不发光。",
+    "city-ground": "#dde1e8",
+    "road": "#c4c9d2",
+    "roadLine": "#ffffff",
+    "sidewalk": "#d6dce4",
+    "grass": "#cdd8c8",
+    "treeTrunk": "#b8b0a4",
+    "treeCanopy": "#c3cdc6",
+    "wall": "#c8ced8",
+    "lampGlow": "#e8ecf2",
+    "vehicle": "#aab0ba"
+  },
+  "garageEntrance": {
+    "_comment": "v1.4 地下车库入口标记（§5）。半金字塔三角门白色 + 绿色描边，P 牌高对比（白底深字）。",
+    "frame": "#48c78a",
+    "signBg": "#ffffff",
+    "signFg": "#2c5a3a",
+    "sign": "#48c78a"
+  },
+  "surfaceParking": {
+    "_comment": "v1.4 地面车位（§10）。长方形车位，浅灰铺装 + 深描边，浅底深字 P，哑光灰车辆。旧 frame/sign 已废弃保留兼容。",
+    "stallFill": "#d6dce4",
+    "stallLine": "#44526a",
+    "pMarkBg": "#ffffff",
+    "pMark": "#2c5a3a",
+    "car": "#aab0ba",
+    "frame": "#ffffff",
+    "sign": "#48c78a"
+  },
+  "poi": {
+    "_comment": "v1.3 兴趣点（§11）类型→颜色。白模：低饱和但可读，接受柔和阴影、不发光。",
+    "entrance": "#48c78a",
+    "exit": "#ef4444",
+    "camera": "#f59e0b",
+    "gate": "#5b8def",
+    "service": "#6dd8a8",
+    "landmark": "#b0604a",
+    "parking": "#48c78a",
+    "custom": "#64748b"
+  },
+  "fonts": {
+    "zh": "Noto Sans SC",
+    "latin": "Inter"
+  }
+}

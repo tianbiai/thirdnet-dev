@@ -7,7 +7,7 @@
 ```
 thirdnet-dev/
 ├── plugins/
-│   └── thirdnet-fullstack/        # 全栈开发插件（自包含）(v2.5.0)：后端 .NET 微服务 + 前端 Vue 3 + 全栈协调 + 全栈审查 + 项目文档生成 + 模板升级 + Markdown 转 Word（全部技能内聚于此）
+│   └── thirdnet-fullstack/        # 全栈开发插件（自包含）(v2.6.3)：后端 .NET 微服务 + 前端 Vue 3 + 数字孪生 + 全栈协调 + 全栈审查 + 项目文档生成 + 模板升级 + Markdown 转 Word（全部技能内聚于此）
 └── .claude-plugin/
     └── marketplace.json      # 插件集合注册清单 (v0.49.0)
 ```
@@ -26,10 +26,11 @@ thirdnet-dev/
 
 ### 技能体系
 
-`thirdnet-fullstack` 插件通过 `skills/` 目录组织全部领域知识（共 24 个技能）：
+`thirdnet-fullstack` 插件通过 `skills/` 目录组织全部领域知识（共 25 个技能）：
 
 - **后端（8 个）**：微服务生成、API 开发、EF Core（含批量操作）、认证授权、缓存、后台任务、枚举字典、后端工作流
 - **前端（11 个）**：Vue 3 最佳实践、设计规范、API TypeScript 规范、Admin 模板安装、前端工作流、Pinia、Router、JSX、Composable 设计、Apple 设计规范、枚举字典规范（vue-enum-dict）
+- **数字孪生（1 个）**：`thirdnet-digital-twin`——园区数字孪生 3D 模块生成（Vue 3 + Three.js，1920×1080 舞台 + 楼栋切换器 + POI 打点，4 种视觉风格）；v1.5 起数据分层：基础信息静态内联，动态数据（楼幢名/楼层数/楼层详情/POI 点位）走 `IDigitalTwinApi` 契约层（Mock/Real 工厂，`VITE_MOCK_ENABLED` 切换）
 - **全栈协调（1 个）**：`thirdnet-fullstack` 协调技能——前端先行开发顺序、Admin CRUD 页面模式、前后端类型映射、RBAC 桥接、子代理调度
 - **质量保障（1 个）**：`fullstack-review`——功能开发完成后的全栈代码审查与验证（前后端规范、API、数据库、跨端契约、业务正确性、性能、安全、文档），产出审查报告与修改方案
 - **文档交付（1 个）**：`thirdnet-doc-generator`——功能开发完成后基于代码库功能模块生成项目交付文档（需求规格说明书、系统设计文档、用户手册、测试用例文档等，每类有专属模板，输出 Markdown 可转 Word）

@@ -4,6 +4,15 @@
 
 本文件是 schema 的事实来源。`scripts/validate_spec.py` 依据它校验 spec；编写或编辑 spec 前先读本文件。
 
+## 数据分层注记（v1.5）
+
+spec 仍是**创作唯一事实来源**（生成时读取），但生成器把它的内容**分区输出**为两层（详见 `dynamic-data-api.md`）：
+
+- **基础信息**（静态内联进页面）：风格 / tokens / shaders / 字体 / 舞台 / boundary / floorHeight；楼栋**位置与占地**（`buildings[].id/w/d/x/z/category/facing`）；园区环境（`environment`）；Legend / switcher 骨架。
+- **动态数据**（运行期走 `IDigitalTwinApi` 契约层，开发期由 spec 派生为 Mock、正式环境调真实后端）：楼幢**业务数据**（`buildings[].name/floors/floor_ids/header`、`floors_detail`）与 **POI 点位**（`pois[]`，含停车场 `occupancy`）。
+
+也就是说：下文 schema 里 `buildings[].name/floors/floors_detail` 与 `pois[]` 这些字段，**在生成时用于派生 Mock 数据**（动态），而**不是**静态内联进 `src/data/<park>.ts`——静态脚手架只保留楼栋占地几何。schema 本身不变；变的是生成器如何分区输出这些字段。
+
 ## 坐标系与单位
 
 - **世界单位**，任意尺度。X = 东，Z = 南，Y = 上。
@@ -34,11 +43,14 @@ interface ParkSpec {
   pois?: PoiSpec[]                    // 兴趣点（类型+坐标+提示）；缺省 = []（不生成 POI）
 }
 
-type Style = 'cyber' | 'realistic' | 'minimal' | 'night-realistic'
+type Style = 'cyber' | 'realistic' | 'night-realistic' | 'blueprint' | 'holographic' | 'white-model' | 'isometric'
 // cyber          —— 赛博：着色器网格地面 + 自发光霓虹（默认）
 // realistic      —— 真实物体：日间 PBR（玻璃/混凝土）、天空+太阳、柔和阴影
-// minimal        —— 简约科技：浅色扁平、单一主色描边、无阴影/着色器
 // night-realistic—— 夜间写实：PBR + 夜空 + 窗户自发光 + 路灯 + 微反射
+// blueprint      —— 蓝图：工程蓝图风（深蓝图底 + 淡白青坐标网格地面 + 白线框楼栋），与 cyber 共用 grid.glsl
+// holographic    —— 全息：半透青玻璃体 + 自发光边缘辉光 + bloom（未来科技感）
+// white-model    —— 白模：全白磨砂 + 柔和接地阴影（博物馆/沙盘级纯净汇报）
+// isometric      —— 等距插画：flatShading cel 着色的鲜活彩色楼栋（扁平信息图风）
 // 风格详细分支见 references/styles.md。
 
 interface BuildingSpec {
@@ -58,6 +70,13 @@ interface BuildingSpec {
 
 // v1.3 起 GarageSpec 已删除：地下车库不再承载占用数据，仅作为 buildings[] 里
 // category:'garage' 的入口标记（半金字塔三角门 + P 牌）。运营态车位数据留给后台/详情面板按需拉取。
+//
+// v1.5 起数据分层（见文首「数据分层注记」与 dynamic-data-api.md）：
+//   静态内联（基础信息）= id / category / w / d / x / z / facing（楼栋占地几何 + 类别）。
+//   动态走 getBuildings()（Mock 由 spec 派生）= name / floors / header / floors_detail
+//     （楼幢业务数据：名/楼层数/floor_ids/楼层详情）。highlightedFloor 仍属静态初始态。
+//   即：生成器把 name/floors/floors_detail 派生为 mockBuildings/mockFloorDetails，
+//   而不是静态写进 src/data/<park>.ts。
 
 interface PoiSpec {
   id: string                          // slug，唯一 —— 用于拾取/选中
@@ -135,6 +154,8 @@ interface ParkEnvironment {
 
 `spec.pois` 是**可选**的（缺省 `[]` = 不生成任何 POI）。每个 POI 描述地图上一个打点：**类型（驱动图标+颜色）+ 世界坐标 + 可选楼层归属 + 可选提示卡数据**。POI 与楼幢/单位同源——全部走 spec，是后台 API 可配置的数据契约。生成细则见 `references/scene-recipe.md §11`。
 
+> **v1.5 起 POI 是动态数据**：`pois[]` 在生成时**派生为 `mockPois`**（`mock/data/manager/digital-twin.ts`），运行期通过 `getPois()` 获取（开发期 Mock、正式环境真实 API），而**不**静态内联进页面。Mock 项在 spec 的 `PoiSpec` 基础上补 `status`（`PoiStatusEnum`）与停车场 `occupancy`（v1.3 外包的车库占用并入此处）。POI 的 `tooltip` / 坐标 / 楼层归属字段在 spec 与运行期 `PoiRuntimeItem` 之间保持一致（见 `dynamic-data-api.md` §4）。
+
 POI 的 `tooltip` 是规范化的「提示数据」：`title` / `description` / `meta`（键值对）。生成器把它渲染成悬停/点击的 HTML 弹出卡。不给 `tooltip` 的 POI 仅显示 `label` 标签。打点位置用世界坐标 `{x, z, y?}`；室内点位用 `buildingId` + `floorIndex` 绑定到具体楼层。
 
 **校验规则**（`validate_spec.py`）：`pois` 缺失 → 合法（不 WARN）；存在时必须是数组，每项 `id` 唯一、`type` ∈ 枚举、`label` 非空、`x/z` 为数字；`buildingId` 给定时必须命中某栋 `buildings[].id`，`floorIndex` 为非负整数。
@@ -159,13 +180,13 @@ POI 的 `tooltip` 是规范化的「提示数据」：`title` / `description` / 
 | `title` | 页面/文档标题 |
 | `style` | 选取 `assets/themes/<style>.tokens.json` + 决定渲染器/灯光/材质/地面分支（见 `references/styles.md`） |
 | `tokens` / `shaders` | `_tokens.scss`、`theme.ts`、Three.js `Color`、着色器 uniform（唯一事实来源；`shaders` 仅 `cyber` 消费） |
-| `buildings[].category` | 3D 材质/边线颜色 + 图例色块 + 车库入口渲染分支 |
-| `buildings[].name` | 楼顶常驻名称标签 + 切换器标签页 + 详情标题 |
-| `buildings[]` 几何 | Three.js 挤出网格、楼层拾取板、**楼层虚线分隔 + 房间明度层次（v1.4 程序化，不进 spec）**、切换器标签页、详情视图楼层 |
-| `garage` 类别的楼栋 + `facing` | §5 半金字塔三角门入口 + P 标识牌（不再有占用标牌/进度条） |
-| `legend` | 屏幕上的 Legend 叠加（Hdr → Legend） |
-| `switcher` | BuildingSwitcher 标签页（包含 全局视角 + 每栋非车库楼一个条目 + 地下车库） |
-| `pois` | §11 `buildPOIs` —— 类型化标记杆 + 图标 + tooltip/popup（悬停/点击） |
+| `buildings[].category` | 3D 材质/边线颜色 + 图例色块 + 车库入口渲染分支（**静态**） |
+| `buildings[].name` | 楼顶常驻名称标签 + 切换器标签页 + 详情标题（**v1.5 动态：`getBuildings()`**） |
+| `buildings[]` 几何 | 占地底板（**静态**）；挤出高度 / 楼层拾取板 / 楼层虚线分隔 + 房间明度层次（v1.4 程序化，不进 spec）/ 详情视图楼层 —— 由动态 `floors`/`floor_ids` 驱动（**v1.5：`getBuildings()`**） |
+| `garage` 类别的楼栋 + `facing` | §5 半金字塔三角门入口 + P 标识牌（**静态**；占用数据 v1.5 走 `getPois()` 停车场 POI 的 `occupancy`） |
+| `legend` | 屏幕上的 Legend 叠加（Hdr → Legend）（**静态**） |
+| `switcher` | BuildingSwitcher 标签页骨架（全局视角 + 每栋非车库楼一个条目 + 地下车库）（**静态骨架**；标签 `name` v1.5 由 `getBuildings()` 水合） |
+| `pois` | §11 `buildPOIs` —— 类型化标记杆 + 图标 + tooltip/popup（悬停/点击）（**v1.5 动态：`getPois()`**） |
 | `environment.internalRoads` | §10 `buildInternalRoads` —— 园区内部环形/十字/井字道路 |
 | `environment.surfaceParking` | §10 `buildSurfaceParking` —— 长方形车位 + 每位印 P + ~30% 示意车辆（v1.4；`occupied` 控制放车数量） |
 | `environment.greenery` | §10 `buildGreenery` —— 草地色块 + 行道树（密度）+ 中央广场/水景 |
