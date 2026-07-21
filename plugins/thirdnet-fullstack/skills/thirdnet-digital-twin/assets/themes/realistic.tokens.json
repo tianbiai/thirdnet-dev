@@ -1,9 +1,10 @@
 {
   "_comment": "Realistic (真实物体) theme — daytime PBR. Natural daylight palette: hazy sky background, glass-blue buildings, greenery garage, warm sun accent. NO shader grid — the scene uses PMREM environment + sun directional light + soft shadows + textured ground instead. Same key names as the cyber theme so the generator derives colors the same way; only the values change. To retheme, edit values here only.",
   "scene": {
-    "_comment": "v1.9 显式场景背景（顶→底纵向渐变 CanvasTexture，§2）。日间雾蓝天空感，整屏有可辨识的空气底而非纯色。",
+    "_comment": "v1.9 显式场景背景（顶→底纵向渐变 CanvasTexture，§2）。日间雾蓝天空感，整屏有可辨识的空气底而非纯色。v2.1 新增 sky 子块：程序化天空元素开关。realistic 开白云（3–6 朵椭圆组合、上半部、透明度 0.5–0.8，种子确定性）——日间天空的灵魂；不开星/月。",
     "bgTop": "#bcd9ff",
-    "bgBottom": "#a9c8e0"
+    "bgBottom": "#a9c8e0",
+    "sky": { "clouds": true, "stars": false, "moon": false }
   },
   "palette": {
     "void-bg": "#a9c8e0",
@@ -88,7 +89,11 @@
     "treeCanopy": "#3f8a45",
     "wall": "#9aa3ad",
     "lampGlow": "#e8eef5",
-    "vehicle": "#5a6470"
+    "vehicle": "#5a6470",
+    "roadMarking": "#f5f5f0",
+    "water": "#4a90c0",
+    "rooftop": "#8a93a0",
+    "_v21_comment": "v2.1 新增：roadMarking=内部道路中央虚线/斑马线/箭头色（写实白漆）；water=水景水面色；rooftop=楼顶电梯机房/天线设备色（混凝土灰）。"
   },
   "garageEntrance": {
     "_comment": "v1.4 地下车库入口标记（§5）。PBR 金属玻璃感 + 接受阳光阴影。signBg/signFg 高对比（浅底深字）。",
@@ -133,6 +138,18 @@
     "reflection": { "enabled": false, "opacity": 0.4, "mixStrength": 0.5 },
     "fog": { "color": "#a9c8e0", "near": 1800, "far": 6500 },
     "sun": { "azimuth": 120, "elevation": 48 }
+  },
+  "ui": {
+    "_comment": "v2.1 2D 组件观感旋钮（assets/components/ 消费，generate_theme.py 派生 --twin-ui-* CSS 变量）。realistic：日间浅色面板、克制无发光（glowStrength 0 → 组件退化为中性投影）、深底标签保证对比。",
+    "panelOpacity": 0.92,
+    "panelBlur": 6,
+    "panelRadius": 8,
+    "glowStrength": 0.0,
+    "glowColor": "#2f7fd0",
+    "borderWidth": 1,
+    "labelBg": "#16233a",
+    "labelText": "#eef2f7",
+    "switcherStyle": "flat"
   },
   "fonts": {
     "zh": "Noto Sans SC",

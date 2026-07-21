@@ -26,6 +26,7 @@
 | 园区环境（道路/车位/绿化/周边/氛围）/ 性能预算 | §10 |
 | POI 标记 + tooltip / openPoiId 单开契约 | §11 |
 | 动态数据水合 API / 加载时序 | §12 |
+| 航拍巡航（auto-orbit）/ setTourEnabled / 取景过渡 tween | §13 |
 | 各风格渲染器/灯光/材质/地面分支 | `references/styles.md` |
 | 契约层 5 文件 / Mock/Real / 后端端点 | `references/dynamic-data-api.md` |
 | 舞台外壳 / 响应式 / a11y / 空错态 | `references/shell.md` |
@@ -139,7 +140,9 @@ this.controls.target.copy(centroid)                           // clearFocus / �
   要点（**理解 why，不要照抄数字**）：
   - **瞄准质心而非地平面**：`lookAt(centroid=(0,Hmax/2,0))` 让楼栋质量进入画面上半，配合底部钉边，下方空白消失。
   - **测量后取景**：内容包围盒投到 view-space 再算视锥，天然适配不同 `boundary`/楼高——换园区不用调参。
-  - **留出周边环境余量（v1.2 默认 K=0.66）**：`K` 是园区内容（boundary × 最高楼）占画面的比例。默认 `K=0.66` 让四周各留 ~17%，用来显示周边市政道路、行道树、围墙/绿化带——默认取景就是一张能看全园区轮廓和紧邻环境的「全景图」，而不是把园区撑满 88% 的特写。`M = (1-K)/2 = 0.17`，`bottom = ymin - M*frustumH` 把地面最近端钉在距底边 ~17%；左右居中，顶部吸收剩余余量。`ymin` 是 8 个角点里最低的那个，正好是地面最近端。**若用户明确要「特写主体」可把 K 调到 0.8 左右；若要「航拍俯瞰全城」可调到 0.55。**
+  - **留出周边环境余量（v1.2 默认 K=0.66）**：`K` 是园区内容（boundary × 最高楼）占画面的比例。默认 `K=0.66` 让四周各留 ~17%，用来显示周边市政道路、行道树、围墙/绿化带——默认取景就是一张能看全园区轮廓和紧邻环境的「全景图」，而不是把园区撑满 88% 的特写。`M = (1-K)/2 = 0.17`，`bottom = ymin - M*frustumH` 把地面最近端钉在距底边 ~17%；左右居中，顶部吸收剩余余量。`ymin` 是 8 个角点里最低的那个，正好是地面最近端。**若用户明确要「特写主体」可把 K 调到 0.8 左右；若要「航拍俯瞰全城」可调到 0.55（v2.2 起由 §13 巡航模式落地——`spec.cameraTour.framingK` 默认即 0.55）。**
+  - **v2.1 取景高度用真实楼层**：`frameCamera()` 的 `Hmax` 在水合前用默认 18 层估算（保证首屏不白屏），**`hydrateBuildings()` 末尾必须用真实最高楼层重新 `frameCamera()`**——否则最高 10 层的园区会按 18 层取景，园区只占画面 ~1/3（v2.0 实测 bug）。范式实现已内置（`maxBuildingHeight()`），勿删。
+  - **v2.1 程序化天空（token `scene.sky` 开关）**：背景纹理 canvas 加宽到 512，可按风格画入白云（写实，3–6 朵椭圆组合）/ 星空（夜景，130 颗）/ 月亮（夜景，右上径向光晕），种子 = `sky:{style}` 确定性。**星星必须暗淡（alpha ≤ 0.45、亚像素）**——亮星会被 UnrealBloomPass 晕成「雪片」抢戏（v2.1 实测）。白云/月亮在写实/夜景风格亮度合理，可正常被 bloom 微晕。
   - **`OrbitControls`**：带阻尼，极角夹紧 [0.5, 1.3]，缩放夹紧 [0.45, 2.6]（滚轮改 `camera.zoom`，归用户所有）。v1.2 把缩放下限从 0.6 放宽到 0.45，让用户能继续拉远俯瞰周边道路与全貌。全局取景对应 `zoom=1, target=centroid`；`clearFocus` 回到这两者。
   - **resize 重算**：宽高比 A 变了要重跑 (d)(e)——把这段封装成 `frameCamera()`，在 `setupCamera` 末尾和 `onResize` 里都调一次。
 - **灯光：** 刻意保持平，让着色器地面 + 自发光边线读起来像“数字孪生”而不是“建筑可视化”。一个 `HemisphereLight(0x3a5d86, 0x0a1428, ~0.6)` + 一盏柔和 `DirectionalLight` 就够了。丢掉范例里的 2048² VSM 阴影贴图和 PMREM 环境——它们会和赛博地面打架。
@@ -287,7 +290,8 @@ function addRoofLabel(mesh: THREE.Mesh, name: string) {
 要点（**理解 why**）：
 - **Sprite 而非 HTML**：楼名要随相机旋转/缩放保持在楼顶——`Sprite` 是 3D 对象，天然面向相机且跟随楼栋，比每帧 `project()` 的 HTML 叠加层便宜得多（几十栋楼每帧投影会卡）。
 - **始终可见、不受选中影响**：这是「常驻标识」，不是悬停提示；金色高亮选中状态由**独立的选中 overlay**（金色 `EdgesGeometry` 描边 + 半透明填充，按 buildingId + 楼层定位，见 §8.2 的 `setSelection`）表达，楼名标签独立。`buildFloorSlabs`（楼层拾取板，见本节末）只负责不可见的射线命中盒（`pickables[]`），**不画**任何选中态——不要在它里面找「选中分支」。
-- **对比度（v1.4，§4.2）**：楼名标签同样走高对比配对——底色/字色按风格取 `garageEntrance.signBg/signFg` 同源的明度策略（亮底深字 / 暗底亮字），描边取 `category.building`。绝不散落 hex。
+- **对比度（v1.4，§4.2）**：楼名标签同样走高对比配对——底色/字色按风格取 `garageEntrance.signBg/signFg` 同源的明度策略（亮底深字 / 暗底亮字），描边取 `category.building`。绝不散落 hex。**v2.1 起楼名标签配对固化为 token `ui.labelBg`/`ui.labelText`**（7 风格各自校验过的高对比对）——旧式 `(void-bg, cyan-bright)` 在浅色风格两字色都偏亮、标签糊成黑块（v2.0 实测 bug）。
+- **位置（v2.1 修复）**：楼名标签 Sprite 的 y 必须是 **`h + 22`（屋顶上方）**——旧式 `h/2 + 22` 会把标签埋进塔体内部，高楼（h > 44）完全不可见。该 y 坐标只在 `building-geometry.ts` 定义（铁律见 §4 末）。
 - **字体**：中文用 `Noto Sans SC`（与全局字体一致），CanvasTexture 绘制时设好 `font`。
 - **标签可见性总表（v1.9，契约级——哪些常驻、哪些悬停）**：
   | 对象 | 名称/文字 | 何时显示 | 形态 |
@@ -506,6 +510,8 @@ watch(
 
 > 范例 `DigitalTwin.ts:1368-1416` 的聚焦补间可借鉴其相机过渡思路，但**改写成事件触发 + 有限时长 tween**，不要照搬「每帧无条件 lerp」。
 
+> **v2.2 §13 航拍巡航**是另一类「事件触发 + 有限时长」相机动画：进/出取景过渡 tween + `OrbitControls.autoRotate` 稳态环绕，遵守同一「释放控制权」铁律（过渡结束后不每帧碰 zoom/target，用户拖拽即退出）。相机动画只有这两种合规形态——focus tween（§8，选中驱动）与 tour tween（§13，展示驱动）；任何「每帧无条件 lerp」都是反面模式。
+
 ## 9. 生命周期（所有风格共用）
 
 - canvas 上的 `ResizeObserver` → 更新渲染器、composer（若启用 bloom）、宽高比、视锥、每个 `LineMaterial.resolution`。**v1.8：resize 回调防抖（如 150ms `debounce`）**，避免拖拽窗口时每帧重算视锥。
@@ -561,9 +567,18 @@ function buildSurfaceParking(env) {
 ### buildGreenery(env)
 园区绿化景观（默认 `treeDensity: 'normal'`）：
 - **草地色块**（`GreenPatch`）：楼栋之间、道路两侧的低 `PlaneGeometry`，颜色取 `environment.grass`（赛博暗紫青、真实物体/等距插画草绿、白模鼠尾草低饱和、夜间写实深绿、蓝图/全息深蓝调；各风格取色见 `styles.md` §10）。可叠程序化噪声纹理。
-- **行道树**：沿内部道路与外围人行道按密度（`sparse` 间隔大 / `normal` / `lush` 密）种树。每棵 = 树干 `CylinderGeometry`（`environment.treeTrunk`，棕）+ 树冠 `ConeGeometry` 或 `IcosahedronGeometry`（`environment.treeCanopy`）。**密度大时用 `InstancedMesh`**（见下方性能预算）。
+- **行道树**：沿内部道路与外围人行道按密度（`sparse` 间隔大 / `normal` / `lush` 密）种树。每棵 = 树干 `CylinderGeometry`（`environment.treeTrunk`，棕）+ 树冠（`environment.treeCanopy`）。**v2.1 起树冠双形态固化**：球形（`IcosahedronGeometry(12)`）与锥形（`ConeGeometry(9,24,8)`）按位置序奇偶交替（打破「一整排同款球」的塑料感），两个 `InstancedMesh` 合批。**密度大时用 `InstancedMesh`**（见下方性能预算）。
+- **灌木球丛（v2.1）**：每块草地边缘 6 丛（`SphereGeometry(6)`，种子 = `bush:{gx},{gz}` 确定性偏移，缩放 0.7–1.3），一个 `InstancedMesh` 合批。
 - `env.greenery.centralPlaza`（默认 true）：园区中心一个铺装广场（圆形 `CircleGeometry` 浅色 + 可选旱喷/地标）。
-- `env.greenery.waterFeature`（默认 false）：一个小水池（`CircleGeometry` 蓝色半透明 + cyber 下自发光边）。**不进 `pickables[]`**。
+- `env.greenery.waterFeature`（默认 false）：一个小水池——**v2.1 起范式实现真正渲染**（v2.0 及之前 schema 有此字段但未实现）：`CircleGeometry(50)` 水面（写实两风格 `MeshStandardMaterial(roughness 0.05, metalness 0.1)` 吃 envMap 反射；其余风格半透明 Lambert/Basic，色取 `environment.water`）+ `RingGeometry(50,56)` 池缘（`environment.sidewalk`），位于 `(bx*0.3, 0.25, bz*0.42)`。**不进 `pickables[]`**。
+
+### buildRoadMarkings(env)（v2.1 新增）
+内部道路标线——真实园区道路从不是光秃秃的色带，标线是远观可辨的尺度参照。色取 `environment.roadMarking`：
+- **中央虚线**：环路四边 + 十字/井字主路，12×2 段、间隔 24，两个 `InstancedMesh`（横向/纵向各一）合批。
+- **大门引道**：连接主出入口（z=bz）与环路（z=bz-inset）的 24 宽短路段（填补大门与环路之间的视觉缺口）。
+- **斑马线**：引道上横跨环路的 6 条 2.5×20 白杠（x = -15..+15）。
+- **引导箭头**：引道上一枚 `ShapeGeometry` 直行箭头（指向园区内部）。
+- `surrounding.gate === false` 时引道/斑马线/箭头整体跳过；`internalRoads === 'none'` 时整段跳过。
 
 ### buildSurrounding(env)
 把园区嵌进城市路网（默认 `roads/sidewalk/wall/gate` 全 true）：
@@ -579,8 +594,10 @@ function buildSurfaceParking(env) {
 - **车辆/行人代理体**（`vehicles`）：周边道路与地面车位上零星几辆低多边形车（复用上面的车辆代理体）；可选少量行人代理体（胶囊 + 球头）。数量克制，纯氛围。**不进 `pickables[]`**。
 
 ### 性能预算（硬约束）
-环境网格（树/车/灯/草块）**总数建议 ≤ 400**。超出时优先降密度（`treeDensity` 降一档、车位/车辆减少），其次把同类元素改用 `THREE.InstancedMesh` 合批。**v1.8 起 InstancedMesh 为强制**（同类几何 ≥ ~10 个时）：
-- **行道树**：树干一个 `InstancedMesh` + 树冠一个，承载数百棵——禁止每棵一个 `Mesh`。
+环境网格（树/车/灯/草块）**总数建议 ≤ 460**（v2.1 从 400 放宽：楼顶设备每栋 +3、标线虚线走 InstancedMesh 不计单体、灌木球丛合批）。超出时优先降密度（`treeDensity` 降一档、车位/车辆减少），其次把同类元素改用 `THREE.InstancedMesh` 合批。**v1.8 起 InstancedMesh 为强制**（同类几何 ≥ ~10 个时）：
+- **行道树**：树干一个 `InstancedMesh` + 树冠两个（v2.1 球形/锥形分开），承载数百棵——禁止每棵一个 `Mesh`。
+- **灌木球丛（v2.1）**：全部灌木一个 `InstancedMesh`。
+- **地面标线虚线（v2.1）**：横向/纵向各一个 `InstancedMesh`；楼顶设备（v2.1）每栋仅机房盒 + 天线杆 + 警示灯 3–4 个 Mesh（每园 ≤5 栋 ≈ +20）。
 - **车辆/车位代理体**：所有低多边形车代理体共用一个车身 `InstancedMesh`（车位 P 标签仍各自 Sprite，因其 CanvasTexture 文本不同，但可按文本分组共享纹理）。
 - **cyber 树冠边光**（`EdgesGeometry` per tree）：v1.8 改为 `InstancedMesh` 的线段实例或共享 `LineSegments`，不再每树一个 `EdgesGeometry`（N 棵 = N draw call）。
 - **POI 杆/图标**（§11）：按 type 分组共享几何 + 共享材质，杆用 `InstancedMesh`。
@@ -609,6 +626,8 @@ function buildSurfaceParking(env) {
 - **点击**：展开完整卡片——`tooltip.title ?? label` 作标题、`tooltip.description` 作正文（支持换行）、`tooltip.meta` 渲染成键值表（如 负责人/电话/状态/容量）。无 `tooltip` 字段的 POI 点击仅显示 `label`。
 
 > **v1.8 POI 单开契约**：`useSelection` 新增 `openPoiId: Ref<string | null>`（与楼栋 `focusedBuildingId` 平行）。同一时刻**至多一个 POI 打开**——点击新 POI 覆盖旧的（`openPoiId.value = poiId`），点击空白 / Esc / 再点同 POI 关闭（`openPoiId.value = null`）。POI 打开与楼栋聚焦**互斥**：点 POI 不聚焦楼栋（§8 POI 拾取优先 + `return`），点楼栋不关 POI（但 POI 卡片可用 Esc 关）。打开 POI 卡片时 `aria-live="polite"` 播报、焦点移入卡片、Esc 关闭并归还焦点（见 `shell.md` 可访问性）。`PoiLayer.vue` 只投影 `openPoiId` 对应的那一个 POI（悬停态用轻量 tooltip，不进 project 循环）。
+>
+> **v2.1 POI 悬停接线**：`ParkSceneCallbacks` 新增 `onPoiHover(poiId | null)`——`onPointerMove` 命中 POI 时回调（未命中传 null），驱动 HTML 悬停名称条（`assets/components/PoiOverlay.vue` 的轻量 tooltip）。名称条只是「轻量提示」，不进每帧 project 循环的重负载路径（与打开卡片共用一次 rAF 投影即可）。
 
 ```html
 <div class="poi-card" :style="cardStyle">
@@ -684,6 +703,53 @@ hydrating.value = false
 
 ---
 
+## 13. 航拍巡航（cameraTour）—— auto-orbit 展示（所有风格共用；v2.2 新增）
+
+`spec.cameraTour` 是**可选**配置（缺省即智能默认）。开启后相机过渡到鸟瞰取景，再沿园区缓慢自动环绕——一份「会动的数字孪生」用于展示/汇报首屏。机制 = **取景过渡 tween（进/出）+ `OrbitControls.autoRotate` 稳态环绕**，三段式：
+
+1. **进入**（点 `TourToggleButton` / `spec.cameraTour.enabled:true` 首屏自动）：起 frameTween，把取景从默认（K=0.66、等轴俯角）过渡到巡航（K=`framingK`≈0.55、`elevation`≈1.0 鸟瞰，~0.6s `easeOutCubic`）；过渡结束置 `controls.autoRotate=true`、`autoRotateSpeed=speed`。
+2. **稳态环绕**：`animate()` 每帧已调 `controls.update()`——autoRotate 绕 target（= 内容质心）缓慢转方位角，俯角/取景不变。
+3. **退出**（再点按钮 / 用户拖拽 / 卸载）：`autoRotate=false` + frameTween 过渡回默认取景。
+
+### 命令式 API（ParkScene）
+
+```ts
+class ParkScene {
+  setTourEnabled(on: boolean): void   // §13：开/巡航、关/回默认。reducedMotion 下 no-op
+  // 内部：positionAndFrame(K, elevation, az) 是 frameCamera 抽出的取景内核；
+  //       stepFrameTween 在 animate 里推进进/出过渡；currentAzimuth/clampElevation 辅助。
+}
+```
+
+`ParkSceneCallbacks` 新增 `onTourAutoExit?: () => void`——巡航中用户拖拽时回调（`GlobalTwin` 映射到 `useTour.disable()`，由 `watch(enabled → setTourEnabled)` 单向完成收尾，**不在指针回调里直接改引擎态**，与 §8 选中态 watch 推回同模式）。
+
+### 取景内核复用（frameCamera 重构）
+
+v2.2 把 `frameCamera()` 的取景数学抽成 `positionAndFrame(K, elevation, az)`：`frameCamera()` = `positionAndFrame(0.66, atan(1/√2), π/4)`（默认全景，行为不变）；巡航过渡调用 `positionAndFrame(tweenedK, clampElevation(tweenedElev), currentAzimuth())`。**方位角取当前**（autoRotate/用户拖拽留下的朝向）——过渡期不强行扳回，退出时朝向连续不突兀。
+
+### 纪律（与 §8 focus tween 同源，不可违背）
+
+- **事件触发 + 有限时长**：frameTween 结束后**不**每帧碰 `camera.zoom/target/K`；autoRotate 由 `OrbitControls` 内部管理，缩放/平移仍归用户。
+- **用户拖拽即退出**（`pauseOnInteract` 默认 true）：`onPointerDown` 命中且巡航中 → 立即 `controls.autoRotate=false`（防拖拽与自转打架）+ `onTourAutoExit`。**滚轮缩放不退出**（允许巡航中缩放——用户滚轮改的 zoom 在退出过渡首帧被 `positionAndFrame` 复位到 1，属预期）。
+- **反面模式（勿抄）**：在 `animate` 里无条件每帧 `controls.target.lerp(centroid, 0.1)` 或每帧重设 `camera.zoom`——会拽回用户 pan/滚轮（与 §8 同一陷阱）。
+- **`prefers-reduced-motion` 禁用**：`setTourEnabled(true)` 为 no-op，`TourToggleButton` 置 `aria-disabled`（autoRotate 是连续运动，与 §8 tween/呼吸动画同纪律）。
+
+### 配置（spec.cameraTour，详见 park-spec.md「相机巡航」）
+
+```jsonc
+"cameraTour": { "enabled": false, "speed": 0.6, "elevation": 1.0, "framingK": 0.55, "pauseOnInteract": true }
+```
+
+全可选，缺省即上述默认。归属**基础信息（静态）**——`generate_data.py` 写进 `ParkScaffold.cameraTour`，ParkScene 构造期读取；`enabled:true` 时 `GlobalTwin` `onMounted` 调 `tour.enable()` 首屏自动开。
+
+### 组件（详见 shell.md）
+
+- `useTour.ts`（模块级单例，仿 `useSelection`）：`enabled: Ref<boolean>` + `enable/disable/toggle`。
+- `TourToggleButton.vue`：右上角 `role="switch"` + `aria-checked` + `aria-label`；CSS 全走 `var(--twin-ui-*)`（与 LegendPanel 同款观感旋钮），零 hex；reducedMotion 下 `aria-disabled`。
+- `GlobalTwin.vue`：`watch(tour.enabled → scene.setTourEnabled)` + `onTourAutoExit → tour.disable()` + 卸载 `tour.disable()`。
+
+---
+
 ## 验证
 
 生成后，`npm run dev`（端口 3000）并确认：
@@ -707,4 +773,5 @@ hydrating.value = false
 - [ ] **取景贴合（v1.2 默认 K=0.66）**：园区内容约占画面 2/3，四周能看到周边道路/绿化/围墙；地面最近端钉在距舞台底边 ~17%，左右居中，**下方无大片空白**、楼栋完整可见未被裁切；滚轮可继续拉远到 zoom≈0.45 俯瞰全貌；resize 后重算仍贴合、无变形。
 - [ ] **园区环境（v1.2）**：默认加载时场景里有内部道路、地面车位带、行道树与绿地色块、四向市政道路、围墙与出入口；夜间写实风格下路灯发光（`PointLight`），cyber 风格下地面发光标线可见。环境元素不影响楼栋 raycast 选中。
 - [ ] **动态数据水合（v1.5）**：`VITE_MOCK_ENABLED=true` 下首屏先出静态脚手架（环境 + 楼栋占地底板 + Legend + 取景），随后水合出楼栋完整高度 + 楼顶名称 + POI 标记（status 上色）；点击楼层弹出由 `getFloorDetail()` 返回的 UnitDetail。切 `VITE_MOCK_ENABLED=false` 后 Network 请求落到 `/api/manager/park/buildings|floor-detail|pois`（证明走真实 API）。请求失败时脚手架仍可交互（降级兜底）。
+- [ ] **航拍巡航（v2.2 §13）**：右上角有 `TourToggleButton`（`role="switch"`）；点开后相机 ~0.6s 过渡到鸟瞰（K≈0.55、更高俯角）并开始缓慢自动环绕；巡航中滚轮可缩放（不退出）；鼠标按下拖拽 → 自动停止环绕、过渡回默认取景、按钮弹起；`spec.cameraTour.enabled:true` 时首屏自动开。系统开启「减少动态效果」后点按钮无反应、按钮 disabled 态。逐风格切换确认巡航不破坏既有取景/写实增强层。`spec.cameraTour` 传非法值（speed≤0 / framingK∉(0,1)）→ `validate_spec.py` FAIL。
 - [ ] `npm run typecheck` 干净通过。

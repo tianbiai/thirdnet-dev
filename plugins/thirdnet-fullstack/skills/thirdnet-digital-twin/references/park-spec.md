@@ -46,6 +46,7 @@ interface ParkSpec {
                                 // 裸字符串形式仍兼容（按名字推断，较脆弱）。默认 = 全局视角 + 每栋非车库楼 + 地下车库
   environment?: ParkEnvironment       // 园区环境（道路/地面车位/绿化/周边/氛围）；缺省 = 智能默认
   pois?: PoiSpec[]                    // 兴趣点（类型+坐标+提示）；缺省 = []（不生成 POI）
+  cameraTour?: CameraTourSpec         // v2.2 航拍巡航（auto-orbit 展示）；缺省 = 智能默认（按钮触发）
 }
 
 type Style = 'cyber' | 'realistic' | 'night-realistic' | 'blueprint' | 'holographic' | 'white-model' | 'isometric'
@@ -115,6 +116,14 @@ interface LegendEntry {
   color: string                       // hex；应与 tokens 中的类别颜色一致
 }
 
+interface CameraTourSpec {
+  enabled?: boolean                   // 首屏自动开启巡航；默认 false（用户点 TourToggleButton 触发）
+  speed?: number                      // OrbitControls autoRotateSpeed（度/帧）；默认 0.6 缓慢
+  elevation?: number                  // 巡航相机俯角（rad，above-horizon）；默认 1.0≈57° 鸟瞰；运行时钳到 polar[0.5,1.3] 内
+  framingK?: number                   // 巡航取景内容占比；默认 0.55（俯瞰全城；默认取景 K=0.66）
+  pauseOnInteract?: boolean           // 用户拖拽自动退出巡航、交还控制权；默认 true
+}
+
 interface FloorSpec {
   index: number                       // 从 0 开始，从地面往上
   label: string                       // "1F".."10F"
@@ -165,6 +174,29 @@ POI 的 `tooltip` 是规范化的「提示数据」：`title` / `description` / 
 
 **校验规则**（`validate_spec.py`）：`pois` 缺失 → 合法（不 WARN）；存在时必须是数组，每项 `id` 唯一、`type` ∈ 枚举、`label` 非空、`x/z` 为数字；`buildingId` 给定时必须命中某栋 `buildings[].id`，`floorIndex` 为非负整数。
 
+## 相机巡航（cameraTour）
+
+`spec.cameraTour` 是**可选**的（v2.2 新增）。提供则按值配置「航拍巡航」（auto-orbit 展示）——相机过渡到鸟瞰取景后，沿园区缓慢自动环绕。**省略则用智能默认**（按钮触发，speed 0.6 / elevation 1.0 / framingK 0.55 / pauseOnInteract true）——保证「不问也能用」。生成细则见 `references/scene-recipe.md §13`。
+
+```ts
+interface CameraTourSpec {
+  enabled?: boolean                   // 首屏自动开启；默认 false（用户点 TourToggleButton 触发）
+  speed?: number                      // autoRotateSpeed（度/帧）；默认 0.6 缓慢
+  elevation?: number                  // 巡航俯角 rad（above-horizon）；默认 1.0 鸟瞰；钳到 polar[0.5,1.3]
+  framingK?: number                   // 巡航取景内容占比；默认 0.55 俯瞰全城（默认取景 K=0.66）
+  pauseOnInteract?: boolean           // 用户拖拽自动退出；默认 true
+}
+```
+
+归属**基础信息（静态）**——`generate_data.py` 把它原样写进 `ParkScaffold.cameraTour`，ParkScene 构造期读取；**不**参与动态水合（巡航参数与楼栋业务数据无关）。`enabled:true` 时 `GlobalTwin.vue` `onMounted` 调 `tour.enable()` 首屏自动开启（取景只用静态几何，不等水合）。
+
+要点（**理解 why**）：
+- **auto-orbit 而非路径飞行**：复用 `OrbitControls.autoRotate` + 现有 `focusBuilding` tween 机制，零新增运动学，正交相机下观感好、风险低。
+- **释放控制权铁律（与 §8 同源）**：取景过渡是「事件触发 + 有限时长」tween，结束后把缩放/平移/旋转完整交还 OrbitControls；用户一拖拽即自动退出（`pauseOnInteract`），滚轮缩放不退出（允许巡航中缩放）。
+- **`prefers-reduced-motion` 禁用**：autoRotate 是连续运动，`setTourEnabled(true)` 为 no-op，按钮 `aria-disabled`（与 §8 tween/呼吸动画同纪律）。
+
+**校验规则**（`validate_spec.py`）：`cameraTour` 缺失 → 合法（不 WARN）；存在时 `enabled`/`pauseOnInteract` 为布尔、`speed>0`、`framingK∈(0,1)`、`elevation∈[0,π/2]`；未知键 → FAIL。
+
 ## 类别语义
 
 | 类别 | 含义 | 默认颜色 | 3D 处理 |
@@ -197,6 +229,7 @@ POI 的 `tooltip` 是规范化的「提示数据」：`title` / `description` / 
 | `environment.greenery` | §10 `buildGreenery` —— 草地色块 + 行道树（密度）+ 中央广场/水景 |
 | `environment.surrounding` | §10 `buildSurrounding` —— 四向市政道路 + 人行道 + 围墙 + 主闸机 |
 | `environment.ambiance` | §10 `buildAmbiance` —— 街灯（夜间 PointLight）+ 地面发光标线 + 车辆/行人 |
+| `cameraTour` | §13 `setTourEnabled` + `OrbitControls.autoRotate` —— 航拍巡航（auto-orbit 展示）；`generate_data.py` 写进 `ParkScaffold.cameraTour`（**静态**） |
 
 ## 编辑规则
 

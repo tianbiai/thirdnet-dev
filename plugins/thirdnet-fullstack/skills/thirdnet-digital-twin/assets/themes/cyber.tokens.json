@@ -1,9 +1,10 @@
 {
   "_comment": "Cyber theme palette — the single source of truth for color. Mirrors the `variables` block of 数字孪生.pen plus the inline accents the design uses directly. The skill derives BOTH SCSS variables and Three.js Color instances from this file — never duplicate hex literals across files. To retheme for a different park, edit the values here (and only here).",
   "scene": {
-    "_comment": "v1.9 显式场景背景（顶→底纵向渐变 CanvasTexture，§2）。alpha:true 不再依赖页面底色——暗色风格给地平线上方一点空气感，杜绝整屏死黑。",
+    "_comment": "v1.9 显式场景背景（顶→底纵向渐变 CanvasTexture，§2）。alpha:true 不再依赖页面底色——暗色风格给地平线上方一点空气感，杜绝整屏死黑。v2.1 新增 sky 子块：程序化天空元素开关（画进同一张背景纹理，零运行时成本；种子确定性）。cyber 只开稀疏暗星（霓虹夜空纵深），不开云/月。",
     "bgTop": "#0a0518",
-    "bgBottom": "#06030f"
+    "bgBottom": "#06030f",
+    "sky": { "clouds": false, "stars": true, "moon": false }
   },
   "palette": {
     "void-bg": "#06030f",
@@ -88,7 +89,11 @@
     "treeCanopy": "#1c4a5a",
     "wall": "#16204a",
     "lampGlow": "#7ff5ff",
-    "vehicle": "#1e6fff"
+    "vehicle": "#1e6fff",
+    "roadMarking": "#2bd4ff",
+    "water": "#0a4a6e",
+    "rooftop": "#160a30",
+    "_v21_comment": "v2.1 新增：roadMarking=内部道路中央虚线/斑马线/箭头色（赛博发光青）；water=水景水面色；rooftop=楼顶电梯机房/天线设备色。"
   },
   "garageEntrance": {
     "_comment": "v1.4 地下车库入口标记（§5）：半金字塔三角门框架 + P 牌。signBg/signFg 为高对比配对（深底亮字），取代旧的单色 sign——避免霓虹底+白字看不清。",
@@ -133,6 +138,18 @@
     "reflection": { "enabled": false, "opacity": 0.5, "mixStrength": 0.5 },
     "fog": null,
     "sun": { "azimuth": 135, "elevation": 50 }
+  },
+  "ui": {
+    "_comment": "v2.1 2D 组件观感旋钮（assets/components/ 消费，generate_theme.py 派生 --twin-ui-* CSS 变量）。cyber：半透明深底 + 霓虹描边发光 pill。颜色键仍优先复用 palette/accents（本块只放行为数值与高对比标签对），组件内零 hex 字面量。",
+    "panelOpacity": 0.85,
+    "panelBlur": 8,
+    "panelRadius": 6,
+    "glowStrength": 0.6,
+    "glowColor": "#1de9ff",
+    "borderWidth": 1,
+    "labelBg": "#06030f",
+    "labelText": "#7ff5ff",
+    "switcherStyle": "neon"
   },
   "fonts": {
     "zh": "Noto Sans SC",

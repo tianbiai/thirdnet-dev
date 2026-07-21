@@ -130,15 +130,21 @@ export interface FloorDetailQueryParams {
 
 /**
  * 单位详情。镜像范例 src/data/unit.ts 的 UnitDetail 形状
- * （见 references/exemplar.md 与 shell.md）——生成时按宿主既有 UnitDetail 字段对齐。
+ * （见 references/exemplar.md 与 shell.md）——v2.1 起字段全集固定如下
+ * （generate_data.py 产出的 Mock 数据与 UnitDetail.vue 面板行序与之对齐）。
  */
 export interface UnitDetail {
   unit_id: string
-  name: string
-  tenant?: string
-  area?: number
-  nature?: string
-  // ...其余字段以宿主 src/data/unit.ts 为准，保持 snake_case
+  name: string                // 单位名（公司名）
+  tenant?: string             // 租户简称
+  contact_person?: string     // 负责人
+  contact_phone?: string      // 联系电话
+  staff_count?: number        // 在编人员
+  area?: number               // 办公面积 ㎡
+  nature?: string             // 单位性质（民营/国有/合资/外资/事业）
+  service_hours?: string      // 服务时间
+  business_scope?: string     // 业务范围
+  responsibilities?: string   // 职责
 }
 
 export interface FloorDetail {
@@ -232,29 +238,44 @@ export interface IDigitalTwinApi {
 
 ## 6. Mock 数据（由 spec 派生）
 
-`src/mock/data/manager/digital-twin.ts` —— **纯数据导出**，由生成器从已确认的 Park Spec 派生（不硬编码，对齐技能铁律）。这份文件就是「开发期/演示期的后端」。
+`src/mock/data/manager/digital-twin.ts` —— **纯数据导出**。这份文件就是「开发期/演示期的后端」。
+
+> **v2.1 起：本文件由 `scripts/generate_data.py` 确定性生成，不再手写**——
+> ```bash
+> python scripts/generate_data.py spec.json --out-dir <项目根> --mock-only
+> ```
+> 种子 = FNV-1a(spec.title) 的 mulberry32（与范式实现视觉装饰同款伪随机），同一 spec 重跑
+> 输出逐字节一致；行业/公司名/负责人/电话从脚本内置的 8 行业模板池选取（软件/金融/设计/
+> 教育/医疗/法律/电商/咨询，对齐范例 `CAT` 映射）。要换内容：改 spec.json 后重跑脚本。
+> 下文代码片段仅说明**输出形状**（脚本产物与之同构）。
 
 ```ts
 import type { BuildingRuntimeItem, FloorDetail, PoiRuntimeItem } from '@/api/types/digital-twin'
 import { PoiStatusEnum, PoiTypeEnum } from '@/api/types/digital-twin'
 
-// ↓↓↓ 生成器从 spec.buildings[] 派生（取 name/floors；floor_ids 按 floors 程序化生成；
-//     floors_detail 有则用于 FloorDetail mock） ↓↓↓
+// ↓↓↓ 脚本从 spec.buildings[] 派生（取 name/floors；floor_ids 按 floors 程序化生成） ↓↓↓
 export const mockBuildings: BuildingRuntimeItem[] = [
-  { building_id: 'main', name: '主楼', floors: 10, floor_ids: ['main-0','main-1',/*...*/'main-9'], header: '10F · 12单位' },
+  { building_id: 'main', name: '主楼', floors: 10, floor_ids: ['main-f1','main-f2',/*...*/'main-f10'], header: '10F · 12单位' },
   // ...每栋一项；building_id 必须与 src/data/<park>.ts 静态占地 id 一致
 ]
 
-// ↓↓↓ 生成器从 spec.buildings[].floors_detail[] 派生；没有 floors_detail 的楼层返回占位 ↓↓↓
-export const mockFloorDetails: Record<string, FloorDetail> = {
-  // key = `${building_id}:${floor_id}`
-  'main:main-5': {
-    building_id: 'main', floor_id: 'main-5', label: '6F',
-    tenant: '某某科技', units: [/* UnitDetail[]，来自 floors_detail[].units */],
+// ↓↓↓ 脚本派生：每层 1–3 个单位，行业/公司/负责人/电话确定性生成（数组形态，v2.1） ↓↓↓
+export const mockFloorDetails: FloorDetail[] = [
+  {
+    building_id: 'main', floor_id: 'main-f5', label: '5F',
+    tenant: '云杉科技',
+    units: [
+      { unit_id: 'main-f5-u1', name: '云杉科技', tenant: '云杉科技',
+        contact_person: '王磊', contact_phone: '138-0000-0000', staff_count: 42,
+        area: 320, nature: '民营企业', service_hours: '09:00-18:00',
+        business_scope: '软件开发、信息系统集成、数据服务',
+        responsibilities: '负责园区信息化平台建设与运维' },
+      // ...每层 1–3 个单位
+    ],
   },
-}
+]
 
-// ↓↓↓ 生成器从 spec.pois[] 派生（坐标/类型/tooltip 直接搬）；status 由生成器给合理初值 ↓↓↓
+// ↓↓↓ 脚本从 spec.pois[] 派生（坐标/类型/tooltip 直接搬）；status 给合理初值（~85% online，其余 idle） ↓↓↓
 export const mockPois: PoiRuntimeItem[] = [
   {
     poi_id: 'cam-main', type: PoiTypeEnum.Camera, label: '主楼监控',
@@ -292,10 +313,12 @@ export class MockDigitalTwinApi implements IDigitalTwinApi {
   }
 
   async getFloorDetail(params: FloorDetailQueryParams, opts?: DigitalTwinRequestOptions): Promise<FloorDetail> {
-    const key = `${params.building_id}:${params.floor_id}`
-    const detail = mockFloorDetails[key]
+    // v2.1: mockFloorDetails 为数组形态（generate_data.py 产物），按 building_id + floor_id 查找
+    const detail = mockFloorDetails.find(
+      (d) => d.building_id === params.building_id && d.floor_id === params.floor_id,
+    )
     // v1.8: 抛 ApiError(404) 而非裸 Error——与 Real 一致，组件 instanceof ApiError 可判 status
-    if (!detail) throw new ApiError(404, `Floor ${key} not found`)
+    if (!detail) throw new ApiError(404, `Floor ${params.building_id}:${params.floor_id} not found`)
     // v1.8: 响应调用方取消（Mock 也尊重 signal，便于测试 race）
     if (opts?.signal?.aborted) throw new ApiError(0, 'aborted')
     return detail

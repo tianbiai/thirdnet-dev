@@ -1,19 +1,29 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://thirdnet/skills/thirdnet-digital-twin/tokens.schema.json",
-  "title": "Theme Tokens v2.0",
-  "description": "结构契约：assets/themes/*.tokens.json 的形状校验。validate_spec.py 加载本文件对所选风格 token 做结构校验——缺关键块或类型错 → FAIL。允许 key 带下划线前缀的注释字段（_comment 等），不参与校验。v2.0 新增 realism 块（写实增强旋钮：material/bloom/ao/reflection/fog/sun）。",
+  "title": "Theme Tokens v2.1",
+  "description": "结构契约：assets/themes/*.tokens.json 的形状校验。validate_spec.py 加载本文件对所选风格 token 做结构校验——缺关键块或类型错 → FAIL。允许 key 带下划线前缀的注释字段（_comment 等），不参与校验。v2.0 新增 realism 块（写实增强旋钮：material/bloom/ao/reflection/fog/sun）。v2.1 新增 scene.sky（程序化天空开关）、environment.roadMarking/water/rooftop（标线/水景/楼顶设备色）、ui 块（2D 组件观感旋钮，assets/components/ 消费）。",
   "type": "object",
   "additionalProperties": true,
-  "required": ["scene", "palette", "category", "building", "lights", "environment", "realism"],
+  "required": ["scene", "palette", "category", "building", "lights", "environment", "realism", "ui"],
   "properties": {
     "scene": {
       "type": "object",
-      "description": "v1.9 顶→底纵向渐变 CanvasTexture 背景色（防黑屏）。",
-      "required": ["bgTop", "bgBottom"],
+      "description": "v1.9 顶→底纵向渐变 CanvasTexture 背景色（防黑屏）。v2.1 新增 sky 子块。",
+      "required": ["bgTop", "bgBottom", "sky"],
       "properties": {
         "bgTop": { "type": "string" },
-        "bgBottom": { "type": "string" }
+        "bgBottom": { "type": "string" },
+        "sky": {
+          "type": "object",
+          "description": "v2.1 程序化天空元素开关（画进背景纹理，零运行时成本，种子确定性）。",
+          "required": ["clouds", "stars", "moon"],
+          "properties": {
+            "clouds": { "type": "boolean" },
+            "stars": { "type": "boolean" },
+            "moon": { "type": "boolean" }
+          }
+        }
       }
     },
     "palette": {
@@ -164,7 +174,7 @@
     },
     "environment": {
       "type": "object",
-      "required": ["city-ground", "groundGlow", "road", "roadLine", "sidewalk", "grass", "treeTrunk", "treeCanopy", "wall", "lampGlow", "vehicle"],
+      "required": ["city-ground", "groundGlow", "road", "roadLine", "sidewalk", "grass", "treeTrunk", "treeCanopy", "wall", "lampGlow", "vehicle", "roadMarking", "water", "rooftop"],
       "properties": {
         "city-ground": { "type": "string" },
         "groundGlow": { "type": "boolean" },
@@ -176,7 +186,10 @@
         "treeCanopy": { "type": "string" },
         "wall": { "type": "string" },
         "lampGlow": { "type": "string" },
-        "vehicle": { "type": "string" }
+        "vehicle": { "type": "string" },
+        "roadMarking": { "type": "string", "description": "v2.1 内部道路中央虚线/斑马线/转向箭头色。" },
+        "water": { "type": "string", "description": "v2.1 水景水面色。" },
+        "rooftop": { "type": "string", "description": "v2.1 楼顶电梯机房/天线设备色。" }
       }
     },
     "garageEntrance": {
@@ -198,6 +211,22 @@
         }
       },
       "additionalProperties": { "type": "string" }
+    },
+    "ui": {
+      "type": "object",
+      "description": "v2.1 2D 组件观感旋钮（assets/components/ 消费，generate_theme.py 派生 --twin-ui-* CSS 变量）。赛博/全息发光强，白模/等距克制（glowStrength 0 → 组件退化为中性投影）。",
+      "required": ["panelOpacity", "panelBlur", "panelRadius", "glowStrength", "glowColor", "borderWidth", "labelBg", "labelText", "switcherStyle"],
+      "properties": {
+        "panelOpacity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "panelBlur": { "type": "number", "minimum": 0, "maximum": 30 },
+        "panelRadius": { "type": "number", "minimum": 0, "maximum": 24 },
+        "glowStrength": { "type": "number", "minimum": 0, "maximum": 1 },
+        "glowColor": { "type": "string" },
+        "borderWidth": { "type": "number", "minimum": 0, "maximum": 4 },
+        "labelBg": { "type": "string" },
+        "labelText": { "type": "string" },
+        "switcherStyle": { "type": "string", "enum": ["neon", "flat"] }
+      }
     },
     "fonts": {
       "type": "object",

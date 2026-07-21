@@ -18,6 +18,11 @@ is missing the anti-black-screen blocks (scene background, lights.ambientFloor,
 ground.texture), guarding incomplete themes from regressing to the "all black / no
 ground texture" failure mode. These blocks live in the theme files (source of truth).
 
+v2.1: layout geometry checks — building AABB out-of-bounds → FAIL; pairwise AABB
+overlap / gap < 20 → FAIL; POI clearly outside the park boundary (> +20 tolerance)
+→ FAIL (edge-hugging gates only WARN). Run scripts/layout_park.py to auto-relax a
+failing layout into a non-overlapping one.
+
 Usage:
   python validate_spec.py <spec.json>
   python validate_spec.py <spec.json> --quiet     # exit code only, no detail
@@ -91,15 +96,29 @@ def _validate_tokens_schema(style):
                 )
             return errs, warns
 
-    # 降级：无 jsonschema 时手动检查关键块（v1.9 防黑屏 + v2.0 realism）。
-    for blk in ("scene", "lights", "environment", "realism"):
+    # 降级：无 jsonschema 时手动检查关键块（v1.9 防黑屏 + v2.0 realism + v2.1 sky/environment/ui）。
+    for blk in ("scene", "lights", "environment", "realism", "ui"):
         if blk not in data:
-            errs.append(f"theme {style}: assets/themes/{style}.tokens.json 缺 v2.0 必需块 '{blk}'")
+            errs.append(f"theme {style}: assets/themes/{style}.tokens.json 缺必需块 '{blk}'")
+    sc = data.get("scene")
+    if isinstance(sc, dict) and not isinstance(sc.get("sky"), dict):
+        errs.append(f"theme {style}: scene.sky 缺失（v2.1 程序化天空开关 clouds/stars/moon）")
     r = data.get("realism")
     if isinstance(r, dict):
         for key in ("material", "bloom", "ao", "reflection", "fog", "sun"):
             if key not in r:
                 errs.append(f"theme {style}: realism.{key} 缺失（写实增强旋钮不完整）")
+    env = data.get("environment")
+    if isinstance(env, dict):
+        for key in ("roadMarking", "water", "rooftop"):
+            if key not in env:
+                errs.append(f"theme {style}: environment.{key} 缺失（v2.1 标线/水景/楼顶设备色）")
+    ui = data.get("ui")
+    if isinstance(ui, dict):
+        for key in ("panelOpacity", "panelBlur", "panelRadius", "glowStrength",
+                    "glowColor", "borderWidth", "labelBg", "labelText", "switcherStyle"):
+            if key not in ui:
+                errs.append(f"theme {style}: ui.{key} 缺失（v2.1 2D 组件观感旋钮不完整）")
     return errs, warns
 
 
@@ -232,6 +251,42 @@ def validate(spec):
     if len(garages) > 1:
         errors.append(f"buildings: {len(garages)} garage-category buildings; expected at most 1")
 
+    # v2.1: 布局几何校验 —— 出界 FAIL + AABB 重叠/间距不足 FAIL。
+    # AI 摆坐标最常见的翻车就是楼栋穿出园区围墙或两栋穿模；这里在生成前直接 fail fast。
+    # 规则：每栋楼（含车库入口标记）的 AABB 必须完整落在 boundary 内（默认 {x:360, z:220}）；
+    # 任意两栋 AABB 之间净间距 ≥ MIN_BUILDING_GAP（道路/人行道最小宽度）。
+    MIN_BUILDING_GAP = 20
+    _bnd = spec.get("boundary")
+    bnd_x = _bnd.get("x") if isinstance(_bnd, dict) and is_number(_bnd.get("x")) and _bnd["x"] > 0 else 360
+    bnd_z = _bnd.get("z") if isinstance(_bnd, dict) and is_number(_bnd.get("z")) and _bnd["z"] > 0 else 220
+    boxes = []  # (index, id, x, z, hw, hd) — hw/hd 为半宽/半深
+    for i, b in enumerate(buildings):
+        if not isinstance(b, dict):
+            continue
+        w, d, x, z = b.get("w"), b.get("d"), b.get("x"), b.get("z")
+        if not all(is_number(v) for v in (w, d, x, z)):
+            continue  # 缺数/非数值已在上面逐字段报过
+        hw, hd = w / 2, d / 2
+        label = b.get("id") or f"#{i}"
+        if abs(x) + hw > bnd_x or abs(z) + hd > bnd_z:
+            errors.append(
+                f"buildings[{i}] ({label}): AABB 出界 — |x|+w/2={abs(x)+hw:.0f} vs boundary.x={bnd_x:.0f}, "
+                f"|z|+d/2={abs(z)+hd:.0f} vs boundary.z={bnd_z:.0f}（楼栋须完整落在园区围墙内）"
+            )
+        boxes.append((i, label, x, z, hw, hd))
+    for a in range(len(boxes)):
+        for c in range(a + 1, len(boxes)):
+            i, la, xa, za, hwa, hda = boxes[a]
+            j, lb, xb, zb, hwb, hdb = boxes[c]
+            gap_x = abs(xa - xb) - (hwa + hwb)
+            gap_z = abs(za - zb) - (hda + hdb)
+            if gap_x < MIN_BUILDING_GAP and gap_z < MIN_BUILDING_GAP:
+                errors.append(
+                    f"buildings[{i}] ({la}) 与 buildings[{j}] ({lb}): AABB 间距不足/重叠 — "
+                    f"净间距 x={gap_x:.0f}, z={gap_z:.0f}（要求两方向至少其一 ≥ {MIN_BUILDING_GAP}；"
+                    f"可运行 scripts/layout_park.py 自动重排）"
+                )
+
     # v1.3: top-level `garage` (capacity/empty/occupied) is deprecated — the garage
     # is now just a category:'garage' building rendered as an entrance marker.
     # Warn (don't fail) so old specs still pass; the generator ignores these numbers.
@@ -279,6 +334,17 @@ def validate(spec):
             for key in ("x", "z"):
                 if is_number(p.get(key)) and abs(p[key]) > DEFAULT_BOUND:
                     warnings.append(f"{pctx}.{key}: {p[key]} outside ±{DEFAULT_BOUND} (check park boundary)")
+            # v2.1: POI 相对园区边界的定位校验 —— 明显越界（> boundary+20 容差）FAIL；
+            # 贴边（越界 ≤20）仅 WARN（大门/闸机类 POI 贴在围墙边缘属正常）。
+            for key, bv in (("x", bnd_x), ("z", bnd_z)):
+                if is_number(p.get(key)) and abs(p[key]) > bv + 20:
+                    errors.append(
+                        f"{pctx}.{key}: {p[key]} 超出园区边界 {bv:.0f}+20 容差（POI 须落在园区内或贴边）"
+                    )
+                elif is_number(p.get(key)) and abs(p[key]) > bv:
+                    warnings.append(
+                        f"{pctx}.{key}: {p[key]} 略出园区边界 {bv:.0f}（门口/闸机贴边属正常，确认后忽略）"
+                    )
             bid = p.get("buildingId")
             if bid is not None and bid not in building_ids:
                 errors.append(
@@ -322,7 +388,7 @@ def validate(spec):
             cat_colors = (style_tokens or {}).get("category", {}) if isinstance(style_tokens, dict) else {}
             for i, e in enumerate(legend):
                 if not isinstance(e, dict):
-                    errors.append(f"legend[{i}]: must be an object {label, category, color}")
+                    errors.append(f"legend[{i}]: must be an object {{label, category, color}}")
                     continue
                 lcat = e.get("category")
                 if lcat is not None and lcat not in VALID_CATEGORIES:
@@ -419,6 +485,36 @@ def validate(spec):
                             errors.append(f"environment.{block}.{key}: must be a boolean")
     else:
         errors.append("environment: must be an object or omitted")
+
+    # v2.2: cameraTour（航拍巡航 auto-orbit）—— 可选，缺省即智能默认（不 WARN）。
+    # 存在时校验类型与范围：speed>0、framingK∈(0,1)、elevation∈[0,π/2]、布尔字段为布尔。
+    ct = spec.get("cameraTour")
+    if ct is not None:
+        if not isinstance(ct, dict):
+            errors.append("cameraTour: must be an object or omitted")
+        else:
+            known_ct = {"enabled", "speed", "elevation", "framingK", "pauseOnInteract"}
+            unknown_ct = [k for k in ct.keys() if k not in known_ct]
+            if unknown_ct:
+                errors.append(
+                    f"cameraTour: unknown key(s) {sorted(unknown_ct)} "
+                    f"(allowed: {sorted(known_ct)})"
+                )
+            if "enabled" in ct and ct["enabled"] is not None and not isinstance(ct["enabled"], bool):
+                errors.append("cameraTour.enabled: must be a boolean")
+            if "pauseOnInteract" in ct and ct["pauseOnInteract"] is not None and not isinstance(ct["pauseOnInteract"], bool):
+                errors.append("cameraTour.pauseOnInteract: must be a boolean")
+            if "speed" in ct and ct["speed"] is not None:
+                if not is_number(ct["speed"]) or ct["speed"] <= 0:
+                    errors.append("cameraTour.speed: must be a positive number (OrbitControls autoRotateSpeed)")
+            if "framingK" in ct and ct["framingK"] is not None:
+                if not is_number(ct["framingK"]) or not (0 < ct["framingK"] < 1):
+                    errors.append("cameraTour.framingK: must be a number in (0, 1) (内容占画面比例)")
+            if "elevation" in ct and ct["elevation"] is not None:
+                if not is_number(ct["elevation"]) or not (0 <= ct["elevation"] <= math.pi / 2):
+                    errors.append(
+                        f"cameraTour.elevation: must be a number in [0, {math.pi / 2:.4f}] (rad, above-horizon)"
+                    )
 
     return errors, warnings
 

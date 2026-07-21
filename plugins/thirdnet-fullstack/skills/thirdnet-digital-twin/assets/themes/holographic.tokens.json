@@ -1,9 +1,10 @@
 {
   "_comment": "Holographic (全息 / 未来科技) theme — near-black space ground, translucent cyan-glass buildings with bright emissive edges (Fresnel-rim feel), bloom. The premium 'clean future-tech' look that minimal failed to deliver. No shader grid — the floor is a dark plane + emissive cyan contour lines + radial glow. Same key names as the cyber theme so the generator derives colors the same way; only the values change. To retheme, edit values here only.",
   "scene": {
-    "_comment": "v1.9 显式场景背景（顶→底纵向渐变 CanvasTexture，§2）。深空底，地平线上方略亮，全息投影台感而非死黑。",
+    "_comment": "v1.9 显式场景背景（顶→底纵向渐变 CanvasTexture，§2）。深空底，地平线上方略亮，全息投影台感而非死黑。v2.1 新增 sky 子块：程序化天空元素开关。holographic 开稀疏星点（深空感），不开云/月（保持投影台纯净）。",
     "bgTop": "#0a1228",
-    "bgBottom": "#050816"
+    "bgBottom": "#050816",
+    "sky": { "clouds": false, "stars": true, "moon": false }
   },
   "palette": {
     "void-bg": "#050816",
@@ -70,7 +71,7 @@
   },
   "ground": {
     "_comment": "v1.9 园区地面纹理（§3 makeGroundTexture）。全息：近黑底 + 自发光青色点阵 CanvasTexture 叠在 MeshBasicMaterial 上（或作 emissiveMap），与既有 Line2 园区轮廓 + 径向辉光共同构成「全息投影台」地面，消灭死黑地板。",
-    "texture": { "type": "dots", "base": "#050816", "line": "#3ad4ff", "cell": 40 }
+    "texture": { "type": "dots", "base": "#1a2a44", "line": "#3ad4ff", "cell": 40 }
   },
   "shaders": {
     "_comment": "Not used by the holographic style — translucent bodies + emissive edges + bloom carry the look. Generator skips grid.glsl; floor = dark MeshBasicMaterial + emissive cyan Line2 contour.",
@@ -78,17 +79,21 @@
   },
   "environment": {
     "_comment": "v1.2 园区环境配色（§10）。全息气质：极暗深空底 + 自发光青色标线/勾边 + 深蓝绿抽象绿植；bloom 让亮部溢出。v1.8 groundGlow 默认 true（青色勾边是全息感的一部分）。",
-    "city-ground": "#030610",
+    "city-ground": "#1a2a44",
     "groundGlow": true,
-    "road": "#050a1c",
+    "road": "#1a3048",
     "roadLine": "#3ad4ff",
-    "sidewalk": "#0a1428",
-    "grass": "#0a2a36",
+    "sidewalk": "#243a58",
+    "grass": "#1a4458",
     "treeTrunk": "#0a1020",
-    "treeCanopy": "#0e2e3a",
+    "treeCanopy": "#1a4458",
     "wall": "#081224",
     "lampGlow": "#3ad4ff",
-    "vehicle": "#1a8ab8"
+    "vehicle": "#1a8ab8",
+    "roadMarking": "#3ad4ff",
+    "water": "#0e3a5a",
+    "rooftop": "#1a8ab8",
+    "_v21_comment": "v2.1 新增：roadMarking=内部道路中央虚线/斑马线/箭头色（自发光青）；water=水景水面色；rooftop=楼顶电梯机房/天线设备色（半透青）。"
   },
   "garageEntrance": {
     "_comment": "v1.4 地下车库入口标记（§5）。半金字塔三角门用半透体 + 自发光描边，P 牌自发光（深底亮字）。",
@@ -99,7 +104,7 @@
   },
   "surfaceParking": {
     "_comment": "v1.4 地面车位（§10）。长方形车位，深色铺装 + 自发光青描边，深底亮字 P（自发光），深色车身。旧 frame/sign 已废弃保留兼容。",
-    "stallFill": "#050a1c",
+    "stallFill": "#1a3048",
     "stallLine": "#3ad4ff",
     "pMarkBg": "#050816",
     "pMark": "#7fe9ff",
@@ -133,6 +138,18 @@
     "reflection": { "enabled": false, "opacity": 0.5, "mixStrength": 0.5 },
     "fog": null,
     "sun": { "azimuth": 135, "elevation": 50 }
+  },
+  "ui": {
+    "_comment": "v2.1 2D 组件观感旋钮（assets/components/ 消费，generate_theme.py 派生 --twin-ui-* CSS 变量）。holographic：高透明面板（透出投影台）+ 强模糊 + 青色发光，未来科技感。",
+    "panelOpacity": 0.75,
+    "panelBlur": 10,
+    "panelRadius": 6,
+    "glowStrength": 0.5,
+    "glowColor": "#3ad4ff",
+    "borderWidth": 1,
+    "labelBg": "#050816",
+    "labelText": "#7fe9ff",
+    "switcherStyle": "neon"
   },
   "fonts": {
     "zh": "Noto Sans SC",

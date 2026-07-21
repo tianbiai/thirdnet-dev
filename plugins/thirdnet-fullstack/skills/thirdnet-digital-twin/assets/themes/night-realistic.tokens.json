@@ -1,9 +1,10 @@
 {
   "_comment": "Night-realistic (夜间写实) theme — PBR under a deep-blue night sky. Buildings lit by warm emissive windows, amber street lamps, subtle ground reflection. Same key names as the cyber theme; only values change. To retheme, edit values here only.",
   "scene": {
-    "_comment": "v1.9 显式场景背景（顶→底纵向渐变 CanvasTexture，§2）。深蓝夜空→近黑地平线，给夜景一点空气层次而非整屏死黑。",
+    "_comment": "v1.9 显式场景背景（顶→底纵向渐变 CanvasTexture，§2）。深蓝夜空→近黑地平线，给夜景一点空气层次而非整屏死黑。v2.1 新增 sky 子块：程序化天空元素开关。night-realistic 开星空（120–180 颗、1–2px，种子确定性）+ 月亮（右上象限径向渐变光晕）——夜景天空的灵魂；不开云。",
     "bgTop": "#0e1a38",
-    "bgBottom": "#060c1e"
+    "bgBottom": "#060c1e",
+    "sky": { "clouds": false, "stars": true, "moon": true }
   },
   "palette": {
     "void-bg": "#0a1430",
@@ -70,7 +71,7 @@
   },
   "ground": {
     "_comment": "v1.9 园区地面纹理（§3 makeGroundTexture）。夜景：湿润沥青深色 tile 程序化纹理叠在 MeshStandardMaterial 上，地面不再是死黑色片，配合预烘焙反射读出沥青质感。",
-    "texture": { "type": "tiles", "base": "#0e1426", "line": "#1a2240", "cell": 64 }
+    "texture": { "type": "tiles", "base": "#3a4660", "line": "#506080", "cell": 64 }
   },
   "shaders": {
     "_comment": "Not used by the night-realistic style. Window glow is via emissive maps on the building facades. Generator skips grid.glsl when spec.style != 'cyber'.",
@@ -78,17 +79,21 @@
   },
   "environment": {
     "_comment": "v1.2 园区环境配色（§10）。夜景气质：湿润沥青深色反光 + 暖琥珀路灯 glow（hero PointLight，受 §lights 上限约束）+ 深绿树冠。bloom 会让所有亮部在夜里溢出。v1.8 groundGlow 默认 false（夜景地面靠反射，不用发光标线）。",
-    "city-ground": "#070d20",
+    "city-ground": "#3a4660",
     "groundGlow": false,
-    "road": "#0e1426",
+    "road": "#2a3040",
     "roadLine": "#ffb24a",
-    "sidewalk": "#1a2240",
-    "grass": "#1c3a2a",
+    "sidewalk": "#4a566e",
+    "grass": "#3a6a4a",
     "treeTrunk": "#1a1208",
-    "treeCanopy": "#1f4a36",
+    "treeCanopy": "#3a6a4a",
     "wall": "#162038",
     "lampGlow": "#ffb24a",
-    "vehicle": "#1f2a44"
+    "vehicle": "#3a4660",
+    "roadMarking": "#c8d0e0",
+    "water": "#0e2a50",
+    "rooftop": "#2a3550",
+    "_v21_comment": "v2.1 新增：roadMarking=内部道路中央虚线/斑马线/箭头色（夜间反光漆淡色）；water=水景水面色（深夜蓝，配合反射）；rooftop=楼顶电梯机房/天线设备色。"
   },
   "garageEntrance": {
     "_comment": "v1.4 地下车库入口标记（§5）。PBR + 自发光描边，P 牌自发光。signBg/signFg 高对比（深底亮字，夜间可见）。",
@@ -99,7 +104,7 @@
   },
   "surfaceParking": {
     "_comment": "v1.4 地面车位（§10）。长方形车位，深色湿润沥青 + 自发光暖描边，深底亮字 P（自发光），深色车身。旧 frame/sign 已废弃保留兼容。",
-    "stallFill": "#0e1426",
+    "stallFill": "#2a3040",
     "stallLine": "#ffb24a",
     "pMarkBg": "#060c1e",
     "pMark": "#ffb24a",
@@ -133,6 +138,18 @@
     "reflection": { "enabled": true, "opacity": 0.45, "mixStrength": 0.6 },
     "fog": { "color": "#060c1e", "near": 1400, "far": 5500 },
     "sun": { "azimuth": 150, "elevation": 60 }
+  },
+  "ui": {
+    "_comment": "v2.1 2D 组件观感旋钮（assets/components/ 消费，generate_theme.py 派生 --twin-ui-* CSS 变量）。night-realistic：深夜蓝半透明面板 + 暖琥珀弱发光（与路灯同色），克制不喧哗。",
+    "panelOpacity": 0.88,
+    "panelBlur": 8,
+    "panelRadius": 8,
+    "glowStrength": 0.25,
+    "glowColor": "#ffb24a",
+    "borderWidth": 1,
+    "labelBg": "#060c1e",
+    "labelText": "#ffd08a",
+    "switcherStyle": "flat"
   },
   "fonts": {
     "zh": "Noto Sans SC",

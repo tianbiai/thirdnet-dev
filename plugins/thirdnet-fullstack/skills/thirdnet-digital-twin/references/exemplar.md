@@ -4,17 +4,19 @@
 
 > 范例是**参考**，不是约束。本技能产出**符合所选风格规范的**版本（赛博下接入着色器；类别颜色、图例、车库作为一栋楼、点击选中/详情在所有风格下都成立）。范例偏离的地方就修——不要复制偏差。
 
-## 原样拷贝的内容
+> **v2.1 起：2D 组件层与样式派生已内化进技能包**——`useSelection.ts`/`useScaleBoard.ts`/`UnitDetail.vue`/`BuildingSwitcher.vue`/`LegendPanel.vue`/`PoiOverlay.vue`/`GlobalTwin.vue`/`CenterStage.vue`/`useTwinData.ts`/`theme.ts` 的范式文件在 `assets/components/`（拷贝即用），`_tokens.scss`/CSS 变量由 `scripts/generate_theme.py` 生成，静态脚手架与 Mock 数据由 `scripts/generate_data.py` 生成。下表「原样拷贝」仅在你手头确有该范例项目、做存量扩展时适用；新生成一律以 `assets/components/` + 脚本为准（与 v2.0 对 `DigitalTwin.ts` 的处理同款——范例降为历史模式参考）。
+
+## 原样拷贝的内容（仅存量范例项目扩展时）
 
 | 文件 | 为什么好 |
 |---|---|
-| `src/composables/useSelection.ts` | 干净的模块级选中单例（focused/floor/unit + 悬停 + `eff*`）。原样使用。 |
-| `src/data/parkModel.ts` | `BuildingModel`/`FloorSpec`/`Unit` 形状 + 用于合成租户的 `inferCategory`/`CAT` 8 行业模板映射。泛化数据，保留模式。 |
-| `src/data/unit.ts` | `UnitDetail` 形状（负责人/联系电话/在编人员/办公面积/单位性质/服务时间/业务范围/职责）。 |
-| `src/styles/_tokens.scss`、`_glow.scss` | 忠实的赛博 token + 发光 mixin。**统一**以 `assets/themes/<style>.tokens.json` 为来源（赛博风格即范例的 token）。 |
-| `src/utils/theme.ts` | `valueColor` 映射 + `hexOf`/`glowHex` 用于内联图表样式。 |
-| `src/composables/useScaleBoard.ts`、`useClock.ts` | 缩放适配 + 实时时钟。原样使用。 |
-| `src/components/center/UnitDetail.vue` 及中央小组件 | 忠实的 1:1 赛博复刻，是中央 CenterStage 的一部分——镜像它。**注意**：范例里的外围 2D 组件（TopBar、PersonAccess、VehicleAccess、CameraGrid、MeetingRooms、RepairTimeline、CornerBrackets）本技能**不再生成**——外围留空（见 `references/shell.md`）。 |
+| `src/composables/useSelection.ts` | 干净的模块级选中单例（focused/floor/unit + 悬停 + `eff*`）。原样使用。**v2.1：新项目用 `assets/components/useSelection.ts`（含 `openPoiId` 单开契约）。** |
+| `src/data/parkModel.ts` | `BuildingModel`/`FloorSpec`/`Unit` 形状 + 用于合成租户的 `inferCategory`/`CAT` 8 行业模板映射。泛化数据，保留模式。**v2.1：租户名池已内化进 `scripts/generate_data.py`（8 行业公司名/负责人/电话，种子确定性）。** |
+| `src/data/unit.ts` | `UnitDetail` 形状（负责人/联系电话/在编人员/办公面积/单位性质/服务时间/业务范围/职责）。**v2.1：完整字段已收进 `references/dynamic-data-api.md` §4 的 `UnitDetail`（snake_case）。** |
+| `src/styles/_tokens.scss`、`_glow.scss` | 忠实的赛博 token + 发光 mixin。**统一**以 `assets/themes/<style>.tokens.json` 为来源（赛博风格即范例的 token）。**v2.1：改跑 `scripts/generate_theme.py` 生成 `tokens.css`。** |
+| `src/utils/theme.ts` | `valueColor` 映射 + `hexOf`/`glowHex` 用于内联图表样式。**v2.1：新项目用 `assets/components/theme.ts`（`applyTheme` + `applyCssVars` + `hexOf`）。** |
+| `src/composables/useScaleBoard.ts`、`useClock.ts` | 缩放适配 + 实时时钟。**v2.1：`useScaleBoard` 用 `assets/components/` 版本。** |
+| `src/components/center/UnitDetail.vue` 及中央小组件 | 忠实的 1:1 赛博复刻，是中央 CenterStage 的一部分——镜像它。**注意**：范例里的外围 2D 组件（TopBar、PersonAccess、VehicleAccess、CameraGrid、MeetingRooms、RepairTimeline、CornerBrackets）本技能**不再生成**——外围留空（见 `references/shell.md`）。**v2.1：中央组件用 `assets/components/` 版本。** |
 
 ## 作为模式拷贝（然后改造）
 

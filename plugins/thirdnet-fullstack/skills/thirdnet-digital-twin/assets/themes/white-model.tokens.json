@@ -1,9 +1,10 @@
 {
   "_comment": "White-model (白模 / 建筑模型) theme — light gray gradient ground, all-white matte buildings with soft ambient occlusion / contact shadow, museum/scale-model feel. The 'clean' look done right: clean BUT volumetric (unlike the flat minimal style). Buildings are pure-white bodies; the category color (building blue / garage green) is carried by the ROOF outline / edges so the Legend and category system still hold. No shader grid — flat neutral paving. Same key names as the cyber theme; only the values change. To retheme, edit values here only.",
   "scene": {
-    "_comment": "v1.9 显式场景背景（顶→底纵向渐变 CanvasTexture，§2）。浅灰中性幕布，沙盘/博物馆汇报感。",
+    "_comment": "v1.9 显式场景背景（顶→底纵向渐变 CanvasTexture，§2）。浅灰中性幕布，沙盘/博物馆汇报感。v2.1 新增 sky 子块：程序化天空元素开关。white-model 全关——影棚幕布保持纯净中性。",
     "bgTop": "#f4f6f9",
-    "bgBottom": "#dde1e8"
+    "bgBottom": "#dde1e8",
+    "sky": { "clouds": false, "stars": false, "moon": false }
   },
   "palette": {
     "void-bg": "#e8ebf0",
@@ -89,7 +90,11 @@
     "treeCanopy": "#c3cdc6",
     "wall": "#c8ced8",
     "lampGlow": "#e8ecf2",
-    "vehicle": "#aab0ba"
+    "vehicle": "#aab0ba",
+    "roadMarking": "#ffffff",
+    "water": "#d0dce8",
+    "rooftop": "#f4f6f9",
+    "_v21_comment": "v2.1 新增：roadMarking=内部道路中央虚线/斑马线/箭头色（白漆）；water=水景水面色（浅灰蓝）；rooftop=楼顶电梯机房/天线设备色（白模白）。"
   },
   "garageEntrance": {
     "_comment": "v1.4 地下车库入口标记（§5）。半金字塔三角门白色 + 绿色描边，P 牌高对比（白底深字）。",
@@ -134,6 +139,18 @@
     "reflection": { "enabled": false, "opacity": 0.5, "mixStrength": 0.5 },
     "fog": null,
     "sun": { "azimuth": 135, "elevation": 50 }
+  },
+  "ui": {
+    "_comment": "v2.1 2D 组件观感旋钮（assets/components/ 消费，generate_theme.py 派生 --twin-ui-* CSS 变量）。white-model：近白面板 + 大圆角 + 零发光（glowStrength 0 → 组件退化为柔和中性投影），博物馆级克制。",
+    "panelOpacity": 0.95,
+    "panelBlur": 4,
+    "panelRadius": 10,
+    "glowStrength": 0.0,
+    "glowColor": "#5b8def",
+    "borderWidth": 1,
+    "labelBg": "#1a2330",
+    "labelText": "#f4f6f9",
+    "switcherStyle": "flat"
   },
   "fonts": {
     "zh": "Noto Sans SC",

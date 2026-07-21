@@ -86,7 +86,8 @@
     "pois": {
       "type": "array",
       "items": { "$ref": "#/$defs/poi" }
-    }
+    },
+    "cameraTour": { "$ref": "#/$defs/cameraTour" }
   },
   "$defs": {
     "category": { "type": "string", "enum": ["building", "garage"] },
@@ -189,6 +190,18 @@
             "vehicles": { "type": "boolean" }
           }
         }
+      }
+    },
+    "cameraTour": {
+      "type": "object",
+      "description": "v2.2 航拍巡航（auto-orbit 展示）配置；全可选，缺省即智能默认（详见 references/park-spec.md「相机巡航」与 scene-recipe.md §13）。",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "description": "首屏自动开启巡航（默认 false——用户点 TourToggleButton 触发）" },
+        "speed": { "type": "number", "exclusiveMinimum": 0, "description": "OrbitControls autoRotateSpeed（度/帧），默认 0.6 缓慢" },
+        "elevation": { "type": "number", "minimum": 0, "maximum": 1.5708, "description": "巡航相机俯角（弧度，above-horizon；默认 1.0≈57° 鸟瞰；运行时钳到 OrbitControls polar[0.5,1.3] 内）" },
+        "framingK": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1, "description": "巡航取景内容占比（默认 0.55 俯瞰全城；默认取景 K=0.66）" },
+        "pauseOnInteract": { "type": "boolean", "description": "用户拖拽自动退出巡航、把控制权还给用户（默认 true）" }
       }
     }
   }

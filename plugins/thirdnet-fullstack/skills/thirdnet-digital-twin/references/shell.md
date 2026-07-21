@@ -2,7 +2,7 @@
 
 数字孪生是中央面板。本技能**只**生成「固定舞台 + 楼栋切换器 + 中央 CenterStage（含 3D canvas 与聚焦时的 UnitDetail）」；**不再**生成 TopBar、CornerBrackets，也**不**生成任何外围 2D 数据面板（人员出入 / 车辆出入 / 摄像头 / 会议室 / 报修）。舞台左右两侧与底部**留空**，由调用方自行填充其它的业务面板。
 
-范例仓库（`references/exemplar.md`）实现了完整外壳——为已存在项目生成时**复用**其中的舞台/切换器/CenterStage/useSelection；为新项目生成时按相同结构**重建**，但**跳过**外围面板组件。
+> **v2.1 起：2D 层全部从 `assets/components/` 拷贝范式文件**（10 个，清单见 SKILL.md 步骤 6）。v1.x/v2.0 的「从范例拷贝 / 按散文重建」路径已废弃——实测每个组件的 CSS 都会漂移。拷贝后只对齐 import 路径，不改 CSS/逻辑；7 种风格的观感差异由 token `ui` 块驱动（组件 CSS 全走 `var(--twin-*)`）。
 
 ## 舞台布局
 
@@ -19,16 +19,21 @@
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-一切都在 1920×1080 的 `.stage` 内绝对定位。颜色由 token 驱动（按 `spec.style` 选取 `assets/themes/<style>.tokens.json`）。字体：**Noto Sans SC**（中文）+ **Rajdhani**（拉丁/数字）—— 在 `index.html` 里从 Google Fonts 加载两者。
+一切都在 1920×1080 的 `.stage` 内绝对定位。颜色由 token 驱动（`generate_theme.py` 生成的 `--twin-*` CSS 变量，来源 `assets/themes/<style>.tokens.json`）。字体：**Noto Sans SC**（中文）+ **Rajdhani**（拉丁/数字）—— 在 `index.html` 里从 Google Fonts 加载两者。
 
-## 需要镜像的组件
+## 需要镜像的组件（v2.1：拷贝，非重建）
 
-| 组件 | 角色 | 数据形状 |
+| 组件（`assets/components/`） | 角色 | 数据形状 |
 |---|---|---|
-| `BuildingSwitcher.vue` | 标签页：全局视角 + 每栋楼一个（+ 地下车库） | 骨架读 `spec.switcher`（静态）；**标签 `name`（v1.5）由 `getBuildings()` 水合**；写 `useSelection.focusBuilding/clearFocus` |
-| `CenterStage.vue` | 常驻 `<canvas>` + 聚焦时的 `UnitDetail` 叠加 | — |
+| `BuildingSwitcher.vue` | 标签页：全局视角 + 每栋楼一个（+ 地下车库） | 骨架读静态脚手架 `parkScaffold.buildings`（楼栋 id）；**标签 `name`/`header`（v1.5）由 `getBuildings()` 水合**；写 `useSelection.focusBuilding/clearFocus` |
+| `CenterStage.vue` | 常驻 `<canvas>` + 聚焦时的 `UnitDetail` 叠加 + Legend 定位 | — |
 | `GlobalTwin.vue` | 挂载 canvas，实例化场景，接入选中 | **v1.5：`onMounted` 拉 `getBuildings()`+`getPois()` 水合场景；点击楼层拉 `getFloorDetail()`**（见 `scene-recipe.md` §12） |
 | `UnitDetail.vue` | 右半详情面板（负责人/电话/在编/面积/性质/服务时间/业务范围/职责）+ 多单位上一/下一 | **v1.5：数据源 = `getFloorDetail()` 返回的 `FloorDetail`（`units: UnitDetail[]`）**，不再直接读静态 `unit.ts` |
+| `LegendPanel.vue` | 屏幕图例（常驻左上） | 静态 `parkScaffold.legend`（色值与 token `category` 一致，validate_spec 复核） |
+| `PoiOverlay.vue` | POI 悬停名称条 + 点击卡片 | `useTwinData.pois` + `useSelection.openPoiId`（单开契约）；只投影当前打开的一个 |
+| `TourToggleButton.vue` | v2.2 航拍巡航开关（右上角 `role="switch"`） | `useTour.enabled`（模块级单例）；`GlobalTwin` `watch(enabled → scene.setTourEnabled)` 推回场景 |
+| `useSelection.ts` / `useScaleBoard.ts` / `useTwinData.ts` / `useTour.ts` | 选中态 / 舞台缩放 / 动态数据中心 / 航拍巡航开关（模块级单例） | 见下文「选中 composable」与 scene-recipe §13 |
+| `theme.ts` | `applyTheme(style)`（ParkScene 消费）+ `applyCssVars`（spec.tokens 覆盖注入） | 静态 import `src/scene/themes/*.tokens.json`（tsconfig 需 `resolveJsonModule`） |
 
 > 不再生成：`TopBar.vue`、`CornerBrackets.vue`、`PersonAccess.vue`、`VehicleAccess.vue`、`CameraGrid.vue`、`MeetingRooms.vue`、`RepairTimeline.vue` 及其小组件（`MiniChart`/`StatBox`/`AutoScroll` 等）。如果调用方的外围面板需要它们，由调用方自行实现。
 
@@ -36,25 +41,31 @@
 
 外围留空归外围，但**中央舞台自身**（`GlobalTwin` + `UnitDetail`）现在消费动态数据。接线要点（完整契约见 `references/dynamic-data-api.md`，场景侧见 `references/scene-recipe.md` §12）：
 
-- `GlobalTwin.vue` `onMounted`：`Promise.all([digitalTwinApi.getBuildings(), digitalTwinApi.getPois()])` → `scene.hydrateBuildings()` + `scene.hydratePois()`。带 `hydrating` / 错误态兜底。
-- `BuildingSwitcher.vue`：标签页骨架来自静态 `spec.switcher`；每栋楼的显示名用 `getBuildings()` 返回的 `name`（按 `building_id` 对齐）水合——水合前可显示占位（如楼栋 id 或「加载中」）。
-- `UnitDetail.vue`：由 `useSelection` 持有的「当前楼层详情」驱动；`useSelection` 在 `GlobalTwin` 的楼层点击 watch 里调 `getFloorDetail({building_id, floor_id})` 写入。多单位上一/下一在 `FloorDetail.units[]` 内切换。
+- `GlobalTwin.vue` `onMounted`：`Promise.allSettled([digitalTwinApi.getBuildings(), digitalTwinApi.getPois()])` → `scene.hydrateBuildings()` + `scene.hydratePois()`。带 `hydrating` / 错误态兜底。
+- `BuildingSwitcher.vue`：标签页骨架来自静态脚手架（楼栋 id）；每栋楼的显示名用 `getBuildings()` 返回的 `name`（按 `building_id` 对齐）水合——水合前显示「加载中…」占位。
+- `UnitDetail.vue`：由 `useTwinData.floorDetail` 驱动；`GlobalTwin` 的楼层点击 watch 里调 `getFloorDetail({building_id, floor_id}, {signal})` 写入（`onCleanup + AbortController` 防 race）。多单位上一/下一在 `FloorDetail.units[]` 内切换（`useSelection.unitIndex`）。
 - **环境/取景/类别色等基础信息仍静态**，不参与水合——切楼/聚焦/滚轮等交互在水合前就可用（基于占地底板）。
 
 ## 选中 composable
 
-原样拷贝 `src/composables/useSelection.ts` —— 它是一个干净的模块级单例：`focusedBuildingId`、`floorIndex`、`unitIndex`、悬停状态，以及 `eff*` computed（hover ?? focused）。切换器和 3D 点击都通过它写入；当 `focusedBuildingId != null` 时 `CenterStage` 显示 `UnitDetail`。详细交互（射线拾取、聚焦补间、金色高亮、点击/悬停回调接线）见 `references/scene-recipe.md` §8（含 §8.1 契约 + §8.2 代码 + 反面模式）。
+`assets/components/useSelection.ts` 原样拷贝 —— 它是一个干净的模块级单例：`focusedBuildingId`、`floorIndex`、`unitIndex`、悬停状态、`openPoiId`（v1.8 POI 单开），以及 `eff*` computed（hover ?? focused）。切换器和 3D 点击都通过它写入；当 `focusedBuildingId != null` 时 `CenterStage` 显示 `UnitDetail`。详细交互（射线拾取、聚焦补间、金色高亮、点击/悬停回调接线）见 `references/scene-recipe.md` §8（含 §8.1 契约 + §8.2 代码 + 反面模式）。
 
 > **铁律**：楼层点击只调 `selectFloor`（楼 + 层一次性写入）；`focusBuilding` 仅「切换器标签页」用——**绝不在楼层点击里调用**，否则会清空 `floorIndex`，导致鼠标移开后金色高亮边框消失（详见 `scene-recipe.md` §8 末反面模式）。
 
 ## 样式
 
-颜色仍只来自 tokens（按 `spec.style` 选 `assets/themes/<style>.tokens.json`）→ `_tokens.scss` + `:root` CSS 变量 + `theme.ts`。**不要加第二套颜色系统，不要在各文件里散落 hex 字面量。** 由于不再生成面板，原面板表面渐变/描边/发光规则不再适用；切换器与详情面板的观感按所选风格（赛博/全息有发光，白模/等距插画等则克制）从同一套 token 派生。
+颜色只来自 token——v2.1 起派生也脚本化：
+
+```bash
+python scripts/generate_theme.py <style> --out <项目根>/src/styles/tokens.css   # :root 全量 --twin-* 变量
+```
+
+在 `main.ts` 顶部 `import './styles/tokens.css'`；per-park 的 `spec.tokens` 覆盖在 `GlobalTwin` onMounted 里 `applyCssVars(spec.tokens)`（`src/utils/theme.ts`，与脚本同一套展平规则）。**不要加第二套颜色系统，不要在各文件里散落 hex 字面量。** 切换器/详情面板/图例/POI 卡片的观感差异（赛博/全息有发光，白模/等距克制）由 token `ui` 块驱动：`panelOpacity/panelBlur/panelRadius/glowStrength/glowColor/borderWidth/labelBg/labelText/switcherStyle`——组件 CSS 全部 `var(--twin-*)`，改风格只换 token 不改组件。
 
 ## 验证
 
 - [ ] 舞台缩放到视口（改变窗口大小；1920×1080 信箱化，不重排）。
-- [ ] 切换器每个 `spec.switcher` 条目一个标签页，含 地下车库；点击聚焦正确的楼。**标签 `name`（v1.5）由 `getBuildings()` 水合**，水合前有占位。
+- [ ] 切换器每个楼栋一个标签页，含 地下车库；点击聚焦正确的楼。**标签 `name`（v1.5）由 `getBuildings()` 水合**，水合前有占位。
 - [ ] 点击 3D 楼层金色高亮并打开 UnitDetail（**v1.5：详情数据由 `getFloorDetail()` 返回**）；多单位时上一/下一可用。
 - [ ] 外围区域确为空（未生成 TopBar / 角括号 / 5 个数据面板）。
 - [ ] `npm run typecheck` 干净通过。
@@ -78,7 +89,7 @@
 - **POI 标记**：POI 详情走 HTML 弹出卡（§11），弹出时 `aria-live="polite"` 让屏幕阅读器播报；键盘可聚焦打开的 POI 卡片、Esc 关闭。
 - **UnitDetail 面板**：打开时把焦点移入面板（`focus()` 首个可聚焦元素），Esc 关闭并把焦点还给触发的楼层——让键盘用户能感知内容变化。
 - **对比度**：所有标签文字对背景对比度 ≥ WCAG AA（4.5:1 正文 / 3:1 大字）。§4.2 的「亮底深字 / 暗底亮字」规则已保证大方向；token 选色时用对比检查工具复核边界情况（如 cyber `text-lo` 在 `panel-top` 上）。
-- **`prefers-reduced-motion`**：用户系统开启「减少动态效果」时，**禁用**相机聚焦补间（瞬切而非 0.6s tween）、**禁用** POI 告警呼吸动画、bloom 强度减半。用 `window.matchMedia('(prefers-reduced-motion: reduce)').matches` 检测。
+- **`prefers-reduced-motion`**：用户系统开启「减少动态效果」时，**禁用**相机聚焦补间（瞬切而非 0.6s tween）、**禁用** POI 告警呼吸动画、bloom 强度减半。**v2.2：航拍巡航整按钮禁用**（`TourToggleButton` 置 `aria-disabled` + `disabled`，`setTourEnabled(true)` 为 no-op——autoRotate 是连续运动，与 tween/呼吸动画同纪律）。用 `window.matchMedia('(prefers-reduced-motion: reduce)').matches` 检测。
 
 ## 空 / 加载 / 错误态（v1.8）
 

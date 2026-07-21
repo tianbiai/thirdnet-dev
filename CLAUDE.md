@@ -7,9 +7,9 @@
 ```
 thirdnet-dev/
 ├── plugins/
-│   └── thirdnet-fullstack/        # 全栈开发插件（自包含）(v2.10.0)：后端 .NET 微服务 + 前端 Vue 3 + 数字孪生 + 全栈协调 + 全栈审查 + 项目文档生成 + 模板升级 + Markdown 转 Word（全部技能内聚于此）
+│   └── thirdnet-fullstack/        # 全栈开发插件（自包含）(v2.11.0)：后端 .NET 微服务 + 前端 Vue 3 + 数字孪生 + 全栈协调 + 全栈审查 + 项目文档生成 + 模板升级 + Markdown 转 Word（全部技能内聚于此）
 └── .claude-plugin/
-    └── marketplace.json      # 插件集合注册清单 (v0.49.0)
+    └── marketplace.json      # 插件集合注册清单 (v0.51.0)
 ```
 
 ## 核心约定
@@ -30,7 +30,7 @@ thirdnet-dev/
 
 - **后端（8 个）**：微服务生成、API 开发、EF Core（含批量操作）、认证授权、缓存、后台任务、枚举字典、后端工作流
 - **前端（11 个）**：Vue 3 最佳实践、设计规范、API TypeScript 规范、Admin 模板安装、前端工作流、Pinia、Router、JSX、Composable 设计、Apple 设计规范、枚举字典规范（vue-enum-dict）
-- **数字孪生（1 个）**：`thirdnet-digital-twin`（v2.0）——园区数字孪生 3D 模块生成（Vue 3 + Three.js，1920×1080 舞台 + 楼栋切换器 + POI 打点，7 种视觉风格（cyber/realistic/night-realistic/blueprint/holographic/white-model/isometric））；v1.5 起数据分层：基础信息静态内联，动态数据（楼幢名/楼层数/楼层详情/POI 点位）走 `IDigitalTwinApi` 契约层（Mock/Real 工厂，`VITE_MOCK_ENABLED` 切换）；v1.8 补齐 poi.status/groundGlow/lights token + JSON Schema + validator 跨字段校验，新增性能纪律（night-realistic PointLight 上限、holographic 禁用 transmission、MeshLambert 降级、DPR≤2、InstancedMesh）、健壮性（WebGL context loss、Promise.allSettled、AbortSignal 防 race）、响应式与可访问性规范；v1.9 防黑屏（显式 `scene.background` 渐变 + 所有风格环境光下限 `ambientFloor`）+ 地面纹理（非 cyber/blueprint 风格程序化 `makeGroundTexture` + cyber/blueprint shader 失败降级）+ POI 名称仅悬停（Sprite 只画类型图标、显示名走 tooltip/卡片，楼幢名/车库车位 P 牌常驻）；v2.0 写实增强层（随包发布完整范式实现 `assets/park-scene.impl.ts`，生成器「拷贝-改」消灭环境贴图/bloom/环境光下限/渐变背景的漂移；realistic/night-realistic 放宽上限——RoomEnvironment 环境贴图 + EffectComposer/UnrealBloomPass + GTAO + 夜间地面湿润反射；新增 token.realism 旋钮块 material/bloom/ao/reflection/fog/sun + assets/tokens.schema.json 结构校验；修复楼栋轮廓半埋地下的错位）
+- **数字孪生（1 个）**：`thirdnet-digital-twin`（v2.1）——园区数字孪生 3D 模块生成（Vue 3 + Three.js，1920×1080 舞台 + 楼栋切换器 + POI 打点，7 种视觉风格（cyber/realistic/night-realistic/blueprint/holographic/white-model/isometric））；v1.5 起数据分层：基础信息静态内联，动态数据（楼幢名/楼层数/楼层详情/POI 点位）走 `IDigitalTwinApi` 契约层（Mock/Real 工厂，`VITE_MOCK_ENABLED` 切换）；v1.8 补齐 poi.status/groundGlow/lights token + JSON Schema + validator 跨字段校验，新增性能纪律（night-realistic PointLight 上限、holographic 禁用 transmission、MeshLambert 降级、DPR≤2、InstancedMesh）、健壮性（WebGL context loss、Promise.allSettled、AbortSignal 防 race）、响应式与可访问性规范；v1.9 防黑屏（显式 `scene.background` 渐变 + 所有风格环境光下限 `ambientFloor`）+ 地面纹理（非 cyber/blueprint 风格程序化 `makeGroundTexture` + cyber/blueprint shader 失败降级）+ POI 名称仅悬停（Sprite 只画类型图标、显示名走 tooltip/卡片，楼幢名/车库车位 P 牌常驻）；v2.0 写实增强层（随包发布完整范式实现 `assets/park-scene.impl.ts`，生成器「拷贝-改」消灭环境贴图/bloom/环境光下限/渐变背景的漂移；realistic/night-realistic 放宽上限——RoomEnvironment 环境贴图 + EffectComposer/UnrealBloomPass + GTAO + 夜间地面湿润反射；新增 token.realism 旋钮块 material/bloom/ao/reflection/fog/sun + assets/tokens.schema.json 结构校验；修复楼栋轮廓半埋地下的错位）；v2.1 全面固化+真实感（新增 `assets/components/` 10 个 2D 范式文件消灭组件 CSS 漂移、token `ui` 块驱动 7 风格 2D 观感；3 个生成脚本——generate_data.py spec→脚手架+Mock 数据（确定性种子+8 行业租户名池）、generate_theme.py token→tokens.css、layout_park.py 自动不重叠布局；validate_spec.py 增加楼栋出界/重叠/POI 越界 FAIL 检测；视觉真实感固化——程序化天空（写实白云/夜景星月）、楼顶设备（机房+天线+夜间警示灯）、地面标线（虚线+斑马线+引道箭头）、双树形+灌木+水景；修复 v2.0 四个实测 bug——楼名标签埋塔体、浅色风格标签黑块、取景偏小、buildCorridor 空指针）
 - **全栈协调（1 个）**：`thirdnet-fullstack` 协调技能——前端先行开发顺序、Admin CRUD 页面模式、前后端类型映射、RBAC 桥接、子代理调度
 - **质量保障（1 个）**：`fullstack-review`——功能开发完成后的全栈代码审查与验证（前后端规范、API、数据库、跨端契约、业务正确性、性能、安全、文档），产出审查报告与修改方案
 - **文档交付（1 个）**：`thirdnet-doc-generator`——功能开发完成后基于代码库功能模块生成项目交付文档（需求规格说明书、系统设计文档、用户手册、测试用例文档等，每类有专属模板，输出 Markdown 可转 Word）

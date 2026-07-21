@@ -28,6 +28,11 @@
 > **v1.9 防黑屏 + 地面纹理（所有风格）**——修复「整屏一片黑、地面没纹理」痛点：
 > - **显式 `scene.background`**：每风格 token 新增顶层 `scene` 块（`bgTop`/`bgBottom`），生成器画成顶→底渐变 `CanvasTexture` 设给 `scene.background`（见 `scene-recipe.md` §2）。`alpha:true` 不再依赖页面底色，暗色风格也有空气感。
 > - **环境光下限 `lights.ambientFloor`**：所有风格都额外补一盏低强度 `AmbientLight`（暗色风格 ~0.18–0.20、亮色风格 ~0.08、blueprint=0），消灭未受光面纯黑。暗色风格（cyber/holographic/night-realistic）的 `sunIntensity`/`hemiIntensity` 在本文件对应段已微调上调。
+
+> **v2.1 真实感细节层（所有风格，token 新块）**——细节参数固化在范式实现，配色走 token：
+> - **`scene.sky: {clouds, stars, moon}`**：程序化天空开关。realistic 开白云；night-realistic 开星空+月亮；cyber/holographic 开暗淡星点（须低于 bloom 阈值）；blueprint/white-model/isometric 全关（保持图纸/幕布/插画纯净）。
+> - **`environment.roadMarking` / `water` / `rooftop`**：地面标线色（各风格与路面高对比：写实白漆、夜间反光淡色、cyber/全息发光青、蓝图淡白青、白模白、等距奶油）、水景水面色、楼顶设备色。
+> - **`ui` 块**：2D 组件观感旋钮（`panelOpacity/panelBlur/panelRadius/glowStrength/glowColor/borderWidth/labelBg/labelText/switcherStyle`）。赛博/全息 = neon 描边发光 pill；其余 5 风格 = flat 克制（glowStrength 0 时组件退化为中性投影）。楼名标签配色统一走 `ui.labelBg/labelText`（v2.1 修复浅色风格黑标签）。
 > - **程序化地面纹理 `ground.texture`**：每风格 token 新增顶层 `ground.texture` 块（`{ type, base, line, cell }`）。非 cyber/blueprint 风格的园区地面叠一层 `makeGroundTexture(token)` 的 `CanvasTexture`（见 `scene-recipe.md` §3.1），消灭「纯色色片」——realistic/night-realistic 用 `tiles`、holographic 用 `dots`、white-model/isometric 用 `grid`。cyber/blueprint 仍用 `gridGround.glsl` shader 地面，`ground.texture` 仅作 shader 失败降级。
 
 ---

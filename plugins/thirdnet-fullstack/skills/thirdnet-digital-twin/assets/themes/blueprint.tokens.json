@@ -1,9 +1,10 @@
 {
   "_comment": "Blueprint (蓝图 / 工程蓝图) theme — deep blueprint-blue ground with a pale white-blue coordinate grid, white wireframe-dominant buildings with faint blue fill. Engineering/BIM aesthetic — the 'clean technical' look done right (replaces the flat minimal style). Reuses gridGround.glsl (same shader asset as cyber) but with a blueprint palette (deep blue ground + pale grid lines). Same key names as the cyber theme so the generator derives colors the same way; only the values change. To retheme, edit values here only.",
   "scene": {
-    "_comment": "v1.9 显式场景背景（顶→底纵向渐变 CanvasTexture，§2）。深蓝图图纸底，比纯色多一点纵深。",
+    "_comment": "v1.9 显式场景背景（顶→底纵向渐变 CanvasTexture，§2）。深蓝图图纸底，比纯色多一点纵深。v2.1 新增 sky 子块：程序化天空元素开关。blueprint 全关——保持干燥纯净的图纸感。",
     "bgTop": "#0f3a82",
-    "bgBottom": "#082356"
+    "bgBottom": "#082356",
+    "sky": { "clouds": false, "stars": false, "moon": false }
   },
   "palette": {
     "void-bg": "#0a2d6e",
@@ -88,7 +89,11 @@
     "treeCanopy": "#1c4a8e",
     "wall": "#0e2c66",
     "lampGlow": "#cfe4ff",
-    "vehicle": "#2a6fd6"
+    "vehicle": "#2a6fd6",
+    "roadMarking": "#cfe4ff",
+    "water": "#1a4a9e",
+    "rooftop": "#cfe4ff",
+    "_v21_comment": "v2.1 新增：roadMarking=内部道路中央虚线/斑马线/箭头色（淡白青，图纸线感）；water=水景水面色；rooftop=楼顶电梯机房/天线设备色（线框白）。"
   },
   "garageEntrance": {
     "_comment": "v1.4 地下车库入口标记（§5）。半金字塔三角门 + 描边，P 牌高对比（深蓝图底 + 淡白青字）。",
@@ -133,6 +138,18 @@
     "reflection": { "enabled": false, "opacity": 0.5, "mixStrength": 0.5 },
     "fog": null,
     "sun": { "azimuth": 135, "elevation": 50 }
+  },
+  "ui": {
+    "_comment": "v2.1 2D 组件观感旋钮（assets/components/ 消费，generate_theme.py 派生 --twin-ui-* CSS 变量）。blueprint：图纸气质——小圆角、1px 淡白青描边、几乎无发光、无模糊（保持图纸干燥感）。",
+    "panelOpacity": 0.9,
+    "panelBlur": 0,
+    "panelRadius": 2,
+    "glowStrength": 0.15,
+    "glowColor": "#cfe4ff",
+    "borderWidth": 1,
+    "labelBg": "#082356",
+    "labelText": "#cfe4ff",
+    "switcherStyle": "flat"
   },
   "fonts": {
     "zh": "Noto Sans SC",

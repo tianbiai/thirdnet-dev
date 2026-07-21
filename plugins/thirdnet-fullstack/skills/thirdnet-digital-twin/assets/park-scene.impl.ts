@@ -24,7 +24,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js'
 import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js'
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js'
 import gridFrag from './shaders/gridGround.glsl?raw'
-import { buildBuilding } from './building-geometry'
+import { buildBuilding, buildRooftopKit } from './building-geometry'
 import { fresnelRimBody } from './shaders/fresnelRimInjector'
 import { applyTheme, type StyleKey, type ThemeTokens } from '@/utils/theme'
 import type { BuildingRuntimeItem, PoiRuntimeItem } from '@/api/types/digital-twin'
@@ -36,6 +36,10 @@ export interface ParkSceneCallbacks {
   onSelect?: (bid: string, fin: number) => void
   onDeselect?: () => void
   onPoiOpen?: (poiId: string | null) => void
+  /** v2.1：POI 悬停（驱动 HTML 名称条，§11「名称仅悬停」契约；未命中传 null）。 */
+  onPoiHover?: (poiId: string | null) => void
+  /** v2.2：航拍巡航因用户拖拽自动退出（§13）——GlobalTwin 映射到 useTour.disable()，单向同步按钮态。 */
+  onTourAutoExit?: () => void
 }
 
 interface StyleProfile {
@@ -82,6 +86,12 @@ export class ParkScene {
   private controls!: OrbitControls
   private sceneObj = new THREE.Scene()
   private sceneGroup = new THREE.Group()
+  /**
+   * Overlay 场景：所有 CanvasTexture 广告牌 sprite（楼顶名称 / 车库 P / 地面车位 P / 连廊名 / POI 图标）
+   * 挂这里，在 composer 之后第二遍渲染——绕过 GTAO（realistic/night 会把漂浮 sprite 像素乘向黑）与 bloom。
+   * sprite 不受光，此场景无需灯光；sprite 统一 depthTest:false 始终置顶（楼顶名/标记置顶可接受）。
+   */
+  private overlayScene = new THREE.Scene()
   private raycaster = new THREE.Raycaster()
   private pointer = new THREE.Vector2()
   private pointerDownPos = { x: 0, y: 0 }
@@ -121,6 +131,17 @@ export class ParkScene {
   private tween: { active: boolean; start: number; dur: number; fromTarget: THREE.Vector3; toTarget: THREE.Vector3; fromZoom: number; toZoom: number } | null = null
   private defaultTarget = new THREE.Vector3(0, 0, 0)
   private defaultZoom = 1
+
+  // v2.2 航拍巡航（§13）：取景过渡 tween（进/出）+ autoRotate 稳态环绕。
+  // 与 §8 focus tween 同源纪律——事件触发 + 有限时长，结束后把缩放/平移/旋转完整交还 OrbitControls。
+  private static readonly DEFAULT_K = 0.66
+  private static readonly DEFAULT_ELEV = Math.atan(1 / Math.sqrt(2))
+  private static readonly DEFAULT_AZ = Math.PI / 4
+  private curK = ParkScene.DEFAULT_K
+  private curElev = ParkScene.DEFAULT_ELEV
+  private frameTween: { active: boolean; start: number; dur: number; fromK: number; toK: number; fromElev: number; toElev: number; onDone?: () => void } | null = null
+  private tourMode = false   // true = 已请求巡航（含进入过渡期）；setTourEnabled(false) 完成退出过渡后才回 false
+  private tourActive = false // true = 进入过渡已完成、autoRotate 已开
 
   private rafId = 0
   private ro!: ResizeObserver
@@ -213,22 +234,89 @@ export class ParkScene {
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
 
     // v1.9 显式 scene.background（顶→底渐变 CanvasTexture）—— 防黑屏关键，取代 setClearColor 纯色。
-    const sc = this.tokens.scene as Record<string, string>
-    this.sceneObj.background = this.makeBackgroundTexture(sc.bgTop, sc.bgBottom)
+    this.sceneObj.background = this.makeBackgroundTexture(this.tokens.scene.bgTop, this.tokens.scene.bgBottom)
     this.sceneObj.fog = this.makeFog()
   }
 
-  /** v1.9 顶→底纵向渐变背景。暗色风格给空气层次，亮色风格两端相近近似纯色。 */
+  /**
+   * v1.9 顶→底纵向渐变背景（防黑屏关键，取代 setClearColor 纯色）。
+   * v2.1 程序化天空元素（token scene.sky 开关，画进同一张背景纹理、零运行时成本；
+   * 种子 = style，同一风格重复生成一致）：stars=星空（上半部 150 颗）、moon=月亮
+   * （右上象限径向光晕）、clouds=白云（3–6 朵椭圆组合）。canvas 加宽到 512 容纳横向分布。
+   */
   private makeBackgroundTexture(top: string, bottom: string): THREE.CanvasTexture {
     const canvas = document.createElement('canvas')
-    canvas.width = 8
+    canvas.width = 512
     canvas.height = 256
     const ctx = canvas.getContext('2d')!
     const grad = ctx.createLinearGradient(0, 0, 0, 256)
     grad.addColorStop(0, top)
     grad.addColorStop(1, bottom)
     ctx.fillStyle = grad
-    ctx.fillRect(0, 0, 8, 256)
+    ctx.fillRect(0, 0, 512, 256)
+
+    const sky = (this.tokens.scene as Record<string, unknown>)?.sky as
+      { clouds?: boolean; stars?: boolean; moon?: boolean } | undefined
+    if (sky?.stars || sky?.moon || sky?.clouds) {
+      const rnd = mulberry32(hashStr(`sky:${this.style}`))
+
+      // 星空：上半 60% 区域，亚像素小点、低透明度（须低于 bloom 阈值，
+      // 否则白点被 bloom 晕成「雪片」——宁可暗淡也不可抢戏）
+      if (sky.stars) {
+        for (let i = 0; i < 130; i++) {
+          const x = rnd() * 512
+          const y = rnd() * 256 * 0.6
+          const r = 0.3 + rnd() * 0.6
+          ctx.globalAlpha = 0.15 + rnd() * 0.3
+          ctx.fillStyle = '#ffffff'
+          ctx.beginPath()
+          ctx.arc(x, y, r, 0, Math.PI * 2)
+          ctx.fill()
+        }
+        ctx.globalAlpha = 1
+      }
+
+      // 月亮：右上象限，本体 + 径向光晕
+      if (sky.moon) {
+        const mx = 512 * 0.78
+        const my = 256 * 0.16
+        const glow = ctx.createRadialGradient(mx, my, 4, mx, my, 46)
+        glow.addColorStop(0, 'rgba(255, 248, 224, 0.85)')
+        glow.addColorStop(0.35, 'rgba(255, 248, 224, 0.25)')
+        glow.addColorStop(1, 'rgba(255, 248, 224, 0)')
+        ctx.fillStyle = glow
+        ctx.beginPath()
+        ctx.arc(mx, my, 46, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.fillStyle = '#fff8e0'
+        ctx.beginPath()
+        ctx.arc(mx, my, 14, 0, Math.PI * 2)
+        ctx.fill()
+      }
+
+      // 白云：3–6 朵，每朵 3–5 个椭圆组合，上半 45% 区域（日间写实）
+      if (sky.clouds) {
+        const n = 3 + Math.floor(rnd() * 4)
+        for (let c = 0; c < n; c++) {
+          const cx = rnd() * 512
+          const cy = rnd() * 256 * 0.45
+          const baseR = 14 + rnd() * 16
+          ctx.fillStyle = '#ffffff'
+          ctx.globalAlpha = 0.5 + rnd() * 0.3
+          const blobs = 3 + Math.floor(rnd() * 3)
+          for (let bIdx = 0; bIdx < blobs; bIdx++) {
+            const bx = cx + (bIdx - blobs / 2) * baseR * 0.9
+            const by = cy + (rnd() - 0.5) * baseR * 0.4
+            const br = baseR * (0.6 + rnd() * 0.5)
+            ctx.beginPath()
+            ctx.ellipse(bx, by, br, br * 0.55, 0, 0, Math.PI * 2)
+            ctx.fill()
+          }
+        }
+        ctx.globalAlpha = 1
+      }
+    }
+
     const tex = new THREE.CanvasTexture(canvas)
     tex.colorSpace = THREE.SRGBColorSpace
     return tex
@@ -248,6 +336,12 @@ export class ParkScene {
       const c = this.sceneGroup.children[i]
       if (keep.has(c)) continue
       this.sceneGroup.remove(c)
+      this.disposeObject(c)
+    }
+    // overlay 场景（楼顶名/P 牌/POI 图标）同样清空释放——切风格/重建不残留叠影
+    for (let i = this.overlayScene.children.length - 1; i >= 0; i--) {
+      const c = this.overlayScene.children[i]
+      this.overlayScene.remove(c)
       this.disposeObject(c)
     }
     this.pickables = []
@@ -471,17 +565,20 @@ export class ParkScene {
     }
 
     const grass = (env.grass as string) ?? '#13304a'
+    // v1.9 程序化地面纹理叠加（消灭纯色色片）。提前取纹理。
+    const groundTex = this.makeGroundTexture()
     let mat: THREE.Material
     if (this.profile.ground === 'light' || this.profile.ground === 'flat') {
       mat = new THREE.MeshLambertMaterial({ color: new THREE.Color(this.profile.ground === 'light' ? '#cfd2d6' : '#c9b79b'), ...(this.profile.flatShading ? { flatShading: true } : {}) })
     } else if (this.profile.ground === 'pbr') {
       mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(grass), roughness: 0.95, metalness: 0 })
     } else {
-      mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(this.style === 'night-realistic' ? '#0a1018' : '#06070d'), roughness: 0.4, metalness: 0 })
+      // dark 地面改用 MeshBasicMaterial（不受光）：夜景/全息灯光暗，受光 Standard 会被压成近黑「看不见地面」；
+      // 不受光直接按 token ground.texture 全色显示，保证地面可辨、与背景强对比。
+      mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(groundTex ? '#ffffff' : (this.style === 'night-realistic' ? '#0a1018' : '#06070d')) })
     }
-    // v1.9 程序化地面纹理叠加（消灭纯色色片）。
-    const groundTex = this.makeGroundTexture()
-    if (groundTex && mat instanceof THREE.MeshStandardMaterial) (mat as THREE.MeshStandardMaterial).map = groundTex
+    if (groundTex && mat instanceof THREE.MeshBasicMaterial) (mat as THREE.MeshBasicMaterial).map = groundTex
+    else if (groundTex && mat instanceof THREE.MeshStandardMaterial) (mat as THREE.MeshStandardMaterial).map = groundTex
     const m = new THREE.Mesh(new THREE.PlaneGeometry(bx * 2, bz * 2), mat)
     m.rotation.x = -Math.PI / 2
     m.position.y = 0
@@ -558,6 +655,7 @@ export class ParkScene {
   private buildEnvironment() {
     const env = this.scaffold.environment
     this.buildInternalRoads(env)
+    this.buildRoadMarkings(env)
     if (env.surfaceParking) this.buildSurfaceParking(env.surfaceParking.stalls, env.surfaceParking.occupied)
     this.buildGreenery(env)
     this.buildSurrounding(env)
@@ -599,6 +697,84 @@ export class ParkScene {
     addRoad(22, (bz - inset) * 2, -(bx - inset), 0)
   }
 
+  /**
+   * v2.1 地面标线（内部道路中央虚线 + 大门口斑马线 + 引导箭头 + 门前引道）。
+   * 色取 token environment.roadMarking；虚线走 InstancedMesh（性能纪律）。
+   * 真实感要点：真实园区道路从不是光秃秃的色带——标线是远观可辨的尺度参照。
+   */
+  private buildRoadMarkings(env: ParkScaffold['environment']) {
+    const shape = env.internalRoads ?? 'loop'
+    if (shape === 'none') return
+    const e = this.tokens.environment as Record<string, string>
+    const color = new THREE.Color(e.roadMarking ?? e.roadLine ?? '#f5f5f0')
+    const lit = this.profile.shadows || this.profile.ground === 'pbr' || this.profile.ground === 'light' || this.profile.ground === 'flat'
+    const mat = lit
+      ? new THREE.MeshLambertMaterial({ color, transparent: true, opacity: 0.9, ...(this.profile.flatShading ? { flatShading: true } : {}) })
+      : new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9 })
+    const bx = this.scaffold.boundary.x
+    const bz = this.scaffold.boundary.z
+    const inset = 40
+    const y = 0.4
+
+    // ---- 中央虚线（12×2 段、间隔 24；环路四边 + 十字/井字主路） ----
+    const dashH: THREE.Matrix4[] = []
+    const dashV: THREE.Matrix4[] = []
+    const tmp = new THREE.Matrix4()
+    const pushDash = (arr: THREE.Matrix4[], x: number, z: number) => {
+      tmp.makeRotationX(-Math.PI / 2)
+      tmp.setPosition(x, y, z)
+      arr.push(tmp.clone())
+    }
+    const segH = (x0: number, x1: number, z: number) => { for (let x = x0 + 14; x < x1 - 8; x += 24) pushDash(dashH, x, z) }
+    const segV = (z0: number, z1: number, x: number) => { for (let z = z0 + 14; z < z1 - 8; z += 24) pushDash(dashV, x, z) }
+    const lx = bx - inset
+    const lz = bz - inset
+    segH(-lx, lx, lz); segH(-lx, lx, -lz)
+    segV(-lz, lz, lx); segV(-lz, lz, -lx)
+    if (shape === 'cross' || shape === 'grid') {
+      segH(-bx * 0.9, bx * 0.9, 0)
+      segV(-bz * 0.9, bz * 0.9, 0)
+    }
+    const addInst = (geo: THREE.PlaneGeometry, mats: THREE.Matrix4[]) => {
+      if (mats.length === 0) return
+      const inst = new THREE.InstancedMesh(geo, mat, mats.length)
+      mats.forEach((m, i) => inst.setMatrixAt(i, m))
+      this.sceneGroup.add(inst)
+    }
+    addInst(new THREE.PlaneGeometry(12, 2), dashH)
+    addInst(new THREE.PlaneGeometry(2, 12), dashV)
+
+    // ---- 大门引道 + 斑马线 + 引导箭头（surrounding.gate 关闭时跳过） ----
+    if (env.surrounding?.gate !== false) {
+      // 门前引道：连接大门（z=bz）与环路（z=bz-inset）的一小段路
+      const driveway = new THREE.Mesh(new THREE.PlaneGeometry(24, inset + 6), this.roadMaterial())
+      driveway.rotation.x = -Math.PI / 2
+      driveway.position.set(0, 0.25, bz - inset / 2)
+      this.sceneGroup.add(driveway)
+
+      // 斑马线：6 条 2.5×20 白杠横跨环路（行人沿引道过街）
+      const zebra = new THREE.PlaneGeometry(2.5, 20)
+      for (let i = 0; i < 6; i++) {
+        const bar = new THREE.Mesh(zebra, mat)
+        bar.rotation.x = -Math.PI / 2
+        bar.position.set(-15 + i * 6, y, bz - inset)
+        this.sceneGroup.add(bar)
+      }
+
+      // 引导箭头：引道上指园区内部（shape +y 平放后指向 -z）
+      const arrowShape = new THREE.Shape()
+      arrowShape.moveTo(0, 5); arrowShape.lineTo(3.5, 0); arrowShape.lineTo(1.2, 0)
+      arrowShape.lineTo(1.2, -5); arrowShape.lineTo(-1.2, -5); arrowShape.lineTo(-1.2, 0)
+      arrowShape.lineTo(-3.5, 0); arrowShape.closePath()
+      const arrowGeo = new THREE.ShapeGeometry(arrowShape)
+      const arrow = new THREE.Mesh(arrowGeo, mat)
+      arrow.rotation.x = -Math.PI / 2
+      arrow.scale.setScalar(1.6)
+      arrow.position.set(0, y + 0.01, bz - inset + 18)
+      this.sceneGroup.add(arrow)
+    }
+  }
+
   private buildSurfaceParking(stalls: number, occupied?: number) {
     const sp = this.tokens.surfaceParking as Record<string, string>
     const cars = occupied ?? Math.round(stalls * 0.3)
@@ -621,10 +797,10 @@ export class ParkScene {
       loop.position.set(rowX, 0.35, z)
       this.sceneGroup.add(loop)
       const ptex = this.makeContrastLabel('P', sp.pMarkBg ?? sp.stallFill, sp.pMark, sp.stallLine)
-      const psprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: ptex, depthTest: true, transparent: true }))
+      const psprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: ptex, depthTest: false, transparent: true }))
       psprite.position.set(rowX, 2, z)
       psprite.scale.set(7, 7, 1)
-      this.sceneGroup.add(psprite)
+      this.overlayScene.add(psprite)
       if (i < cars) {
         const car = this.makeCarProxy(sp.car ?? '#1e6fff')
         car.position.set(rowX, 0, z)
@@ -678,19 +854,83 @@ export class ParkScene {
       trunkInst.castShadow = this.profile.shadows
       this.sceneGroup.add(trunkInst)
 
-      const canopyGeo = new THREE.IcosahedronGeometry(12, 0)
+      // v2.1 树冠双形态：偶数位球形（Icosahedron）、奇数位锥形（Cone）——两种树形
+      // 间隔排布打破「一整排同款球」的塑料感；分组确定性（按位置序奇偶），无需种子。
       const canopyMat = this.profile.building === 'wire'
         ? new THREE.MeshBasicMaterial({ color: new THREE.Color(e.treeCanopy) })
         : new THREE.MeshLambertMaterial({ color: new THREE.Color(e.treeCanopy), ...(this.profile.flatShading ? { flatShading: true } : {}) })
-      const canopyInst = new THREE.InstancedMesh(canopyGeo, canopyMat, positions.length)
+      const sphereIdx = positions.map((_, i) => i).filter((i) => i % 2 === 0)
+      const coneIdx = positions.map((_, i) => i).filter((i) => i % 2 === 1)
       const up = new THREE.Matrix4()
-      positions.forEach((m, i) => {
-        const pos = new THREE.Vector3().setFromMatrixPosition(m)
-        up.makeTranslation(pos.x, trunkH + 10, pos.z)
-        canopyInst.setMatrixAt(i, up)
-      })
-      canopyInst.castShadow = this.profile.shadows
-      this.sceneGroup.add(canopyInst)
+      if (sphereIdx.length > 0) {
+        const sphereInst = new THREE.InstancedMesh(new THREE.IcosahedronGeometry(12, 0), canopyMat, sphereIdx.length)
+        sphereIdx.forEach((pi, k) => {
+          const pos = new THREE.Vector3().setFromMatrixPosition(positions[pi])
+          up.makeTranslation(pos.x, trunkH + 10, pos.z)
+          sphereInst.setMatrixAt(k, up)
+        })
+        sphereInst.castShadow = this.profile.shadows
+        this.sceneGroup.add(sphereInst)
+      }
+      if (coneIdx.length > 0) {
+        const coneInst = new THREE.InstancedMesh(new THREE.ConeGeometry(9, 24, 8), canopyMat, coneIdx.length)
+        coneIdx.forEach((pi, k) => {
+          const pos = new THREE.Vector3().setFromMatrixPosition(positions[pi])
+          up.makeTranslation(pos.x, trunkH + 12, pos.z)
+          coneInst.setMatrixAt(k, up)
+        })
+        coneInst.castShadow = this.profile.shadows
+        this.sceneGroup.add(coneInst)
+      }
+    }
+
+    // v2.1 灌木球丛：沿 4 块草地边缘点缀（每块 6 丛，种子确定性偏移），增加绿化层次
+    {
+      const bushMat = this.profile.building === 'wire'
+        ? new THREE.MeshBasicMaterial({ color: new THREE.Color(e.treeCanopy) })
+        : new THREE.MeshLambertMaterial({ color: new THREE.Color(e.treeCanopy), ...(this.profile.flatShading ? { flatShading: true } : {}) })
+      const bushMats: THREE.Matrix4[] = []
+      const tmpB = new THREE.Matrix4()
+      const patches: Array<[number, number]> = [[-bx * 0.5, -bz * 0.3], [bx * 0.5, -bz * 0.3], [-bx * 0.5, bz * 0.4], [bx * 0.5, bz * 0.4]]
+      for (const [gx, gz] of patches) {
+        const rnd = mulberry32(hashStr(`bush:${gx},${gz}`))
+        for (let i = 0; i < 6; i++) {
+          const px = gx + (rnd() - 0.5) * 140
+          const pz = gz + (rnd() - 0.5) * 70
+          const s = 0.7 + rnd() * 0.6
+          tmpB.makeScale(s, s, s)
+          tmpB.setPosition(px, 5 * s, pz)
+          bushMats.push(tmpB.clone())
+        }
+      }
+      const bushInst = new THREE.InstancedMesh(new THREE.SphereGeometry(6, 8, 6), bushMat, bushMats.length)
+      bushMats.forEach((m, i) => bushInst.setMatrixAt(i, m))
+      bushInst.castShadow = this.profile.shadows
+      this.sceneGroup.add(bushInst)
+    }
+
+    // v2.1 水景（spec environment.greenery.waterFeature）：圆形水面 + 池缘环。
+    // 写实两风格用低粗糙度 Standard 材质吃 envMap 反射；其余风格半透明色。
+    if (env.greenery?.waterFeature) {
+      const waterColor = new THREE.Color(e.water ?? '#4a90c0')
+      const waterMat = (this.profile.ground === 'pbr' || this.profile.ground === 'dark')
+        ? new THREE.MeshStandardMaterial({ color: waterColor, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.9 })
+        : this.profile.building === 'wire'
+          ? new THREE.MeshBasicMaterial({ color: waterColor, transparent: true, opacity: 0.5 })
+          : new THREE.MeshLambertMaterial({ color: waterColor, transparent: true, opacity: 0.85, ...(this.profile.flatShading ? { flatShading: true } : {}) })
+      const water = new THREE.Mesh(new THREE.CircleGeometry(50, 48), waterMat)
+      water.rotation.x = -Math.PI / 2
+      water.position.set(bx * 0.3, 0.25, bz * 0.42)
+      this.sceneGroup.add(water)
+      const rim = new THREE.Mesh(
+        new THREE.RingGeometry(50, 56, 48),
+        this.profile.building === 'wire'
+          ? new THREE.MeshBasicMaterial({ color: new THREE.Color(e.sidewalk) })
+          : new THREE.MeshLambertMaterial({ color: new THREE.Color(e.sidewalk) }),
+      )
+      rim.rotation.x = -Math.PI / 2
+      rim.position.set(bx * 0.3, 0.22, bz * 0.42)
+      this.sceneGroup.add(rim)
     }
   }
 
@@ -821,7 +1061,7 @@ export class ParkScene {
       return m
     }
     if (b === 'holo') {
-      const m = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.35, emissive: color, emissiveIntensity: 0.3, metalness: 0.1, roughness: 0.2 })
+      const m = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.5, emissive: color, emissiveIntensity: 0.4, metalness: 0.1, roughness: 0.2 })
       if (this.profile.useRim) this.injectRim(m)
       return m
     }
@@ -843,6 +1083,8 @@ export class ParkScene {
   hydrateBuildings(items: BuildingRuntimeItem[]) {
     this.hydratedBuildings = items
     this.extrudeBuildings(items)
+    // v2.1：真实楼层数就绪后重新取景（构造期用默认估算会偏松），园区更贴合 2/3 画面
+    this.frameCamera()
   }
 
   private extrudeBuildings(items: BuildingRuntimeItem[]) {
@@ -881,10 +1123,19 @@ export class ParkScene {
             : new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.55), roughness: 0.85, metalness: 0.05 }))
       const capMat = (b === 'wire' || b === 'white') ? null
         : new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.7), roughness: 0.7, metalness: 0.2 })
-      const labelTex = this.makeContrastLabel(item.name, this.tokens.palette['void-bg'] as string, (this.tokens.palette['cyan-bright'] as string) ?? '#7ff5ff', this.tokens.category.building)
+      // 楼顶标签配色（v2.1 改走 token ui.labelBg/labelText——7 风格各自的高对比配对；
+      // 旧式 (void-bg, cyan-bright) 在浅色风格下两字色都偏亮、标签糊成黑块，违反 §4.2 规则）
+      const uiTk = this.tokens.ui
+      const labelTex = this.makeContrastLabel(
+        item.name,
+        uiTk?.labelBg ?? (this.tokens.palette['void-bg'] as string),
+        uiTk?.labelText ?? ((this.tokens.palette['cyan-bright'] as string) ?? '#7ff5ff'),
+        this.tokens.category.building,
+        500,
+      )
 
       // 几何装配统一交给 building-geometry.buildBuilding——所有 y 坐标对齐只在那里定义一次。
-      const { slabs } = buildBuilding({
+      const { slabs, label } = buildBuilding({
         group,
         id: item.building_id,
         name: item.name,
@@ -900,6 +1151,48 @@ export class ParkScene {
         slabSink: meta.slabs,
       })
       for (const slab of slabs) this.pickables.push(slab)
+
+      // 楼顶名称牌挂 overlayScene（绕过 GTAO/bloom）：buildBuilding 给的是 group-local (0,h+22,0)，
+      // 这里换成世界坐标（group 已 position 到 meta.x/0/meta.z）。
+      label.position.set(meta.x, h + 22, meta.z)
+      this.overlayScene.add(label)
+
+      // v2.1 楼顶设备套件（电梯机房 + 天线 + 夜间警示灯）——真实建筑天际线。
+      // 色取 token environment.rooftop；材质随风格分支（与楼栋材质同纪律）。
+      {
+        const rc = new THREE.Color((this.tokens.environment as Record<string, string>)['rooftop'] ?? '#8a93a0')
+        let roomMat: THREE.Material
+        let antennaMat: THREE.Material
+        if (b === 'wire') {
+          roomMat = new THREE.MeshBasicMaterial({ color: rc, wireframe: true })
+          antennaMat = new THREE.MeshBasicMaterial({ color: rc, wireframe: true })
+        } else if (b === 'white') {
+          roomMat = new THREE.MeshLambertMaterial({ color: rc })
+          antennaMat = new THREE.MeshLambertMaterial({ color: rc })
+        } else if (b === 'flat') {
+          roomMat = new THREE.MeshLambertMaterial({ color: rc, flatShading: true })
+          antennaMat = new THREE.MeshLambertMaterial({ color: rc, flatShading: true })
+        } else if (b === 'holo') {
+          roomMat = new THREE.MeshStandardMaterial({ color: rc, transparent: true, opacity: 0.35, emissive: rc, emissiveIntensity: 0.3 })
+          antennaMat = new THREE.MeshStandardMaterial({ color: rc, transparent: true, opacity: 0.5, emissive: rc, emissiveIntensity: 0.4 })
+        } else if (b === 'pbr' || b === 'pbr-night') {
+          roomMat = new THREE.MeshStandardMaterial({ color: rc, roughness: 0.7, metalness: 0.2 })
+          antennaMat = new THREE.MeshStandardMaterial({ color: rc, roughness: 0.5, metalness: 0.6 })
+        } else { // emissive / cyber
+          roomMat = new THREE.MeshStandardMaterial({ color: rc, emissive: dividerColor, emissiveIntensity: 0.12, metalness: 0.2, roughness: 0.6 })
+          antennaMat = new THREE.MeshStandardMaterial({ color: rc, emissive: dividerColor, emissiveIntensity: 0.2, metalness: 0.4, roughness: 0.5 })
+        }
+        buildRooftopKit({
+          group,
+          id: item.building_id,
+          w, d, h, fh,
+          roomMaterial: roomMat,
+          antennaMaterial: antennaMat,
+          beaconColor: this.style === 'night-realistic' ? new THREE.Color(0xff3b30) : null,
+          castShadow: this.profile.shadows,
+        })
+      }
+
       for (let i = 0; i < item.floors; i++) {
         this.floorIdMap.set(`${item.building_id}:${i}`, item.floor_ids[i] ?? `${item.building_id}-${i}`)
       }
@@ -979,11 +1272,12 @@ export class ParkScene {
     group.add(halfPyramid)
     const g = this.tokens.garageEntrance as Record<string, string>
     const tex = this.makeContrastLabel('P', g.signBg, g.signFg, color)
-    const sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: true, transparent: true }))
+    const sign = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }))
     const facingOffset = this.facingOffset(facing, b.d * 0.6 + 24)
-    sign.position.set(facingOffset.x, b.d * 0.9 + 30, facingOffset.z)
+    // group 位于 (b.x,0,b.z)，sign 原为 group-local → 转世界坐标挂 overlayScene
+    sign.position.set(b.x + facingOffset.x, b.d * 0.9 + 30, b.z + facingOffset.z)
     sign.scale.set(44, 44, 1)
-    group.add(sign)
+    this.overlayScene.add(sign)
     const hit = new THREE.Mesh(new THREE.BoxGeometry(b.w, 30, b.d), new THREE.MeshBasicMaterial({ visible: false }))
     hit.position.set(0, 15, 0)
     hit.userData = { kind: 'building', buildingId: b.id }
@@ -1034,6 +1328,7 @@ export class ParkScene {
 
   private buildCorridor() {
     const c = this.scaffold.corridor
+    if (!c) return // corridor 是可选扩展——未配置的园区直接跳过（v2.1 修复空指针）
     const fh = this.scaffold.floorHeight
     const y = c.floor * fh + fh / 2
     const from = new THREE.Vector3(c.from.x, y, c.from.z)
@@ -1060,10 +1355,10 @@ export class ParkScene {
     edges.quaternion.copy(bridge.quaternion)
     this.sceneGroup.add(edges)
     const tex = this.makeContrastLabel(c.label, this.tokens.palette['void-bg'] as string, (this.tokens.palette['cyan-bright'] as string) ?? '#7ff5ff', color)
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: true, transparent: true }))
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }))
     sprite.position.set(mid.x, y + 18, mid.z)
     sprite.scale.set(Math.max(120, c.label.length * 18), 26, 1)
-    this.sceneGroup.add(sprite)
+    this.overlayScene.add(sprite)
   }
 
   // ---------- POI ----------
@@ -1088,10 +1383,11 @@ export class ParkScene {
       group.add(pole)
       const sym = this.poiSymbol(p.type)
       const tex = this.makeContrastLabel(sym, statusColor.getHexString().startsWith('#') ? `#${statusColor.getHexString()}` : '#06030f', '#ffffff', typeColor)
-      const icon = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: true, transparent: true }))
-      icon.position.y = 34
+      const icon = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }))
+      // POI group 在 (p.x, yBase, p.z)，icon 原 group-local(0,34,0) → 世界坐标挂 overlayScene
+      icon.position.set(p.x, yBase + 34, p.z)
       icon.scale.set(20, 20, 1)
-      group.add(icon)
+      this.overlayScene.add(icon)
       if (p.status === PoiStatusEnum.Alarm) {
         const halo = new THREE.Mesh(new THREE.SphereGeometry(4, 12, 12), new THREE.MeshBasicMaterial({ color: statusColor, transparent: true, opacity: 0.5 }))
         halo.position.y = 34
@@ -1123,13 +1419,36 @@ export class ParkScene {
 
   // ---------- 取景 ----------
 
+  /** v2.1 取景高度：水合后用真实最高楼层（而非默认 18 层估算），取景更贴合。 */
+  private maxBuildingHeight(): number {
+    const floors = this.hydratedBuildings
+      ? Math.max(1, ...this.hydratedBuildings.map((b) => b.floors || 0))
+      : DEFAULT_FLOOR_ESTIMATE
+    return floors * this.scaffold.floorHeight
+  }
+
   private frameCamera() {
+    const centroid = this.positionAndFrame(ParkScene.DEFAULT_K, ParkScene.DEFAULT_ELEV, ParkScene.DEFAULT_AZ)
+    this.defaultTarget.copy(centroid)
+    this.defaultZoom = 1
+    // 后处理依赖相机/尺寸，取景变化后重建 pass 尺寸。
+    this.buildPostFX()
+  }
+
+  /**
+   * 取景内核（v2.2 从 frameCamera 抽出）：按 (K, elevation, az) 定位相机 + 测内容包围盒算非对称正交视锥。
+   * - K = 园区内容占画面比例（0.66 默认全景；0.55 俯瞰全城）。
+   * - elevation = 相机俯角（above-horizon，rad）。
+   * - az = 方位角（rad）；巡航过渡期传 currentAzimuth() 保持用户/autoRotate 的当前朝向连续。
+   * 返回内容质心（= 瞄准/轨道中心）。
+   */
+  private positionAndFrame(K: number, elevation: number, az: number): THREE.Vector3 {
+    this.curK = K
+    this.curElev = elevation
     const bx = this.scaffold.boundary.x
     const bz = this.scaffold.boundary.z
-    const Hmax = Math.max(DEFAULT_FLOOR_ESTIMATE, ...this.scaffold.buildings.map((b) => b.category === 'garage' ? 1 : DEFAULT_FLOOR_ESTIMATE)) * this.scaffold.floorHeight
+    const Hmax = this.maxBuildingHeight()
     const centroid = new THREE.Vector3(0, Hmax / 2, 0)
-    const elevation = Math.atan(1 / Math.sqrt(2))
-    const az = Math.PI / 4
     const dist = 3000
     this.camera.position.set(dist * Math.cos(elevation) * Math.cos(az) + centroid.x, dist * Math.sin(elevation) + centroid.y, dist * Math.cos(elevation) * Math.sin(az) + centroid.z)
     this.camera.lookAt(centroid)
@@ -1147,7 +1466,6 @@ export class ParkScene {
     }
     const cx = (xmin + xmax) / 2
     const A = canvasW / canvasH
-    const K = 0.66
     const M = (1 - K) / 2
     const cw = xmax - xmin
     const ch = ymax - ymin
@@ -1163,15 +1481,29 @@ export class ParkScene {
     this.camera.updateProjectionMatrix()
     this.controls.target.copy(centroid)
     this.controls.update()
-    this.defaultTarget.copy(centroid)
-    this.defaultZoom = 1
-    // 后处理依赖相机/尺寸，取景变化后重建 pass 尺寸。
-    this.buildPostFX()
+    return centroid
+  }
+
+  /** 当前方位角（从相机相对 target 的偏移读出，未定位时回退默认 π/4）——巡航过渡期保持朝向连续。 */
+  private currentAzimuth(): number {
+    const off = new THREE.Vector3().subVectors(this.camera.position, this.controls.target)
+    if (off.lengthSq() < 1) return ParkScene.DEFAULT_AZ
+    return Math.atan2(off.z, off.x)
+  }
+
+  /** 把 above-horizon 俯角钳到 OrbitControls polar 夹紧 [minPolarAngle, maxPolarAngle] 允许的范围。 */
+  private clampElevation(elev: number): number {
+    const minElev = Math.PI / 2 - this.controls.maxPolarAngle
+    const maxElev = Math.PI / 2 - this.controls.minPolarAngle
+    return Math.max(minElev, Math.min(maxElev, elev))
   }
 
   // ---------- 相机聚焦补间 ----------
 
   focusBuilding(id: string | null) {
+    // v2.2：聚焦优先——若航拍巡航的取景过渡仍在进行，取消它（两者都会写 target/zoom，互斥避免打架）。
+    // 触发场景：巡航中点击楼栋 → pointerdown 先退出巡航(outro frameTween 起) → pointerup 聚焦(本方法)。
+    if (this.frameTween?.active) this.frameTween.active = false
     const startTarget = this.controls.target.clone()
     const startZoom = this.camera.zoom
     let toTarget: THREE.Vector3
@@ -1199,6 +1531,65 @@ export class ParkScene {
     this.camera.updateProjectionMatrix()
     this.controls.update()
     if (e >= 1) t.active = false
+  }
+
+  // ---------- v2.2 航拍巡航（§13）----------
+
+  /**
+   * 航拍巡航开关：on → 取景过渡到鸟瞰（K/framingK、elevation）后开 autoRotate 稳态环绕；
+   * off → 关 autoRotate + 过渡回默认取景。复用 §8「事件触发 + 有限时长 + 结束后释放 OrbitControls」纪律。
+   * reducedMotion 下为 no-op（autoRotate 本身是运动，须与 §8 tween/呼吸动画同纪律禁用）。
+   * 用户拖拽触发 onTourAutoExit → GlobalTwin → useTour.disable() → watch → 本方法(false)，单向。
+   */
+  setTourEnabled(on: boolean) {
+    if (this.reducedMotion) return
+    if (on && this.tourMode) return
+    if (!on && !this.tourMode) return
+    const dur = this.reducedMotion ? 0 : 600
+    if (on) {
+      this.tourMode = true
+      this.tourActive = false
+      // 巡航优先——取消进行中的聚焦补间（两者都写 target/zoom，互斥；与 focusBuilding 对称）。
+      if (this.tween?.active) this.tween.active = false
+      this.controls.autoRotate = false // 过渡期间不转，到位再开（避免过渡与自转叠加）
+      const ct: NonNullable<ParkScaffold['cameraTour']> = this.scaffold.cameraTour ?? {}
+      const toK = ct.framingK ?? 0.55
+      const toElev = this.clampElevation(ct.elevation ?? 1.0)
+      this.frameTween = {
+        active: true, start: performance.now(), dur,
+        fromK: this.curK, toK, fromElev: this.curElev, toElev,
+        onDone: () => {
+          this.controls.autoRotateSpeed = ct.speed ?? 0.6
+          this.controls.autoRotate = true
+          this.tourActive = true
+        },
+      }
+    } else {
+      this.tourMode = false
+      this.tourActive = false
+      this.controls.autoRotate = false
+      this.frameTween = {
+        active: true, start: performance.now(), dur,
+        fromK: this.curK, toK: ParkScene.DEFAULT_K, fromElev: this.curElev, toElev: ParkScene.DEFAULT_ELEV,
+      }
+    }
+  }
+
+  private stepFrameTween(now: number) {
+    const t = this.frameTween
+    if (!t || !t.active) return
+    const e = t.dur <= 0 ? 1 : Math.min(1, (now - t.start) / t.dur)
+    const k = easeOutCubic(e)
+    const K = t.fromK + (t.toK - t.fromK) * k
+    const elev = this.clampElevation(t.fromElev + (t.toElev - t.fromElev) * k)
+    // 方位角取当前（autoRotate/用户拖拽留下的朝向），过渡期不强行扳回 → 退出时朝向连续不突兀。
+    this.positionAndFrame(K, elev, this.currentAzimuth())
+    if (e >= 1) {
+      t.active = false
+      const done = t.onDone
+      this.frameTween = null
+      if (done) done()
+    }
   }
 
   // ---------- 金色选中 overlay ----------
@@ -1261,12 +1652,21 @@ export class ParkScene {
     return { bid: ud.buildingId as string, fin: (ud.floorIndex ?? 0) as number }
   }
 
-  private onPointerDown = (e: PointerEvent) => { this.pointerDownPos = { x: e.clientX, y: e.clientY } }
+  private onPointerDown = (e: PointerEvent) => {
+    this.pointerDownPos = { x: e.clientX, y: e.clientY }
+    // v2.2 §13：巡航中用户一按下即退出（把控制权还给用户）；pauseOnInteract 默认 true。
+    // 立即关 autoRotate 防止拖拽与自转打架；正式收尾由 onTourAutoExit → useTour.disable() → watch → setTourEnabled(false) 单向完成。
+    if (this.tourMode && (this.scaffold.cameraTour?.pauseOnInteract !== false)) {
+      this.controls.autoRotate = false
+      this.cb.onTourAutoExit?.()
+    }
+  }
   private onPointerMove = (e: PointerEvent) => {
     if (e.buttons !== 0) return
     this.updatePointer(e)
     const poiId = this.pickPoi()
-    if (poiId) { this.cb.onHover?.(null, null); this.canvas.style.cursor = 'pointer'; return }
+    if (poiId) { this.cb.onHover?.(null, null); this.cb.onPoiHover?.(poiId); this.canvas.style.cursor = 'pointer'; return }
+    this.cb.onPoiHover?.(null)
     const b = this.pickBuilding()
     this.cb.onHover?.(b?.bid ?? null, b?.fin ?? null)
     this.canvas.style.cursor = b ? 'pointer' : 'default'
@@ -1312,6 +1712,7 @@ export class ParkScene {
     this.rafId = requestAnimationFrame(this.animate)
     if (this.contextLost) return
     if (this.tween?.active) this.stepTween(performance.now())
+    if (this.frameTween?.active) this.stepFrameTween(performance.now())
     this.controls.update()
     if (!this.reducedMotion) {
       const t = performance.now() * 0.004
@@ -1325,12 +1726,18 @@ export class ParkScene {
     // v2.0：启用 composer 时走后处理链（含 bloom/AO/OutputPass），否则直渲。
     if (this.composer) this.composer.render()
     else this.renderer.render(this.sceneObj, this.camera)
+    // overlay 第二遍渲染：绕过 GTAO/bloom，保证楼顶名/P 牌/POI 图标 7 风格清晰可读。
+    // autoClear=false 保留主帧颜色；sprite 统一 depthTest:false 始终置顶。
+    this.renderer.autoClear = false
+    this.renderer.render(this.overlayScene, this.camera)
+    this.renderer.autoClear = true
   }
 
   dispose() {
     this.disposed = true
     cancelAnimationFrame(this.rafId)
     this.ro?.disconnect()
+    this.controls.autoRotate = false
     this.controls?.dispose()
     this.canvas.removeEventListener('pointerdown', this.onPointerDown)
     this.canvas.removeEventListener('pointermove', this.onPointerMove)
@@ -1365,7 +1772,7 @@ export class ParkScene {
 
   // ---------- CanvasTexture 标签 ----------
 
-  private makeContrastLabel(text: string, bg: string, fg: string, stroke: THREE.Color | string): THREE.CanvasTexture {
+  private makeContrastLabel(text: string, bg: string, fg: string, stroke: THREE.Color | string, weight = 700): THREE.CanvasTexture {
     const canvas = document.createElement('canvas')
     const pad = 12
     const fontSize = text.length > 3 ? 40 : 56
@@ -1381,7 +1788,7 @@ export class ParkScene {
     roundRect(ctx, 1.5, 1.5, canvas.width - 3, canvas.height - 3, 9)
     ctx.stroke()
     ctx.fillStyle = fg
-    ctx.font = `700 ${fontSize}px "Noto Sans SC", sans-serif`
+    ctx.font = `${weight} ${fontSize}px "Noto Sans SC", sans-serif`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.fillText(text, canvas.width / 2, canvas.height / 2 + 2)
