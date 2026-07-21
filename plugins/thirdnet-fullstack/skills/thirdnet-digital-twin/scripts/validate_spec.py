@@ -2,10 +2,21 @@
 """
 validate_spec.py — validate a Park Spec JSON against the canonical schema.
 
-The schema mirrors references/park-spec.md. This is a structural check (required
-fields present, types correct, category values valid, coordinates in bounds),
-not a deep semantic check. Run it before handing a spec to the generator step
+The schema mirrors references/park-spec.md (and assets/spec.schema.json). This is a
+structural + business-rule check (required fields present, types correct, category
+values valid, coordinates in bounds, floors required for buildings, legend/switcher/
+token cross-field consistency). Run it before handing a spec to the generator step
 to fail fast on missing/invalid data.
+
+v1.8: floors is now required for category='building' (was silently optional); NaN/Inf
+rejected; legend category/color consistency, switcher id alignment, token override
+key typos, and boundary shape are now checked. For IDE autocompletion / CI without
+Python, point your editor at assets/spec.schema.json ($schema).
+
+v1.9: theme-completeness check — warns if the resolved assets/themes/<style>.tokens.json
+is missing the anti-black-screen blocks (scene background, lights.ambientFloor,
+ground.texture), guarding incomplete themes from regressing to the "all black / no
+ground texture" failure mode. These blocks live in the theme files (source of truth).
 
 Usage:
   python validate_spec.py <spec.json>
@@ -18,8 +29,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
+
+try:
+    import jsonschema  # type: ignore
+    _HAVE_JSONSCHEMA = True
+except ImportError:
+    _HAVE_JSONSCHEMA = False
 
 VALID_CATEGORIES = {"building", "garage"}
 VALID_STYLES = {
@@ -38,9 +56,78 @@ DEFAULT_BOUND = 400  # |x|,|z| within ±400 world units (park boundary)
 # floors-building, so `floors` is optional for them.
 REQUIRED_BUILDING = ["id", "name", "category", "w", "d", "x", "z"]
 
+_THEME_DIR = Path(__file__).resolve().parent.parent / "assets" / "themes"
+_TOKENS_SCHEMA = Path(__file__).resolve().parent.parent / "assets" / "tokens.schema.json"
+
+
+def _validate_tokens_schema(style):
+    """v2.0: validate the chosen theme token file against assets/tokens.schema.json.
+
+    Returns (errors, warnings). If jsonschema is installed, full structural validation
+    (required blocks/keys, types, ranges). If not, a manual required-keys check on the
+    v2.0 realism block + v1.9 anti-black-screen blocks. Best-effort — never fatal.
+    """
+    errs: list[str] = []
+    warns: list[str] = []
+    path = _THEME_DIR / f"{style}.tokens.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return errs, warns  # _load_style_token_keys already covers missing-file WARN elsewhere
+
+    if _HAVE_JSONSCHEMA:
+        try:
+            schema = json.loads(_TOKENS_SCHEMA.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            schema = None
+        if schema is not None:
+            try:
+                jsonschema.validate(data, schema)
+            except jsonschema.ValidationError as e:
+                loc = ".".join(str(p) for p in e.absolute_path) or "<root>"
+                errs.append(
+                    f"theme {style}: tokens.schema.json 违反 @ {loc}: {e.message} "
+                    f"(assets/themes/{style}.tokens.json)"
+                )
+            return errs, warns
+
+    # 降级：无 jsonschema 时手动检查关键块（v1.9 防黑屏 + v2.0 realism）。
+    for blk in ("scene", "lights", "environment", "realism"):
+        if blk not in data:
+            errs.append(f"theme {style}: assets/themes/{style}.tokens.json 缺 v2.0 必需块 '{blk}'")
+    r = data.get("realism")
+    if isinstance(r, dict):
+        for key in ("material", "bloom", "ao", "reflection", "fog", "sun"):
+            if key not in r:
+                errs.append(f"theme {style}: realism.{key} 缺失（写实增强旋钮不完整）")
+    return errs, warns
+
+
+def _load_style_token_keys(style):
+    """v1.8: load assets/themes/<style>.tokens.json (flattened one level) for
+    cross-field checks (token override typos, legend color consistency). Returns
+    None if the file can't be loaded (checks are best-effort, never fatal)."""
+    path = _THEME_DIR / f"{style}.tokens.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    # Flatten one level: top-level keys + each block's keys, plus nested poi.status.
+    flat = {}
+    for k, v in data.items():
+        flat[k] = v
+        if isinstance(v, dict):
+            for kk, vv in v.items():
+                flat[kk] = vv
+                if isinstance(vv, dict):  # e.g. poi.status
+                    for kkk in vv.keys():
+                        flat[kkk] = kkk
+    return flat
+
 
 def is_number(v):
-    return isinstance(v, (int, float)) and not isinstance(v, bool)
+    # v1.8: reject NaN/Inf — they pass isinstance(float) but are never valid dimensions.
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
 
 
 def validate(spec):
@@ -58,6 +145,40 @@ def validate(spec):
         errors.append(
             f"style: '{style}' not in {sorted(VALID_STYLES)} (defaults to 'cyber' if omitted)"
         )
+
+    # v2.0: token 结构校验（assets/tokens.schema.json）—— FAIL 级结构错误（缺块/类型错）。
+    # v1.9: theme-completeness WARN（防黑屏块缺失）。两者都 best-effort，不致命。
+    schema_errs, _ = _validate_tokens_schema(style)
+    errors.extend(schema_errs)
+
+    style_tokens = _load_style_token_keys(style)
+    if style_tokens is not None:
+        missing = []
+        if "scene" not in style_tokens:
+            missing.append("scene (bgTop/bgBottom → scene.background, §2)")
+        if "ambientFloor" not in style_tokens:
+            missing.append("lights.ambientFloor (环境光下限, §2)")
+        if "ground" not in style_tokens:
+            missing.append("ground.texture (程序化地面纹理, §3.1)")
+        if missing:
+            warnings.append(
+                f"theme {style}: assets/themes/{style}.tokens.json missing v1.9 block(s): "
+                f"{'; '.join(missing)} — 场景可能整屏发黑/地面无纹理"
+            )
+
+        # v2.0: 写实风格专项 WARN —— realistic/night-realistic 必须有非零 envMapIntensity，
+        # 否则玻璃/金属无环境反射、发黑（写实感最大单点提升项）。
+        if style in ("realistic", "night-realistic"):
+            env_int = None
+            try:
+                env_int = style_tokens.get("envMapIntensity")  # flattened from realism.material
+            except Exception:
+                env_int = None
+            if not env_int:
+                warnings.append(
+                    f"theme {style}: realism.material.envMapIntensity 缺失或为 0 —— "
+                    f"写实风格缺环境贴图强度，玻璃/金属将无反射、发黑（见 park-scene-impl.md）"
+                )
 
     buildings = spec.get("buildings")
     if not isinstance(buildings, list) or not buildings:
@@ -84,6 +205,15 @@ def validate(spec):
         cat = b.get("category")
         if cat is not None and cat not in VALID_CATEGORIES:
             errors.append(f"{ctx}.category: '{cat}' not in {sorted(VALID_CATEGORIES)}")
+        # v1.8 (B1): `floors` is REQUIRED for non-garage buildings (positive number).
+        # The legacy comment claimed this was enforced, but REQUIRED_BUILDING omitted it,
+        # so a building-category entry without `floors` validated clean. Garage is exempt
+        # (v1.3 renders it as a half-pyramid entrance marker, no floors).
+        if cat == "building":
+            if "floors" not in b or b["floors"] is None:
+                errors.append(f"{ctx}.floors: missing (required for category='building')")
+            elif not is_number(b["floors"]) or b["floors"] <= 0:
+                errors.append(f"{ctx}.floors: must be a positive number for category='building'")
         facing = b.get("facing")
         if facing is not None and facing not in VALID_FACING:
             errors.append(f"{ctx}.facing: '{facing}' not in {sorted(VALID_FACING)}")
@@ -165,11 +295,67 @@ def validate(spec):
                     errors.append(f"{pctx}.tooltip.meta: must be an object (key→string)")
 
     tokens = spec.get("tokens")
+    style = spec.get("style", "cyber")
     if not isinstance(tokens, dict) or not tokens:
-        style = spec.get("style", "cyber")
         warnings.append(
             f"tokens: missing — the generator will fall back to assets/themes/{style}.tokens.json"
         )
+    else:
+        # v1.8 (B2): warn on override keys that don't match the chosen style's token file —
+        # catches typos like "cyan-brigt" that would otherwise be silently ignored.
+        style_tokens = _load_style_token_keys(style)
+        if style_tokens is not None:
+            unknown = [k for k in tokens.keys() if k not in style_tokens]
+            if unknown:
+                warnings.append(
+                    f"tokens: override keys not found in assets/themes/{style}.tokens.json "
+                    f"(likely typos, will be ignored): {sorted(unknown)}"
+                )
+
+    # v1.8 (B2): legend cross-field checks — category ∈ known set; color matches token category.
+    legend = spec.get("legend")
+    if legend is not None:
+        if not isinstance(legend, list):
+            errors.append("legend: must be an array")
+        else:
+            style_tokens = _load_style_token_keys(style)
+            cat_colors = (style_tokens or {}).get("category", {}) if isinstance(style_tokens, dict) else {}
+            for i, e in enumerate(legend):
+                if not isinstance(e, dict):
+                    errors.append(f"legend[{i}]: must be an object {label, category, color}")
+                    continue
+                lcat = e.get("category")
+                if lcat is not None and lcat not in VALID_CATEGORIES:
+                    errors.append(f"legend[{i}].category: '{lcat}' not in {sorted(VALID_CATEGORIES)}")
+                if lcat and isinstance(cat_colors, dict) and lcat in cat_colors:
+                    if e.get("color") and e["color"].lower() != str(cat_colors[lcat]).lower():
+                        warnings.append(
+                            f"legend[{i}].color: '{e['color']}' != tokens.category.{lcat} "
+                            f"('{cat_colors[lcat]}'); legend swatch will disagree with 3D color"
+                        )
+
+    # v1.8 (B2): switcher id alignment — when using object form {id,label?}, warn if an id
+    # doesn't match any buildings[].id (string-form switcher is name-based and stays loose).
+    switcher = spec.get("switcher")
+    if isinstance(switcher, list):
+        building_ids = {
+            b.get("id") for b in buildings
+            if isinstance(b, dict) and b.get("id") is not None
+        }
+        for i, s in enumerate(switcher):
+            if isinstance(s, dict) and "id" in s and s["id"] not in building_ids:
+                warnings.append(f"switcher[{i}].id: '{s['id']}' does not match any buildings[].id")
+
+    # v1.8 (B2): boundary shape (positive numbers) if present.
+    boundary = spec.get("boundary")
+    if boundary is not None:
+        if not isinstance(boundary, dict):
+            errors.append("boundary: must be an object {x, z}")
+        else:
+            for key in ("x", "z"):
+                bv = boundary.get(key)
+                if bv is None or not is_number(bv) or bv <= 0:
+                    errors.append(f"boundary.{key}: must be a positive number")
 
     # v1.2 environment block — optional; smart defaults apply when absent.
     env = spec.get("environment")

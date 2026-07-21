@@ -58,3 +58,39 @@
 - [ ] 点击 3D 楼层金色高亮并打开 UnitDetail（**v1.5：详情数据由 `getFloorDetail()` 返回**）；多单位时上一/下一可用。
 - [ ] 外围区域确为空（未生成 TopBar / 角括号 / 5 个数据面板）。
 - [ ] `npm run typecheck` 干净通过。
+
+## 响应式与降级（v1.8）
+
+固定 1920×1080 舞台是设计基准，但实际视口千差万别。生成器须按下列约束保证可用性：
+
+- **最小支持视口**：1280×720。低于此宽度时 `useScaleBoard` 仍缩放（舞台等比缩小），但 UI 文字/图例可读性下降——此时在舞台角落给一行「建议 1920×1080 及以上分辨率查看」提示（token 驱动、可关闭）。
+- **portrait / 超宽屏**：舞台永远保持 16:9 信箱化（上下或左右留黑），**不**为 portrait 单独重排——3D 等轴场景旋转到竖屏会丢失可读性。portrait 下舞台占满宽度、上下留黑即可。
+- **resize 防抖**：`useScaleBoard` 与 `frameCamera()` 的 resize 回调**必须防抖（~150ms）**，否则拖拽窗口时每帧重算视锥导致卡顿。
+- **`devicePixelRatio` 上限 2**：`renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))`（见 `scene-recipe.md` §2），4K/retina 不限制会爆 framebuffer。
+- **低性能设备**：无 WebGL2 或 `navigator.hardwareConcurrency` 低（≤4）时，生成器应降档——bloom 关闭、阴影改 PCF（非 PCFSoft）、环境密度降一档（见 `scene-recipe.md` §10 性能预算与 §1 WebGL2 检测）。
+
+## 可访问性（v1.8）
+
+数字孪生是 3D 画布为主，但仍须提供键盘与屏幕阅读器可达性：
+
+- **楼栋切换器**：用 `role="tablist"` / `role="tab"` + `aria-selected`；方向键（←/→ 或 ↑/↓）在标签间移动焦点；`tab` 键进入/离开。当前聚焦楼写进 `aria-activedescendant`。
+- **canvas 文本替代**：`<canvas>` 加 `role="img"` + `aria-label`（如「XX园区 数字孪生 3D 场景，含 N 栋楼，可用键盘楼栋切换器浏览」），给屏幕阅读器一个总览。3D 内部细节无法逐个 aria 化，靠切换器 + UnitDetail 的语义化 HTML 承载信息。
+- **POI 标记**：POI 详情走 HTML 弹出卡（§11），弹出时 `aria-live="polite"` 让屏幕阅读器播报；键盘可聚焦打开的 POI 卡片、Esc 关闭。
+- **UnitDetail 面板**：打开时把焦点移入面板（`focus()` 首个可聚焦元素），Esc 关闭并把焦点还给触发的楼层——让键盘用户能感知内容变化。
+- **对比度**：所有标签文字对背景对比度 ≥ WCAG AA（4.5:1 正文 / 3:1 大字）。§4.2 的「亮底深字 / 暗底亮字」规则已保证大方向；token 选色时用对比检查工具复核边界情况（如 cyber `text-lo` 在 `panel-top` 上）。
+- **`prefers-reduced-motion`**：用户系统开启「减少动态效果」时，**禁用**相机聚焦补间（瞬切而非 0.6s tween）、**禁用** POI 告警呼吸动画、bloom 强度减半。用 `window.matchMedia('(prefers-reduced-motion: reduce)').matches` 检测。
+
+## 空 / 加载 / 错误态（v1.8）
+
+三态兜底覆盖每个动态数据消费者（对齐技能既有 `@error` 哲学）：
+
+- **加载态（骨架）**：`hydrating=true` 时——切换器标签显示占位（楼栋 id 或「加载中」灰条）；UnitDetail 区域显示骨架屏（灰色占位块）；POI 层不渲染。脚手架（环境 + 占地底板 + Legend）立即可见，不白屏。
+- **空态**：`getBuildings()` 返回 `[]` 时——舞台中央显示空态遮罩「该园区尚未配置楼栋」+ 刷新按钮（调 `getBuildings()` 重试）；切换器仅保留「全局视角」标签。`getPois()` 返回 `[]` 不报错（不渲染 POI，无需遮罩）。`FloorDetail.units` 为空数组时 UnitDetail 显示「该层暂无单位信息」。
+- **错误态（分方法 + 重试）**：v1.8 起按方法独立错误（见 `dynamic-data-api.md` §9）——楼栋水合失败显示「楼栋数据加载失败 + 重试」、POI 失败显示「POI 数据加载失败（楼栋仍可交互）」、楼层详情失败在 UnitDetail 面板内联「加载失败 + 重试」。**绝不静默 `catch {}` 吞错误**——每个失败都要给用户可见反馈 + 重试入口。错误文案区分 `ApiError.status`：401→「未授权，请重新登录」、404→「数据不存在」、5xx→「服务端异常」、0（超时/网络）→「网络异常，请检查连接」。
+
+## dispose 与上下文恢复（v1.8）
+
+详见 `scene-recipe.md` §9，shell 侧须确保：
+- `GlobalTwin.vue` 的 `onBeforeUnmount` 调 `scene.dispose()`（完整清单见 scene-recipe §9），不止于「取消 RAF」。
+- canvas 监听 `webglcontextlost` / `webglcontextrestored`，丢失时显式遮罩 + 停渲染，恢复时重建 GPU 资源。
+- `ResizeObserver` 在卸载时 `disconnect()`。

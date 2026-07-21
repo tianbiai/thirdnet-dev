@@ -18,9 +18,6 @@ __pycache__/
 plugins/thirdnet-fullstack/skills/md-to-word/evals/files/*_output.docx
 
 # 数字孪生演示前端项目（根目录 Vite 工程）
-node_modules/
-dist/
-dist-ssr/
-*.local
-.DS_Store
-*.log
+web/
+.playwright-mcp/
+screenshots/

@@ -116,6 +116,151 @@
         "Label contrast (§4.2) follows deep-blue-bg + pale-white-blue text (亮字深底), readable on the blueprint ground",
         "Generated 5-file IDigitalTwinApi contract layer (v1.5) with mock data derived from spec (研发楼 8F / 中试楼 5F / 展示中心 3F); GlobalTwin.vue hydrates via getBuildings()+getPois()"
       ]
+    },
+    {
+      "id": 7,
+      "name": "realistic-style-park",
+      "prompt": "给『湖畔科创中心』做个数字孪生大屏，要日间真实感——真实建筑可视化、玻璃幕墙反射、柔和阳光阴影，不要那种霓虹仪表盘。园区 3 栋楼（A 座 12F、B 座 8F、C 座 4F）+ 一个地下车库，尺寸你安排。先生成规格给我确认。",
+      "expected_output": "A validated Park Spec with style='realistic' (3 buildings + 1 garage). Generated scene uses ACESFilmicToneMapping + outputColorSpace=SRGB + PCFSoftShadowMap; pre-baked HDR/RoomEnvironment environment (v1.8: NOT runtime Sky+PMREM); DirectionalLight sun from tokens.lights; concrete/road bodies use MeshLambertMaterial (roughness≥0.9); no grid.glsl floor. Plus standard shared parts + 5-file contract layer.",
+      "files": [],
+      "expectations": [
+        "Spec passes validate_spec.py with style='realistic'",
+        "Generated renderer sets outputColorSpace = SRGBColorSpace and DPR ≤ 2 (v1.8)",
+        "Generated scene does NOT call PMREMGenerator.fromScene(new Sky()) at runtime — uses a pre-baked HDR / RoomEnvironment (v1.8)",
+        "DirectionalLight color/intensity come from tokens.lights.sun/sunIntensity, not a hardcoded 0xfff4e0 hex (v1.8)",
+        "Concrete building bodies and roads use MeshLambertMaterial (not MeshStandardMaterial) where roughness≥0.9 & metalness=0 (v1.8)",
+        "The ~0.05 'highlight convergence' bloom is NOT present (v1.8: removed as invisible under ACES)",
+        "Grid shader floor is NOT wired (realistic skips grid.glsl); shadow camera ortho bounds derived from boundary",
+        "5-file IDigitalTwinApi contract layer present; GlobalTwin.vue uses Promise.allSettled hydration (v1.8)"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "night-realistic-pointlight-budget",
+      "prompt": "做一个夜间写实风格的园区数字孪生——夜景、窗户亮灯、路灯氛围。园区比较大，4 栋楼加长园区道路，路灯会比较多。帮我确保不会卡。",
+      "expected_output": "A night-realistic scene that respects the v1.8 PointLight performance budget: ≤8 PointLights total, all castShadow=false; street lamps are emissive Sprite glows + 1-2 shared hero PointLights; car lights are emissive spheres (no real lights); pre-baked reflection texture (not MeshReflectorMaterial); window emissive baked into facade CanvasTexture once.",
+      "files": [],
+      "expectations": [
+        "Generated scene has at most 8 PointLight instances total and ALL have castShadow=false (v1.8)",
+        "Street lamps use emissive Sprite glow + at most 1-2 shared 'hero' PointLights, NOT one PointLight per lamp (v1.8)",
+        "Car head/tail lights are emissive spheres, NOT real PointLight sources (v1.8)",
+        "Ground uses a pre-baked blurred reflection texture, NOT MeshReflectorMaterial (v1.8)",
+        "Window emissive texture is baked once into the facade CanvasTexture, not recomputed per frame (v1.8)",
+        "PointLight color/intensity/distance come from tokens.lights.point/pointIntensity/pointDistance (v1.8)",
+        "Hydration uses Promise.allSettled so a POI failure doesn't kill building hydration (v1.8)"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "holographic-no-transmission",
+      "prompt": "做一个全息未来科技风的园区数字孪生——半透青玻璃楼栋、边缘辉光、bloom。要保证性能，别用太重的材质。",
+      "expected_output": "A holographic scene using the v1.8 cheap recipe: translucent MeshStandardMaterial + emissive edges + bloom, with Fresnel rim via onBeforeCompile (assets/fresnelRim.glsl). MeshPhysicalMaterial transmission is explicitly NOT used.",
+      "files": [],
+      "expectations": [
+        "Generated building material does NOT use MeshPhysicalMaterial or transmission property (v1.8 DO-NOT-USE)",
+        "Fresnel rim glow (if used) is injected via onBeforeCompile referencing assets/fresnelRim.glsl, not via transmission (v1.8)",
+        "No PMREM/HDR environment (holographic keeps translucency clean); lights from tokens.lights (hemiSky/hemiGround/ambient)",
+        "outputColorSpace = SRGB and bloom present at a visible strength (~0.3), optionally selective bloom (v1.8)"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "white-model-park",
+      "prompt": "给『城市展览馆』做个数字孪生沙盘——博物馆级的全白磨砂模型、柔和接地阴影、干净汇报风。3 栋楼 + 地下车库。",
+      "expected_output": "A white-model scene: pure-white MeshLambertMaterial bodies, category color on roof edges only, PCFSoftShadowMap contact shadow, NO PMREM/HDR (v1.8 removed the white-Scene PMREM path).",
+      "files": [],
+      "expectations": [
+        "Spec passes validate_spec.py with style='white-model'",
+        "Building bodies use MeshLambertMaterial (not MeshStandardMaterial) — pure white (v1.8)",
+        "Scene does NOT set up a PMREMGenerator.fromScene(white Scene) — only HemisphereLight + DirectionalLight (v1.8)",
+        "Category color (building blue / garage green) appears on roof EdgesGeometry/Line2, not the body",
+        "outputColorSpace = SRGB; DPR ≤ 2; legend swatches match tokens.category colors"
+      ]
+    },
+    {
+      "id": 11,
+      "name": "isometric-park",
+      "prompt": "做一个等距插画风的园区信息图——扁平 cel 着色的彩色楼栋、鲜活友好、适合汇报。3 栋楼。",
+      "expected_output": "An isometric scene using MeshLambertMaterial with flatShading:true (v1.8), warm directional light camera-locked, NO shadows (v1.8 DO-NOT-ENABLE-SHADOWS), NoToneMapping.",
+      "files": [],
+      "expectations": [
+        "Spec passes validate_spec.py with style='isometric'",
+        "Building material is MeshLambertMaterial with flatShading:true (v1.8, NOT MeshStandardMaterial)",
+        "shadowMap is disabled and there is an explicit DO-NOT-ENABLE-SHADOWS note (light is camera-locked) (v1.8)",
+        "DirectionalLight color from tokens.lights.sun; NoToneMapping; outputColorSpace = SRGB"
+      ]
+    },
+    {
+      "id": 12,
+      "name": "negative-malformed-spec",
+      "prompt": "我整理了个园区规格，你先帮我校验一下有没有问题再生成。规格在 spec.json：两栋楼都标成了地下车库、有一栋楼没写楼层数、style 写成了 'neon'、有个 POI 的 buildingId 指向不存在的楼。",
+      "expected_output": "Runs validate_spec.py and reports every FAIL/WARN WITHOUT generating the scene. The v1.8 validator must catch: 2 garages (at most 1), missing floors on a building-category entry, unknown style 'neon', and POI buildingId not matching any building. The assistant fixes each FAIL before proceeding.",
+      "files": [],
+      "expectations": [
+        "Output runs scripts/validate_spec.py and reports exit code 1 with specific FAIL lines",
+        "Validator flags the 2 garage-category buildings (expected at most 1)",
+        "Validator flags the building-category entry missing 'floors' (v1.8 B1 — was previously silent)",
+        "Validator flags style 'neon' as not in the 7-style enum",
+        "Validator flags the POI buildingId that doesn't match any buildings[].id",
+        "Assistant does NOT proceed to generate the scene until every FAIL is resolved"
+      ]
+    },
+    {
+      "id": 13,
+      "name": "dynamic-data-failure-modes",
+      "prompt": "数字孪生页面要能扛住后端异常：楼栋接口正常但 POI 接口挂了、快速连点不同楼层、某个楼层详情 404。帮我加上这些降级。",
+      "expected_output": "Hardened hydration (v1.8): Promise.allSettled so POI failure doesn't kill buildings; AbortSignal + onCleanup on the floor-detail watch so rapid clicks don't race; floor-detail 404 shows inline error + retry in UnitDetail (not silently swallowed); unified ApiError so 401/404/5xx/timeout are distinguishable.",
+      "files": [],
+      "expectations": [
+        "GlobalTwin.vue onMounted uses Promise.allSettled (not Promise.all) with per-method error state (v1.8)",
+        "A POI request failing leaves buildings hydrated and interactive (not wiped) (v1.8)",
+        "The floor-detail watch uses onCleanup + AbortController to cancel the previous in-flight request on rapid floor switching (v1.8)",
+        "A 404 on getFloorDetail surfaces an inline error + retry in the UnitDetail panel, not a silent catch {} (v1.8)",
+        "request<T>() supports a signal (AbortSignal) and timeout; network/timeout errors are wrapped in ApiError(0, ...) (v1.8)",
+        "Mock and Real both throw ApiError (Mock 404 for missing floor), so error handling is mode-invariant (v1.8)"
+      ]
+    },
+    {
+      "id": 14,
+      "name": "responsive-accessibility",
+      "prompt": "这个数字孪生大屏要在不同屏幕和键盘用户下都能用——有的人用笔记本不是 4K 大屏，有的人只用键盘不用鼠标。帮我加上响应式和可访问性。",
+      "expected_output": "Adds the v1.8 responsive + a11y layer: DPR ≤ 2; resize debounce; switcher role=tab + arrow-key nav; canvas aria-label; POI/UnitDetail focus management + Esc; prefers-reduced-motion disables tween & breathing; empty state when getBuildings() returns [].",
+      "files": [],
+      "expectations": [
+        "renderer.setPixelRatio uses Math.min(window.devicePixelRatio, 2) (v1.8)",
+        "Resize callbacks are debounced (~150ms), not run every frame (v1.8)",
+        "BuildingSwitcher uses role='tab'/'tablist' + arrow-key navigation (v1.8)",
+        "The canvas has role='img' + a descriptive aria-label (v1.8)",
+        "POI popup and UnitDetail move focus in on open and restore it on Esc close (v1.8)",
+        "prefers-reduced-motion: reduce disables the focus tween and POI alarm breathing animation (v1.8)",
+        "getBuildings() returning [] shows an empty-state overlay with a retry button (v1.8)"
+      ]
+    },
+    {
+      "id": 15,
+      "name": "webgl-context-loss-dispose",
+      "prompt": "我们的数字孪生页面在切后台标签页回来或者显卡驱动休眠后偶尔变黑，切楼栋标签页时也偶尔卡。帮我修好生命周期。",
+      "expected_output": "Adds v1.8 WebGL context loss handling and a full dispose checklist: webglcontextlost/restored listeners; stop RAF on loss + restore overlay; full dispose on unmount (RAF, ResizeObserver, OrbitControls, geometry/material/texture, composer, renderer.forceContextLoss); long-lived singleton surviving tab switches.",
+      "files": [],
+      "expectations": [
+        "canvas listens to webglcontextlost (preventDefault + stop RAF + show restore overlay) and webglcontextrestored (rebuild GPU resources + restart RAF) (v1.8)",
+        "GlobalTwin.vue onBeforeUnmount calls a full scene.dispose() covering RAF, ResizeObserver.disconnect, OrbitControls.dispose, geometry/material/texture disposal, composer + renderer.dispose + forceContextLoss (v1.8)",
+        "ParkScene is a long-lived singleton that survives BuildingSwitcher tab switches (not rebuilt per tab) (v1.8)",
+        "The scene does NOT continue rendering after a context-lost event (would throw) (v1.8)"
+      ]
+    },
+    {
+      "id": 16,
+      "name": "backend-contract-envelope-rejection",
+      "prompt": "后端同学说他返回的数据包了一层 { code, message, data }，前端直接读 data 就行。数字孪生前端契约这边怎么处理？",
+      "expected_output": "Explains the envelope-absence rule and confirms the contract: the digital twin GET endpoints return the entity/array directly (no {code,message,data}); if a backend stub wraps in an envelope, the frontend types (snake_case direct fields) would mismatch and the Real implementation must NOT silently unwrap — it should push the backend to drop the envelope per net-api-developer / api-typescript-spec.",
+      "files": [],
+      "expectations": [
+        "Output states the digital twin endpoints return entities/arrays directly with NO {code,message,data} envelope (aligned with api-typescript-spec)",
+        "Output does NOT suggest silently unwrapping resp.data in the frontend (that would hide a backend contract violation)",
+        "Backend DTO field names are snake_case and match the frontend types (BuildingRuntimeItem/FloorDetail/PoiRuntimeItem) (v1.8 contract)",
+        "Lists the 3 GET endpoints with route, QueryMap, *Map DTO, permission, Controller (front-first)"
+      ]
     }
   ]
 }

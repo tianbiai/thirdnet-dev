@@ -1,6 +1,6 @@
-# 范例（Exemplar）—— 现有的 `d:\Vibe\社区` 实现
+# 范例（Exemplar）—— 现有的社区驾驶舱参考实现
 
-本技能所在的仓库已包含一个可工作的园区驾驶舱实现。把它当作**模式参考**。这份地图说明每个文件做什么、该**拷贝**什么、该**修**什么（五个已知缺口）。为同一仓库生成时，你是在扩展/泛化这些文件；为新项目生成时，你是从这些模式 + 配方重建它们。
+本技能附带一个可工作的社区驾驶舱范例实现作为**模式参考**（如果你手上有这样一个已有项目）。这份地图说明每个文件做什么、该**拷贝**什么、该**修**什么（五个已知缺口）。向该范例项目生成时，你是在扩展/泛化这些文件；为新项目生成时，你是从这些模式 + 配方重建它们。
 
 > 范例是**参考**，不是约束。本技能产出**符合所选风格规范的**版本（赛博下接入着色器；类别颜色、图例、车库作为一栋楼、点击选中/详情在所有风格下都成立）。范例偏离的地方就修——不要复制偏差。
 
@@ -17,6 +17,8 @@
 | `src/components/center/UnitDetail.vue` 及中央小组件 | 忠实的 1:1 赛博复刻，是中央 CenterStage 的一部分——镜像它。**注意**：范例里的外围 2D 组件（TopBar、PersonAccess、VehicleAccess、CameraGrid、MeetingRooms、RepairTimeline、CornerBrackets）本技能**不再生成**——外围留空（见 `references/shell.md`）。 |
 
 ## 作为模式拷贝（然后改造）
+
+> **v2.0 起的生成基线是 [`assets/park-scene.impl.ts`](../assets/park-scene.impl.ts)（导读见 [`park-scene-impl.md`](park-scene-impl.md)），不再是下文的外部范例 `DigitalTwin.ts`。** 下表描述的「拷贝哪段、修哪段」仍适用——只是把这些模式想象成**已经内化在范式实现里**：生成器把 `park-scene.impl.ts` 拷成目标项目的 `ParkScene.ts`，替换数据源、按 spec.style 选 profile 即可，不需要重新合成 Three.js 管线。范例 `DigitalTwin.ts` 现仅作历史模式参考，不随技能发布。
 
 **`src/scene/DigitalTwin.ts`**（约 1,477 行）—— Three.js 工作。把以下章节当作新 `ParkScene.ts` 的模式：
 - `1-216` —— 渲染器（alpha/ACES/DPR）、`OrthographicCamera` 等轴设置、灯光、雾、PMREM 环境。**拷贝相机 + 渲染器；**把重 IBL/VSM **修剪**成更平的赛博观感。

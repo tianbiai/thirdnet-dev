@@ -2,7 +2,9 @@
 
 **Park Spec** 是一份园区数字孪生的唯一规范描述。每种输入模式（文字、草图、效果图、`.pen`）都会被转换成这样一份 spec，由用户确认，生成器只从它读取。任何特定园区的内容（“综合楼”、“10 层”等）都绝不硬编码在生成器里——一切都从 spec 流入。
 
-本文件是 schema 的事实来源。`scripts/validate_spec.py` 依据它校验 spec；编写或编辑 spec 前先读本文件。
+本文件是 schema 的事实来源。`scripts/validate_spec.py` 依据它校验 spec；`assets/spec.schema.json` 是同结构的 JSON Schema（draft-07），可供 IDE 自动补全与 CI 无 Python 校验。编写或编辑 spec 前先读本文件。
+
+> **命名约定边界（v1.8）**：spec 层与运行时 TypeScript **一律 camelCase**（`buildingId`、`floorIndex`、`poiId`）。**snake_case 仅出现在 HTTP DTO**（后端 `*Map` 响应，如 `building_id`、`floor_index`）—— 由 Real 工厂层在请求/响应边界做映射，前端组件永不知晓 snake_case。本文件里的 `buildingId`/`floorIndex` 是 camelCase；`dynamic-data-api.md` §4 的 `PoiRuntimeItem.building_id` 是后端 DTO 形态，工厂层映射为 camelCase 后再交组件消费。
 
 ## 数据分层注记（v1.5）
 
@@ -38,7 +40,10 @@ interface ParkSpec {
   boundary?: { x: number; z: number } // 默认 {360, 220}
   buildings: BuildingSpec[]
   legend?: LegendEntry[]              // 默认 = 楼幢 + 地下车库 两个类别
-  switcher?: string[]                 // 标签页标签；默认包含 全局视角 + 每栋楼
+  switcher?: (string | { id: string; label?: string })[]
+                                // 标签页骨架。v1.8 推荐对象形式 {id,label?}：id 显式对齐
+                                // buildings[].id，label 缺省由 getBuildings() 水合 name。
+                                // 裸字符串形式仍兼容（按名字推断，较脆弱）。默认 = 全局视角 + 每栋非车库楼 + 地下车库
   environment?: ParkEnvironment       // 园区环境（道路/地面车位/绿化/周边/氛围）；缺省 = 智能默认
   pois?: PoiSpec[]                    // 兴趣点（类型+坐标+提示）；缺省 = []（不生成 POI）
 }
@@ -164,7 +169,7 @@ POI 的 `tooltip` 是规范化的「提示数据」：`title` / `description` / 
 
 | 类别 | 含义 | 默认颜色 | 3D 处理 |
 |---|---|---|---|
-| `building` | 楼幢 —— 一栋普通的地上建筑 | 青色 `#27a8ff` | 挤出的盒体、幕墙纹理（v1.4 每层 1–5 间房明度阶梯）、**楼层虚线分隔**、屋顶边线、**楼顶常驻名称标签** |
+| `building` | 楼幢 —— 一栋普通的地上建筑 | 青色 `#27a8ff` | 挤出的盒体、幕墙纹理（v1.4 每层 1–5 块贴砖；v1.7 相邻贴砖深浅两色交替 + 深色竖实线）、**楼层虚线分隔**、屋顶边线、**楼顶常驻名称标签** |
 | `garage` | 地下车库 —— 地下车库入口 | 薄荷绿 `#3df0c8` | **半金字塔三角门入口 + P 标识牌**（v1.3 起；不再有占用标牌/进度条） |
 
 至多**一栋**楼是 `category: 'garage'`（校验器会拒绝更多）。车库楼承载入口标记，朝向由 `facing`（默认 `'S'`）决定。

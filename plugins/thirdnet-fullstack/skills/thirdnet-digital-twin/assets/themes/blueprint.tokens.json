@@ -1,5 +1,10 @@
 {
   "_comment": "Blueprint (蓝图 / 工程蓝图) theme — deep blueprint-blue ground with a pale white-blue coordinate grid, white wireframe-dominant buildings with faint blue fill. Engineering/BIM aesthetic — the 'clean technical' look done right (replaces the flat minimal style). Reuses gridGround.glsl (same shader asset as cyber) but with a blueprint palette (deep blue ground + pale grid lines). Same key names as the cyber theme so the generator derives colors the same way; only the values change. To retheme, edit values here only.",
+  "scene": {
+    "_comment": "v1.9 显式场景背景（顶→底纵向渐变 CanvasTexture，§2）。深蓝图图纸底，比纯色多一点纵深。",
+    "bgTop": "#0f3a82",
+    "bgBottom": "#082356"
+  },
   "palette": {
     "void-bg": "#0a2d6e",
     "panel-top": "#0f3a82",
@@ -45,17 +50,36 @@
     "garage": "#7fe3ff"
   },
   "building": {
-    "_comment": "v1.4 楼栋楼层/房间层次（§4）。蓝图：roomShade 极小（线框主导、弱填充），dividerColor 用淡白青作楼层虚线。",
+    "_comment": "v1.4/v1.7 楼栋楼层/贴砖层次（§4.1）。蓝图：roomShade 极小（线框主导、弱填充），dividerColor 用淡白青作贴砖竖实线 + 楼层横向虚线。",
     "roomShade": 0.08,
     "dividerColor": "#cfe4ff"
   },
+  "lights": {
+    "_comment": "v1.8 灯光配色。蓝图：单个 AmbientLight（线框主导、NoToneMapping、无阴影），不需要方向光/环境贴图。",
+    "sun": null,
+    "sunIntensity": 0.0,
+    "hemiSky": null,
+    "hemiGround": null,
+    "hemiIntensity": 0.0,
+    "ambient": "#ffffff",
+    "ambientIntensity": 1.0,
+    "ambientFloor": 0.0,
+    "point": null,
+    "pointIntensity": 0.0,
+    "pointDistance": 0.0
+  },
+  "ground": {
+    "_comment": "v1.9 园区地面纹理（§3）。blueprint 主用 gridGround.glsl 着色器地面；本块仅作 shader 失败时的降级（深蓝图底 + 淡白青坐标网格 CanvasTexture）。",
+    "texture": { "type": "grid", "base": "#0a2d6e", "line": "#cfe4ff", "cell": 46 }
+  },
   "shaders": {
-    "_comment": "Blueprint reuses gridGround.glsl (same asset as cyber) but with a blueprint palette: deep blue ground + pale white-blue coordinate grid. u_gridColor is the pale grid line color.",
+    "_comment": "v1.8 Blueprint reuses gridGround.glsl (same asset as cyber) but with a blueprint palette: deep blue ground + pale white-blue coordinate grid. u_gridColor is the pale grid line color. gridGround.glsl 还需 vec2 u_scale uniform，由几何派生 = vec2(boundary.x*2, boundary.z*2)（见 scene-recipe.md §3）。",
     "grid": { "u_gridColor": "#cfe4ff", "u_cell": 46, "u_strength": 0.6 }
   },
   "environment": {
-    "_comment": "v1.2 园区环境配色（§10）。蓝图气质：深蓝单色调，绿植压成蓝灰抽象块以维持工程图氛围；标线/发光取淡白青。",
+    "_comment": "v1.2 园区环境配色（§10）。蓝图气质：深蓝单色调，绿植压成蓝灰抽象块以维持工程图氛围；标线/发光取淡白青。v1.8 groundGlow 默认 false（保持图纸干燥感，环境元素可降密度）。",
     "city-ground": "#061a45",
+    "groundGlow": false,
     "road": "#0a2562",
     "roadLine": "#cfe4ff",
     "sidewalk": "#102e6b",
@@ -84,7 +108,7 @@
     "sign": "#7fe3ff"
   },
   "poi": {
-    "_comment": "v1.3 兴趣点（§11）类型→颜色。蓝图：在深蓝底上高可读的亮色，克制不发光（或极弱自发光勾边）。",
+    "_comment": "v1.3 兴趣点（§11）类型→颜色。蓝图：在深蓝底上高可读的亮色，克制不发光（或极弱自发光勾边）。v1.8 新增 status 子块：淡白青/克制亮色线框，不发光。",
     "entrance": "#7fe3ff",
     "exit": "#ff7a8a",
     "camera": "#ffd86b",
@@ -92,7 +116,23 @@
     "service": "#cfe4ff",
     "landmark": "#a8caff",
     "parking": "#7fe3ff",
-    "custom": "#8fb8e6"
+    "custom": "#8fb8e6",
+    "status": {
+      "_comment": "v1.8 POI 状态色（蓝图：淡白青/克制亮色，不发光）。",
+      "online": "#7fe3ff",
+      "offline": "#5a7896",
+      "alarm": "#ff7a8a",
+      "idle": "#ffd86b"
+    }
+  },
+  "realism": {
+    "_comment": "v2.0 写实增强旋钮。blueprint 是工程图纸气质——全部关闭（无环境贴图/无 bloom/无 AO/无反射/无雾），保持干燥纯净的图纸感。",
+    "material": { "roughness": 0.9, "metalness": 0.0, "envMapIntensity": 0.0 },
+    "bloom": { "threshold": 0.9, "strength": 0.0, "radius": 0.4 },
+    "ao": { "enabled": false, "intensity": 0.5, "radius": 0.5 },
+    "reflection": { "enabled": false, "opacity": 0.5, "mixStrength": 0.5 },
+    "fog": null,
+    "sun": { "azimuth": 135, "elevation": 50 }
   },
   "fonts": {
     "zh": "Noto Sans SC",

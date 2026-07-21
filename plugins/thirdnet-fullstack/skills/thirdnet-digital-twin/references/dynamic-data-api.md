@@ -103,6 +103,8 @@ src/
 
 `src/api/types/digital-twin.ts` —— 字段全 snake_case，与后端 `*Map` DTO 一致（对齐 `api-typescript-spec`「字段名强制 snake_case」）。
 
+> **命名约定边界（v1.8）**：这些 snake_case 字段是 **HTTP DTO 形态**（后端响应）。两种做法皆可：① 直接在组件里用 snake_case（最省事，类型即契约，零漂移）；② Real 工厂层（§8）在 `request<T>()` 返回后映射为 camelCase（`buildingId`/`floorIndex`/`poiId`），让组件层只接触 camelCase（与 `park-spec.md` 的 `PoiSpec.buildingId/floorIndex` 一致）。**选定一种并在整个数字孪生模块内统一**。下文示例保持 snake_case（做法①）。spec 层 `PoiSpec` 的 camelCase 字段在派生 Mock 时按本节 snake_case 形态转写。
+
 ```ts
 // ---- 楼幢业务数据（getBuildings 返回项）----
 
@@ -213,13 +215,18 @@ import type {
   PoiRuntimeItem, PoiQueryParams,
 } from '@/api/types/digital-twin'
 
+/** v1.8: 调用选项——透传 AbortSignal 以取消请求（防快速切换楼层 race）。 */
+export interface DigitalTwinRequestOptions {
+  signal?: AbortSignal
+}
+
 export interface IDigitalTwinApi {
   /** 楼幢业务数据（名/楼层数/floor_ids）。水合楼栋高度、楼顶标签、切换器。 */
-  getBuildings(params?: BuildingQueryParams): Promise<BuildingRuntimeItem[]>
+  getBuildings(params?: BuildingQueryParams, opts?: DigitalTwinRequestOptions): Promise<BuildingRuntimeItem[]>
   /** 楼层详情（租户/单位）。点击楼层后按需拉取，驱动 UnitDetail 面板。 */
-  getFloorDetail(params: FloorDetailQueryParams): Promise<FloorDetail>
+  getFloorDetail(params: FloorDetailQueryParams, opts?: DigitalTwinRequestOptions): Promise<FloorDetail>
   /** POI 点位（设备/监控/停车场 + 实时状态 + 占用）。水合 POI 标记层。 */
-  getPois(params?: PoiQueryParams): Promise<PoiRuntimeItem[]>
+  getPois(params?: PoiQueryParams, opts?: DigitalTwinRequestOptions): Promise<PoiRuntimeItem[]>
 }
 ```
 
@@ -270,27 +277,31 @@ export const mockPois: PoiRuntimeItem[] = [
 `src/mock/api/manager/digital-twin.ts` —— `async` 方法直接返回派生数据（用 `async` 仅为符合 `Promise<T>` 签名；如需模拟网络延迟可包 `await new Promise(r => setTimeout(r, 200))`，但非约定）。
 
 ```ts
-import type { IDigitalTwinApi } from '@/api/interfaces/manager/digital-twin'
+import type { IDigitalTwinApi, DigitalTwinRequestOptions } from '@/api/interfaces/manager/digital-twin'
 import type {
   BuildingQueryParams, BuildingRuntimeItem,
   FloorDetail, FloorDetailQueryParams,
   PoiQueryParams, PoiRuntimeItem,
 } from '@/api/types/digital-twin'
+import { ApiError } from '@/api/request'   // v1.8: Mock 也抛 ApiError，与 Real 错误类型一致
 import { mockBuildings, mockFloorDetails, mockPois } from '@/mock/data/manager/digital-twin'
 
 export class MockDigitalTwinApi implements IDigitalTwinApi {
-  async getBuildings(_params?: BuildingQueryParams): Promise<BuildingRuntimeItem[]> {
+  async getBuildings(_params?: BuildingQueryParams, _opts?: DigitalTwinRequestOptions): Promise<BuildingRuntimeItem[]> {
     return mockBuildings
   }
 
-  async getFloorDetail(params: FloorDetailQueryParams): Promise<FloorDetail> {
+  async getFloorDetail(params: FloorDetailQueryParams, opts?: DigitalTwinRequestOptions): Promise<FloorDetail> {
     const key = `${params.building_id}:${params.floor_id}`
     const detail = mockFloorDetails[key]
-    if (!detail) throw new Error(`Floor ${key} not found`)
+    // v1.8: 抛 ApiError(404) 而非裸 Error——与 Real 一致，组件 instanceof ApiError 可判 status
+    if (!detail) throw new ApiError(404, `Floor ${key} not found`)
+    // v1.8: 响应调用方取消（Mock 也尊重 signal，便于测试 race）
+    if (opts?.signal?.aborted) throw new ApiError(0, 'aborted')
     return detail
   }
 
-  async getPois(params?: PoiQueryParams): Promise<PoiRuntimeItem[]> {
+  async getPois(params?: PoiQueryParams, _opts?: DigitalTwinRequestOptions): Promise<PoiRuntimeItem[]> {
     let list = mockPois
     if (params?.building_id) list = list.filter(p => p.building_id === params.building_id)
     if (params?.type) list = list.filter(p => p.type === params.type)
@@ -315,14 +326,14 @@ import type {
 import { MockDigitalTwinApi } from '@/mock/api/manager/digital-twin'
 
 class RealDigitalTwinApi implements IDigitalTwinApi {
-  async getBuildings(params?: BuildingQueryParams): Promise<BuildingRuntimeItem[]> {
-    return request<BuildingRuntimeItem[]>({ url: '/api/manager/park/buildings', method: 'GET', params })
+  async getBuildings(params?: BuildingQueryParams, opts?: DigitalTwinRequestOptions): Promise<BuildingRuntimeItem[]> {
+    return request<BuildingRuntimeItem[]>({ url: '/api/manager/park/buildings', method: 'GET', params, signal: opts?.signal })
   }
-  async getFloorDetail(params: FloorDetailQueryParams): Promise<FloorDetail> {
-    return request<FloorDetail>({ url: '/api/manager/park/floor-detail', method: 'GET', params })
+  async getFloorDetail(params: FloorDetailQueryParams, opts?: DigitalTwinRequestOptions): Promise<FloorDetail> {
+    return request<FloorDetail>({ url: '/api/manager/park/floor-detail', method: 'GET', params, signal: opts?.signal })
   }
-  async getPois(params?: PoiQueryParams): Promise<PoiRuntimeItem[]> {
-    return request<PoiRuntimeItem[]>({ url: '/api/manager/park/pois', method: 'GET', params })
+  async getPois(params?: PoiQueryParams, opts?: DigitalTwinRequestOptions): Promise<PoiRuntimeItem[]> {
+    return request<PoiRuntimeItem[]>({ url: '/api/manager/park/pois', method: 'GET', params, signal: opts?.signal })
   }
 }
 
@@ -347,6 +358,7 @@ export const digitalTwinApi = createDigitalTwinApi()
 <script setup lang="ts">
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { digitalTwinApi } from '@/api/modules/manager/digital-twin'
+import { ApiError } from '@/api/request'            // v1.8: 统一错误类型（Mock/Real 一致）
 import { useSelection } from '@/composables/useSelection'
 import { ParkScene } from '@/scene/ParkScene'
 import type { BuildingRuntimeItem, PoiRuntimeItem } from '@/api/types/digital-twin'
@@ -355,49 +367,73 @@ const canvas = ref<HTMLCanvasElement>()
 let scene: ParkScene | null = null
 const selection = useSelection()
 const hydrating = ref(true)
-const hydrateError = ref<string>()
+// v1.8: 拆为按方法的错误态——POI 失败不再连累楼栋水合（Promise.allSettled + 独立状态）
+const buildingsError = ref<string>()
+const poisError = ref<string>()
+const floorDetailError = ref<string>()
 
 onMounted(async () => {
   // 1. 静态脚手架（同步，来自 spec）—— 环境已由 ParkScene 构造时按 spec.buildings 占地 + environment 建好
   scene = new ParkScene(canvas.value!, /* spec 派生的静态脚手架 */)
 
-  // 2+3. 并行水合楼栋 + POI
-  try {
-    const [buildings, pois] = await Promise.all([
-      digitalTwinApi.getBuildings(),
-      digitalTwinApi.getPois(),
-    ])
-    scene.hydrateBuildings(buildings)   // 按 floors 挤出 + 楼顶标签 + 楼层拾取板(floor_ids)
-    scene.hydratePois(pois)             // POI 标记 + 状态色
-  } catch (e) {
-    hydrateError.value = (e as Error).message ?? '数据加载失败'
-    // 降级：脚手架仍可交互，POI/楼名缺失
-  } finally {
-    hydrating.value = false
+  // 2+3. 并行水合楼栋 + POI。v1.8: 用 Promise.allSettled 而非 Promise.all——
+  //     一个失败不再整批 reject 冲掉另一个已成功的水合；各自 try/catch 写独立错误态。
+  const [bRes, pRes] = await Promise.allSettled([
+    digitalTwinApi.getBuildings(),
+    digitalTwinApi.getPois(),
+  ])
+  if (bRes.status === 'fulfilled') {
+    scene.hydrateBuildings(bRes.value)   // 按 floors 挤出 + 楼顶标签 + 楼层拾取板(floor_ids)
+  } else {
+    buildingsError.value = errMsg(bRes.reason)   // 降级：脚手架仍可交互，楼名/高度缺失
   }
+  if (pRes.status === 'fulfilled') {
+    scene.hydratePois(pRes.value)         // POI 标记 + 状态色
+  } else {
+    poisError.value = errMsg(pRes.reason) // 降级：POI 缺失，楼栋仍可用
+  }
+  hydrating.value = false
 })
 
-// 4. 点击楼层 → 按需拉楼层详情
-watch(() => [selection.focusedBuildingId, selection.floorIndex], async ([bid, fin]) => {
+// 4. 点击楼层 → 按需拉楼层详情。v1.8: AbortSignal + onCleanup 防快速切换 race
+//    （慢请求覆盖新请求）+ 单次超时；错误不再静默吞，写 floorDetailError 驱动面板内联报错 + 重试。
+watch(() => [selection.focusedBuildingId, selection.floorIndex], async ([bid, fin], _old, onCleanup) => {
+  floorDetailError.value = undefined
   if (!bid || fin == null || !scene) return
   const floorId = scene.getFloorId(bid, fin)         // 由水合时注册的 floor_ids 取
   if (!floorId) return
+  const controller = new AbortController()
+  onCleanup(() => controller.abort())                // 切换/卸载时取消上一个在飞请求
   try {
-    const detail = await digitalTwinApi.getFloorDetail({ building_id: bid, floor_id: floorId })
+    const detail = await digitalTwinApi.getFloorDetail(
+      { building_id: bid, floor_id: floorId },
+      { signal: controller.signal },                 // v1.8: 透传 AbortSignal
+    )
     selection.setFloorDetail(detail)                  // 驱动 UnitDetail 面板
-  } catch { /* 降级：详情面板显示加载失败 */ }
+  } catch (e) {
+    if (controller.signal.aborted) return             // 被取消的旧请求，忽略
+    floorDetailError.value = errMsg(e)               // 驱动 UnitDetail 面板内联「加载失败 + 重试」
+  }
 })
+
+function errMsg(e: unknown): string {
+  if (e instanceof ApiError) return e.message          // HTTP 错误（含状态码）
+  return (e as Error)?.message ?? '数据加载失败'
+}
 
 onBeforeUnmount(() => scene?.dispose())
 </script>
 
 <template>
   <canvas ref="canvas" />
-  <!-- loading / 错误态兜底（对齐技能 @error 哲学） -->
+  <!-- loading / 错误态兜底（对齐技能 @error 哲学；v1.8 按方法拆分） -->
   <div v-if="hydrating" class="hydrate-hint">加载园区数据…</div>
-  <div v-else-if="hydrateError" class="hydrate-error">{{ hydrateError }}（已降级显示场景骨架）</div>
+  <div v-else-if="buildingsError" class="hydrate-error">{{ buildingsError }}（楼栋数据加载失败，已降级显示场景骨架，<button @click="retry">重试</button>）</div>
+  <div v-else-if="poisError" class="hydrate-warn">{{ poisError }}（POI 数据加载失败，楼栋仍可交互）</div>
 </template>
 ```
+
+> **v1.8 关键变更**：① `Promise.all` → `Promise.allSettled`，POI 失败不连累楼栋水合；② floor-detail `watch` 用 `onCleanup` + `AbortController` 取消旧请求，防快速切换楼层时慢请求覆盖新请求（race）；③ floor-detail 错误不再 `catch {}` 静默吞，改为 `floorDetailError` 驱动 UnitDetail 面板内联报错 + 重试按钮；④ 统一用 `ApiError`（§10），Mock 与 Real 抛同型错误，组件 `instanceof ApiError` 可区分 401/404/5xx。
 
 **调用约定**（对齐 `api-typescript-spec`「页面调用」）：从 `@/api/modules/manager/digital-twin` 导入 `digitalTwinApi` 单例；类型/枚举从 `@/api/types/digital-twin` 导入；不在页面里引用 `IDigitalTwinApi`（实现细节）。按钮/交互触发的请求配 Loading + `try/finally`；这里是首屏水合，用 `hydrating` 态控制骨架。
 
@@ -417,7 +453,7 @@ onBeforeUnmount(() => scene?.dispose())
 - 接口契约文件 ② 放**扁平**路径 `src/api/interfaces/digital-twin.ts`（Admin 模板约定）
 - **只新增** ①③④⑤ 四个数字孪生模块文件（② 在扁平 interfaces/；③④⑤ 仍按 `manager/` 嵌套）
 
-### 10b. 宿主是独立最小项目（当前技能默认形态，如 `d:\Vibe\社区` 或新脚手架）
+### 10b. 宿主是独立最小项目（当前技能默认形态，如一个已有的社区驾驶舱项目或新脚手架）
 
 生成最小内联基础设施（无 axios 依赖，基于 `fetch`；GET/POST-only、JSON、HTTP 错误码透传）：
 
@@ -437,6 +473,8 @@ export interface RequestConfig<TData = unknown> {
   params?: Record<string, unknown>
   data?: TData
   headers?: Record<string, string>
+  signal?: AbortSignal         // v1.8: 请求取消（防 race）；透传给 fetch
+  timeoutMs?: number           // v1.8: 超时（默认 15000），超时抛 ApiError(0, '请求超时')
 }
 
 export class ApiError extends Error {
@@ -444,7 +482,7 @@ export class ApiError extends Error {
 }
 
 export async function request<T>(config: RequestConfig): Promise<T> {
-  const { url, method, params, data, headers } = config
+  const { url, method, params, data, headers, signal, timeoutMs = 15000 } = config
   const qs = params
     ? '?' + new URLSearchParams(
         Object.entries(params)
@@ -452,20 +490,36 @@ export async function request<T>(config: RequestConfig): Promise<T> {
           .map(([k, v]) => [k, String(v)]),
       ).toString()
     : ''
-  const resp = await fetch(`${API_BASE_URL}${url}${qs}`, {
-    method,
-    headers: { 'Content-Type': 'application/json', ...headers },
-    body: method === 'POST' ? JSON.stringify(data) : undefined,
-  })
-  if (!resp.ok) {
-    let msg = `HTTP ${resp.status}`
-    try { const e = await resp.json(); msg = e.error_description ?? e.error ?? msg } catch { /* 非 JSON 错误体 */ }
-    throw new ApiError(resp.status, msg)
+  // v1.8: 超时——用 AbortController 合并调用方 signal 与超时 signal，任一触发即中止。
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(new Error('timeout')), timeoutMs)
+  if (signal) signal.addEventListener('abort', () => ctrl.abort((signal as any).reason))
+  try {
+    const resp = await fetch(`${API_BASE_URL}${url}${qs}`, {
+      method,
+      headers: { 'Content-Type': 'application/json', ...headers },
+      body: method === 'POST' ? JSON.stringify(data) : undefined,
+      signal: ctrl.signal,
+    })
+    if (!resp.ok) {
+      let msg = `HTTP ${resp.status}`
+      try { const e = await resp.json(); msg = e.error_description ?? e.error ?? msg } catch { /* 非 JSON 错误体 */ }
+      throw new ApiError(resp.status, msg)
+    }
+    if (resp.status === 204) return undefined as T
+    return resp.json() as Promise<T>
+  } catch (e: any) {
+    // 区分「调用方主动取消」与「超时/网络错误」——前者静默（调用方 onCleanup 已处理），后者抛 ApiError
+    if (signal?.aborted) throw e
+    if (e?.name === 'AbortError') throw new ApiError(0, '请求超时')
+    throw new ApiError(0, e?.message ?? '网络错误')
+  } finally {
+    clearTimeout(timer)
   }
-  if (resp.status === 204) return undefined as T
-  return resp.json() as Promise<T>
 }
 ```
+
+> **v1.8**：`request<T>()` 新增 `signal`（取消）与 `timeoutMs`（超时，默认 15s）支持，并统一把网络/超时错误包装成 `ApiError(0, ...)`——组件用 `e instanceof ApiError` + `e.status` 即可区分 401（鉴权）/404（未命中）/5xx（服务端）/0（超时或网络）。`ApiError` 从 `@/api/request` 导出，供跨模块判断。Mock 实现（§7）也抛 `ApiError`（404 未命中），保证 Mock/Real 错误类型一致。
 
 ```bash
 # .env（开发/演示）

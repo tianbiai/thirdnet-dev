@@ -1,0 +1,211 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://thirdnet/skills/thirdnet-digital-twin/tokens.schema.json",
+  "title": "Theme Tokens v2.0",
+  "description": "结构契约：assets/themes/*.tokens.json 的形状校验。validate_spec.py 加载本文件对所选风格 token 做结构校验——缺关键块或类型错 → FAIL。允许 key 带下划线前缀的注释字段（_comment 等），不参与校验。v2.0 新增 realism 块（写实增强旋钮：material/bloom/ao/reflection/fog/sun）。",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["scene", "palette", "category", "building", "lights", "environment", "realism"],
+  "properties": {
+    "scene": {
+      "type": "object",
+      "description": "v1.9 顶→底纵向渐变 CanvasTexture 背景色（防黑屏）。",
+      "required": ["bgTop", "bgBottom"],
+      "properties": {
+        "bgTop": { "type": "string" },
+        "bgBottom": { "type": "string" }
+      }
+    },
+    "palette": {
+      "type": "object",
+      "required": ["void-bg", "cyan", "cyan-bright", "cyan-dim", "magenta", "magenta-bright", "magenta-dim", "mint"],
+      "additionalProperties": { "type": "string" }
+    },
+    "accents": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "category": {
+      "type": "object",
+      "required": ["building", "garage"],
+      "properties": {
+        "building": { "type": "string" },
+        "garage": { "type": "string" }
+      }
+    },
+    "building": {
+      "type": "object",
+      "required": ["roomShade", "dividerColor"],
+      "properties": {
+        "roomShade": { "type": "number", "minimum": 0, "maximum": 1 },
+        "dividerColor": { "type": "string" }
+      }
+    },
+    "realism": {
+      "type": "object",
+      "description": "v2.0 写实增强旋钮（park-scene.impl.ts 消费）。所有风格都必须有此块——非写实风格把 bloom.strength=0 / ao.enabled=false / reflection.enabled=false / fog=null 显式关闭，纪律不破。",
+      "required": ["material", "bloom", "ao", "reflection", "fog", "sun"],
+      "properties": {
+        "material": {
+          "type": "object",
+          "required": ["roughness", "metalness", "envMapIntensity"],
+          "properties": {
+            "roughness": { "type": "number", "minimum": 0, "maximum": 1 },
+            "metalness": { "type": "number", "minimum": 0, "maximum": 1 },
+            "envMapIntensity": { "type": "number", "minimum": 0, "maximum": 3 }
+          }
+        },
+        "bloom": {
+          "type": "object",
+          "description": "UnrealBloomPass 参数；strength=0 表示关闭 composer。",
+          "required": ["threshold", "strength", "radius"],
+          "properties": {
+            "threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+            "strength": { "type": "number", "minimum": 0, "maximum": 3 },
+            "radius": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "ao": {
+          "type": "object",
+          "description": "GTAO 接触/环境光遮蔽；仅 realistic/night-realistic 建议 enabled=true。",
+          "required": ["enabled", "intensity", "radius"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "intensity": { "type": "number", "minimum": 0, "maximum": 2 },
+            "radius": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "reflection": {
+          "type": "object",
+          "description": "地面湿润反射（Reflector）；仅 night-realistic 建议 enabled=true。",
+          "required": ["enabled", "opacity", "mixStrength"],
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "opacity": { "type": "number", "minimum": 0, "maximum": 1 },
+            "mixStrength": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "fog": {
+          "description": "线性雾；null 表示关闭。",
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["color", "near", "far"],
+              "properties": {
+                "color": { "type": "string" },
+                "near": { "type": "number", "minimum": 0 },
+                "far": { "type": "number", "minimum": 0 }
+              }
+            }
+          ]
+        },
+        "sun": {
+          "type": "object",
+          "description": "太阳/月光方位（颜色与强度仍走 lights.sun/sunIntensity）。azimuth/elevation 单位为度。",
+          "required": ["azimuth", "elevation"],
+          "properties": {
+            "azimuth": { "type": "number", "minimum": 0, "maximum": 360 },
+            "elevation": { "type": "number", "minimum": 0, "maximum": 90 }
+          }
+        }
+      }
+    },
+    "lights": {
+      "type": "object",
+      "required": ["sunIntensity", "hemiIntensity", "ambientIntensity", "ambientFloor", "pointIntensity", "pointDistance"],
+      "properties": {
+        "sun": { "type": ["string", "null"] },
+        "sunIntensity": { "type": "number", "minimum": 0 },
+        "hemiSky": { "type": ["string", "null"] },
+        "hemiGround": { "type": ["string", "null"] },
+        "hemiIntensity": { "type": "number", "minimum": 0 },
+        "ambient": { "type": ["string", "null"] },
+        "ambientIntensity": { "type": "number", "minimum": 0 },
+        "ambientFloor": { "type": "number", "minimum": 0 },
+        "point": { "type": ["string", "null"] },
+        "pointIntensity": { "type": "number", "minimum": 0 },
+        "pointDistance": { "type": "number", "minimum": 0 }
+      }
+    },
+    "ground": {
+      "type": "object",
+      "properties": {
+        "texture": {
+          "type": "object",
+          "required": ["type", "base", "line", "cell"],
+          "properties": {
+            "type": { "type": "string", "enum": ["tiles", "grid", "dots"] },
+            "base": { "type": "string" },
+            "line": { "type": "string" },
+            "cell": { "type": "number", "minimum": 1 }
+          }
+        }
+      }
+    },
+    "shaders": {
+      "type": "object",
+      "properties": {
+        "grid": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["u_gridColor", "u_cell", "u_strength"],
+              "properties": {
+                "u_gridColor": { "type": "string" },
+                "u_cell": { "type": "number", "minimum": 1 },
+                "u_strength": { "type": "number", "minimum": 0 }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "required": ["city-ground", "groundGlow", "road", "roadLine", "sidewalk", "grass", "treeTrunk", "treeCanopy", "wall", "lampGlow", "vehicle"],
+      "properties": {
+        "city-ground": { "type": "string" },
+        "groundGlow": { "type": "boolean" },
+        "road": { "type": "string" },
+        "roadLine": { "type": "string" },
+        "sidewalk": { "type": "string" },
+        "grass": { "type": "string" },
+        "treeTrunk": { "type": "string" },
+        "treeCanopy": { "type": "string" },
+        "wall": { "type": "string" },
+        "lampGlow": { "type": "string" },
+        "vehicle": { "type": "string" }
+      }
+    },
+    "garageEntrance": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "surfaceParking": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "poi": {
+      "type": "object",
+      "required": ["status"],
+      "properties": {
+        "status": {
+          "type": "object",
+          "required": ["online", "offline", "alarm", "idle"],
+          "additionalProperties": { "type": "string" }
+        }
+      },
+      "additionalProperties": { "type": "string" }
+    },
+    "fonts": {
+      "type": "object",
+      "required": ["zh", "latin"],
+      "properties": {
+        "zh": { "type": "string" },
+        "latin": { "type": "string" }
+      }
+    }
+  }
+}

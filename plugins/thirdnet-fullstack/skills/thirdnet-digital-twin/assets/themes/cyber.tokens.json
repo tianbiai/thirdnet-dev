@@ -1,5 +1,10 @@
 {
   "_comment": "Cyber theme palette — the single source of truth for color. Mirrors the `variables` block of 数字孪生.pen plus the inline accents the design uses directly. The skill derives BOTH SCSS variables and Three.js Color instances from this file — never duplicate hex literals across files. To retheme for a different park, edit the values here (and only here).",
+  "scene": {
+    "_comment": "v1.9 显式场景背景（顶→底纵向渐变 CanvasTexture，§2）。alpha:true 不再依赖页面底色——暗色风格给地平线上方一点空气感，杜绝整屏死黑。",
+    "bgTop": "#0a0518",
+    "bgBottom": "#06030f"
+  },
   "palette": {
     "void-bg": "#06030f",
     "panel-top": "#160a30",
@@ -45,17 +50,36 @@
     "garage": "#3df0c8"
   },
   "building": {
-    "_comment": "v1.4 楼栋楼层/房间层次（§4）。roomShade = 每层 1–5 间房间相对类别色的明度偏移幅度（HSL lightness ±），用于在幕墙纹理上画出深浅不一的房间色块；dividerColor = 楼层之间贯穿横向虚线分隔的颜色（自发光青）。",
+    "_comment": "v1.4/v1.7 楼栋楼层/贴砖层次（§4.1）。roomShade = 每层 1–5 块贴砖相对类别色的明度偏移幅度（HSL lightness ±），v1.7 起派生 light/dark 两色让相邻贴砖强对比交替；dividerColor = 贴砖之间竖实线 + 楼层之间横向虚线分隔的颜色（自发光青）。",
     "roomShade": 0.16,
     "dividerColor": "#7ff5ff"
   },
+  "lights": {
+    "_comment": "v1.8 灯光配色（单一事实来源，styles.md 引用、不再散落 hex）。cyber 刻意平——一个 HemisphereLight + 一盏柔和 DirectionalLight；不投 VSM 阴影、不挂 PointLight（靠自发光 + 可选 bloom 表现灯光）。sun/hemiSky/hemiGround 为 hex 字符串；ambient/point 为 null 表示该风格不用此光源。v1.9：sunIntensity/hemiIntensity 微调上调 + 新增 ambientFloor（一道极弱环境光兜底），消除未受光面纯黑；仍保持赛博平光气质。",
+    "sun": "#9fb8e0",
+    "sunIntensity": 0.9,
+    "hemiSky": "#3a5d86",
+    "hemiGround": "#0a1428",
+    "hemiIntensity": 0.7,
+    "ambient": null,
+    "ambientIntensity": 0.0,
+    "ambientFloor": 0.2,
+    "point": null,
+    "pointIntensity": 0.0,
+    "pointDistance": 0.0
+  },
+  "ground": {
+    "_comment": "v1.9 园区地面纹理（§3）。cyber 主用 gridGround.glsl 着色器地面；本块仅作 shader 编译/uniform 绑定失败时的降级（environment.city-ground 纯色 + 程序化青网格 CanvasTexture），保证地面永不消失/不发黑。",
+    "texture": { "type": "grid", "base": "#080418", "line": "#1de9ff", "cell": 46 }
+  },
   "shaders": {
-    "_comment": "Default uniform values carried by the .pen's shader fills. Override per-park if needed.",
+    "_comment": "v1.8 Default uniform values carried by the .pen's shader fills (override per-park). gridGround.glsl 还需要一个 vec2 u_scale uniform = 平面像素范围；它由几何派生而非配色，默认 u_scale = vec2(boundary.x*2, boundary.z*2)（见 scene-recipe.md §3 顶点着色器接线），不在此处给固定值。",
     "grid": { "u_gridColor": "#2a7fff", "u_cell": 46, "u_strength": 0.85 }
   },
   "environment": {
-    "_comment": "v1.2 园区环境配色（道路/车位/绿化/围墙/路灯等，§10）。赛博气质：深蓝灰沥青 + 发光青色标线 + 暗紫青草地 + 霓虹树冠边光。所有颜色经此派生，不散落 hex。",
+    "_comment": "v1.2 园区环境配色（道路/车位/绿化/围墙/路灯等，§10）。赛博气质：深蓝灰沥青 + 发光青色标线 + 暗紫青草地 + 霓虹树冠边光。所有颜色经此派生，不散落 hex。v1.8 groundGlow 默认 true（赛博地面发光标线，§10 buildAmbiance）。",
     "city-ground": "#080418",
+    "groundGlow": true,
     "road": "#0c1430",
     "roadLine": "#2bd4ff",
     "sidewalk": "#13204a",
@@ -84,7 +108,7 @@
     "sign": "#3df0c8"
   },
   "poi": {
-    "_comment": "v1.3 兴趣点（§11）类型→颜色映射。cyber 下全部自发光霓虹，bloom 让标记在夜里溢出。custom 为兜底色。",
+    "_comment": "v1.3 兴趣点（§11）类型→颜色映射。cyber 下全部自发光霓虹，bloom 让标记在夜里溢出。custom 为兜底色。v1.8 新增 status 子块：POI 实时状态→外圈光晕/动画色（dynamic-data-api.md §12），alarm 可加呼吸动画。",
     "entrance": "#3df0c8",
     "exit": "#ff2bd6",
     "camera": "#ffd400",
@@ -92,7 +116,23 @@
     "service": "#7ff5ff",
     "landmark": "#ff7aec",
     "parking": "#3df0c8",
-    "custom": "#1de9ff"
+    "custom": "#1de9ff",
+    "status": {
+      "_comment": "v1.8 POI 状态色（图标底色仍取 poi[type]，外圈光晕/呼吸动画色取 poi.status[status]，status 缺省回退 online）。",
+      "online": "#3df0c8",
+      "offline": "#5a5078",
+      "alarm": "#ff5a6e",
+      "idle": "#ffc24a"
+    }
+  },
+  "realism": {
+    "_comment": "v2.0 写实增强旋钮（scene-recipe 渲染器/后处理段、park-scene.impl.ts 消费）。cyber 是自发光仪表盘气质——不开环境贴图/AO/反射/雾；仅给一档微弱 bloom 让自发光边/标记溢出。envMapIntensity 仅在 scene.environment 存在时生效（cyber 默认无环境贴图）。strength=0 的 bloom 表示关闭 composer。",
+    "material": { "roughness": 0.6, "metalness": 0.2, "envMapIntensity": 0.3 },
+    "bloom": { "threshold": 0.6, "strength": 0.25, "radius": 0.4 },
+    "ao": { "enabled": false, "intensity": 0.5, "radius": 0.5 },
+    "reflection": { "enabled": false, "opacity": 0.5, "mixStrength": 0.5 },
+    "fog": null,
+    "sun": { "azimuth": 135, "elevation": 50 }
   },
   "fonts": {
     "zh": "Noto Sans SC",

@@ -42,9 +42,26 @@ import sys
 from pathlib import Path
 
 # Text patterns used to pull structured data out of free-form text nodes.
-HEADER_RE = re.compile(r"^\s*(.+?)\s+(\d+)F\s*[·•]\s*(\d+)\s*单位\s*$")
-TITLE_RE = re.compile(r"(.+?)智慧运行驾驶舱")
-CATEGORY_LABELS = {"楼幢": "building", "地下车库": "garage"}
+# v1.8: multi-pattern — a single fixed regex silently emitted 0 buildings for any
+# header/title phrasing variant. These try a set of shapes and pick the first match.
+HEADER_PATTERNS = [
+    re.compile(r"^\s*(.+?)\s+(\d+)\s*F\s*[·•·]\s*(\d+)\s*(?:单位|户|units?)\s*$", re.IGNORECASE),
+    re.compile(r"^\s*(.+?)\s+(\d+)\s*(?:层|F)\s*[·•·/]\s*(\d+)\s*(?:单位|户)\s*$"),
+    re.compile(r"^\s*(.+?)\s+(\d+)\s*F\s*[·•·]\s*(\d+)\s*$"),  # name + floors + units, no unit word
+    re.compile(r"^\s*(.+?)\s+(\d+)\s*(?:层|F)\s*$", re.IGNORECASE),  # name + floors only (units → null)
+]
+TITLE_PATTERNS = [
+    re.compile(r"(.+?)智慧运行驾驶舱"),
+    re.compile(r"(.+?)(?:数字孪生)?驾驶舱"),
+    re.compile(r"(.+?)(?:园区|社区)(?:大屏|运营中心|驾驶舱)"),
+]
+# v1.8: broader category label map — covers common alternatives (写字楼/商办/工业 etc.
+# all map to 'building'; only 地下车库/车库/停车场入口 map to 'garage').
+CATEGORY_LABELS = {
+    "楼幢": "building", "楼栋": "building", "楼宇": "building",
+    "写字楼": "building", "办公楼": "building", "商办": "building", "工业": "building",
+    "地下车库": "garage", "车库": "garage", "地下停车场": "garage",
+}
 # v1.3: POI nodes are recognised by name prefix; type guessed from keywords.
 POI_PREFIXES = ("POI_", "兴趣点_", "点位_")
 POI_TYPE_KEYWORDS = {
@@ -56,6 +73,27 @@ POI_TYPE_KEYWORDS = {
     "landmark": ("地标", "景观", "雕塑"),
     "parking": ("停车", "车位"),
 }
+
+
+def match_header(content):
+    """v1.8: try every header shape; return (name, floors, units|None) or None."""
+    for pat in HEADER_PATTERNS:
+        m = pat.match(content)
+        if m:
+            name = m.group(1).strip()
+            floors = int(m.group(2))
+            units = int(m.group(3)) if m.lastindex >= 3 else None
+            return name, floors, units
+    return None
+
+
+def match_title(content):
+    """v1.8: try every title shape; return the stripped title or None."""
+    for pat in TITLE_PATTERNS:
+        m = pat.search(content)
+        if m:
+            return content.strip()
+    return None
 
 
 def walk(node, path="root"):
@@ -118,39 +156,39 @@ def build_draft(pen):
     # Title
     title = None
     for t in texts:
-        if t["name"] == "Title" or "驾驶舱" in t["content"]:
-            m = TITLE_RE.search(t["content"])
-            if m:
-                title = t["content"].strip()
+        if t["name"] == "Title" or "驾驶舱" in t["content"] or "大屏" in t["content"]:
+            mt = match_title(t["content"])
+            if mt:
+                title = mt
                 break
         if t["name"] == "Title":
             title = t["content"].strip()
             break
 
-    # Buildings from "name NF · N单位" headers
+    # Buildings from header text — v1.8 multi-pattern (handles N层/N单位/N户/N units/楼层 variants)
     buildings = []
     seen = set()
     for t in texts:
-        m = HEADER_RE.match(t["content"])
-        if m:
-            name = m.group(1).strip()
+        mh = match_header(t["content"])
+        if mh:
+            name, floors, units = mh
             if name in seen:
                 continue
             seen.add(name)
-            buildings.append(
-                {
-                    "id": None,  # caller assigns a slug
-                    "name": name,
-                    "category": "building",  # caller marks garage as needed
-                    "floors": int(m.group(2)),
-                    "units": int(m.group(3)),
-                    "w": None,
-                    "d": None,
-                    "x": None,
-                    "z": None,
-                    "header": t["content"].strip(),
-                }
-            )
+            entry = {
+                "id": None,  # caller assigns a slug
+                "name": name,
+                "category": "building",  # caller marks garage as needed
+                "floors": floors,
+                "w": None,
+                "d": None,
+                "x": None,
+                "z": None,
+                "header": t["content"].strip(),
+            }
+            if units is not None:
+                entry["units"] = units  # only present when the header carried a unit count
+            buildings.append(entry)
 
     # v1.3: POI nodes by naming convention (POI_* / 兴趣点_* / 点位_*).
     # Coordinates stay null — caller fills them by inspecting the Scene, same
@@ -190,9 +228,14 @@ def build_draft(pen):
             grid_uniforms = s["uniforms"]
             break
 
-    # Legend categories present?
+    # Legend categories present? v1.8: emit {label, category} objects (spec schema),
+    # not bare strings, so the legend is generator-ready.
     contents = {t["content"].strip() for t in texts}
-    legend = [label for label in CATEGORY_LABELS if label in contents]
+    legend = [
+        {"label": label, "category": cat}
+        for label, cat in CATEGORY_LABELS.items()
+        if label in contents
+    ]
 
     draft = {
         "title": title,
@@ -206,16 +249,23 @@ def build_draft(pen):
         "pois": pois,
         "notes": [
             "Auto-extracted DRAFT. Fill in per-building id/category/w/d/x/z by inspecting the Scene "
-            "(pencil MCP get_screenshot on the Scene frame, or its absolutely-positioned children).",
+            "(pencil MCP get_screenshot on the Scene frame, or its absolutely-positioned children). "
+            "When w/d/x/z are null, in skill step 3 use AskUserQuestion to have the user fill them "
+            "visually from the screenshot — do NOT pass null geometry into validate_spec.py expecting it to pass.",
             "Ensure exactly one garage building (category 'garage') if 地下车库 is in the legend; "
-            "v1.3 renders it as a half-pyramid entrance + P sign (no occupancy numbers).",
+            "v1.3 renders it as a half-pyramid entrance + P sign (no occupancy numbers). "
+            "category default is 'building' for every header — flip the garage entry by hand.",
             "Fill in per-POI id/x/z (and optionally buildingId/floorIndex/tooltip) for each entry in "
             "`pois`; remove the array or leave [] if the park has no POIs.",
-            "If a building's floors/units header was missing, add it manually.",
+            "If a building's floors/units header was missing (no recognized pattern), add floors manually "
+            "— validate_spec.py now FAILS on a category:'building' entry without floors (v1.8).",
             "style defaults to 'cyber'. If the .pen clearly implies a different look (e.g. realistic "
             "rendering), change style to one of: cyber | realistic | night-realistic | blueprint "
             "| holographic | white-model | isometric (see references/styles.md) and confirm with "
             "the user.",
+            "v2.0 写实旋钮（material/bloom/ao/reflection/fog/sun）随风格在 assets/themes/<style>.tokens.json "
+            "的 realism 块给出默认值，一般无需改。如需微调写实观感（玻璃镜面感、夜景辉光强度、雾、太阳角度），"
+            "改对应风格的 realism 块即可——不要把数值硬编码进 ParkScene.ts（见 references/park-scene-impl.md）。",
         ],
     }
     return draft

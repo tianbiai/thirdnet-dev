@@ -1,5 +1,7 @@
 # 场景配方（Scene Recipe）—— Three.js 数字孪生
 
+> **v2.0 重要变更**：本技能现随包发布完整范式实现 [`assets/park-scene.impl.ts`](../assets/park-scene.impl.ts)（导读见 [`park-scene-impl.md`](park-scene-impl.md)）。**生成器以该实现为基线「拷贝-改」产出 `src/scene/ParkScene.ts`，不再从下文散文合成渲染管线**——v1.x 实测散文合成会让 LLM 漂移（丢掉环境贴图 / bloom / `ambientFloor` / `scene.background` 渐变 / 程序化地面纹理）。下文仍是「为什么这么设计」的设计原理与逐风格材质/灯光规范（是 single source of truth for *intent*），但落地代码以范式实现为准；冲突时回填到本文件。
+
 这是中央 3D 场景的核心构建配方。下文 §2–§3 是**赛博风格**的详细配方（`blueprint` 风格**同样接入** §3 的网格着色器地面，仅 uniform 调色不同），§4–§10（按类别上色、车库标牌、Legend、交互/选中、生命周期、园区环境）是**所有风格共用**的部分。**渲染器/灯光/材质/地面若选用其它风格**（真实物体 / 夜间写实 / 全息 / 白模 / 等距插画），见 `references/styles.md`——除 `cyber`/`blueprint` 外的风格跳过 §3（网格着色器地面），按 `styles.md` 的 PBR/扁平/半透/flatShading 材质与灯光构建，但 §4–§9 照常适用。
 
 赛博规范的核心：把 `grid.glsl` 接为着色器地面（现有 `src/scene/DigitalTwin.ts` 文档里写了但从未导入的一块），按类别给楼栋上色，把车库渲染成一栋带占用标牌的楼，并显示 Legend。
@@ -7,6 +9,26 @@
 现有的 `DigitalTwin.ts`（约 1.5k 行）是绝佳的 Three.js 模式参考——拷贝它的正交相机、射线拾取、聚焦补间、程序化幕墙纹理和完整的 `dispose()` 路径。相比该文件要**改动**的（赛博风格下）：丢掉夜间写实倾向（重 IBL/PMREM、VSM 阴影、沥青纹理），加入网格着色器地面，按类别上色，加车库楼 + 标牌，加 Legend 叠加。（若用户选了真实物体/夜间写实风格，反而要**保留并增强** PBR/PMREM/阴影——见 `references/styles.md`。）
 
 下文的行号范围指范例仓库（`references/exemplar.md`）中的 `src/scene/DigitalTwin.ts`。
+
+## 目录（v1.8）—— 为 X 读 §Y
+
+| 你要做的事 | 读哪节 |
+|---|---|
+| 文件布局 / WebGL2 能力检测 | §1 |
+| 渲染器 / 相机取景 / 灯光（赛博） | §2 |
+| 网格着色器地面（cyber/blueprint） | §3 |
+| 按类别上色楼栋 / 楼层虚线 + 贴砖 / 楼顶标签 / §4.2 标签对比 | §4 |
+| 车库入口半金字塔 + P 牌 | §5 |
+| Legend 叠加 | §6 |
+| 可选赛博装饰 | §7 |
+| 交互 / 选中态机 / 聚焦补间（铁律 + 反面模式） | §8 |
+| 生命周期 / WebGL context loss / dispose 清单 | §9 |
+| 园区环境（道路/车位/绿化/周边/氛围）/ 性能预算 | §10 |
+| POI 标记 + tooltip / openPoiId 单开契约 | §11 |
+| 动态数据水合 API / 加载时序 | §12 |
+| 各风格渲染器/灯光/材质/地面分支 | `references/styles.md` |
+| 契约层 5 文件 / Mock/Real / 后端端点 | `references/dynamic-data-api.md` |
+| 舞台外壳 / 响应式 / a11y / 空错态 | `references/shell.md` |
 
 ## 1. 文件布局
 
@@ -38,11 +60,37 @@ src/
 import gridFrag from '../scene/shaders/gridGround.glsl?raw'
 ```
 
+### WebGL2 能力检测（v1.8）
+
+部分特性依赖 WebGL2：`MeshPhysicalMaterial.transmission`（全息已禁用，但留作检测示例）、`MeshReflectorMaterial`、高质量各向异性阴影过滤。构建场景前**一次性检测**并降级，避免在集成显卡 / 旧驱动上崩溃或掉帧：
+
+```ts
+const gl = canvas.getContext('webgl2') ?? canvas.getContext('webgl')
+const hasWebGL2 = !!canvas.getContext('webgl2')
+// 无 WebGL2 时：禁用 transmission/reflector/CSM，bloom 降档或关闭，阴影改 PCF（非 PCFSoft）。
+// 极端情况（getContext 返回 null）退化为 cyber/blueprint/isometric 这类轻量风格路径。
+```
+
+Three.js `WebGLRenderer` 默认请求 WebGL2 并自动回退 WebGL1，但**材质/后处理不会自动降级**——生成器须据 `hasWebGL2` 选择材质与 pass。
+
 ## 2. 渲染器、相机、灯光（赛博风格；其它风格见 `references/styles.md`）
 
 拷贝 `DigitalTwin.ts:1-216` 并向赛博观感修剪：
 
-- **渲染器：** `WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true })`，DPR ≤ 2，`ACESFilmicToneMapping`（曝光约 1.0——比夜间版更平）。`EffectComposer` 可选（仅当要用微弱 bloom 时才需要）。
+- **渲染器：** `WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true })`，**`renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))`**（v1.8 硬性上限 2，避免 4K/retina 分配超大 framebuffer），**`renderer.outputColorSpace = THREE.SRGBColorSpace`**（v1.8 强制，所有风格统一，防换肤色调漂移），`ACESFilmicToneMapping`（曝光约 1.0——比夜间版更平）。`EffectComposer` 可选（仅当要用微弱 bloom 时才需要）。
+- **场景背景（v1.9，防黑屏的关键修复）：** 渲染器虽 `alpha:true`，但**必须显式设 `scene.background`**——否则画布透明、透出深色页面底，整屏发黑（这是 v1.8 常见「一片黑」的直接原因）。背景取 token 的 `scene` 块，画成**顶→底纵向渐变** `CanvasTexture`（`scene.bgTop` → `scene.bgBottom`）：
+  ```ts
+  function makeBackgroundTexture(bgTop: string, bgBottom: string): THREE.CanvasTexture {
+    const c = document.createElement('canvas'); c.width = 8; c.height = 256
+    const g = c.getContext('2d')!
+    const grad = g.createLinearGradient(0, 0, 0, 256)
+    grad.addColorStop(0, bgTop); grad.addColorStop(1, bgBottom)
+    g.fillStyle = grad; g.fillRect(0, 0, 8, 256)
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; return tex
+  }
+  scene.background = makeBackgroundTexture(token.scene.bgTop, token.scene.bgBottom)
+  ```
+  why 渐变而非纯色：暗色风格（cyber/holographic/night-realistic/blueprint）给地平线上方一点空气感、纵深，远比 `palette.void-bg` 一抹纯黑读起来像「数字孪生空腔」；亮色风格两端相近，近似纯色但保留一致性。`alpha:true` 保留（其它逻辑依赖），但背景以 `scene.background` 为准——绝不留空。
 - **相机（取景必须从 spec 几何推导，不能写死）**：`OrthographicCamera`，等轴姿态（`elevation = atan(1/√2)`、方位角 π/4）。**不要**用固定 `frustumH=280` + `lookAt(0,0,0)`——瞄准地平面会让所有楼栋质量（都在 Y>0）堆在画面上半，地面最近端落在画面中线偏上，其下到视锥底边整段都是空白画布（= 下方大片空白）。正确做法是「**测量后取景**」：算出内容包围盒在相机视图空间的范围，再据此设**非对称视锥**，把地面最近端钉到距舞台底边 ~6%。算法如下（`canvasW/H` 为画布像素尺寸；正交相机下 `dist` 不影响成像，只要在远裁面内）：
 
 ```ts
@@ -95,6 +143,7 @@ this.controls.target.copy(centroid)                           // clearFocus / �
   - **`OrbitControls`**：带阻尼，极角夹紧 [0.5, 1.3]，缩放夹紧 [0.45, 2.6]（滚轮改 `camera.zoom`，归用户所有）。v1.2 把缩放下限从 0.6 放宽到 0.45，让用户能继续拉远俯瞰周边道路与全貌。全局取景对应 `zoom=1, target=centroid`；`clearFocus` 回到这两者。
   - **resize 重算**：宽高比 A 变了要重跑 (d)(e)——把这段封装成 `frameCamera()`，在 `setupCamera` 末尾和 `onResize` 里都调一次。
 - **灯光：** 刻意保持平，让着色器地面 + 自发光边线读起来像“数字孪生”而不是“建筑可视化”。一个 `HemisphereLight(0x3a5d86, 0x0a1428, ~0.6)` + 一盏柔和 `DirectionalLight` 就够了。丢掉范例里的 2048² VSM 阴影贴图和 PMREM 环境——它们会和赛博地面打架。
+- **环境光下限（v1.9，所有风格强制）：** 无论风格 `lights.ambient` 是否为 `null`，都**额外补一盏低强度 `AmbientLight`**，强度取 token `lights.ambientFloor`（暗色风格 ~0.18–0.20、亮色风格 ~0.08；blueprint 已有 `ambient=1.0` 故 `ambientFloor=0.0`），色取 `lights.hemiSky` 或中性白。why：cyber 等风格原本刻意无环境光，实测导致未受光的楼面/地面区域纯黑、肉眼判定为「黑屏」；一道极弱环境光只抬起阴影、不破坏氛围，是和「显式 scene.background」配合消灭黑屏的另一只手。生成器据此统一：`if (token.lights.ambientFloor > 0) scene.add(new AmbientLight(hemiSky ?? 0xffffff, ambientFloor))`。
 
 ## 3. 网格着色器地面  ← cyber 与 blueprint 风格的关键地面（其余风格跳过，按 `styles.md` 用纹理/PBR/扁平地面）
 
@@ -127,6 +176,50 @@ scene.add(ground)
 - **园区地面**（`boundary.x*2 × boundary.z*2`）—— cyber 用上面的 shader 平面（霓虹青网格），blueprint 用**同一个 shader 平面**但换蓝图调 uniform（深蓝图底 + 淡白青坐标网格），其它风格按 `styles.md` 的草地/铺装/反射/扁平材质。
 - **外圈城市地面**（`boundary*1.6 × 2` 左右，比园区大一圈）—— 一个比园区地面更深/更冷的纯色 `MeshBasicMaterial`（颜色取 token 的 `palette.divider` 或新的 `environment.city-ground`），铺在园区地面之下，作为周边道路与市政背景的画布。两层都 `rotation.x = -π/2`，Y 略低于园区地面（如 `-0.5`）避免 z-fight。
 
+### §3.1 程序化地面纹理 `makeGroundTexture`（v1.9，非 cyber/blueprint 风格的主地面 + cyber/blueprint 的降级）
+
+v1.8 除 cyber/blueprint 外的 5 个风格地面都是**纯色** `MeshLambert`/`MeshStandard` 平面——远观就是一张色片，「没纹理」。v1.9 起给园区地面叠一层**程序化 `CanvasTexture`**（与 `makeFacadeTexture`/`makeLabelTexture` 同一套程序化画布思路，不引入外部图片资源），形态由 token `ground.texture.type` 决定：
+
+```ts
+function makeGroundTexture(token): THREE.CanvasTexture {
+  const g = token.ground.texture            // { type, base, line, cell }
+  const SIZE = 512, c = document.createElement('canvas'); c.width = c.height = SIZE
+  const ctx = c.getContext('2d')!
+  ctx.fillStyle = g.base; ctx.fillRect(0, 0, SIZE, SIZE)   // 底色
+  const step = SIZE / Math.max(1, g.cell)                  // 每格像素
+  ctx.strokeStyle = g.line; ctx.fillStyle = g.line
+  if (g.type === 'grid') {                                  // white-model/isometric 细网格 + cyber/blueprint 降级
+    ctx.lineWidth = 1
+    for (let i = 0; i <= g.cell; i++) { const p = i * step
+      ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, SIZE); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(SIZE, p); ctx.stroke() }
+  } else if (g.type === 'tiles') {                          // realistic/night-realistic 铺装/草地 tile（略带噪点）
+    ctx.lineWidth = 2
+    for (let i = 0; i <= g.cell; i++) { const p = i * step
+      ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, SIZE); ctx.stroke()
+      ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(SIZE, p); ctx.stroke() }
+    // 确定性伪随机洒点（同 spec 一致、不抖动）——用 index 作种子，避免 Math.random
+    for (let i = 0; i < g.cell * g.cell; i += 3) {
+      const px = (i % g.cell) * step + (i * 37 % step)
+      const py = Math.floor(i / g.cell) * step + (i * 53 % step)
+      ctx.globalAlpha = 0.15; ctx.fillRect(px, py, 2, 2); ctx.globalAlpha = 1
+    }
+  } else if (g.type === 'dots') {                           // holographic 青色点阵
+    for (let i = 0; i <= g.cell; i++) for (let j = 0; j <= g.cell; j++) {
+      ctx.beginPath(); ctx.arc(i * step, j * step, 1.5, 0, Math.PI * 2); ctx.fill() }
+  } // type === 'none'：纯色，啥也不画（回退）
+  const tex = new THREE.CanvasTexture(c)
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping
+  tex.repeat.set(8, 8)                       // 平铺，让纹理随园区尺寸延展
+  tex.colorSpace = THREE.SRGBColorSpace
+  return tex
+}
+```
+
+接线规则：
+- **非 cyber/blueprint 风格**：把 `makeGroundTexture(token)` 作为园区地面材质的 `map`（holographic 等自发光风格可同时作 `emissiveMap` + 低 `emissiveIntensity`，让点阵在暗底微亮）。**不替换** §3 的两层地面结构，只给园区地面材质加纹理。外圈城市地面仍是纯色 `MeshBasicMaterial`。
+- **cyber/blueprint（shader 失败降级）**：园区地面正常走 `gridGround.glsl` shader；但 shader 编译失败 / uniform 绑定异常时（`transparent:true` + 失败 = 地面凭空消失、整屏黑），**必须降级**为 `new THREE.MeshBasicMaterial({ map: makeGroundTexture(token), color: environment.city-ground })` 的不透明纯色 + 网格平面。包一层 try/catch 检测 `material.userData.shaderFailed` 或 `renderer.debug`，失败即换材质。why：地面是数字孪生的「地基」，宁可丢霓虹辉光也不能丢地面。
+
 ## 4. 按类别上色的楼栋（所有风格共用——颜色来自 token；材质按风格替换）
 
 > **v1.5 两阶段构建（见 §12）**：楼栋渲染分两步——
@@ -135,7 +228,7 @@ scene.add(ground)
 
 对每个 `BuildingSpec`，挤出一个盒体并按类别上色。**颜色来源所有风格一致**（token 的 `category` 映射：楼幢/地下车库）；**材质按风格替换**——赛博用下面的自发光 `MeshStandardMaterial`；真实物体/夜间写实用 PBR（玻璃 metalness≈0.9、混凝土 roughness≈0.9）；蓝图用扁平半透 `MeshBasicMaterial` + 白色 `EdgesGeometry` 描边；全息用半透体 + 自发光边；白模用纯白磨砂 `MeshStandardMaterial`（类别色转移到屋顶描边）；等距插画用 `flatShading` cel 着色。各风格材质细则见 `styles.md`。复用范例的幕墙纹理 + 楼层环线 + 屋顶轮廓方式（`DigitalTwin.ts:424-465, 766-890`），替换颜色来源。
 
-**v1.4 起，楼栋必须表达「楼层 + 房间」层次**（数字孪生的核心可读性——一眼能读出「这栋几层、每层几间」）：(1) 每两层之间画贯穿四立面的**横向虚线分隔**；(2) 在幕墙纹理上把每层切成 **1–5 间房**、用类别色派生的不同明度色块区分房间。**房间划分是生成器侧的程序化装饰，不进 Park Spec**（保持 spec 精简）——用楼栋 `id` + 楼层索引做种子的**确定性**伪随机，保证同一份 spec 每次生成结果一致、不抖动。
+**v1.4 起，楼栋必须表达「楼层 + 贴砖」层次**（数字孪生的核心可读性——一眼能读出「这栋几层、每层几块砖」）：(1) 每两层之间画贯穿四立面的**横向虚线分隔**；(2) 在幕墙纹理上把每层切成 **1–5 块贴砖**、**v1.7 起相邻贴砖深浅两色强对比交替**（类别色 HSL lightness `±roomShade` 派生的 light/dark 两色，按 `i%2` 交替）、**贴砖之间用高对比深色竖实线分隔**。**贴砖划分是生成器侧的程序化装饰，不进 Park Spec**（保持 spec 精简）——用楼栋 `id` + 楼层索引做种子的**确定性**伪随机，保证同一份 spec 每次生成结果一致、不抖动。
 
 ```ts
 const CATEGORY_COLOR: Record<Category, number> = {
@@ -151,7 +244,7 @@ for (const b of spec.buildings) {
   const geo = new THREE.BoxGeometry(b.w, h, b.d)
   const color = CATEGORY_COLOR[b.category]
   const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.12, metalness: 0.2, roughness: 0.6 })
-  // 侧面用程序化幕墙画布（makeFacadeTexture 模式）——v1.4：画布内画「每层 1–5 间房 + 明度阶梯」（见 §4.1）
+  // 侧面用程序化幕墙画布（makeFacadeTexture 模式）——v1.4/v1.7：画布内画「每层 1–5 块贴砖 + 相邻两色交替 + 深色竖实线」（见 §4.1）
   const mesh = new THREE.Mesh(geo, sideMaterials(b, color))
   mesh.position.set(b.x, h / 2, b.z)
   mesh.userData = { kind: 'building', buildingId: b.id }
@@ -163,17 +256,17 @@ for (const b of spec.buildings) {
 }
 ```
 
-### §4.1 楼层虚线分隔 + 房间明度层次（v1.4）
+### §4.1 楼层虚线分隔 + 贴砖两色交替（v1.4，v1.7 改贴砖）
 
-楼栋可读性 = 能数出层数 + 能看出每层的房间格局。两件事都在立面层面解决，不增加 spec 字段：
+楼栋可读性 = 能数出层数 + 能看出每层的贴砖拼花。两件事都在立面层面解决，不增加 spec 字段：
 
 - **`addFloorDividers(mesh, b)`**：在每个楼层边界（`y = i * floorHeight`，i=1..floors）画一条**贯穿四个立面的横向虚线**。用 `LineSegments` + `LineDashedMaterial`（需 `computeLineDistances()`），或 `Line2`/`LineMaterial`（`dashed: true`）。颜色取 token `building.dividerColor`（7 种风格各自定义，见 `assets/themes/*.tokens.json`）。why：仅靠盒体边缘的环线远看会融成一片实心体；显式的横向虚线在等轴视角下被楼面“挂”住，立刻读出「这一层 / 那一层」。虚线（而非实线）是为了与 `addRoofOutline` 的实线轮廓区分层级、不喧宾夺主。
-- **`makeFacadeTexture` 内的房间划分**：在已有的程序化幕墙画布（`DigitalTwin.ts` 幕墙纹理模式）绘制阶段，对每一层：
-  1. `roomCount = 1 + floor(seededRand(hash(b.id, floorIndex)) * 5)` —— 1 到 5 间，确定性伪随机。
-  2. 把该层在画布上的水平条带按 `roomCount` 等分；每个房间填一个**类别色派生色块**——把 `category.building` 色转 HSL，lightness 在 `±building.roomShade`（token，cyber ~0.16）内按房间序号线性阶梯偏移（如 `-roomShade + 2*roomShade*i/(roomCount-1)`，单间时取 0），saturation/hue 不变。
-  3. 房间之间画一条**更细的同色竖线**分隔；楼层边界留出与 `addFloorDividers` 重合的虚线带。
-  4. （night-realistic）原有的窗户自发光 `emissiveMap` 仍在房间色块之上叠加——亮窗让夜景楼栋「亮起来」。
-  why 用纹理而非 3D 子盒体：跨 4 风格统一、一栋楼一个材质性能可控、与既有幕墙画布天然吻合；3D 盒体会让网格数 ×房间数暴涨（10 层 ×5 间 ×N 栋）。
+- **`makeFacadeTexture` 内的贴砖划分**：在已有的程序化幕墙画布（`DigitalTwin.ts` 幕墙纹理模式）绘制阶段，对每一层：
+  1. `roomCount = 1 + floor(seededRand(hash(b.id, floorIndex)) * 5)` —— 同层 1 到 5 块贴砖，确定性伪随机。
+  2. 把该层在画布上的水平条带按 `roomCount` 等分；**每块贴砖从「深浅两色」中按序号交替取色**——把 `category.building` 色转 HSL，派生两个明度 `light = L + roomShade`、`dark = L − roomShade`（`roomShade` 取 token `building.roomShade`，cyber ~0.16，要更强对比可上调到 ~0.22；saturation/hue 不变），第 i 块（i=0..roomCount−1）按 `i % 2 === 0 ? light : dark` 取色。why 两色交替而非线性明度梯度：线性梯度（`−roomShade + 2*roomShade*i/(roomCount-1)`）让相邻两块只差一个步长，远观看不出层次、糊成一片；**相邻两块永远一明一暗**才是「贴砖」应有的强对比拼花，远观即可数清砖缝。单间（roomCount=1）时取 `light` 即可。
+  3. 每两块贴砖之间画一条**高对比深色竖实线**分隔——用 token `building.dividerColor`（7 种风格各自定义，见 `assets/themes/*.tokens.json`），在每条贴砖边界画一条 1–2px 宽的**实线**（`fillRect` 或 `lineTo`，**非虚线**），贯穿该层立面高度。楼层边界留出与 `addFloorDividers` 重合的横向虚线带。why 深色实线：旧的「更细的同色竖线」与贴砖同色调、对比弱、远观融掉；深色实线让每块贴砖的边界清晰可数，强化「贴砖」语义。楼层之间的横向分隔**保持虚线**（`addFloorDividers` 不动）——本规则只约束贴砖之间的竖向分隔。
+  4. （night-realistic）原有的窗户自发光 `emissiveMap` 仍在贴砖色块之上叠加——亮窗让夜景楼栋「亮起来」。
+  why 用纹理而非 3D 子盒体：跨 4 风格统一、一栋楼一个材质性能可控、与既有幕墙画布天然吻合；3D 盒体会让网格数 ×贴砖数暴涨（10 层 ×5 块 ×N 栋）。
 
 ### 楼顶常驻名称标签（v1.3）
 
@@ -196,6 +289,16 @@ function addRoofLabel(mesh: THREE.Mesh, name: string) {
 - **始终可见、不受选中影响**：这是「常驻标识」，不是悬停提示；金色高亮选中状态由**独立的选中 overlay**（金色 `EdgesGeometry` 描边 + 半透明填充，按 buildingId + 楼层定位，见 §8.2 的 `setSelection`）表达，楼名标签独立。`buildFloorSlabs`（楼层拾取板，见本节末）只负责不可见的射线命中盒（`pickables[]`），**不画**任何选中态——不要在它里面找「选中分支」。
 - **对比度（v1.4，§4.2）**：楼名标签同样走高对比配对——底色/字色按风格取 `garageEntrance.signBg/signFg` 同源的明度策略（亮底深字 / 暗底亮字），描边取 `category.building`。绝不散落 hex。
 - **字体**：中文用 `Noto Sans SC`（与全局字体一致），CanvasTexture 绘制时设好 `font`。
+- **标签可见性总表（v1.9，契约级——哪些常驻、哪些悬停）**：
+  | 对象 | 名称/文字 | 何时显示 | 形态 |
+  |---|---|---|---|
+  | 楼幢（`building`） | 楼顶名 | **常驻**（始终可见、面向相机、跟随楼栋） | §4 `Sprite` |
+  | 地下车库入口 | P 牌 | **常驻**（定位标识） | §5 `Sprite` |
+  | 地面车位 | 每位 P | **常驻**（定位标识） | §10 `Sprite` |
+  | POI 兴趣点 | **类型图标** | 常驻（可悬停目标） | §11 `Sprite` |
+  | POI 兴趣点 | **显示名（label/tooltip.title）** | **仅悬停/点击** | §11 HTML tooltip/卡片 |
+
+  why 这张表：数字孪生要一眼认出「哪栋楼」（楼名常驻），但 POI 名称是「按需查看」的细节，常驻会让画面被几十个文字 Sprite 堆满、与楼名重复堆叠。POI 的 `Sprite` **只画类型图标符号**（箭头/摄像机/P/圆点等），**绝不**把 `label`/`tooltip.title` 文字画进 Sprite——显示名只能通过 §11 的 HTML tooltip（悬停）与卡片（点击）出现。车库/车位 P 牌是「这里有个车库/车位」的定位标识，保持常驻（用户确认）。
 
 楼层拾取板（`buildFloorSlabs` 模式，`DigitalTwin.ts:509-560`）把每层注册进一个 `pickables[]` 数组，带 `userData = { buildingId, floorIndex }`，用于射线投射。
 
@@ -272,7 +375,7 @@ function buildGarageEntrance(b: BuildingSpec) {
 
 ## 8. 交互（所有风格共用）
 
-拷贝范例的指针模型（`DigitalTwin.ts` 的指针绑定段，按方法名定位）：无按键的 pointermove → 对 `pickables[]` 做悬停射线投射；pointerup（移动 <4px）→ 点击；委托给 `useSelection` composable（`references/exemplar.md`）。该 composable 持有 `focusedBuildingId` / `floorIndex` / `hoverBuildingId`；**有效**选中是 `hover ?? focused`，被 watch 并通过 `setSelection(bid, fin)` 推回场景（金色边线光晕 + 该层的半透明填充）。楼栋切换器和 3D 点击都写入同一个 composable，所以它们保持同步。
+拷贝范例的指针模型（`DigitalTwin.ts` 的指针绑定段，按方法名定位）：无按键的 pointermove → 对 `pickables[]` 做悬停射线投射；pointerup（移动 <4px）→ 点击；委托给 `useSelection` composable（`references/exemplar.md`）。该 composable 持有 `focusedBuildingId` / `floorIndex` / `hoverBuildingId`；**有效**选中是 `hover ?? focused`，被 watch 并通过 `setSelection(bid, fin)` 推回场景（金色边线光晕 + 该层的半透明填充）。楼栋切换器和 3D 点击都写入同一个 composable，所以它们保持同步。**v1.7 起交互完整闭环**：悬停某层 → 该层立即出金色边框（`eff = hover`）；点击某层 → 锁定该层（`selectFloor`），鼠标移开后金边保留（`eff` 回落已选层）；**点击空白或非楼栋物体 → `onDeselect → clearFocus`，之前选中楼层的金色边框消失、楼栋聚焦与相机一并回到全局概览**。
 
 > **务必照抄下方 §8.1 / §8.2 的契约与代码**。本节历史上出过一个隐蔽 bug：选中楼层后鼠标移开画布，金色边框就消失（应当保留）。根因是生成器「临场发挥」了点击接线——在楼层点击里除了 `onSelect` 又追加了 `onFocus`（→ `focusBuilding` 清空 `floorIndex`）。下面把 composable 契约、点击/悬停代码、watch 接线、反面模式一次给齐，照抄即可避免。
 
@@ -283,6 +386,8 @@ function buildGarageEntrance(b: BuildingSpec) {
 > **楼层点击必须一次性写入「楼 + 层」（`selectFloor`），点击之后绝不能再有任何调用改写/清空 `floorIndex`。**
 
 否则鼠标移开（悬停清空）后，有效选中会回落到「楼 + null」，`setSelection(bid, null)` 命中 `fin==null` 分支隐藏金色高亮——表现为「选中后鼠标移开金边消失」（见本节末反面模式）。
+
+> **v1.7 澄清——铁律只约束「命中楼栋」的点击分支**。铁律禁止的是：在 `onSelect`（命中楼栋/楼层）之后再追加 `onFocus`/`focusBuilding` 去清 `floorIndex`。它**不禁止**「点空白取消选中」：当 `onPointerUp` 未命中任何楼栋/POI 时，走 `onDeselect → clearFocus` 是一条**独立、必需**的取消入口——这是用户显式「点空白取消一切」的语义，与悬停期间不清空（保持金边）并不冲突。区分清楚两条路径：命中楼栋 → `selectFloor`（锁定，不清空）；命中空白 → `clearFocus`（全清回全局）。
 
 `useSelection.ts`（模块级单例，原样拷贝范例；范例不可访问时按下契约实现）：
 
@@ -342,10 +447,12 @@ private onPointerUp = (e: PointerEvent) => {
   if (poiId) { this.openPoi(poiId); return }             // POI 优先，命中则不触楼栋
   const b = this.pickBuilding()
   if (b) {
-    this.cb.onSelect?.(b.bid, b.fin)                     // ← 只此一句；楼+层由 selectFloor 一次性写入
+    this.cb.onSelect?.(b.bid, b.fin)                     // ← 命中楼栋/楼层：楼+层由 selectFloor 一次性写入
     // ⛔ 不要 this.cb.onFocus?.(b.bid)
     //    相机聚焦已由 GlobalTwin 的 watch(focusedBuildingId) → scene.focusBuilding() 驱动；
     //    再调 onFocus 会触发 composable.focusBuilding 清空 floorIndex → 鼠标移开金边消失（反面模式）。
+  } else {
+    this.cb.onDeselect?.()                               // ← v1.7：点空白/非楼栋物体 → clearFocus 取消选中回全局
   }
 }
 
@@ -369,6 +476,7 @@ const sel = useSelection()
 const scene = new ParkScene(canvas, scaffold, style, {
   onHover: (bid, fin) => sel.setHover(bid, fin),         // 悬停写 hover*（eff 立即变）
   onSelect: (bid, fin) => sel.selectFloor(bid, fin),     // 楼层点击写 focused+floor（一次性原子写入）
+  onDeselect: () => sel.clearFocus(),                    // v1.7：点空白/非楼栋物体 → clearFocus（清楼层金边 + 楼栋聚焦 + 相机回全景）
   // ⛔ 不要 onFocus 回调。切换器标签页由 BuildingSwitcher 直接调 sel.focusBuilding()；
   //    相机聚焦交给下面的 watch(focusedBuildingId)，不要在指针回调里重复驱动。
 })
@@ -400,8 +508,12 @@ watch(
 
 ## 9. 生命周期（所有风格共用）
 
-- canvas 上的 `ResizeObserver` → 更新渲染器、composer（若启用 bloom）、宽高比、视锥、每个 `LineMaterial.resolution`。
-- `dispose()`：取消 RAF、断开 observer、abort 指针监听、dispose 控件、遍历场景 dispose 几何体 + 材质 + 它们的 `.map`/`.emissiveMap` 纹理、dispose composer + 渲染器。（拷贝 `DigitalTwin.ts:1454`。）
+- canvas 上的 `ResizeObserver` → 更新渲染器、composer（若启用 bloom）、宽高比、视锥、每个 `LineMaterial.resolution`。**v1.8：resize 回调防抖（如 150ms `debounce`）**，避免拖拽窗口时每帧重算视锥。
+- **v1.8 WebGL 上下文丢失/恢复**：GPU 进程崩溃、驱动休眠、标签页后台抢占都会触发 `webglcontextlost`。canvas 监听两个事件：
+  - `webglcontextlost`：`e.preventDefault()`（阻止默认销毁）+ 停 RAF + 标记 `contextLost=true` + 给用户一个「3D 上下文丢失，点击恢复」遮罩。
+  - `webglcontextrestored`（或用户点遮罩调 `renderer.forceContextRestore()`）：重建依赖 GPU 资源的对象（几何/材质/纹理需重新上传；Three.js `WebGLRenderer` 在 restore 后会自动重新编译，但自定义 `ShaderMaterial` 的 uniform/attribute 可能需要重绑）+ 重启 RAF + 重新 `frameCamera()`。
+  - 不要在 `webglcontextlost` 后继续渲染——会抛 `getContextProperty` 异常。
+- **v1.8 `dispose()` 完整清单**（拷贝 `DigitalTwin.ts:1454` 并补全）：① `cancelAnimationFrame(rafId)`；② `ResizeObserver.disconnect()`；③ `OrbitControls.dispose()`（移除其指针/键盘 listener）；④ 移除所有 `canvas.addEventListener`（pointerdown/move/up、`webglcontextlost/restored`）；⑤ 遍历 `sceneGroup` 递归 `geometry.dispose()` + `material.dispose()`，并 dispose 材质的 `.map`/`.emissiveMap`/`.envMap`/`renderTarget` 纹理；⑥ `EffectComposer` 启用时 dispose 其 `renderTarget1/2` 与各 pass；⑦ `renderer.dispose()` + `renderer.forceContextLoss()`（彻底释放 GPU 上下文）。
 - **保持一个长生命周期实例。** 范例在每次标签页往返时重建 `DigitalTwin`（没有 keep-alive），丢弃 WebGL 状态。优先用带命令式 API（`focusBuilding`、`setSelection`、`clearSelection`、`dispose`）的单例，让 `<canvas>` 撑过标签页切换；`GlobalTwin.vue` 只在真正的 mount/unmount 时创建/销毁。
 
 ## 10. 园区环境（道路 / 地面车位 / 绿化 / 周边道路 / 氛围）—— 所有风格共用
@@ -467,7 +579,13 @@ function buildSurfaceParking(env) {
 - **车辆/行人代理体**（`vehicles`）：周边道路与地面车位上零星几辆低多边形车（复用上面的车辆代理体）；可选少量行人代理体（胶囊 + 球头）。数量克制，纯氛围。**不进 `pickables[]`**。
 
 ### 性能预算（硬约束）
-环境网格（树/车/灯/草块）**总数建议 ≤ 400**。超出时优先降密度（`treeDensity` 降一档、车位/车辆减少），其次把同类元素（树、车、草块）改用 `THREE.InstancedMesh` 合批——一棵树 = 树干 instance + 树冠 instance 两个 `InstancedMesh` 即可承载数百棵。所有环境元素**不参与 floor raycast pick**（不要 push 进 `pickables[]`），避免误触楼栋选中。
+环境网格（树/车/灯/草块）**总数建议 ≤ 400**。超出时优先降密度（`treeDensity` 降一档、车位/车辆减少），其次把同类元素改用 `THREE.InstancedMesh` 合批。**v1.8 起 InstancedMesh 为强制**（同类几何 ≥ ~10 个时）：
+- **行道树**：树干一个 `InstancedMesh` + 树冠一个，承载数百棵——禁止每棵一个 `Mesh`。
+- **车辆/车位代理体**：所有低多边形车代理体共用一个车身 `InstancedMesh`（车位 P 标签仍各自 Sprite，因其 CanvasTexture 文本不同，但可按文本分组共享纹理）。
+- **cyber 树冠边光**（`EdgesGeometry` per tree）：v1.8 改为 `InstancedMesh` 的线段实例或共享 `LineSegments`，不再每树一个 `EdgesGeometry`（N 棵 = N draw call）。
+- **POI 杆/图标**（§11）：按 type 分组共享几何 + 共享材质，杆用 `InstancedMesh`。
+
+一棵树 = 树干 instance + 树冠 instance 两个 `InstancedMesh` 即可承载数百棵。所有环境元素**不参与 floor raycast pick**（不要 push 进 `pickables[]`），避免误触楼栋选中。
 
 ### 生命周期
 所有环境网格挂到 `ParkScene` 的 `sceneGroup`，跟随 §9 的 `ResizeObserver` + `dispose()` 一起清理；不每帧 lerp、不每帧重算。环境元素在首次 `buildScene()` 一次建好，标签页切换不重建（沿用 §9 单例铁律）。
@@ -490,6 +608,8 @@ function buildSurfaceParking(env) {
 - **悬停**：高亮标记 + 显示 `tooltip.title ?? label`。
 - **点击**：展开完整卡片——`tooltip.title ?? label` 作标题、`tooltip.description` 作正文（支持换行）、`tooltip.meta` 渲染成键值表（如 负责人/电话/状态/容量）。无 `tooltip` 字段的 POI 点击仅显示 `label`。
 
+> **v1.8 POI 单开契约**：`useSelection` 新增 `openPoiId: Ref<string | null>`（与楼栋 `focusedBuildingId` 平行）。同一时刻**至多一个 POI 打开**——点击新 POI 覆盖旧的（`openPoiId.value = poiId`），点击空白 / Esc / 再点同 POI 关闭（`openPoiId.value = null`）。POI 打开与楼栋聚焦**互斥**：点 POI 不聚焦楼栋（§8 POI 拾取优先 + `return`），点楼栋不关 POI（但 POI 卡片可用 Esc 关）。打开 POI 卡片时 `aria-live="polite"` 播报、焦点移入卡片、Esc 关闭并归还焦点（见 `shell.md` 可访问性）。`PoiLayer.vue` 只投影 `openPoiId` 对应的那一个 POI（悬停态用轻量 tooltip，不进 project 循环）。
+
 ```html
 <div class="poi-card" :style="cardStyle">
   <div class="poi-title">{{ poi.tooltip?.title ?? poi.label }}</div>
@@ -502,6 +622,7 @@ function buildSurfaceParking(env) {
 
 要点（**理解 why**）：
 - **类型驱动图标/颜色**：让「监控」「闸机」「出入口」一眼可辨，是数字孪生打点的核心价值。颜色全部从 token `poi.*` 派生，绝不散落 hex。
+- **v1.9 名称仅悬停（契约级）**：POI 的 `Sprite` **只渲染类型图标符号**（箭头/摄像机/P/圆点等），**绝不**把 `label`/`tooltip.title` 文字画进 Sprite——显示名只能通过 HTML tooltip（悬停 `tooltip.title ?? label`）与卡片（点击）出现。why：几十个 POI 常驻文字 Sprite 会与楼幢常驻楼名重复堆叠、堆满画面；POI 名称是「按需查看」的细节，悬停才浮现正合适（楼名 = 常驻标识，POI 名 = 悬停详情，见 §4 标签可见性总表）。这与既有「未打开的 POI 仅显示 3D 图标、不进每帧 project 循环」是一致的方向。
 - **只投影当前打开的 POI**：性能关键。未打开的 POI 仅显示 3D 图标，不参与每帧屏幕投影。
 - **POI 与楼栋选中隔离**：POI 有自己的 `poiPickables[]` 和点击处理（§8），点 POI 不应聚焦楼栋——避免「点摄像头却跳到某栋楼」。
 - **性能预算**：POI 总数建议 ≤ 200；杆/图标用 `InstancedMesh` 或共享几何 + 共享材质（按 type 分组）合批。
@@ -539,19 +660,18 @@ class ParkScene {
 ```ts
 // GlobalTwin.vue onMounted
 const scene = new ParkScene(canvas, scaffold)        // ① 同步：静态脚手架（环境+占地底板+Legend+取景）
-try {
-  const [buildings, pois] = await Promise.all([      // ② 并行拉动态数据
-    digitalTwinApi.getBuildings(),
-    digitalTwinApi.getPois(),
-  ])
-  scene.hydrateBuildings(buildings)                  // ③ 水合楼栋（挤出+标签+拾取板）
-  scene.hydratePois(pois)                            // ③ 水合 POI（标记+状态色）
-} catch (e) {
-  // 降级：脚手架仍可交互；显示错误提示（对齐技能 @error 兜底哲学）
-} finally {
-  hydrating.value = false
-}
-// ④ 点击楼层：watch(selection) → scene.getFloorId() → digitalTwinApi.getFloorDetail() → UnitDetail
+// v1.8: Promise.allSettled——POI 失败不连累楼栋水合，各自独立错误态
+const [bRes, pRes] = await Promise.allSettled([      // ② 并行拉动态数据
+  digitalTwinApi.getBuildings(),
+  digitalTwinApi.getPois(),
+])
+if (bRes.status === 'fulfilled') scene.hydrateBuildings(bRes.value)   // ③ 水合楼栋
+else buildingsError.value = errMsg(bRes.reason)                       // 降级：楼名/高度缺失
+if (pRes.status === 'fulfilled') scene.hydratePois(pRes.value)       // ③ 水合 POI
+else poisError.value = errMsg(pRes.reason)                            // 降级：POI 缺失
+hydrating.value = false
+// ④ 点击楼层：watch(selection) → scene.getFloorId() → getFloorDetail({signal}) → UnitDetail
+//    v1.8: watch 用 onCleanup + AbortController 取消旧请求（防 race），错误驱动面板内联重试
 ```
 
 ### 关键约束
@@ -567,15 +687,21 @@ try {
 ## 验证
 
 生成后，`npm run dev`（端口 3000）并确认：
+- [ ] **场景不再死黑（v1.9）**：7 种风格首屏都有可辨识的 `scene.background`（暗色风格为顶→底渐变空腔、非纯黑）；楼栋/地面未受光区域不再是纯黑（环境光下限 `ambientFloor` 生效）。逐风格切换肉眼确认。
+- [ ] **写实增强层（v2.0）**：realistic/night-realistic 的 `scene.environment` 已赋值（RoomEnvironment PMREM），玻璃/金属有反射、不发黑；night-realistic/holographic/cyber 的 `EffectComposer`+`UnrealBloomPass`+`OutputPass` 已实例化，亮部有可见溢光；realistic/night-realistic 的 GTAO 生效、night-realistic 地面湿润反射生效（帧率可接受）；realistic/night-realistic 远景有淡雾（`token.realism.fog`）。其余 5 风格**无** env/AO/反射（纪律不破）。
+- [ ] **轮廓对齐（v2.0）**：楼栋几何装配走 `assets/building-geometry.ts` 的 `buildBuilding()`（与 `park-scene.impl.ts` 一起拷贝，**不在 ParkScene 里手写 position.y**）；`EdgesGeometry` 立体轮廓与楼体同位（`position.y = h/2`），不再半埋地下；金色楼层高亮对齐楼层 slab、不偏移；裙楼底座包在塔底（塔体从 y=0 起，无错位）。
+- [ ] **地面有纹理（v1.9）**：cyber/blueprint 显示着色器网格；realistic/night-realistic 显示程序化 tiles（草地/沥青）、holographic 显示青色点阵、white-model/isometric 显示细网格——**没有一种风格是「一片纯色色片」**。人为破坏 cyber `gridGround.glsl` 引用后，地面降级为带网格纹理的纯色平面（不消失、不发黑）。
 - [ ] **赛博 / 蓝图风格**：地面显示着色器网格（cyber 为霓虹青网格、blueprint 为深蓝图底 + 淡白青坐标网格）。**其它风格**：地面与材质按 `references/styles.md`（如真实物体有 PBR 反射 + 柔和阴影、夜间写实有窗户自发光 + bloom、全息有半透体 + 边缘辉光、白模有纯白磨砂 + 软阴影、等距插画有 flatShading cel 着色），且**除 blueprint 外未接入** grid。
 - [ ] 楼栋按类别上色，并与屏幕 Legend 色块一致（颜色来自所选风格 token 的 `category` 映射）。
 - [ ] **每栋楼顶部常驻显示名称标签**（v1.3），始终可见、面向相机、跟随楼栋。
-- [ ] **楼栋可读出楼层与房间层次**（v1.4）：每层之间有贯穿四立面的横向虚线分隔；每层立面切成 1–5 间房、房间用类别色明度阶梯区分；同一 spec 重复生成结果一致（确定性伪随机）。
+- [ ] **楼栋可读出楼层与贴砖层次**（v1.4，v1.7 改贴砖）：每层之间有贯穿四立面的横向虚线分隔；每层立面切成 1–5 块贴砖、**相邻贴砖深浅两色强对比交替**（一明一暗 ping-pong）、**贴砖之间用高对比深色竖实线分隔**；同一 spec 重复生成结果一致（确定性伪随机）。
 - [ ] **所有标签高对比可读**（v1.4）：楼顶名称、车库 P 牌、地面车位每位印的 P、POI 图标都「亮底深字 / 暗底亮字」，远观不糊（赛博 P 牌尤其要清晰）。
 - [ ] **车库渲染为半金字塔三角门入口 + P 牌**（v1.3），朝向 `facing`，**无**占用标牌/进度条/车位数。
 - [ ] **地面车位为长方形车位 + 每位印 P + ~30% 示意车辆**（v1.4），**无**正方形框、**无**区域 P 牌；`occupied` 给定时按其数量放车。
 - [ ] **POI 标记按类型上色**（v1.3），悬停高亮、点击弹出 tooltip（含 `description` + `meta`）；点 POI 不误触楼栋聚焦。
+- [ ] **POI 名称仅悬停（v1.9）**：POI 的 3D `Sprite` 只显示类型图标、**默认无文字名称**；鼠标悬停 POI 才浮现名称 tooltip，点击展开卡片。楼幢楼顶名、车库 P 牌、车位 P 牌保持**常驻可见**。
 - [ ] 切换标签页（含 地下车库）聚焦正确的楼；点击某层金色高亮它并打开详情面板。
+- [ ] **楼层选中闭环**（v1.7）：悬停某层 → 该层立即出金色边框；点击某层 → 锁定金边，**鼠标移开后金边保留**；**点击空白或非楼栋物体 → 之前选中楼层的金边消失、楼栋聚焦与相机回到全局概览**（`onDeselect → clearFocus`）。
 - [ ] 滚轮可缩放、右键可平移、左键可旋转，且松手后视角**保持**（不被「每帧 lerp」拽回）；聚焦切换为**有限时长**过渡、结束后不抢占滚轮。
 - [ ] 改变窗口大小后场景保持正确缩放（赛博下含网格，无漂移）。
 - [ ] **取景贴合（v1.2 默认 K=0.66）**：园区内容约占画面 2/3，四周能看到周边道路/绿化/围墙；地面最近端钉在距舞台底边 ~17%，左右居中，**下方无大片空白**、楼栋完整可见未被裁切；滚轮可继续拉远到 zoom≈0.45 俯瞰全貌；resize 后重算仍贴合、无变形。

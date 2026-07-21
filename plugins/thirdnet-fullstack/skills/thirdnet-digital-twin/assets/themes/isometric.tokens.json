@@ -1,5 +1,10 @@
 {
   "_comment": "Isometric (等距插画 / 信息图) theme — warm off-white ground, flat-shaded (cel) colorful buildings via flatShading, vibrant harmonious illustration palette. The 'flat but good-looking' look — friendlier and more alive than the flat minimal style, still reporting-friendly. Buildings use MeshStandardMaterial with flatShading:true so each face takes a flat shade under a warm directional light → cel/illustration feel. No shader grid — warm flat paving. Same key names as the cyber theme; only the values change. To retheme, edit values here only.",
+  "scene": {
+    "_comment": "v1.9 显式场景背景（顶→底纵向渐变 CanvasTexture，§2）。暖白幕布，扁平插画统一底。",
+    "bgTop": "#ffffff",
+    "bgBottom": "#f3ede2"
+  },
   "palette": {
     "void-bg": "#fbf7f0",
     "panel-top": "#ffffff",
@@ -14,7 +19,8 @@
     "magenta": "#f0988a",
     "magenta-bright": "#f6b4a8",
     "magenta-dim": "#c46a5a",
-    "mint": "#48c78a"
+    "mint": "#48c78a",
+    "_magenta_note": "v1.8 此风格 magenta 实为鲑鱼粉/珊瑚色（插画友好色），并非品红；生成器若需品红语义请改用 cyber/holographic。"
   },
   "accents": {
     "blue": "#5b8def",
@@ -45,17 +51,36 @@
     "garage": "#48c78a"
   },
   "building": {
-    "_comment": "v1.4 楼栋楼层/房间层次（§4）。等距插画：roomShade 较大强化 cel 阶梯；dividerColor 用深海军蓝楼层虚线（在彩色面上可读）。",
+    "_comment": "v1.4/v1.7 楼栋楼层/贴砖层次（§4.1）。等距插画：roomShade 较大强化 cel 阶梯、相邻贴砖两色交替；dividerColor 用深海军蓝贴砖竖实线 + 楼层横向虚线（在彩色面上可读）。",
     "roomShade": 0.18,
     "dividerColor": "#3a4660"
+  },
+  "lights": {
+    "_comment": "v1.8 灯光配色。等距插画：一盏暖色 DirectionalLight 从等轴斜上方（与相机同向）让 flatShading 每面得到不同平涂明度形成 cel 阶梯；低强度半球光补暗部。v1.8 DO-NOT-ENABLE-SHADOWS（光锁定相机时投影会错）；楼栋用 MeshLambertMaterial flatShading（metalness=0 时视觉等价更便宜）。",
+    "sun": "#fff0e0",
+    "sunIntensity": 1.2,
+    "hemiSky": "#fff8e8",
+    "hemiGround": "#e8e0d2",
+    "hemiIntensity": 0.3,
+    "ambient": null,
+    "ambientIntensity": 0.0,
+    "ambientFloor": 0.08,
+    "point": null,
+    "pointIntensity": 0.0,
+    "pointDistance": 0.0
+  },
+  "ground": {
+    "_comment": "v1.9 园区地面纹理（§3 makeGroundTexture）。等距插画：暖色底 + 更深暖灰细网格 CanvasTexture 叠在 MeshLambertMaterial(flatShading) 上，地面有插画铺装感而非一片纯色。",
+    "texture": { "type": "grid", "base": "#f0e8d6", "line": "#e0d8c4", "cell": 64 }
   },
   "shaders": {
     "_comment": "Not used by the isometric style — flatShading + warm directional light carry the cel/illustration look. Generator skips grid.glsl.",
     "grid": null
   },
   "environment": {
-    "_comment": "v1.2 园区环境配色（§10）。等距插画气质：鲜活但和谐的插画配色——暖棕沥青、奶油标线、鲜活草绿/树冠、暖棕树干。",
+    "_comment": "v1.2 园区环境配色（§10）。等距插画气质：鲜活但和谐的插画配色——暖棕沥青、奶油标线、鲜活草绿/树冠、暖棕树干。v1.8 groundGlow 默认 false（保持扁平插画统一）。",
     "city-ground": "#f0e8d6",
+    "groundGlow": false,
     "road": "#c8bea8",
     "roadLine": "#fff8e8",
     "sidewalk": "#e0d8c4",
@@ -84,7 +109,7 @@
     "sign": "#48c78a"
   },
   "poi": {
-    "_comment": "v1.3 兴趣点（§11）类型→颜色。等距插画：鲜活友好、不发光（保持扁平插画统一）。",
+    "_comment": "v1.3 兴趣点（§11）类型→颜色。等距插画：鲜活友好、不发光（保持扁平插画统一）。v1.8 新增 status 子块：鲜活友好色 + 白底，不发光、不加阴影。",
     "entrance": "#48c78a",
     "exit": "#ef4444",
     "camera": "#f59e0b",
@@ -92,7 +117,23 @@
     "service": "#6dd8a8",
     "landmark": "#f0988a",
     "parking": "#48c78a",
-    "custom": "#64748b"
+    "custom": "#64748b",
+    "status": {
+      "_comment": "v1.8 POI 状态色（等距插画：鲜活友好色，不发光）。",
+      "online": "#48c78a",
+      "offline": "#8a96aa",
+      "alarm": "#ef4444",
+      "idle": "#f59e0b"
+    }
+  },
+  "realism": {
+    "_comment": "v2.0 写实增强旋钮。isometric 是扁平插画 cel——无环境贴图/无 bloom/无 AO/反射；material 哑光配合 flatShading cel 阶梯。",
+    "material": { "roughness": 1.0, "metalness": 0.0, "envMapIntensity": 0.0 },
+    "bloom": { "threshold": 0.9, "strength": 0.0, "radius": 0.4 },
+    "ao": { "enabled": false, "intensity": 0.5, "radius": 0.5 },
+    "reflection": { "enabled": false, "opacity": 0.5, "mixStrength": 0.5 },
+    "fog": null,
+    "sun": { "azimuth": 135, "elevation": 50 }
   },
   "fonts": {
     "zh": "Noto Sans SC",

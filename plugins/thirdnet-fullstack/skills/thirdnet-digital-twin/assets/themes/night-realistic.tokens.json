@@ -1,5 +1,10 @@
 {
   "_comment": "Night-realistic (夜间写实) theme — PBR under a deep-blue night sky. Buildings lit by warm emissive windows, amber street lamps, subtle ground reflection. Same key names as the cyber theme; only values change. To retheme, edit values here only.",
+  "scene": {
+    "_comment": "v1.9 显式场景背景（顶→底纵向渐变 CanvasTexture，§2）。深蓝夜空→近黑地平线，给夜景一点空气层次而非整屏死黑。",
+    "bgTop": "#0e1a38",
+    "bgBottom": "#060c1e"
+  },
   "palette": {
     "void-bg": "#0a1430",
     "panel-top": "#0e1a38",
@@ -11,9 +16,9 @@
     "cyan": "#3a6fb0",
     "cyan-bright": "#5f93d0",
     "cyan-dim": "#1f3f70",
-    "magenta": "#ffb24a",
-    "magenta-bright": "#ffcb6e",
-    "magenta-dim": "#7a5520",
+    "magenta": "#c47fa0",
+    "magenta-bright": "#d89bb8",
+    "magenta-dim": "#6a4a60",
     "mint": "#2fa37f"
   },
   "accents": {
@@ -45,17 +50,36 @@
     "garage": "#2fa37f"
   },
   "building": {
-    "_comment": "v1.4 楼栋楼层/房间层次（§4）。夜景：明度阶梯配合窗户自发光 emissiveMap；dividerColor 用自发光暖色作楼层虚线（夜间可见）。",
+    "_comment": "v1.4/v1.7 楼栋楼层/贴砖层次（§4.1）。夜景：相邻贴砖两色交替配合窗户自发光 emissiveMap；dividerColor 用自发光暖色作贴砖竖实线 + 楼层横向虚线（夜间可见）。",
     "roomShade": 0.16,
     "dividerColor": "#ffb24a"
+  },
+  "lights": {
+    "_comment": "v1.8 灯光配色。夜间写实：冷色月光 DirectionalLight（弱）+ 暖琥珀 PointLight（路灯）。v1.8 性能约束：PointLight 全部 castShadow=false、总数硬上限 ≤8、用 Sprite 光晕 + 1-2 盏 hero PointLight 承载氛围（见 styles.md night-realistic 段）；车灯一律自发光小球、禁用真光源。v1.9：月光强度微调上调 + 新增 ambientFloor 兜底，让楼栋/地面在夜里仍可辨而非纯黑（仍保持夜景沉静）。",
+    "sun": "#9fb4ff",
+    "sunIntensity": 0.55,
+    "hemiSky": "#0e1a38",
+    "hemiGround": "#060c1e",
+    "hemiIntensity": 0.2,
+    "ambient": null,
+    "ambientIntensity": 0.0,
+    "ambientFloor": 0.18,
+    "point": "#ffb24a",
+    "pointIntensity": 30.0,
+    "pointDistance": 60.0
+  },
+  "ground": {
+    "_comment": "v1.9 园区地面纹理（§3 makeGroundTexture）。夜景：湿润沥青深色 tile 程序化纹理叠在 MeshStandardMaterial 上，地面不再是死黑色片，配合预烘焙反射读出沥青质感。",
+    "texture": { "type": "tiles", "base": "#0e1426", "line": "#1a2240", "cell": 64 }
   },
   "shaders": {
     "_comment": "Not used by the night-realistic style. Window glow is via emissive maps on the building facades. Generator skips grid.glsl when spec.style != 'cyber'.",
     "grid": null
   },
   "environment": {
-    "_comment": "v1.2 园区环境配色（§10）。夜景气质：湿润沥青深色反光 + 暖琥珀路灯 glow（每盏挂 PointLight）+ 深绿树冠。bloom 会让所有亮部在夜里溢出。",
+    "_comment": "v1.2 园区环境配色（§10）。夜景气质：湿润沥青深色反光 + 暖琥珀路灯 glow（hero PointLight，受 §lights 上限约束）+ 深绿树冠。bloom 会让所有亮部在夜里溢出。v1.8 groundGlow 默认 false（夜景地面靠反射，不用发光标线）。",
     "city-ground": "#070d20",
+    "groundGlow": false,
     "road": "#0e1426",
     "roadLine": "#ffb24a",
     "sidewalk": "#1a2240",
@@ -84,7 +108,7 @@
     "sign": "#2fa37f"
   },
   "poi": {
-    "_comment": "v1.3 兴趣点（§11）类型→颜色。夜景：暖/冷发光色，bloom 让标记在夜里跳出来。",
+    "_comment": "v1.3 兴趣点（§11）类型→颜色。夜景：暖/冷发光色，bloom 让标记在夜里跳出来。v1.8 新增 status 子块：alarm=琥珀告警（与路灯同色，bloom 微溢）。",
     "entrance": "#2fa37f",
     "exit": "#ff6a78",
     "camera": "#ffcb6e",
@@ -92,7 +116,23 @@
     "service": "#48c090",
     "landmark": "#ffcb6e",
     "parking": "#2fa37f",
-    "custom": "#9fb2d8"
+    "custom": "#9fb2d8",
+    "status": {
+      "_comment": "v1.8 POI 状态色（夜景：自发光暖/亮色，bloom 让告警在夜里跳出来）。",
+      "online": "#48c090",
+      "offline": "#3a4660",
+      "alarm": "#ffb24a",
+      "idle": "#ffcb6e"
+    }
+  },
+  "realism": {
+    "_comment": "v2.0 写实增强旋钮。night-realistic 是放宽上限的夜景写实风格：玻璃（metalness 0.8/roughness 0.2）+ 低强度环境贴图（envMapIntensity 0.35，不把夜照亮）+ 亮窗/路灯 bloom（0.45，夜景灵魂）+ GTAO + 湿润沥青地面反射 + 深蓝雾拉远景层次。",
+    "material": { "roughness": 0.2, "metalness": 0.8, "envMapIntensity": 0.35 },
+    "bloom": { "threshold": 0.5, "strength": 0.45, "radius": 0.5 },
+    "ao": { "enabled": true, "intensity": 0.55, "radius": 0.5 },
+    "reflection": { "enabled": true, "opacity": 0.45, "mixStrength": 0.6 },
+    "fog": { "color": "#060c1e", "near": 1400, "far": 5500 },
+    "sun": { "azimuth": 150, "elevation": 60 }
   },
   "fonts": {
     "zh": "Noto Sans SC",

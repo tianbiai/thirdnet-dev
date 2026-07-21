@@ -1,5 +1,10 @@
 {
   "_comment": "White-model (白模 / 建筑模型) theme — light gray gradient ground, all-white matte buildings with soft ambient occlusion / contact shadow, museum/scale-model feel. The 'clean' look done right: clean BUT volumetric (unlike the flat minimal style). Buildings are pure-white bodies; the category color (building blue / garage green) is carried by the ROOF outline / edges so the Legend and category system still hold. No shader grid — flat neutral paving. Same key names as the cyber theme; only the values change. To retheme, edit values here only.",
+  "scene": {
+    "_comment": "v1.9 显式场景背景（顶→底纵向渐变 CanvasTexture，§2）。浅灰中性幕布，沙盘/博物馆汇报感。",
+    "bgTop": "#f4f6f9",
+    "bgBottom": "#dde1e8"
+  },
   "palette": {
     "void-bg": "#e8ebf0",
     "panel-top": "#f4f6f9",
@@ -14,7 +19,8 @@
     "magenta": "#b0b8c4",
     "magenta-bright": "#c8d0da",
     "magenta-dim": "#7a8290",
-    "mint": "#48c78a"
+    "mint": "#48c78a",
+    "_magenta_note": "v1.8 此风格 magenta 实为中性灰（白模低饱和氛围所需），并非品红；生成器若需品红语义请改用其它风格。"
   },
   "accents": {
     "blue": "#5b8def",
@@ -45,17 +51,36 @@
     "garage": "#48c78a"
   },
   "building": {
-    "_comment": "v1.4 楼栋楼层/房间层次（§4）。白模：roomShade 极弱（仅读楼层，不破坏单色），dividerColor 用浅灰楼层虚线。",
+    "_comment": "v1.4/v1.7 楼栋楼层/贴砖层次（§4.1）。白模：roomShade 极弱（仅读楼层/贴砖轮廓，不破坏单色），dividerColor 用浅灰贴砖竖实线 + 楼层横向虚线。",
     "roomShade": 0.05,
     "dividerColor": "#c8ced8"
+  },
+  "lights": {
+    "_comment": "v1.8 灯光配色。白模：HemisphereLight 主光 + 一盏柔和 DirectionalLight 投 PCF 软阴影（接地阴影是体积感来源）。不用 PMREM/HDR（要干净中性、不是反射）；不挂 PointLight。v1.8 楼栋体用 MeshLambertMaterial（roughness 0.95、metalness 0 时视觉等价更便宜）。",
+    "sun": "#ffffff",
+    "sunIntensity": 1.5,
+    "hemiSky": "#ffffff",
+    "hemiGround": "#d8dce4",
+    "hemiIntensity": 1.0,
+    "ambient": null,
+    "ambientIntensity": 0.0,
+    "ambientFloor": 0.08,
+    "point": null,
+    "pointIntensity": 0.0,
+    "pointDistance": 0.0
+  },
+  "ground": {
+    "_comment": "v1.9 园区地面纹理（§3 makeGroundTexture）。白模：浅灰底 + 更浅灰建筑网格 CanvasTexture 叠在 MeshLambertMaterial 上，地面读出沙盘铺装感而非一片纯色，接受软阴影。",
+    "texture": { "type": "grid", "base": "#dde1e8", "line": "#c8ced8", "cell": 64 }
   },
   "shaders": {
     "_comment": "Not used by the white-model style — pure-white matte + soft AO/contact shadow carry the look. Generator skips grid.glsl.",
     "grid": null
   },
   "environment": {
-    "_comment": "v1.2 园区环境配色（§10）。白模气质：低饱和鼠尾草绿植 + 中性灰铺装，保留景观语义但不破坏单色氛围；路灯浅色不发光。",
+    "_comment": "v1.2 园区环境配色（§10）。白模气质：低饱和鼠尾草绿植 + 中性灰铺装，保留景观语义但不破坏单色氛围；路灯浅色不发光。v1.8 groundGlow 默认 false。",
     "city-ground": "#dde1e8",
+    "groundGlow": false,
     "road": "#c4c9d2",
     "roadLine": "#ffffff",
     "sidewalk": "#d6dce4",
@@ -84,7 +109,7 @@
     "sign": "#48c78a"
   },
   "poi": {
-    "_comment": "v1.3 兴趣点（§11）类型→颜色。白模：低饱和但可读，接受柔和阴影、不发光。",
+    "_comment": "v1.3 兴趣点（§11）类型→颜色。白模：低饱和但可读，接受柔和阴影、不发光。v1.8 新增 status 子块：低饱和色 + 白底，接受阴影、不发光。",
     "entrance": "#48c78a",
     "exit": "#ef4444",
     "camera": "#f59e0b",
@@ -92,7 +117,23 @@
     "service": "#6dd8a8",
     "landmark": "#b0604a",
     "parking": "#48c78a",
-    "custom": "#64748b"
+    "custom": "#64748b",
+    "status": {
+      "_comment": "v1.8 POI 状态色（白模：低饱和、接受阴影、不发光）。",
+      "online": "#48c78a",
+      "offline": "#aab0ba",
+      "alarm": "#ef4444",
+      "idle": "#f59e0b"
+    }
+  },
+  "realism": {
+    "_comment": "v2.0 写实增强旋钮。white-model 是哑光白模——无环境贴图（spec 明确不要 PMREM）、无 bloom/无 AO/反射；material 全 metalness 0 哑光，体积感来自接地软阴影。",
+    "material": { "roughness": 0.95, "metalness": 0.0, "envMapIntensity": 0.0 },
+    "bloom": { "threshold": 0.9, "strength": 0.0, "radius": 0.4 },
+    "ao": { "enabled": false, "intensity": 0.5, "radius": 0.5 },
+    "reflection": { "enabled": false, "opacity": 0.5, "mixStrength": 0.5 },
+    "fog": null,
+    "sun": { "azimuth": 135, "elevation": 50 }
   },
   "fonts": {
     "zh": "Noto Sans SC",
