@@ -29,6 +29,7 @@ description: >
   新增可选 `spec.cameraTour` 配置块（enabled/speed/elevation/framingK/pauseOnInteract，缺省即智能默认）→ `generate_data.py` 写进 `ParkScaffold.cameraTour`（静态）→ `validate_spec.py` 校验。
   v2.2.1：修写实两风格（realistic/night-realistic）楼顶名称牌/车库 P/地面车位 P/连廊名/POI 图标旋转后变黑块——`GTAOPass` 把漂浮在天空/空旷区的透明 sprite 像素（AO≈0）乘向黑；改为独立 `overlayScene` 在 composer/直渲之后第二遍 `renderer.render(overlayScene, camera)`（`autoClear=false`、sprite `depthTest:false` 绕过 GTAO/bloom），7 风格旋转后均可读。资产 `park-scene.impl.ts` + `building-geometry.ts` 已修（`buildBuilding` 返回 `label` 不再进 group；5 处广告牌 sprite 改挂 overlayScene）。
 v2.2.2：夜景/全息地面与物体可辨 + 全风格楼名牌变细变小。夜景/全息两风格的地面/道路/车位/人行道/草地/树/车原为近黑（与夜色融为一体、地面物体看不清），提至「可见的深色」（去饱和、不发光，对标其它风格可读度）；`buildGround` 的 dark 分支改用 `MeshBasicMaterial`（不受光，直接按 token ground.texture 全色显示，免被夜景/全息的暗光压成近黑）；全息楼体 opacity 0.35→0.5、emissiveIntensity 0.3→0.4（半透但不再「空」）。全风格楼顶名称牌文字字重 700→500、整牌缩约 15%（`makeContrastLabel` 加 `weight=700` 形参，仅楼名调用传 500；P 牌/POI/连廊名仍 700）。
+  v2.3：选中楼层高亮增强——描边（`selectionOverlay` `opacity:1.0` 全不透明勾勒轮廓）+ 新增 4 立面半透明填充层（`selectionFill`：`BoxGeometry` 配 6 材质数组，顶/底 `+Y/-Y` 用 `visible:false` 跳过**只渲 4 立面**、不封顶/底；`MeshBasicMaterial` 半透明、`depthTest:false` 不被楼体立面遮挡、`renderOrder:-1` 让描边画在填充上）。配色**按风格**走主题 token `ui.selectionBorder`/`ui.selectionFill`/`ui.selectionFillOpacity`（`updateSelectionColors()` 在 `applyProfile` 读取并应用，切风格即换色；缺省回退常量）。原则：冷调/暗底风格（cyber/holo/blueprint/night）用暖琥珀撞色、亮底风格（white-model/isometric）用红橙描边+蓝填充互补，选中层跳出来又不刺眼。7 主题 token + `tokens.schema.json` 同步登记（非 required）。
 本技能只生成数字孪生模块本身，外围面板留空由调用方自行填充。
   只要用户想构建、生成、复刻或换肤一个 园区数字孪生、智慧园区驾驶舱、园区 3D 大屏、数字孪生驾驶舱、社区驾驶舱，
   或者提供了一张园区/社区的草图/效果图/`.pen` 并希望得到可运行的前端，就必须使用本技能，
@@ -37,7 +38,7 @@ v2.2.2：夜景/全息地面与物体可辨 + 全风格楼名牌变细变小。�
   把写死的数据改成走后端 API（含 Mock/Real 工厂与 `VITE_MOCK_ENABLED` 切换）等。
 license: MIT
 metadata:
-  version: "2.2.2"
+  version: "2.3.0"
   author: park-cockpit
 compatibility: Vue 3 + TypeScript + Vite + Three.js 项目；赛博与蓝图风格下消费 WebGL 片段着色器（grid.glsl/gridGround.glsl）。动态数据契约层遵循 `api-typescript-spec`（`IDigitalTwinApi` + Real/Mock 工厂，`VITE_MOCK_ENABLED` 切换）。可在范例仓库、create-thirdnet-admin 项目或任何最小化的 Vite+Vue+Three 脚手架中运行。
 ---

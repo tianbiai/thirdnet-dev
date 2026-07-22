@@ -73,7 +73,10 @@ const PROFILES: Record<StyleKey, StyleProfile> = {
   isometric:         { toneMapping: THREE.NoToneMapping, toneExposure: 1.0, shadows: false, ground: 'flat', building: 'flat', flatShading: true, composer: false, envMap: false, ao: false, reflect: false },
 }
 
-const FLOOR_HIGHLIGHT_COLOR = 0xffd400
+// 选中层配色缺省值（各风格主题 ui.selectionBorder/Fill/Opacity 覆盖之；未定义时回退此处）
+const FLOOR_HIGHLIGHT_COLOR = 0xff3300
+const FLOOR_FILL_COLOR = 0xccffff
+const FLOOR_FILL_OPACITY = 0.4
 const DEFAULT_FLOOR_ESTIMATE = 18
 
 export class ParkScene {
@@ -128,6 +131,8 @@ export class ParkScene {
   private hydratedPois: PoiRuntimeItem[] | null = null
 
   private selectionOverlay: THREE.LineSegments
+  private selectionFill: THREE.Mesh
+  private selectionFillMat!: THREE.MeshBasicMaterial
   private tween: { active: boolean; start: number; dur: number; fromTarget: THREE.Vector3; toTarget: THREE.Vector3; fromZoom: number; toZoom: number } | null = null
   private defaultTarget = new THREE.Vector3(0, 0, 0)
   private defaultZoom = 1
@@ -175,11 +180,26 @@ export class ParkScene {
 
     const boxGeo = new THREE.BoxGeometry(1, 1, 1)
     const edges = new THREE.EdgesGeometry(boxGeo)
-    const mat = new THREE.LineBasicMaterial({ color: FLOOR_HIGHLIGHT_COLOR, transparent: true, opacity: 0.95 })
+    const mat = new THREE.LineBasicMaterial({ color: FLOOR_HIGHLIGHT_COLOR, transparent: true, opacity: 1.0 })
     this.selectionOverlay = new THREE.LineSegments(edges, mat)
     this.selectionOverlay.visible = false
     this.sceneGroup.add(this.selectionOverlay)
     boxGeo.dispose()
+
+    // 选中楼层填充层（仅 4 个立面，不含顶/底）：与 selectionOverlay 同盒缩放。
+    // BoxGeometry 6 面 material index 顺序 = [+X,-X,+Y(顶),-Y(底),+Z,-Z]；顶/底用 visible:false
+    // 空材质跳过，只渲染 4 个立面（贴合「只填 4 面」）。MeshBasicMaterial 不受光；depthTest:false
+    // 让填充不被楼体不透明立面遮挡；renderOrder=-1 保证边框（LineSegments）画在其上。
+    const fillFaceMat = new THREE.MeshBasicMaterial({ color: FLOOR_FILL_COLOR, transparent: true, opacity: FLOOR_FILL_OPACITY, depthWrite: false, depthTest: false })
+    const skipMat = new THREE.MeshBasicMaterial({ visible: false })
+    this.selectionFill = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      [fillFaceMat, fillFaceMat, skipMat, skipMat, fillFaceMat, fillFaceMat],
+    )
+    this.selectionFillMat = fillFaceMat   // 保留引用，updateSelectionColors 按风格改色
+    this.selectionFill.renderOrder = -1
+    this.selectionFill.visible = false
+    this.sceneGroup.add(this.selectionFill)
 
     this.sceneObj.add(this.sceneGroup)
     this.applyProfile()
@@ -236,6 +256,18 @@ export class ParkScene {
     // v1.9 显式 scene.background（顶→底渐变 CanvasTexture）—— 防黑屏关键，取代 setClearColor 纯色。
     this.sceneObj.background = this.makeBackgroundTexture(this.tokens.scene.bgTop, this.tokens.scene.bgBottom)
     this.sceneObj.fog = this.makeFog()
+    this.updateSelectionColors()   // 按当前风格 token 更新选中层边框/填充色
+  }
+
+  /** 选中层配色随风格 token（ui.selectionBorder/Fill/Opacity）变化；缺省回退常量。 */
+  private updateSelectionColors() {
+    const ui = (this.tokens.ui ?? {}) as Record<string, unknown>
+    const border = ui.selectionBorder as string | undefined
+    const fill = ui.selectionFill as string | undefined
+    const opacity = typeof ui.selectionFillOpacity === 'number' ? ui.selectionFillOpacity : FLOOR_FILL_OPACITY
+    ;(this.selectionOverlay.material as THREE.LineBasicMaterial).color.set(border ?? FLOOR_HIGHLIGHT_COLOR)
+    this.selectionFillMat.color.set(fill ?? FLOOR_FILL_COLOR)
+    this.selectionFillMat.opacity = opacity
   }
 
   /**
@@ -331,7 +363,7 @@ export class ParkScene {
   }
 
   private clearSceneGroup() {
-    const keep = new Set<THREE.Object3D>([this.selectionOverlay])
+    const keep = new Set<THREE.Object3D>([this.selectionOverlay, this.selectionFill])
     for (let i = this.sceneGroup.children.length - 1; i >= 0; i--) {
       const c = this.sceneGroup.children[i]
       if (keep.has(c)) continue
@@ -1595,11 +1627,12 @@ export class ParkScene {
   // ---------- 金色选中 overlay ----------
 
   setSelection(bid: string | null, fin: number | null) {
-    if (!bid || fin == null) { this.selectionOverlay.visible = false; return }
+    const hide = () => { this.selectionOverlay.visible = false; this.selectionFill.visible = false }
+    if (!bid || fin == null) { hide(); return }
     const meta = this.buildingMap.get(bid)
-    if (!meta || meta.slabs.length === 0) { this.selectionOverlay.visible = false; return }
+    if (!meta || meta.slabs.length === 0) { hide(); return }
     const slab = meta.slabs[fin]
-    if (!slab) { this.selectionOverlay.visible = false; return }
+    if (!slab) { hide(); return }
     const fh = this.scaffold.floorHeight
     const box = new THREE.Box3().setFromCenterAndSize(
       new THREE.Vector3(meta.x, (fin + 0.5) * fh, meta.z),
@@ -1607,9 +1640,13 @@ export class ParkScene {
     )
     const size = new THREE.Vector3()
     box.getSize(size)
+    const center = box.getCenter(new THREE.Vector3())
     this.selectionOverlay.scale.set(size.x, size.y, size.z)
-    this.selectionOverlay.position.copy(box.getCenter(new THREE.Vector3()))
+    this.selectionOverlay.position.copy(center)
+    this.selectionFill.scale.set(size.x, size.y, size.z)   // 黄色填充层与金色边框同盒
+    this.selectionFill.position.copy(center)
     this.selectionOverlay.visible = true
+    this.selectionFill.visible = true
   }
 
   getFloorId(buildingId: string, floorIndex: number): string | undefined {
@@ -1749,6 +1786,11 @@ export class ParkScene {
     this.disposeReflector()
     this.envMapTarget?.dispose()
     this.pmrem?.dispose()
+    // selectionFill 在 keep 集中、clearSceneGroup 不回收，这里显式释放（overlay 既有同样未释放，保持现状）
+    this.selectionFill.geometry.dispose()
+    const fm = this.selectionFill.material
+    if (Array.isArray(fm)) (fm as THREE.Material[]).forEach((m) => m.dispose())
+    else (fm as THREE.Material).dispose()
     this.clearSceneGroup()
     this.renderer.dispose()
     this.renderer.forceContextLoss()

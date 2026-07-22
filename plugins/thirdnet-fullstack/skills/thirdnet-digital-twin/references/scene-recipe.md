@@ -289,7 +289,7 @@ function addRoofLabel(mesh: THREE.Mesh, name: string) {
 
 要点（**理解 why**）：
 - **Sprite 而非 HTML**：楼名要随相机旋转/缩放保持在楼顶——`Sprite` 是 3D 对象，天然面向相机且跟随楼栋，比每帧 `project()` 的 HTML 叠加层便宜得多（几十栋楼每帧投影会卡）。
-- **始终可见、不受选中影响**：这是「常驻标识」，不是悬停提示；金色高亮选中状态由**独立的选中 overlay**（金色 `EdgesGeometry` 描边 + 半透明填充，按 buildingId + 楼层定位，见 §8.2 的 `setSelection`）表达，楼名标签独立。`buildFloorSlabs`（楼层拾取板，见本节末）只负责不可见的射线命中盒（`pickables[]`），**不画**任何选中态——不要在它里面找「选中分支」。
+- **始终可见、不受选中影响**：这是「常驻标识」，不是悬停提示；选中高亮状态由**独立的选中层**（描边 `EdgesGeometry` + 4 立面半透明填充，配色按风格 token，按 buildingId + 楼层定位，见 §8.2 的 `setSelection`）表达，楼名标签独立。`buildFloorSlabs`（楼层拾取板，见本节末）只负责不可见的射线命中盒（`pickables[]`），**不画**任何选中态——不要在它里面找「选中分支」。
 - **对比度（v1.4，§4.2）**：楼名标签同样走高对比配对——底色/字色按风格取 `garageEntrance.signBg/signFg` 同源的明度策略（亮底深字 / 暗底亮字），描边取 `category.building`。绝不散落 hex。**v2.1 起楼名标签配对固化为 token `ui.labelBg`/`ui.labelText`**（7 风格各自校验过的高对比对）——旧式 `(void-bg, cyan-bright)` 在浅色风格两字色都偏亮、标签糊成黑块（v2.0 实测 bug）。
 - **位置（v2.1 修复）**：楼名标签 Sprite 的 y 必须是 **`h + 22`（屋顶上方）**——旧式 `h/2 + 22` 会把标签埋进塔体内部，高楼（h > 44）完全不可见。该 y 坐标只在 `building-geometry.ts` 定义（铁律见 §4 末）。
 - **字体**：中文用 `Noto Sans SC`（与全局字体一致），CanvasTexture 绘制时设好 `font`。
@@ -470,7 +470,9 @@ private onPointerMove = (e: PointerEvent) => {
 }
 ```
 
-`ParkScene` 只暴露 `focusBuilding(id)`（相机补间）与 `setSelection(bid, fin)`（定位金色 overlay）两个命令式方法；**它不持有选中态**，选中态在 composable 里，由 watch 单向推回场景。
+`ParkScene` 只暴露 `focusBuilding(id)`（相机补间）与 `setSelection(bid, fin)`（定位选中层 overlay）两个命令式方法；**它不持有选中态**，选中态在 composable 里，由 watch 单向推回场景。
+
+> **选中层 = 描边 + 4 立面填充（v2.3）**：`setSelection` 把选中楼层定位到两层 overlay——① 描边 `selectionOverlay`（`EdgesGeometry` 线框，`LineBasicMaterial` `opacity:1.0`，勾勒轮廓）+ ② 填充 `selectionFill`（`BoxGeometry` 仅渲染 **4 个立面**：material index `[+X,-X,+Y,-Y,+Z,-Z]` 中顶/底 `+Y/-Y` 用 `visible:false` 空材质跳过，**不封顶/底**；`MeshBasicMaterial` 半透明、`depthTest:false` 不被楼体不透明立面遮挡、`renderOrder:-1` 让描边画在填充之上）。配色**按风格**走主题 token `ui.selectionBorder` / `ui.selectionFill` / `ui.selectionFillOpacity`——`updateSelectionColors()` 在 `applyProfile()` 里读取并应用，切风格即换色；缺省回退 `FLOOR_HIGHLIGHT_COLOR`/`FLOOR_FILL_COLOR`/`FLOOR_FILL_OPACITY` 常量。原则：冷调/暗底风格（cyber/holo/blueprint/night）用暖琥珀撞色、亮底风格（white-model/isometric）用红橙描边 + 蓝填充互补，保证选中层跳出来又不刺眼。取消选中（`fin==null`）两层一并隐藏。
 
 **GlobalTwin.vue 侧**：指针回调只负责把命中结果写进 composable；相机聚焦与金色高亮**全部由响应式 `watch` 驱动**（单一数据源，不要在回调里直接操作场景 overlay）：
 

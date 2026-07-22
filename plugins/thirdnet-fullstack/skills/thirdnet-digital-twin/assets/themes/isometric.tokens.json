@@ -150,7 +150,8 @@
     "borderWidth": 1,
     "labelBg": "#2a3548",
     "labelText": "#ffffff",
-    "switcherStyle": "flat"
+    "switcherStyle": "flat",
+    "selectionBorder": "#a82000", "selectionFill": "#5ec8ff", "selectionFillOpacity": 0.45
   },
   "fonts": {
     "zh": "Noto Sans SC",

@@ -28,6 +28,17 @@ v1.x 的生成路径是「读 scene-recipe.md 散文 + 指向未随技能发布�
 3. **取景偏小**：`frameCamera()` 旧式用默认 18 层估算 Hmax——实际楼层更少时园区只占画面 ~1/3。修复为水合后用真实最高楼层（`maxBuildingHeight()`），`hydrateBuildings()` 末尾重新 `frameCamera()`。
 4. **`buildCorridor` 空指针**：未配置 `scaffold.corridor` 的园区 `c.floor` 直接抛 TypeError。修复为 `if (!c) return`。
 
+## v2.3 新增：选中层（描边 + 4 立面填充，按风格配色）
+
+v2.2 以前选中楼层只有一圈亮金描边（`selectionOverlay` 线框），对比度不足。v2.3 起选中层 = 描边 + 半透明填充两层，且**配色按风格 token**：
+
+- **描边** `selectionOverlay`：`EdgesGeometry` 线框，`opacity:1.0` 全不透明勾勒轮廓（`LineBasicMaterial` 受 WebGL 限制线宽恒 1px；要更粗需换 `Line2`/`LineMaterial`，本实现未引入）。
+- **填充** `selectionFill`：`BoxGeometry(1,1,1)` 配 6 材质数组 `[fill,fill,skip,skip,fill,fill]`——顶/底（`+Y/-Y`）用 `visible:false` 空材质跳过，**只渲染 4 个立面**（不封顶/底）；`MeshBasicMaterial` 半透明、`depthTest:false`（不被楼体立面遮挡）、`renderOrder:-1`（描边画在其上）。
+- **配色按风格**：`updateSelectionColors()` 在 `applyProfile()`（构造 + 每次 `setStyle`）读取主题 `ui.selectionBorder` / `ui.selectionFill` / `ui.selectionFillOpacity`，应用到两层材质；缺省回退 `FLOOR_HIGHLIGHT_COLOR`/`FLOOR_FILL_COLOR`/`FLOOR_FILL_OPACITY` 常量。冷调/暗底风格用暖琥珀撞色、亮底风格用红橙描边 + 蓝填充互补。
+- `clearSceneGroup` 的 `keep` 集保留两层（切风格不丢选中）；`dispose` 释放填充 geometry + 材质数组。
+
+> 7 个主题 token 已各加 `ui.selectionBorder/Fill/Opacity`；`assets/tokens.schema.json` 的 `ui.properties` 已登记（非 required，可选）。
+
 ## 怎么用（生成器工作流）
 
 1. **拷贝两个文件**：`cp assets/park-scene.impl.ts <目标项目>/src/scene/ParkScene.ts` **和** `cp assets/building-geometry.ts <目标项目>/src/scene/building-geometry.ts`（缺一不可——后者是楼栋几何装配的单一事实来源）。

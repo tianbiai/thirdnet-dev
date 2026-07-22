@@ -225,7 +225,10 @@
         "borderWidth": { "type": "number", "minimum": 0, "maximum": 4 },
         "labelBg": { "type": "string" },
         "labelText": { "type": "string" },
-        "switcherStyle": { "type": "string", "enum": ["neon", "flat"] }
+        "switcherStyle": { "type": "string", "enum": ["neon", "flat"] },
+        "selectionBorder": { "type": "string", "description": "v2.3 选中楼层边框色 #hex（updateSelectionColors 读取；缺省回退 FLOOR_HIGHLIGHT_COLOR）" },
+        "selectionFill": { "type": "string", "description": "v2.3 选中楼层 4 立面填充色 #hex（缺省回退 FLOOR_FILL_COLOR）" },
+        "selectionFillOpacity": { "type": "number", "minimum": 0, "maximum": 1, "description": "v2.3 填充不透明度（缺省 0.4）" }
       }
     },
     "fonts": {

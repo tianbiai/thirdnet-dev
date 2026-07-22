@@ -1,0 +1,5 @@
+# Playwright MCP 输出
+.playwright-mcp/
+
+# 本地数字孪生工程
+park-digital-twin/
