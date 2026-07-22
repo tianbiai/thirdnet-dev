@@ -45,10 +45,7 @@ except ImportError:
     _HAVE_JSONSCHEMA = False
 
 VALID_CATEGORIES = {"building", "garage"}
-VALID_STYLES = {
-    "cyber", "realistic", "night-realistic",
-    "blueprint", "holographic", "white-model", "isometric",
-}
+VALID_STYLES = {"cyber", "holographic", "isometric", "nebula"}
 VALID_ROAD_SHAPES = {"loop", "cross", "grid", "none"}
 VALID_TREE_DENSITY = {"sparse", "normal", "lush"}
 VALID_FACING = {"N", "S", "E", "W"}
@@ -184,20 +181,6 @@ def validate(spec):
                 f"theme {style}: assets/themes/{style}.tokens.json missing v1.9 block(s): "
                 f"{'; '.join(missing)} — 场景可能整屏发黑/地面无纹理"
             )
-
-        # v2.0: 写实风格专项 WARN —— realistic/night-realistic 必须有非零 envMapIntensity，
-        # 否则玻璃/金属无环境反射、发黑（写实感最大单点提升项）。
-        if style in ("realistic", "night-realistic"):
-            env_int = None
-            try:
-                env_int = style_tokens.get("envMapIntensity")  # flattened from realism.material
-            except Exception:
-                env_int = None
-            if not env_int:
-                warnings.append(
-                    f"theme {style}: realism.material.envMapIntensity 缺失或为 0 —— "
-                    f"写实风格缺环境贴图强度，玻璃/金属将无反射、发黑（见 park-scene-impl.md）"
-                )
 
     buildings = spec.get("buildings")
     if not isinstance(buildings, list) or not buildings:

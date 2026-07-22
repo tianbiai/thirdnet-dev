@@ -10,7 +10,7 @@
     "title": { "type": "string", "minLength": 1 },
     "style": {
       "type": "string",
-      "enum": ["cyber", "realistic", "night-realistic", "blueprint", "holographic", "white-model", "isometric"]
+      "enum": ["cyber", "holographic", "isometric", "nebula"]
     },
     "stage": {
       "type": "object",
@@ -105,8 +105,7 @@
         "x": { "type": "number" },
         "z": { "type": "number" },
         "facing": { "type": "string", "enum": ["N", "S", "E", "W"] },
-        "header": { "type": "string" },
-        "highlightedFloor": { "type": "integer", "minimum": 0 }
+        "header": { "type": "string" }
       }
     },
     "legendEntry": {

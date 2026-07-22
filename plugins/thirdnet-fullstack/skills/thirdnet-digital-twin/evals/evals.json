@@ -99,58 +99,6 @@
       ]
     },
     {
-      "id": 6,
-      "name": "blueprint-style-park",
-      "prompt": "给『中建科创谷』做个数字孪生大屏。我们这是工程/产业园，想要那种工程蓝图的感觉——深蓝图底配白线框楼栋和坐标网格，专业、技术范儿，不要花哨的霓虹也不要写实。园区 3 栋楼（研发楼 8F、中试楼 5F、展示中心 3F）+ 一个地下车库，尺寸你安排。先生成规格给我确认。",
-      "expected_output": "A validated Park Spec for 中建科创谷 with style='blueprint' (3 buildings 研发楼/中试楼/展示中心 + 1 garage). The generated scene wires gridGround.glsl as the floor ShaderMaterial with BLUEPRINT uniforms (deep-blue ground + pale white-blue coordinate grid, from assets/themes/blueprint.tokens.json shaders.grid), uses flat MeshBasicMaterial with low-opacity blue fill + white EdgesGeometry/Line2 wireframe-dominant buildings, NoToneMapping, shadowMap disabled. Category colors from blueprint tokens. Plus the standard shared parts (roof name labels, garage half-pyramid entrance + P sign, surface parking stalls with P, legend, K≈0.66 panorama framing) and the 5-file IDigitalTwinApi contract layer (v1.5) with mock data derived from spec.",
-      "files": [],
-      "expectations": [
-        "Produces a spec.json that passes scripts/validate_spec.py with style='blueprint' (exit 0)",
-        "Spec style is 'blueprint' (the new engineering-blueprint style, NOT cyber/realistic/night-realistic; 'minimal' is removed and must NOT be offered)",
-        "Generated ParkScene.ts imports gridGround.glsl?raw and wires a ShaderMaterial floor — blueprint (like cyber) consumes the grid shader, unlike the other 5 styles which skip it",
-        "Grid ShaderMaterial uniforms come from assets/themes/blueprint.tokens.json shaders.grid (u_gridColor pale white-blue ~#cfe4ff, u_cell 46, u_strength ~0.6) — NOT the cyber neon-cyan uniforms (#2a7fff/0.85)",
-        "Buildings use flat MeshBasicMaterial with transparent low-opacity fill + white EdgesGeometry/Line2 outlines (wireframe-dominant technical-drawing look), NOT PBR/Standard materials",
-        "Renderer uses NoToneMapping and shadowMap is disabled (blueprint is a flat engineering-drawing aesthetic, not lit)",
-        "All colors derive from assets/themes/blueprint.tokens.json — no hardcoded hex, no neon palette leaking from cyber",
-        "Standard shared parts present: per-roof name labels, garage half-pyramid entrance + P sign, surface parking stalls each stamped P, Legend overlay, K≈0.66 panorama framing with surrounding environment",
-        "Label contrast (§4.2) follows deep-blue-bg + pale-white-blue text (亮字深底), readable on the blueprint ground",
-        "Generated 5-file IDigitalTwinApi contract layer (v1.5) with mock data derived from spec (研发楼 8F / 中试楼 5F / 展示中心 3F); GlobalTwin.vue hydrates via getBuildings()+getPois()"
-      ]
-    },
-    {
-      "id": 7,
-      "name": "realistic-style-park",
-      "prompt": "给『湖畔科创中心』做个数字孪生大屏，要日间真实感——真实建筑可视化、玻璃幕墙反射、柔和阳光阴影，不要那种霓虹仪表盘。园区 3 栋楼（A 座 12F、B 座 8F、C 座 4F）+ 一个地下车库，尺寸你安排。先生成规格给我确认。",
-      "expected_output": "A validated Park Spec with style='realistic' (3 buildings + 1 garage). Generated scene uses ACESFilmicToneMapping + outputColorSpace=SRGB + PCFSoftShadowMap; pre-baked HDR/RoomEnvironment environment (v1.8: NOT runtime Sky+PMREM); DirectionalLight sun from tokens.lights; concrete/road bodies use MeshLambertMaterial (roughness≥0.9); no grid.glsl floor. Plus standard shared parts + 5-file contract layer.",
-      "files": [],
-      "expectations": [
-        "Spec passes validate_spec.py with style='realistic'",
-        "Generated renderer sets outputColorSpace = SRGBColorSpace and DPR ≤ 2 (v1.8)",
-        "Generated scene does NOT call PMREMGenerator.fromScene(new Sky()) at runtime — uses a pre-baked HDR / RoomEnvironment (v1.8)",
-        "DirectionalLight color/intensity come from tokens.lights.sun/sunIntensity, not a hardcoded 0xfff4e0 hex (v1.8)",
-        "Concrete building bodies and roads use MeshLambertMaterial (not MeshStandardMaterial) where roughness≥0.9 & metalness=0 (v1.8)",
-        "The ~0.05 'highlight convergence' bloom is NOT present (v1.8: removed as invisible under ACES)",
-        "Grid shader floor is NOT wired (realistic skips grid.glsl); shadow camera ortho bounds derived from boundary",
-        "5-file IDigitalTwinApi contract layer present; GlobalTwin.vue uses Promise.allSettled hydration (v1.8)"
-      ]
-    },
-    {
-      "id": 8,
-      "name": "night-realistic-pointlight-budget",
-      "prompt": "做一个夜间写实风格的园区数字孪生——夜景、窗户亮灯、路灯氛围。园区比较大，4 栋楼加长园区道路，路灯会比较多。帮我确保不会卡。",
-      "expected_output": "A night-realistic scene that respects the v1.8 PointLight performance budget: ≤8 PointLights total, all castShadow=false; street lamps are emissive Sprite glows + 1-2 shared hero PointLights; car lights are emissive spheres (no real lights); pre-baked reflection texture (not MeshReflectorMaterial); window emissive baked into facade CanvasTexture once.",
-      "files": [],
-      "expectations": [
-        "Generated scene has at most 8 PointLight instances total and ALL have castShadow=false (v1.8)",
-        "Street lamps use emissive Sprite glow + at most 1-2 shared 'hero' PointLights, NOT one PointLight per lamp (v1.8)",
-        "Car head/tail lights are emissive spheres, NOT real PointLight sources (v1.8)",
-        "Ground uses a pre-baked blurred reflection texture, NOT MeshReflectorMaterial (v1.8)",
-        "Window emissive texture is baked once into the facade CanvasTexture, not recomputed per frame (v1.8)",
-        "PointLight color/intensity/distance come from tokens.lights.point/pointIntensity/pointDistance (v1.8)",
-        "Hydration uses Promise.allSettled so a POI failure doesn't kill building hydration (v1.8)"
-      ]
-    },
-    {
       "id": 9,
       "name": "holographic-no-transmission",
       "prompt": "做一个全息未来科技风的园区数字孪生——半透青玻璃楼栋、边缘辉光、bloom。要保证性能，别用太重的材质。",
@@ -161,20 +109,6 @@
         "Fresnel rim glow (if used) is injected via onBeforeCompile referencing assets/fresnelRim.glsl, not via transmission (v1.8)",
         "No PMREM/HDR environment (holographic keeps translucency clean); lights from tokens.lights (hemiSky/hemiGround/ambient)",
         "outputColorSpace = SRGB and bloom present at a visible strength (~0.3), optionally selective bloom (v1.8)"
-      ]
-    },
-    {
-      "id": 10,
-      "name": "white-model-park",
-      "prompt": "给『城市展览馆』做个数字孪生沙盘——博物馆级的全白磨砂模型、柔和接地阴影、干净汇报风。3 栋楼 + 地下车库。",
-      "expected_output": "A white-model scene: pure-white MeshLambertMaterial bodies, category color on roof edges only, PCFSoftShadowMap contact shadow, NO PMREM/HDR (v1.8 removed the white-Scene PMREM path).",
-      "files": [],
-      "expectations": [
-        "Spec passes validate_spec.py with style='white-model'",
-        "Building bodies use MeshLambertMaterial (not MeshStandardMaterial) — pure white (v1.8)",
-        "Scene does NOT set up a PMREMGenerator.fromScene(white Scene) — only HemisphereLight + DirectionalLight (v1.8)",
-        "Category color (building blue / garage green) appears on roof EdgesGeometry/Line2, not the body",
-        "outputColorSpace = SRGB; DPR ≤ 2; legend swatches match tokens.category colors"
       ]
     },
     {
@@ -200,7 +134,7 @@
         "Output runs scripts/validate_spec.py and reports exit code 1 with specific FAIL lines",
         "Validator flags the 2 garage-category buildings (expected at most 1)",
         "Validator flags the building-category entry missing 'floors' (v1.8 B1 — was previously silent)",
-        "Validator flags style 'neon' as not in the 7-style enum",
+        "Validator flags style 'neon' as not in the 4-style enum",
         "Validator flags the POI buildingId that doesn't match any buildings[].id",
         "Assistant does NOT proceed to generate the scene until every FAIL is resolved"
       ]
@@ -265,8 +199,8 @@
     {
       "id": 17,
       "name": "v2-1-cured-determinism-and-realism",
-      "prompt": "给『未来港科技园』做个数字孪生大屏。3 栋楼（研发楼 9F、综合楼 5F、展示中心 3F）+ 地下车库，风格用日间真实物体。我希望有真实感：白天有白云、楼顶有机房天线、路上有标线。另外园区里要个小水景。尺寸位置你安排，但别把楼摆穿模了。",
-      "expected_output": "A validated Park Spec (style='realistic', greenery.waterFeature=true) — building positions either from scripts/layout_park.py or hand-placed then confirmed via validate_spec.py v2.1 layout checks (no overlap/out-of-bounds). Data layer generated by scripts (generate_data.py for scaffold+mock, generate_theme.py for tokens.css). 2D components copied from assets/components/ (10 files). Scene shows v2.1 realism details: daytime clouds in the sky, rooftop machine-room + antenna per building, road center dashes + gate zebra crossing, water feature with reflective surface. Labels readable (ui.labelBg/labelText pair).",
+      "prompt": "给『未来港科技园』做个数字孪生大屏。3 栋楼（研发楼 9F、综合楼 5F、展示中心 3F）+ 地下车库，风格用深空星云(nebula)。我希望有科幻氛围：深空星空+月亮、楼顶有机房天线、路上有标线。另外园区里要个小水景。尺寸位置你安排，但别把楼摆穿模了。",
+      "expected_output": "A validated Park Spec (style='nebula', greenery.waterFeature=true) — building positions either from scripts/layout_park.py or hand-placed then confirmed via validate_spec.py v2.1 layout checks (no overlap/out-of-bounds). Data layer generated by scripts (generate_data.py for scaffold+mock, generate_theme.py for tokens.css). 2D components copied from assets/components/ (10 files). Scene shows v2.1 details: deep-space starfield + moon in the sky, rooftop machine-room + antenna per building, road center dashes + gate zebra crossing, water feature with reflective surface. Labels readable (ui.labelBg/labelText pair).",
       "files": [],
       "expectations": [
         "Produces a spec.json that passes scripts/validate_spec.py (exit 0) including the v2.1 layout checks (no AABB overlap/gap<20, nothing out of boundary, POIs inside boundary+20)",
@@ -275,7 +209,7 @@
         "All 10 assets/components/ files are copied into the project (GlobalTwin/CenterStage/BuildingSwitcher/UnitDetail/LegendPanel/PoiOverlay + useSelection/useScaleBoard/useTwinData + theme.ts); component CSS uses var(--twin-*) with zero hex literals",
         "spec.environment.greenery.waterFeature is true; generated scene renders the water surface + rim (CircleGeometry + RingGeometry at token environment.water color)",
         "Generated ParkScene.ts (from assets/park-scene.impl.ts) includes buildRooftopKit wiring (machine-room box + antenna per building, seeded by buildingId) and buildRoadMarkings (center dashes InstancedMesh + zebra + driveway + arrow at token environment.roadMarking color)",
-        "realistic style shows programmatic clouds in the background texture (scene.sky.clouds=true); blueprint/white-model/isometric styles would have sky all-off",
+        "nebula style shows programmatic starfield + moon in the background texture (scene.sky.stars=true, moon=true); cyber/isometric have sky all-off, holographic shows sparse stars",
         "Roof name labels sit ABOVE the roof (y = h + 22, not h/2 + 22) and use token ui.labelBg/labelText pair (readable in light styles — no black-on-black labels)",
         "frameCamera is re-run after hydrateBuildings with real max floors (not the default 18-floor estimate), so the park fills ~2/3 of the frame",
         "ParkSceneCallbacks includes onPoiHover; PoiOverlay shows a hover name tooltip (HTML, not a Sprite) and projects only the currently-open POI card",
@@ -299,7 +233,7 @@
         "When prefers-reduced-motion is set, setTourEnabled(true) is a no-op and TourToggleButton renders aria-disabled + disabled (autoRotate is motion, same discipline as the §8 tween/breathing disable)",
         "generate_data.py emits spec.cameraTour into ParkScaffold.cameraTour in src/data/<park>.ts when provided (and omits it cleanly when not); re-running is byte-identical (deterministic)",
         "validate_spec.py returns exit 1 with specific FAIL lines for a bad cameraTour (speed=0, framingK=1.5, elevation=2, unknown key) and exit 0 for a valid/omitted one",
-        "The tour works across all 7 styles without breaking the existing framing / v2.0 realism enhancements (env map, bloom, AO) — tour only changes framing + autoRotate, not materials/lights"
+        "The tour works across all 4 styles without breaking the existing framing / engine realism enhancements (env map, bloom, AO — retained but no current style enables them) — tour only changes framing + autoRotate, not materials/lights"
       ]
     }
   ]

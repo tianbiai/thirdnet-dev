@@ -11,7 +11,7 @@
  * - 其余 5 风格守纪律：无环境贴图、无 AO、PointLight≤8、transmission 禁用、DPR≤2。
  * - 无 WebGL2 时降级：禁 AO/反射/transmission、bloom 降级、环境贴图退化为更高强度 ambient。
  *
- * 能力：脚手架静态几何 → hydrateBuildings / hydratePois 动态水合；setStyle 7 风格运行时
+ * 能力：脚手架静态几何 → hydrateBuildings / hydratePois 动态水合；setStyle 4 风格运行时
  * 切换；交互拾取楼栋/楼层/POI；focusBuilding 相机补间；setSelection 金色高亮；完整 dispose。
  */
 import * as THREE from 'three'
@@ -50,7 +50,7 @@ interface StyleProfile {
   building: 'emissive' | 'pbr' | 'pbr-night' | 'wire' | 'holo' | 'white' | 'flat'
   flatShading?: boolean
   useRim?: boolean
-  /** 是否烘焙并挂载 RoomEnvironment 环境贴图（写实三风格）。 */
+  /** 是否烘焙并挂载 RoomEnvironment 环境贴图（引擎保留；当前 4 风格 envMap 均为 false，不启用）。 */
   envMap: boolean
   /** 是否启用后处理 composer（含 bloom）。 */
   composer: boolean
@@ -61,16 +61,14 @@ interface StyleProfile {
 }
 
 const PROFILES: Record<StyleKey, StyleProfile> = {
-  // realistic/night-realistic 放宽上限：env + composer + AO（夜再 +reflect）
-  realistic:         { toneMapping: THREE.ACESFilmicToneMapping, toneExposure: 1.1, shadows: true,  ground: 'pbr',   building: 'pbr',        composer: false, envMap: true,  ao: true,  reflect: false },
-  'night-realistic': { toneMapping: THREE.ACESFilmicToneMapping, toneExposure: 0.95, shadows: true, ground: 'dark',  building: 'pbr-night',  composer: true,  envMap: true,  ao: true,  reflect: true },
-  // holographic / cyber：bloom 为主，无 env/AO/反射
+  // cyber：bloom 为主 + 网格着色器地面，无 env/AO/反射
   cyber:             { toneMapping: THREE.ACESFilmicToneMapping, toneExposure: 1.0, shadows: false, ground: 'grid',  building: 'emissive',   composer: true,  envMap: false, ao: false, reflect: false },
+  // holographic / nebula：半透体 + Fresnel 边缘辉光 + bloom，无 env/AO/反射
   holographic:       { toneMapping: THREE.ACESFilmicToneMapping, toneExposure: 1.0, shadows: false, ground: 'dark',  building: 'holo', useRim: true, composer: true,  envMap: false, ao: false, reflect: false },
-  // 纪律风格：无 env/bloom/AO/反射
-  blueprint:         { toneMapping: THREE.NoToneMapping, toneExposure: 1.0, shadows: false, ground: 'grid',  building: 'wire',       composer: false, envMap: false, ao: false, reflect: false },
-  'white-model':     { toneMapping: THREE.ACESFilmicToneMapping, toneExposure: 1.05, shadows: true, ground: 'light', building: 'white',     composer: false, envMap: false, ao: false, reflect: false },
+  nebula:            { toneMapping: THREE.ACESFilmicToneMapping, toneExposure: 1.0, shadows: false, ground: 'dark',  building: 'holo', useRim: true, composer: true,  envMap: false, ao: false, reflect: false },
+  // isometric：flatShading 扁平轴测
   isometric:         { toneMapping: THREE.NoToneMapping, toneExposure: 1.0, shadows: false, ground: 'flat', building: 'flat', flatShading: true, composer: false, envMap: false, ao: false, reflect: false },
+  // 注：realistic/night-realistic/blueprint/white-model 已于 v2.4 移除；其依赖的引擎能力（envMap/GTAO/Reflector 与材质 pbr|pbr-night|wire|white 模式、地面 pbr|light 模式）保留未删，供将来按需复用，故 StyleProfile/building 模式分支仍在。
 }
 
 // 选中层配色缺省值（各风格主题 ui.selectionBorder/Fill/Opacity 覆盖之；未定义时回退此处）
@@ -103,7 +101,7 @@ export class ParkScene {
   private composer: EffectComposer | null = null
   private bloomPass: UnrealBloomPass | null = null
   private gtaoPass: GTAOPass | null = null
-  /** v2.0 环境贴图（RoomEnvironment PMREM），写实三风格共享。 */
+  /** v2.0 环境贴图（RoomEnvironment PMREM），引擎保留（当前 4 风格不启用）。 */
   private envMapTarget: THREE.WebGLRenderTarget | null = null
   /** v2.0 夜间地面反射。 */
   private reflector: Reflector | null = null
@@ -405,7 +403,7 @@ export class ParkScene {
   // ---------- v2.0 环境贴图（RoomEnvironment PMREM） ----------
 
   private buildEnvironmentMap() {
-    // 仅写实三风格且 WebGL2 可用时烘焙；其余风格 / 无 WebGL2 跳过（材质 metalness 由 ambient 兜底）。
+    // 仅 profile.envMap 且 WebGL2 可用时烘焙；其余 / 无 WebGL2 跳过（当前 4 风格 envMap 均为 false、永不触发；材质 metalness 由 ambient 兜底）。
     if (!this.profile.envMap || !this.isWebGL2) {
       this.sceneObj.environment = null
       return
@@ -487,7 +485,7 @@ export class ParkScene {
       this.sceneGroup.add(new THREE.AmbientLight(new THREE.Color(hemiSky ?? '#ffffff'), ambientFloor))
     }
 
-    if (this.style !== 'blueprint' && this.style !== 'holographic') {
+    if (this.style !== 'holographic') {
       const hemi = new THREE.HemisphereLight(new THREE.Color(hemiSky), new THREE.Color(hemiGround), hemiIntensity)
       this.sceneGroup.add(hemi)
     } else if (this.style === 'holographic') {
@@ -495,7 +493,7 @@ export class ParkScene {
       this.sceneGroup.add(new THREE.AmbientLight(new THREE.Color('#16324a'), 0.4))
     }
 
-    if (this.style !== 'blueprint') {
+    {
       const dir = new THREE.DirectionalLight(new THREE.Color(sun), sunIntensity)
       // v2.0 太阳方位（token.realism.sun.azimuth/elevation，单位度）。
       const az = ((r?.sun?.azimuth ?? 135) * Math.PI) / 180
@@ -518,20 +516,6 @@ export class ParkScene {
       }
       this.sceneGroup.add(dir)
       if (this.profile.shadows) this.sceneGroup.add(dir.target)
-    }
-
-    // night-realistic：受控 PointLight（≤8，不投影）
-    if (this.style === 'night-realistic') {
-      const pColor = (L.point as string) ?? '#ffb24a'
-      const pInt = (L.pointIntensity as number) ?? 30
-      const pDist = (L.pointDistance as number) ?? 400
-      const spots: Array<[number, number]> = [[0, 120], [200, 0], [-200, 0], [0, -120]]
-      for (const [x, z] of spots) {
-        const pl = new THREE.PointLight(new THREE.Color(pColor), pInt, pDist)
-        pl.position.set(x, 90, z)
-        pl.castShadow = false
-        this.sceneGroup.add(pl)
-      }
     }
   }
 
@@ -607,7 +591,7 @@ export class ParkScene {
     } else {
       // dark 地面改用 MeshBasicMaterial（不受光）：夜景/全息灯光暗，受光 Standard 会被压成近黑「看不见地面」；
       // 不受光直接按 token ground.texture 全色显示，保证地面可辨、与背景强对比。
-      mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(groundTex ? '#ffffff' : (this.style === 'night-realistic' ? '#0a1018' : '#06070d')) })
+      mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(groundTex ? '#ffffff' : '#06070d') })
     }
     if (groundTex && mat instanceof THREE.MeshBasicMaterial) (mat as THREE.MeshBasicMaterial).map = groundTex
     else if (groundTex && mat instanceof THREE.MeshStandardMaterial) (mat as THREE.MeshStandardMaterial).map = groundTex
@@ -1143,7 +1127,6 @@ export class ParkScene {
       if (facade) {
         if (sideMat instanceof THREE.MeshStandardMaterial || sideMat instanceof THREE.MeshLambertMaterial || sideMat instanceof THREE.MeshBasicMaterial) {
           ;(sideMat as THREE.MeshStandardMaterial).map = facade
-          if (this.style === 'night-realistic') (sideMat as THREE.MeshStandardMaterial).emissiveMap = facade
         }
       }
       const topMat = b === 'white'
@@ -1155,7 +1138,7 @@ export class ParkScene {
             : new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.55), roughness: 0.85, metalness: 0.05 }))
       const capMat = (b === 'wire' || b === 'white') ? null
         : new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.7), roughness: 0.7, metalness: 0.2 })
-      // 楼顶标签配色（v2.1 改走 token ui.labelBg/labelText——7 风格各自的高对比配对；
+      // 楼顶标签配色（v2.1 改走 token ui.labelBg/labelText——4 风格各自的高对比配对；
       // 旧式 (void-bg, cyan-bright) 在浅色风格下两字色都偏亮、标签糊成黑块，违反 §4.2 规则）
       const uiTk = this.tokens.ui
       const labelTex = this.makeContrastLabel(
@@ -1220,7 +1203,7 @@ export class ParkScene {
           w, d, h, fh,
           roomMaterial: roomMat,
           antennaMaterial: antennaMat,
-          beaconColor: this.style === 'night-realistic' ? new THREE.Color(0xff3b30) : null,
+          beaconColor: null,
           castShadow: this.profile.shadows,
         })
       }
@@ -1268,17 +1251,6 @@ export class ParkScene {
         if (r > 0) {
           ctx.fillStyle = divHex
           ctx.fillRect(Math.round(r * roomW) - 1, yTop, 2, yBot - yTop)
-        }
-      }
-      if (this.style === 'night-realistic') {
-        const amber = (this.tokens.accents.amber as string) ?? '#ffc24a'
-        for (let r = 0; r < roomCount; r++) {
-          if (rand() < 0.45) {
-            ctx.fillStyle = amber
-            const wx = Math.round(r * roomW + roomW * 0.3)
-            const wy = yTop + Math.round(bandH * 0.3)
-            ctx.fillRect(wx, wy, Math.max(2, Math.round(roomW * 0.35)), Math.max(2, Math.round(bandH * 0.35)))
-          }
         }
       }
     }
@@ -1763,7 +1735,7 @@ export class ParkScene {
     // v2.0：启用 composer 时走后处理链（含 bloom/AO/OutputPass），否则直渲。
     if (this.composer) this.composer.render()
     else this.renderer.render(this.sceneObj, this.camera)
-    // overlay 第二遍渲染：绕过 GTAO/bloom，保证楼顶名/P 牌/POI 图标 7 风格清晰可读。
+    // overlay 第二遍渲染：绕过 GTAO/bloom，保证楼顶名/P 牌/POI 图标 4 风格清晰可读。
     // autoClear=false 保留主帧颜色；sprite 统一 depthTest:false 始终置顶。
     this.renderer.autoClear = false
     this.renderer.render(this.overlayScene, this.camera)

@@ -12,16 +12,11 @@
  * ⚠️ 需要 tsconfig 开 "resolveJsonModule": true（Vite 原生支持 JSON import）。
  */
 import cyberTokens from '@/scene/themes/cyber.tokens.json'
-import realisticTokens from '@/scene/themes/realistic.tokens.json'
-import nightRealisticTokens from '@/scene/themes/night-realistic.tokens.json'
-import blueprintTokens from '@/scene/themes/blueprint.tokens.json'
 import holographicTokens from '@/scene/themes/holographic.tokens.json'
-import whiteModelTokens from '@/scene/themes/white-model.tokens.json'
 import isometricTokens from '@/scene/themes/isometric.tokens.json'
+import nebulaTokens from '@/scene/themes/nebula.tokens.json'
 
-export type StyleKey =
-  | 'cyber' | 'realistic' | 'night-realistic'
-  | 'blueprint' | 'holographic' | 'white-model' | 'isometric'
+export type StyleKey = 'cyber' | 'holographic' | 'isometric' | 'nebula'
 
 /** ThemeTokens：与 assets/tokens.schema.json 同形（注释键/null 允许存在，消费方自己判空）。 */
 export interface ThemeTokens {
@@ -55,12 +50,9 @@ export interface ThemeTokens {
 
 const THEMES: Record<StyleKey, ThemeTokens> = {
   cyber: cyberTokens as unknown as ThemeTokens,
-  realistic: realisticTokens as unknown as ThemeTokens,
-  'night-realistic': nightRealisticTokens as unknown as ThemeTokens,
-  blueprint: blueprintTokens as unknown as ThemeTokens,
   holographic: holographicTokens as unknown as ThemeTokens,
-  'white-model': whiteModelTokens as unknown as ThemeTokens,
   isometric: isometricTokens as unknown as ThemeTokens,
+  nebula: nebulaTokens as unknown as ThemeTokens,
 }
 
 /** ParkScene 消费：按风格取主题 token（找不到风格回退 cyber）。 */

@@ -49,15 +49,12 @@ interface ParkSpec {
   cameraTour?: CameraTourSpec         // v2.2 航拍巡航（auto-orbit 展示）；缺省 = 智能默认（按钮触发）
 }
 
-type Style = 'cyber' | 'realistic' | 'night-realistic' | 'blueprint' | 'holographic' | 'white-model' | 'isometric'
+type Style = 'cyber' | 'holographic' | 'isometric' | 'nebula'
 // cyber          —— 赛博：着色器网格地面 + 自发光霓虹（默认）
-// realistic      —— 真实物体：日间 PBR（玻璃/混凝土）、天空+太阳、柔和阴影
-// night-realistic—— 夜间写实：PBR + 夜空 + 窗户自发光 + 路灯 + 微反射
-// blueprint      —— 蓝图：工程蓝图风（深蓝图底 + 淡白青坐标网格地面 + 白线框楼栋），与 cyber 共用 grid.glsl
 // holographic    —— 全息：半透青玻璃体 + 自发光边缘辉光 + bloom（未来科技感）
-// white-model    —— 白模：全白磨砂 + 柔和接地阴影（博物馆/沙盘级纯净汇报）
+// nebula         —— 深空星云：深空紫蓝 + 星空+月亮 + 虹彩边缘辉光 + 强 bloom（科幻指挥中心）
 // isometric      —— 等距插画：flatShading cel 着色的鲜活彩色楼栋（扁平信息图风）
-// 风格详细分支见 references/styles.md。
+// 风格详细分支见 references/styles.md。（realistic/night-realistic/blueprint/white-model 已于 v2.4 移除；其引擎能力 envMap/GTAO/反射保留未用。）
 
 interface BuildingSpec {
   id: string                          // slug，唯一 —— 用于切换器、选中、详情视图
@@ -70,7 +67,6 @@ interface BuildingSpec {
   z: number                           // 中心 Z
   facing?: 'N' | 'S' | 'E' | 'W'      // 朝向；仅对 category:'garage' 有意义（半金字塔入口朝向），默认 'S'
   header?: string                     // "10F · 12单位" —— 详情/切换器后缀
-  highlightedFloor?: number           // 初始金色高亮的楼层（从 0 开始）
   floors_detail?: FloorSpec[]         // 详情面板的每层租户（可选）
 }
 
@@ -80,7 +76,7 @@ interface BuildingSpec {
 // v1.5 起数据分层（见文首「数据分层注记」与 dynamic-data-api.md）：
 //   静态内联（基础信息）= id / category / w / d / x / z / facing（楼栋占地几何 + 类别）。
 //   动态走 getBuildings()（Mock 由 spec 派生）= name / floors / header / floors_detail
-//     （楼幢业务数据：名/楼层数/floor_ids/楼层详情）。highlightedFloor 仍属静态初始态。
+//     （楼幢业务数据：名/楼层数/floor_ids/楼层详情）。
 //   即：生成器把 name/floors/floors_detail 派生为 mockBuildings/mockFloorDetails，
 //   而不是静态写进 src/data/<park>.ts。
 
@@ -155,7 +151,7 @@ interface ParkEnvironment {
     gate?: boolean         // 主出入口闸机；默认 true
   }
   ambiance?: {
-    streetLamps?: boolean  // 街灯（night-realistic 下挂 PointLight）；默认 true
+    streetLamps?: boolean  // 街灯（引擎支持 PointLight，当前 4 风格不挂）；默认 true
     groundGlow?: boolean   // 地面发光标线；cyber 默认 true，其余风格默认 false
     vehicles?: boolean     // 周边道路与车位的车辆/行人代理体；默认 true
   }

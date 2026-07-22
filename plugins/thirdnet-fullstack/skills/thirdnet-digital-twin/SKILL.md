@@ -5,14 +5,14 @@ description: >
   固定 1920×1080 舞台内的中央 Three.js 场景 + 楼栋切换器 + 点击选中/详情交互。产出 Vue 3 + TypeScript + Three.js
   场景：按类别上色的楼栋（楼幢/地下车库入口）、每栋楼顶常驻名称标签、屏幕图例、完整园区环境（内部道路/地面车位/
   绿化/周边市政道路/围墙/路灯）、POI 兴趣点打点（类型+坐标+楼层归属+tooltip/popup），由一份经过用户确认的 Park Spec 驱动。
-  支持 7 种视觉风格（赛博/真实物体/夜间写实/蓝图/全息/白模/等距插画）；楼栋立面程序化楼层虚线 + 贴砖拼花（相邻两色强对比交替）；
+  支持 4 种视觉风格（赛博/全息/等距/深空星云）；楼栋立面程序化楼层虚线 + 贴砖拼花（相邻两色强对比交替）；
   所有标签高对比可读。数据分层：基础信息静态内联，动态数据（楼幢名/楼层数/楼层详情/POI 点位及实时状态）走 `IDigitalTwinApi`
   契约层（`getBuildings`/`getFloorDetail`/`getPois`，遵循 `api-typescript-spec` 的 5 文件契约 + Real/Mock 工厂，
   `VITE_MOCK_ENABLED` 切换），「脚手架先行再水合」加载。v1.8：补齐 poi.status/groundGlow/lights token、JSON Schema、
   validator 跨字段校验、性能纪律（night-realistic PointLight 上限、holographic 禁用 transmission、MeshLambert 降级、DPR≤2、
   InstancedMesh）、健壮性（WebGL context loss、Promise.allSettled、AbortSignal 防 race）、响应式与可访问性规范。
   v1.9：防黑屏——显式 `scene.background`（token `scene` 顶→底渐变）+ 所有风格环境光下限 `lights.ambientFloor`；
-  地面纹理——非 cyber/blueprint 风格叠程序化 `makeGroundTexture` `CanvasTexture`（grid/tiles/dots）+ cyber/blueprint shader 失败降级；
+  地面纹理——非 cyber 风格叠程序化 `makeGroundTexture` `CanvasTexture`（grid/tiles/dots）+ cyber shader 失败降级；
   POI 名称仅悬停——POI Sprite 只画类型图标、显示名走 HTML tooltip/卡片（楼幢楼顶名/车库 P 牌/车位 P 牌保持常驻）。
   v2.0：写实增强层——随包发布完整范式实现 `assets/park-scene.impl.ts`（生成器「拷贝-改」而非从散文合成，消灭环境贴图/bloom/环境光下限/渐变背景的漂移）；
   realistc/night-realistic 放宽上限——RoomEnvironment 环境贴图（玻璃/金属有反射、不发黑）+ EffectComposer/UnrealBloomPass（夜景辉光）+ GTAO 接触阴影 + 夜间地面湿润反射；
@@ -29,7 +29,8 @@ description: >
   新增可选 `spec.cameraTour` 配置块（enabled/speed/elevation/framingK/pauseOnInteract，缺省即智能默认）→ `generate_data.py` 写进 `ParkScaffold.cameraTour`（静态）→ `validate_spec.py` 校验。
   v2.2.1：修写实两风格（realistic/night-realistic）楼顶名称牌/车库 P/地面车位 P/连廊名/POI 图标旋转后变黑块——`GTAOPass` 把漂浮在天空/空旷区的透明 sprite 像素（AO≈0）乘向黑；改为独立 `overlayScene` 在 composer/直渲之后第二遍 `renderer.render(overlayScene, camera)`（`autoClear=false`、sprite `depthTest:false` 绕过 GTAO/bloom），7 风格旋转后均可读。资产 `park-scene.impl.ts` + `building-geometry.ts` 已修（`buildBuilding` 返回 `label` 不再进 group；5 处广告牌 sprite 改挂 overlayScene）。
 v2.2.2：夜景/全息地面与物体可辨 + 全风格楼名牌变细变小。夜景/全息两风格的地面/道路/车位/人行道/草地/树/车原为近黑（与夜色融为一体、地面物体看不清），提至「可见的深色」（去饱和、不发光，对标其它风格可读度）；`buildGround` 的 dark 分支改用 `MeshBasicMaterial`（不受光，直接按 token ground.texture 全色显示，免被夜景/全息的暗光压成近黑）；全息楼体 opacity 0.35→0.5、emissiveIntensity 0.3→0.4（半透但不再「空」）。全风格楼顶名称牌文字字重 700→500、整牌缩约 15%（`makeContrastLabel` 加 `weight=700` 形参，仅楼名调用传 500；P 牌/POI/连廊名仍 700）。
-  v2.3：选中楼层高亮增强——描边（`selectionOverlay` `opacity:1.0` 全不透明勾勒轮廓）+ 新增 4 立面半透明填充层（`selectionFill`：`BoxGeometry` 配 6 材质数组，顶/底 `+Y/-Y` 用 `visible:false` 跳过**只渲 4 立面**、不封顶/底；`MeshBasicMaterial` 半透明、`depthTest:false` 不被楼体立面遮挡、`renderOrder:-1` 让描边画在填充上）。配色**按风格**走主题 token `ui.selectionBorder`/`ui.selectionFill`/`ui.selectionFillOpacity`（`updateSelectionColors()` 在 `applyProfile` 读取并应用，切风格即换色；缺省回退常量）。原则：冷调/暗底风格（cyber/holo/blueprint/night）用暖琥珀撞色、亮底风格（white-model/isometric）用红橙描边+蓝填充互补，选中层跳出来又不刺眼。7 主题 token + `tokens.schema.json` 同步登记（非 required）。
+  v2.3：选中楼层高亮增强——描边（`selectionOverlay` `opacity:1.0` 全不透明勾勒轮廓）+ 新增 4 立面半透明填充层（`selectionFill`：`BoxGeometry` 配 6 材质数组，顶/底 `+Y/-Y` 用 `visible:false` 跳过**只渲 4 立面**、不封顶/底；`MeshBasicMaterial` 半透明、`depthTest:false` 不被楼体立面遮挡、`renderOrder:-1` 让描边画在填充上）。配色**按风格**走主题 token `ui.selectionBorder`/`ui.selectionFill`/`ui.selectionFillOpacity`（`updateSelectionColors()` 在 `applyProfile` 读取并应用，切风格即换色；缺省回退常量）。原则：冷调/暗底风格（cyber/holo/nebula）用暖琥珀撞色、亮底风格（isometric）用红橙描边+蓝填充互补，选中层跳出来又不刺眼。4 主题 token + `tokens.schema.json` 同步登记（非 required）。
+  v2.4：精简为 4 风格——保留 cyber（默认）/holographic/isometric，新增 nebula（深空星云：深空紫蓝 + 星空+月 + 虹彩边缘辉光 + 强 bloom），移除 realistic/night-realistic/blueprint/white-model。渲染引擎（envMap/GTAO/Reflector/composer 与材质 pbr|pbr-night|wire|white、地面 pbr|light 等模式分支）**保留未删**，供将来按需复用，故引擎代码与历史 v2.0/v2.2 写实叙述仍在（当前 4 风格均不启用 env/AO/反射）。
 本技能只生成数字孪生模块本身，外围面板留空由调用方自行填充。
   只要用户想构建、生成、复刻或换肤一个 园区数字孪生、智慧园区驾驶舱、园区 3D 大屏、数字孪生驾驶舱、社区驾驶舱，
   或者提供了一张园区/社区的草图/效果图/`.pen` 并希望得到可运行的前端，就必须使用本技能，
@@ -38,7 +39,7 @@ v2.2.2：夜景/全息地面与物体可辨 + 全风格楼名牌变细变小。�
   把写死的数据改成走后端 API（含 Mock/Real 工厂与 `VITE_MOCK_ENABLED` 切换）等。
 license: MIT
 metadata:
-  version: "2.3.0"
+  version: "2.4.0"
   author: park-cockpit
 compatibility: Vue 3 + TypeScript + Vite + Three.js 项目；赛博与蓝图风格下消费 WebGL 片段着色器（grid.glsl/gridGround.glsl）。动态数据契约层遵循 `api-typescript-spec`（`IDigitalTwinApi` + Real/Mock 工厂，`VITE_MOCK_ENABLED` 切换）。可在范例仓库、create-thirdnet-admin 项目或任何最小化的 Vite+Vue+Three 脚手架中运行。
 ---
@@ -47,7 +48,7 @@ compatibility: Vue 3 + TypeScript + Vite + Three.js 项目；赛博与蓝图风�
 
 根据园区需求，生成一个 **园区数字孪生** 3D 模块（固定 1920×1080 舞台内的中央 Three.js 场景 + 楼栋切换器；**外围留空**，不生成 TopBar / 角括号 / 数据面板）。生成器构建的一切都源自一份你从用户输入中抽取、并与用户确认过的 **Park Spec**——任何园区特定的内容都不会被硬编码。
 
-中央场景**按所选风格构建**——赛博与蓝图风格用 `grid.glsl` 着色器地面（赛博霓虹青网格、蓝图深蓝图底 + 淡白青坐标网格）；真实物体/夜间写实用 PBR，全息用半透体 + 边缘辉光，白模用全白磨砂 + 软阴影，等距插画用 flatShading cel 着色（见 `references/styles.md`）。所有风格都包含：按类别上色的楼栋、**每栋楼顶常驻的名称标签**、车库入口标记（半金字塔三角门 + P 牌）、屏幕图例，以及点击楼栋→聚焦→详情的交互。**v1.2 起还包含完整园区环境**——内部道路、地面车位（**v1.4 起为长方形车位 + 每位印 P + 约 30% 车辆示意停放**）、绿化景观（草地/行道树/中央广场）、周边市政道路、围墙与出入口、路灯（夜间写实风格下发光）；默认取景为一张能看全园区轮廓与紧邻环境的全景图（园区内容占画面 ~2/3，四周留白显示周边道路/绿化/围墙）。**v1.3 起新增 POI 兴趣点打点**（类型驱动图标/颜色 + 坐标/楼层归属 + 悬停/点击 tooltip），全部数据由后台 Park Spec 配置。**v1.4 起**：楼幢立面画**楼层虚线分隔 + 每层 1–5 块贴砖**（程序化装饰，确定性随机、不进 spec），并强制所有 CanvasTexture 标签（楼名/车库 P/车位 P/POI 图标）**高对比可读**（亮底深字 / 暗底亮字），杜绝「霓虹底 + 白字」看不清的问题。**v1.7 起**：贴砖升级为**相邻两块深浅两色强对比交替 + 高对比深色竖实线分隔**（楼层横向分隔仍为虚线）；楼层选中交互闭环——**悬停即金色边框、点击锁定（移开保留）、点空白取消并回全局**。（如果你是在扩展一个已有的社区驾驶舱项目，请注意其当前场景可能已偏离成"夜间写实"风格，并且从未接入着色器——本技能产出的是符合所选风格规范的版本；参见 `references/exemplar.md`。）
+中央场景**按所选风格构建**——赛博风格用 `grid.glsl` 着色器地面（霓虹青网格）；全息/深空星云用半透体 + 边缘辉光 + bloom；等距插画用 flatShading cel 着色（见 `references/styles.md`）。所有风格都包含：按类别上色的楼栋、**每栋楼顶常驻的名称标签**、车库入口标记（半金字塔三角门 + P 牌）、屏幕图例，以及点击楼栋→聚焦→详情的交互。**v1.2 起还包含完整园区环境**——内部道路、地面车位（**v1.4 起为长方形车位 + 每位印 P + 约 30% 车辆示意停放**）、绿化景观（草地/行道树/中央广场）、周边市政道路、围墙与出入口、路灯；默认取景为一张能看全园区轮廓与紧邻环境的全景图（园区内容占画面 ~2/3，四周留白显示周边道路/绿化/围墙）。**v1.3 起新增 POI 兴趣点打点**（类型驱动图标/颜色 + 坐标/楼层归属 + 悬停/点击 tooltip），全部数据由后台 Park Spec 配置。**v1.4 起**：楼幢立面画**楼层虚线分隔 + 每层 1–5 块贴砖**（程序化装饰，确定性随机、不进 spec），并强制所有 CanvasTexture 标签（楼名/车库 P/车位 P/POI 图标）**高对比可读**（亮底深字 / 暗底亮字），杜绝「霓虹底 + 白字」看不清的问题。**v1.7 起**：贴砖升级为**相邻两块深浅两色强对比交替 + 高对比深色竖实线分隔**（楼层横向分隔仍为虚线）；楼层选中交互闭环——**悬停即金色边框、点击锁定（移开保留）、点空白取消并回全局**。（如果你是在扩展一个已有的社区驾驶舱项目，请注意其当前场景可能偏离成本技能早期风格，并且从未接入着色器——本技能产出的是符合所选风格规范的版本；参见 `references/exemplar.md`。）
 
 ## 何时使用
 
@@ -80,7 +81,7 @@ python scripts/extract_pen.py <file.pen> --out spec.json
 对于草图/效果图，用 `Read` 工具读取图像（或 `zai` 的 analyze_image MCP）提取拓扑/配色，然后通过提问补全数字。
 
 ### 3. 与用户确认 spec
-对任何你无法推断的内容用 `AskUserQuestion` 确认——标题、车库入口位置/朝向、位置/尺寸（**v1.3 起不再问车库车位数**）。**同时让用户选择视觉风格**（赛博 / 真实物体 / 夜间写实 / 蓝图 / 全息 / 白模 / 等距插画，默认赛博），写入 `spec.style`。**v1.2 起追加一组「环境与氛围」问题**（地面车位 / 绿化密度 / 周边道路 / 氛围细节；智能默认 + 询问——用户不答就用默认，详见 `references/intake.md`），把答复写入 `spec.environment`。**v1.3 起追加一组「兴趣点 POI」问题**（要打哪些类型的点、名称、位置、tooltip 内容；不答则 `pois: []`），把答复写入 `spec.pois`。**v2.2 起可选问一组「航拍巡航」问题**（是否首屏自动巡航、转速快慢；不答则按钮触发、智能默认 speed 0.6/elevation 1.0/framingK 0.55），把答复写入 `spec.cameraTour`。然后校验：
+对任何你无法推断的内容用 `AskUserQuestion` 确认——标题、车库入口位置/朝向、位置/尺寸（**v1.3 起不再问车库车位数**）。**同时让用户选择视觉风格**（赛博 / 全息 / 等距 / 深空星云，默认赛博），写入 `spec.style`。**v1.2 起追加一组「环境与氛围」问题**（地面车位 / 绿化密度 / 周边道路 / 氛围细节；智能默认 + 询问——用户不答就用默认，详见 `references/intake.md`），把答复写入 `spec.environment`。**v1.3 起追加一组「兴趣点 POI」问题**（要打哪些类型的点、名称、位置、tooltip 内容；不答则 `pois: []`），把答复写入 `spec.pois`。**v2.2 起可选问一组「航拍巡航」问题**（是否首屏自动巡航、转速快慢；不答则按钮触发、智能默认 speed 0.6/elevation 1.0/framingK 0.55），把答复写入 `spec.cameraTour`。然后校验：
 ```bash
 python scripts/validate_spec.py spec.json
 ```
@@ -106,7 +107,7 @@ python scripts/generate_theme.py <style> --out <项目根>/src/styles/tokens.css
 ### 5. 生成 3D 场景
 **v2.0 起，先读 `references/park-scene-impl.md`，然后以 `assets/park-scene.impl.ts` 为基线「拷贝-改」产出 `src/scene/ParkScene.ts`**（同时拷贝 `assets/building-geometry.ts` → `src/scene/building-geometry.ts`，楼栋几何装配的单一事实来源）——不要从散文合成渲染管线（v1.x 实测会让 LLM 漂移，丢掉环境贴图/bloom/环境光下限/渐变背景，并手写错位楼栋几何）。范式实现已落地全部 v1.9 防黑屏项 + v2.0 写实增强层：只需替换脚手架数据源（对齐 `ParkScaffold`/`ScaffoldBuilding`/`BuildingRuntimeItem`/`PoiRuntimeItem` 到本项目的 data/api 类型），按 `spec.style` 选 profile（**不要手改 PROFILES 表**），写实观感改 `assets/themes/<style>.tokens.json` 的 `realism` 块。设计原理与逐风格材质/灯光说明仍见 `references/scene-recipe.md`（§2 渲染器、§3 地面）与 `references/styles.md`（每风格段）；冲突时以范式实现代码为准。
 
-赛博与蓝图风格下不可妥协的内容：把 `assets/gridGround.glsl` 接为着色器地面（赛博霓虹青、蓝图深蓝图底 + 淡白青网格，uniform 取各自 token 的 `shaders.grid`）；其它风格跳过这块，改用 PBR/半透/扁平/flatShading 材质。所有风格都按类别给楼栋上色、**在每栋楼顶加常驻名称标签**（§4）；**v1.4 起楼栋立面必须画楼层虚线分隔 + 每层 1–5 块贴砖**（§4.1，程序化、确定性随机），**v1.7 起贴砖必须相邻两块深浅两色强对比交替 + 高对比深色竖实线分隔**；**所有 CanvasTexture 标签走高对比配对**（§4.2，亮底深字 / 暗底亮字）；**把地下车库渲染成半金字塔三角门入口 + P 牌**（§5，v1.3，不再有占用标牌）；添加 Legend 叠加层。**v1.2 起按 `references/scene-recipe.md §10` 生成园区环境**（内部道路 / 地面车位 / 绿化 / 周边市政道路 / 围墙 / 路灯），由 `spec.environment` 驱动，缺失时走智能默认——**v1.4 起地面车位为长方形车位 + 每位印 P + 约 30% 车辆示意停放**（`occupied` 控制放车数）；**v1.3 起按 §11 `buildPOIs` 生成兴趣点**（类型化标记 + tooltip/popup），由 `spec.pois` 驱动，缺省不生成；并按 §2 的 `frameCamera()`（默认 K=0.66）取景，确保默认就是一张看全园区与周边环境的全景图。
+赛博风格下不可妥协的内容：把 `assets/gridGround.glsl` 接为着色器地面（霓虹青网格，uniform 取 token 的 `shaders.grid`）；其它风格跳过这块，改用 半透/flatShading 材质。所有风格都按类别给楼栋上色、**在每栋楼顶加常驻名称标签**（§4）；**v1.4 起楼栋立面必须画楼层虚线分隔 + 每层 1–5 块贴砖**（§4.1，程序化、确定性随机），**v1.7 起贴砖必须相邻两块深浅两色强对比交替 + 高对比深色竖实线分隔**；**所有 CanvasTexture 标签走高对比配对**（§4.2，亮底深字 / 暗底亮字）；**把地下车库渲染成半金字塔三角门入口 + P 牌**（§5，v1.3，不再有占用标牌）；添加 Legend 叠加层。**v1.2 起按 `references/scene-recipe.md §10` 生成园区环境**（内部道路 / 地面车位 / 绿化 / 周边市政道路 / 围墙 / 路灯），由 `spec.environment` 驱动，缺失时走智能默认——**v1.4 起地面车位为长方形车位 + 每位印 P + 约 30% 车辆示意停放**（`occupied` 控制放车数）；**v1.3 起按 §11 `buildPOIs` 生成兴趣点**（类型化标记 + tooltip/popup），由 `spec.pois` 驱动，缺省不生成；并按 §2 的 `frameCamera()`（默认 K=0.66）取景，确保默认就是一张看全园区与周边环境的全景图。
 
 ### 6. 生成舞台 + 楼栋切换器
 **v2.1 起，2D 层全部从 `assets/components/` 拷贝范式文件**（不再从散文合成 CSS——v1.x/v2.0 实测每个组件的观感都漂移）：
@@ -126,7 +127,7 @@ python scripts/generate_theme.py <style> --out <项目根>/src/styles/tokens.css
 | `assets/components/useTour.ts` | `src/composables/useTour.ts` | v2.2 航拍巡航开关单例（`enabled` + enable/disable/toggle；`GlobalTwin` watch 推回 `scene.setTourEnabled`，§13） |
 | `assets/components/theme.ts` | `src/utils/theme.ts` | `applyTheme(style)`（ParkScene 消费）+ `applyCssVars`（spec.tokens 覆盖注入） |
 
-同时把 `assets/themes/*.tokens.json` 7 个文件拷到 `src/scene/themes/`（`theme.ts` 静态 import；tsconfig 需开 `resolveJsonModule`）。**不再生成 TopBar、CornerBrackets 或任何外围数据面板；舞台左右两侧与底部留空**，由调用方自行填充。所有组件 CSS 只消费 `var(--twin-*)`（步骤 4c 生成），零 hex 字面量；7 种风格的观感差异（赛博/全息发光 vs 白模/等距克制）由 token `ui` 块驱动，组件本身风格无关。
+同时把 `assets/themes/*.tokens.json` 4 个文件拷到 `src/scene/themes/`（`theme.ts` 静态 import；tsconfig 需开 `resolveJsonModule`）。**不再生成 TopBar、CornerBrackets 或任何外围数据面板；舞台左右两侧与底部留空**，由调用方自行填充。所有组件 CSS 只消费 `var(--twin-*)`（步骤 4c 生成），零 hex 字面量；4 种风格的观感差异（赛博/全息/星云发光 vs 等距克制）由 token `ui` 块驱动，组件本身风格无关。
 
 ### 7. 接入切换器 + 选中
 选中接线已固化在拷贝的 `GlobalTwin.vue` + `useSelection.ts` 里（楼层点击只调 `selectFloor`、相机聚焦走 `watch(focusedBuildingId)`、点空白 `clearFocus`、POI 单开）——**不要临场改写**。当某栋楼被聚焦时 `CenterStage` 显示 `UnitDetail`。包含 地下车库 标签页。
@@ -163,17 +164,14 @@ python scripts/generate_theme.py <style> --out <项目根>/src/styles/tokens.css
 
 ## 风格（Styles）
 
-7 种视觉模板，由 `spec.style` 选择，第 3 步用 `AskUserQuestion` 让用户挑：
+4 种视觉模板，由 `spec.style` 选择，第 3 步用 `AskUserQuestion` 让用户挑：
 
 - **`cyber`（默认）** —— 赛博：`grid.glsl` 着色器地面 + 自发光霓虹。
-- **`realistic`** —— 真实物体：日间 PBR（玻璃/混凝土）+ 天空/太阳环境光 + 柔和阴影。
-- **`night-realistic`** —— 夜间写实：PBR + 深蓝夜空 + 窗户自发光 + 路灯 + 微反射。
-- **`blueprint`** —— 蓝图：深蓝图底 + 淡白青坐标网格地面（与 cyber 共用 `grid.glsl`）+ 白线框楼栋。工程/BIM 风。
 - **`holographic`** —— 全息：半透青玻璃体 + 自发光边缘辉光 + bloom。未来科技风。
-- **`white-model`** —— 白模：全白磨砂 + 柔和接地阴影（类别色转移到屋顶描边）。博物馆/沙盘级纯净汇报。
+- **`nebula`** —— 深空星云：深空紫蓝 + 星空+月 + 虹彩边缘辉光 + 强 bloom。科幻指挥中心。
 - **`isometric`** —— 等距插画：`flatShading` cel 着色的鲜活彩色楼栋。扁平信息图风。
 
-各风格的渲染器/灯光/材质/地面分支细则见 `references/styles.md`；配色见对应 `assets/themes/*.tokens.json`。`cyber` 与 `blueprint` 消费 `gridGround.glsl`（仅 uniform 不同），其余 5 种不接入。
+各风格的渲染器/灯光/材质/地面分支细则见 `references/styles.md`；配色见对应 `assets/themes/*.tokens.json`。仅 `cyber` 消费 `gridGround.glsl`，其余 3 种不接入。（realistic/night-realistic/blueprint/white-model 已于 v2.4 移除；引擎写实能力 envMap/GTAO/反射保留未用。）
 
 ## 参考文件（按需阅读）
 
@@ -182,7 +180,7 @@ python scripts/generate_theme.py <style> --out <项目根>/src/styles/tokens.css
 | `references/intake.md` | 步骤 1–3：把任何输入模式转换为已确认的 Park Spec |
 | `references/park-spec.md` | 编写/编辑 spec —— 规范 schema + 完整示例（含 v1.5 数据分层注记） |
 | `references/dynamic-data-api.md` | **步骤 4b/4c/5（v1.5）：动态数据 API 契约层** —— `IDigitalTwinApi` + Real/Mock 工厂 + `VITE_MOCK_ENABLED` + 组件水合时序 + 后端接口契约 + 宿主自适应 |
-| `references/styles.md` | 步骤 3/5：7 种风格的渲染器/灯光/材质/地面分支（含 v1.3 车库入口/地面车位/POI 材质） |
+| `references/styles.md` | 步骤 3/5：4 种风格的渲染器/灯光/材质/地面分支（含 v1.3 车库入口/地面车位/POI 材质） |
 | `references/scene-recipe.md` | 步骤 5：赛博详细配方 + 所有风格共用部分（楼顶标签、车库入口、地面车位、POI、图例、交互、生命周期、**§12 动态数据接入与水合**） |
 | `references/shell.md` | 步骤 6/7：1920×1080 舞台 + 楼栋切换器 + 中央组件 + 选中（含 v1.5 动态数据水合接线） |
 | `references/design-source.md` | 输入是 `.pen` —— 如何通过脚本 + pencil MCP 读取 |
@@ -191,7 +189,7 @@ python scripts/generate_theme.py <style> --out <项目根>/src/styles/tokens.css
 ## 脚本（黑盒——先用 `--help` 运行，不要读进上下文）
 
 - `scripts/extract_pen.py <file.pen> --out spec.json` —— `.pen` → Park Spec 草稿（token、grid uniform、楼栋头信息、图例、标题；v1.3 起不再抽车库占用数字）。Windows 上用 `--out`，不要用 `--stdout`。
-- `scripts/validate_spec.py spec.json` —— schema 校验（含 `pois` 类型/坐标/楼层归属校验、`environment` 智能默认提示；**v2.1 增加楼栋出界/两两重叠或间距不足/POI 越界 FAIL 检测**、7 风格 token 结构校验；**v2.2 增加 `cameraTour` 字段校验**——speed>0、framingK∈(0,1)、elevation∈[0,π/2]、布尔字段为布尔、未知键 FAIL）；退出码 0 = 通过。
+- `scripts/validate_spec.py spec.json` —— schema 校验（含 `pois` 类型/坐标/楼层归属校验、`environment` 智能默认提示；**v2.1 增加楼栋出界/两两重叠或间距不足/POI 越界 FAIL 检测**、4 风格 token 结构校验；**v2.2 增加 `cameraTour` 字段校验**——speed>0、framingK∈(0,1)、elevation∈[0,π/2]、布尔字段为布尔、未知键 FAIL）；退出码 0 = 通过。
 - `scripts/generate_data.py spec.json --out-dir <项目根>` —— v2.1。spec → `src/data/<park>.ts` 静态脚手架 + `src/mock/data/manager/digital-twin.ts` Mock 数据（种子 = spec.title，确定性；8 行业租户名池内置）。`--scaffold-only` / `--mock-only` 可单独生成。**v2.2：`spec.cameraTour` 原样写进 `ParkScaffold.cameraTour`（缺省不输出 → ParkScene 用内置默认）。**
 - `scripts/generate_theme.py <style> --out <项目根>/src/styles/tokens.css` —— v2.1。主题 token → `:root` `--twin-*` CSS 变量（含 `ui` 块观感旋钮）；`--check` 校验既有文件是否最新。
 - `scripts/layout_park.py spec.json [--in-place]` —— v2.1。楼栋自动行式布局（按占地降序从左上逐行排布，间距/边距固化，车库最后），摆不下或自检失败报错。文字访谈模式下楼栋只有尺寸没有坐标时先用它，再跑 `validate_spec.py` 复核。
@@ -210,34 +208,34 @@ python scripts/generate_theme.py <style> --out <项目根>/src/styles/tokens.css
 - [ ] `python scripts/validate_spec.py` 对 spec 返回 `OK`（含 `style` 枚举校验）。
 - [ ] 舞台 1920×1080 信箱式缩放到视口；**外围区域为空**（无 TopBar / 角括号 / 5 个数据面板）。
 - [ ] `npm run dev`（端口 3000）：楼栋按类别上色且与图例色块一致；**每栋楼顶常驻显示名称标签**（v1.3）；**楼栋立面有楼层虚线分隔 + 每层 1–5 块贴砖、相邻贴砖深浅两色强对比交替 + 高对比深色竖实线分隔，重复生成一致**（v1.4 / v1.7）；**所有标签（楼名/车库 P/车位 P/POI）高对比可读，远观不糊**（v1.4）；**地下车库为半金字塔三角门入口 + P 牌，无车位数/进度条**（v1.3）；**地面车位为长方形车位 + 每位印 P + 约 30% 车辆示意停放，无正方形框/区域 P 牌**（v1.4）。
-- [ ] **赛博 / 蓝图风格下**：着色器网格地面可见（cyber 霓虹青、blueprint 深蓝图底 + 淡白青坐标网格）。**其它风格下**：按 `references/styles.md` 的材质/灯光构建（如真实物体有 PBR 反射与柔和阴影、夜间写实有窗户自发光、全息有半透体 + 边缘辉光、白模有纯白磨砂 + 软阴影、等距插画有 flatShading cel 着色），且除 blueprint 外未接入 grid。
+- [ ] **赛博风格下**：着色器网格地面可见（霓虹青网格）。**其它风格下**：按 `references/styles.md` 的材质/灯光构建（全息/星云有半透体 + 边缘辉光 + bloom、等距有 flatShading cel 着色），且除 cyber 外未接入 grid。
 - [ ] **POI（v1.3）**：标记按类型上色；悬停高亮、点击弹出 tooltip（含 `description` + `meta`）；点 POI 不误触楼栋聚焦；`pois` 缺省时不生成任何标记。
 - [ ] 切换器包含所有标签页，含 地下车库；点击某楼层会金色高亮它并打开详情面板（UnitDetail）。
 - [ ] **楼层选中闭环**（v1.7）：悬停某层立即出金色边框；点击锁定后鼠标移开金边仍保留；**点击空白或非楼栋物体 → 之前选中楼层的金边消失、楼栋聚焦与相机回到全局概览**。
 - [ ] **滚轮可缩放、右键可平移、左键可旋转**，松手后视角保持（聚焦补间是「事件触发 + 有限时长」tween，结束后不抢占 OrbitControls；详见 `references/scene-recipe.md` §8）。
 - [ ] **默认取景是全景**：园区内容约占画面 2/3（K=0.66），四周能看到周边市政道路/绿化/围墙；滚轮可继续拉远到 zoom≈0.45。
-- [ ] **园区环境完整**：场景里有内部道路、地面车位带、行道树与绿地、四向市政道路、围墙与主出入口、路灯（夜间写实风格下路灯发光，cyber 风格下地面发光标线可见）；环境元素不影响楼栋点击选中。
+- [ ] **园区环境完整**：场景里有内部道路、地面车位带、行道树与绿地、四向市政道路、围墙与主出入口、路灯；环境元素不影响楼栋点击选中。
 - [ ] **动态数据契约层（v1.5）齐全**：`src/api/types/digital-twin.ts` + `src/api/interfaces/(manager/)digital-twin.ts` + `src/api/modules/manager/digital-twin.ts` + `src/mock/api/manager/digital-twin.ts` + `src/mock/data/manager/digital-twin.ts` 五件齐全；`IDigitalTwinApi` 含 `getBuildings`/`getFloorDetail`/`getPois`；`createDigitalTwinApi()` 工厂按 `VITE_MOCK_ENABLED` 切 Mock/Real。
 - [ ] **脚手架先行再水合**：`VITE_MOCK_ENABLED=true` 下 `npm run dev`，页面先出静态脚手架（环境 + 楼栋占地底板 + Legend），随后水合出楼栋高度/楼顶名称、POI 标记；点击楼层弹出由 `getFloorDetail()` 返回的 `UnitDetail`。Mock 数据与 spec 的楼名/楼层数/POI 一致。
 - [ ] **正式环境走真实 API**：切 `VITE_MOCK_ENABLED=false`，浏览器 Network 可见请求落到 `/api/manager/park/buildings|floor-detail|pois`（无后端时 404 属预期，证明走真实路径而非 Mock）。
 - [ ] **水合三态兜底**：请求中显示骨架/底板（不白屏）；失败显示降级提示且脚手架仍可交互；`getPois()` 返回空数组不报错（不渲染 POI）。
-- [ ] **v1.8 性能纪律**：`renderer.setPixelRatio(Math.min(dpr, 2))`；所有风格 `outputColorSpace = SRGB`；night-realistic 的 `PointLight` 总数 ≤8 且 `castShadow=false`、车灯为自发光球；holographic 未使用 `MeshPhysicalMaterial transmission`；roughness≥0.9 & metalness=0 的表面用 `MeshLambertMaterial`；同类环境元素 ≥10 个走 `InstancedMesh`。
+- [ ] **v1.8 性能纪律**：`renderer.setPixelRatio(Math.min(dpr, 2))`；所有风格 `outputColorSpace = SRGB`；`PointLight`（引擎支持，当前 4 风格不挂）若启用总数 ≤8 且 `castShadow=false`、车灯为自发光球；holographic 未使用 `MeshPhysicalMaterial transmission`；roughness≥0.9 & metalness=0 的表面用 `MeshLambertMaterial`；同类环境元素 ≥10 个走 `InstancedMesh`。
 - [ ] **v1.8 健壮性**：水合用 `Promise.allSettled`（POI 失败不连累楼栋）；floor-detail `watch` 用 `onCleanup`+`AbortController` 取消旧请求（快速切层不串台）；`request<T>()` 支持超时；Mock/Real 都抛 `ApiError`；canvas 监听 `webglcontextlost/restored`；`onBeforeUnmount` 走完整 `dispose()` 清单。
 - [ ] **v1.8 响应式与 a11y**：1280×720 仍可用（舞台等比缩放）；resize 防抖；切换器 `role="tab"` + 方向键导航；canvas 有 `aria-label`；POI/UnitDetail 弹出有焦点管理与 Esc 关闭；`prefers-reduced-motion` 下禁用 tween 与呼吸动画；空态（`getBuildings()` 返 `[]`）有遮罩 + 重试。
-- [ ] **v1.8 token/契约自洽**：`assets/themes/*.tokens.json` 7 个文件都含 `poi.status` / `environment.groundGlow` / `lights` 块；`assets/spec.schema.json` 存在且 `validate_spec.py` 对正/负向用例结论一致；styles.md 无散落灯光 hex（全走 `lights.*`）。
-- [ ] **v2.0 写实增强层**：以 `assets/park-scene.impl.ts` 为基线生成（非散文合成）。realistic/night-realistic 的 `scene.environment` 已赋值（RoomEnvironment PMREM），玻璃/金属有反射、不发黑；night-realistic/holographic/cyber 的 `EffectComposer`+`UnrealBloomPass` 已实例化，亮部有可见溢光；realistic/night-realistic 的 GTAO 生效、夜间地面湿润反射生效（帧率可接受）。逐风格切换肉眼确认。
+- [ ] **v1.8 token/契约自洽**：`assets/themes/*.tokens.json` 4 个文件都含 `poi.status` / `environment.groundGlow` / `lights` 块；`assets/spec.schema.json` 存在且 `validate_spec.py` 对正/负向用例结论一致；styles.md 无散落灯光 hex（全走 `lights.*`）。
+- [ ] **v2.0 写实增强层（引擎保留）**：以 `assets/park-scene.impl.ts` 为基线生成（非散文合成）。引擎的 `EffectComposer`+`UnrealBloomPass` 已实例化（cyber/holographic/nebula 的 bloom 亮部有可见溢光）；envMap/GTAO/地面反射能力保留但当前 4 风格不启用。逐风格切换肉眼确认。
 - [ ] **v2.0 轮廓对齐**：楼栋几何装配走 `assets/building-geometry.ts` 的 `buildBuilding()`（与 `park-scene.impl.ts` 一起拷贝），**不在 ParkScene 里手写 podium/body/edges/cap/dividers/slab 的 position.y**；`EdgesGeometry` 立体轮廓与楼体同位（`position.y = h/2`），不再半埋地下；金色楼层高亮中心用 `(fin+0.5)*fh`、与 slab 对齐不偏移。
-- [ ] **v2.0 token 结构校验**：所选风格 token 通过 `assets/tokens.schema.json` 结构校验（含 `realism` 块）；realistic/night-realistic 的 `realism.material.envMapIntensity` 非 0（否则玻璃发黑 WARN）。
+- [ ] **v2.0 token 结构校验**：所选风格 token 通过 `assets/tokens.schema.json` 结构校验（含 `realism` 块）。
 - [ ] **v2.1 数据/主题脚本化**：`src/data/<park>.ts` 与 `src/mock/data/manager/digital-twin.ts` 由 `generate_data.py` 生成（非手写）；`src/styles/tokens.css` 由 `generate_theme.py` 生成（`--check` 通过）；Mock 数据与 spec 的楼名/楼层数/POI 一致，重跑脚本输出逐字节一致。
 - [ ] **v2.1 布局校验**：`validate_spec.py` 对楼栋出界 / 两两重叠或间距 <20 / POI 越界 >20 的负向 spec 返回 FAIL；正向 spec 全部通过。
-- [ ] **v2.1 组件范式文件齐全**：`assets/components/` 10 个文件已拷贝到位（GlobalTwin/CenterStage/BuildingSwitcher/UnitDetail/LegendPanel/PoiOverlay + useSelection/useScaleBoard/useTwinData + theme.ts），`src/scene/themes/` 含 7 个 token JSON（tsconfig 开 `resolveJsonModule`）；组件 CSS 无 hex 字面量（全走 `var(--twin-*)`）。
-- [ ] **v2.1 天空元素**：realistic 可见程序化白云；night-realistic 可见星空 + 月亮（bloom 微晕正常）；cyber/holographic 星点暗淡不抢戏（**不似雪片**——若星星被 bloom 晕大即回归失败）；blueprint/white-model/isometric 无天空元素。
-- [ ] **v2.1 楼顶设备**：每栋非车库楼顶部有电梯机房盒 + 1–2 根天线（night-realistic 天线顶端红色警示灯）；同一 spec 重复生成位置一致（种子确定性）。
+- [ ] **v2.1 组件范式文件齐全**：`assets/components/` 10 个文件已拷贝到位（GlobalTwin/CenterStage/BuildingSwitcher/UnitDetail/LegendPanel/PoiOverlay + useSelection/useScaleBoard/useTwinData + theme.ts），`src/scene/themes/` 含 4 个 token JSON（tsconfig 开 `resolveJsonModule`）；组件 CSS 无 hex 字面量（全走 `var(--twin-*)`）。
+- [ ] **v2.1 天空元素**：nebula 可见星空 + 月亮（bloom 微晕正常）；cyber/holographic 星点暗淡不抢戏（**不似雪片**——若星星被 bloom 晕大即回归失败）；isometric 无天空元素。
+- [ ] **v2.1 楼顶设备**：每栋非车库楼顶部有电梯机房盒 + 1–2 根天线；同一 spec 重复生成位置一致（种子确定性）。
 - [ ] **v2.1 地面标线**：内部环路可见中央虚线；大门口有斑马线 + 引道 + 引导箭头；标线色与 token `environment.roadMarking` 一致。
-- [ ] **v2.1 绿化与水景**：行道树球形/锥形交替；草地边缘有灌木球丛；`environment.greenery.waterFeature: true` 时可见圆形水面 + 池缘（写实风格水面有反射）。
-- [ ] **v2.1 楼名标签可读**：7 种风格下每栋楼顶名称标签都在屋顶上方、高对比可读（**不得埋进塔体、不得是黑底黑字**——v2.0 已知两个 bug）；夜间风格标签为暗底亮字。
-- [ ] **v2.2.1 广告牌 sprite 绕过 GTAO**：realistic/night-realistic **旋转视角后**楼顶名/车库 P/地面车位 P/连廊名/POI 图标仍是高对比可读、**非黑块**（修法：独立 `overlayScene` 在 composer 后第二遍渲染，sprite `depthTest:false`）；楼体 GTAO 接触阴影与 night 的 bloom/星月仍在（未误伤）。
-- [ ] **v2.2.2 夜景/全息地面可辨 + 楼名牌变细**：夜景/全息地面为「可见的深色」（**非近黑死黑**）、地面物体（车位/道路/树）可辨；全风格楼顶名称牌文字比 P 牌/POI 更细（weight 500）、整牌略小，仍清晰可读；全息楼体半透但不再「空」。
+- [ ] **v2.1 绿化与水景**：行道树球形/锥形交替；草地边缘有灌木球丛；`environment.greenery.waterFeature: true` 时可见圆形水面 + 池缘。
+- [ ] **v2.1 楼名标签可读**：4 种风格下每栋楼顶名称标签都在屋顶上方、高对比可读（**不得埋进塔体、不得是黑底黑字**——v2.0 已知两个 bug）；暗底风格标签为暗底亮字。
+- [ ] **v2.2.1 广告牌 sprite 绕过 GTAO**（引擎保留）：cyber/holographic/nebula **旋转视角后**楼顶名/车库 P/地面车位 P/连廊名/POI 图标仍是高对比可读、**非黑块**（修法：独立 `overlayScene` 在 composer 后第二遍渲染，sprite `depthTest:false`）；bloom 辉光仍在（未误伤）。
+- [ ] **v2.2.2 全息/星云地面可辨 + 楼名牌变细**：holographic/nebula 地面为「可见的深色」（**非近黑死黑**）、地面物体（车位/道路/树）可辨；全风格楼顶名称牌文字比 P 牌/POI 更细（weight 500）、整牌略小，仍清晰可读；全息楼体半透但不再「空」。
 - [ ] **v2.1 取景贴合**：水合完成后园区内容约占画面 2/3（用真实最高楼层而非默认 18 层估算）；默认全景能看到周边道路/围墙/大门。
 - [ ] **v2.1 POI 悬停名称条**：鼠标悬停 POI 图标浮现名称 tooltip（HTML，非 Sprite 文字）；点击展开卡片且只投影当前一个；Esc 关闭。
 - [ ] **v2.2 航拍巡航**：右上角有 `TourToggleButton`（`role="switch"` + `aria-checked`）；点开后相机 ~0.6s 过渡到鸟瞰（K≈0.55、更高俯角）并开始缓慢自动环绕（`OrbitControls.autoRotate`）；巡航中滚轮可缩放（不退出）；鼠标按下拖拽 → 自动停止环绕、过渡回默认取景、按钮弹起（`onTourAutoExit` → `useTour.disable()` → `watch` → `setTourEnabled(false)` 单向）；`spec.cameraTour.enabled:true` 时首屏自动开。系统开启「减少动态效果」后点按钮无反应、按钮 `aria-disabled`。`spec.cameraTour` 传非法值（speed≤0 / framingK∉(0,1) / elevation∉[0,π/2]）→ `validate_spec.py` FAIL；缺省 → 合法（不 WARN）。逐风格切换确认巡航不破坏既有取景/写实增强层。

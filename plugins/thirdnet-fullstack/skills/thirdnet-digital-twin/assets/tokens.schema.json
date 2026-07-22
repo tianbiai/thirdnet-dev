@@ -77,7 +77,7 @@
         },
         "ao": {
           "type": "object",
-          "description": "GTAO 接触/环境光遮蔽；仅 realistic/night-realistic 建议 enabled=true。",
+          "description": "GTAO 接触/环境光遮蔽；引擎保留，当前 4 风格不启用（enabled=false）。",
           "required": ["enabled", "intensity", "radius"],
           "properties": {
             "enabled": { "type": "boolean" },
@@ -87,7 +87,7 @@
         },
         "reflection": {
           "type": "object",
-          "description": "地面湿润反射（Reflector）；仅 night-realistic 建议 enabled=true。",
+          "description": "地面湿润反射（Reflector）；引擎保留，当前 4 风格不启用（enabled=false）。",
           "required": ["enabled", "opacity", "mixStrength"],
           "properties": {
             "enabled": { "type": "boolean" },

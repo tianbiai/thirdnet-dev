@@ -79,8 +79,8 @@ export interface BuiltBuilding {
   slabs: THREE.Mesh[]
   /**
    * 楼顶名称 Sprite（caller 自行挂到 overlay 场景，**不进主场景**）。
-   * 为什么不在 group 里：GTAO（realistic/night）会把漂浮在天空区的透明 sprite 像素乘向黑，
-   * 挂在独立 overlay 场景里在 composer 之后第二遍渲染才能绕过 GTAO/bloom，保证 7 风格可读。
+   * 为什么不在 group 里：GTAO（引擎保留，当前 4 风格不启用）会把漂浮在天空区的透明 sprite 像素乘向黑，
+   * 挂在独立 overlay 场景里在 composer 之后第二遍渲染才能绕过 GTAO/bloom，保证 4 风格可读。
    */
   label: THREE.Sprite
 }

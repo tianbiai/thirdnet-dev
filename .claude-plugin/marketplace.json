@@ -13,7 +13,7 @@
       "name": "thirdnet-fullstack",
       "source": "./plugins/thirdnet-fullstack",
       "description": "ThirdNet 全栈 Admin 开发插件（自包含）— 后端 .NET 10 微服务（8 个技能）+ 前端 Vue 3（11 个技能）+ 全栈协调、审查、文档交付、模板升级与文档转换技能一体（含 thirdnet-fullstack 协调技能、fullstack-review 全栈代码审查技能、thirdnet-doc-generator 项目文档生成技能、thirdnet-template-upgrade 模板升级技能与 md-to-word 文档转换技能），统一 thirdnet-fullstack: 命名空间，开箱即用；含前后端子代理（backend-developer / frontend-developer）、文档驱动与技能合规钩子、以及开发完成后的全栈质量收尾门（Stop Hook 强制审查）。前后端开发统一由此插件提供。",
-      "version": "2.12.0",
+      "version": "2.13.0",
       "author": {
         "name": "thirdnet"
       },

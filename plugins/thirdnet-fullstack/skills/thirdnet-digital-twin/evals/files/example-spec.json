@@ -14,7 +14,7 @@
   "boundary": { "x": 360, "z": 220 },
   "buildings": [
     { "id": "zonghe", "name": "综合楼", "category": "building",  "w": 82,  "d": 68, "floors": 5,  "x": -235, "z": -25, "header": "5F · 6单位" },
-    { "id": "zhulou", "name": "主楼",   "category": "building",  "w": 100, "d": 82, "floors": 10, "x": 5,    "z": 15,  "header": "10F · 12单位", "highlightedFloor": 4 },
+    { "id": "zhulou", "name": "主楼",   "category": "building",  "w": 100, "d": 82, "floors": 10, "x": 5,    "z": 15,  "header": "10F · 12单位" },
     { "id": "fuwu",   "name": "服务楼", "category": "building",  "w": 82,  "d": 60, "floors": 3,  "x": 245,  "z": 55,  "header": "3F · 4单位" },
     { "id": "garage", "name": "地下车库","category": "garage",    "w": 150, "d": 90, "x": 0, "z": 175, "facing": "S" }
   ],
