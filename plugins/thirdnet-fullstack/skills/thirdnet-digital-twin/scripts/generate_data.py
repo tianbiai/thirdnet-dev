@@ -11,7 +11,8 @@ AI 现编——同一份 spec 两次生成内容不同、字段形状漂移。�
 
 确定性保证：全部随机选择（行业/公司名/负责人/电话/POI 状态）由种子 = FNV-1a(spec.title)
 的 mulberry32 驱动——与 assets/park-scene.impl.ts 视觉装饰同款伪随机，同一 spec 重跑
-输出逐字节一致。随机池（8 行业 × 公司名/业务范围/职责）内置在本脚本，AI 不可改写。
+输出逐字节一致。默认内置 8 行业办公租户池 + 8 办公字段；v2.7 起可由 spec.unitTemplate
+（tenants/fields）覆盖为工业/物流/住宅等园区的池与字段——缺省时产物逐字节不变。
 
 Usage:
   python generate_data.py spec.json                          # 输出到 ./src/...
@@ -73,7 +74,7 @@ def _pick(rnd, seq):
 
 
 # ---------------------------------------------------------------------------
-# 租户内容池（8 行业模板，对齐范例 parkModel.ts 的 CAT 映射）—— 固化，勿临场增删
+# 默认租户内容池（8 行业办公模板）—— 办公园区缺省池；非办公园区用 spec.unitTemplate.tenants 覆盖。
 # ---------------------------------------------------------------------------
 
 INDUSTRIES = [
@@ -143,6 +144,37 @@ def _person(rnd) -> str:
     return _pick(rnd, SURNAMES) + _pick(rnd, GIVEN)
 
 
+def _esc(s: str) -> str:
+    """转义 TS 单引号字符串里的反斜杠/单引号（自定义租户名/字段值可能含特殊字符）。"""
+    return (s or "").replace("\\", "\\\\").replace("'", "\\'")
+
+
+def _sample_field_value(rnd, fld: dict, tenant: dict) -> str:
+    """v2.7：为自定义字段模板（spec.unitTemplate.fields）确定性采样一个值。
+
+    按 key/label 语义启发式：name/tenant/company→租户名；contact/person→人名；
+    phone/tel→电话；scope/business→租户 scope；duty→租户 duty；
+    其余（面积/产能/产线/人员/车位/吞吐量…）→带 unit 后缀的确定性数值。
+    """
+    key = (fld.get("key") or "").lower()
+    label = fld.get("label") or ""
+    unit = fld.get("unit") or ""
+    tlabel = tenant.get("label") or ""
+    if any(s in key for s in ("tenant", "name", "company", "enterprise", "firm")) or "租户" in label or "单位名" in label or "名称" in label:
+        comps = tenant.get("companies") or []
+        return _pick(rnd, comps) if comps else tlabel
+    if any(s in key for s in ("contact", "person", "manager", "owner", "head")) or "负责人" in label or "联系人" in label:
+        return _person(rnd)
+    if "phone" in key or "tel" in key or "电话" in label or "手机" in label:
+        return _phone(rnd)
+    if "scope" in key or "business" in key or "业务" in label or "范围" in label:
+        return tenant.get("scope") or tenant.get("duty") or f"{tlabel}业务"
+    if "duty" in key or "职责" in label or "职能" in label:
+        return tenant.get("duty") or tenant.get("scope") or f"{tlabel}运营"
+    # 默认数值类（面积/产能/产线/人员/车位/吞吐量…）
+    return f"{1 + int(rnd() * 200)}{unit}"
+
+
 # ---------------------------------------------------------------------------
 # 生成静态脚手架 src/data/<park>.ts
 # ---------------------------------------------------------------------------
@@ -152,6 +184,7 @@ def render_scaffold(spec: dict) -> str:
     fh = spec.get("floorHeight", 24)
     env = spec.get("environment") or {}
     buildings = spec.get("buildings") or []
+    garages = spec.get("garages") or []
 
     lines = [
         "// ==========================================================================",
@@ -162,11 +195,41 @@ def render_scaffold(spec: dict) -> str:
         "",
         "export interface ScaffoldBuilding {",
         "  id: string",
-        "  category: 'building' | 'garage'",
+        "  category: string           // 楼栋类别：garage=地面入口三角门标记；其余（building/factory/warehouse/residential…）=挤出楼栋",
         "  w: number              // 占地宽（世界单位）",
         "  d: number              // 占地深",
         "  x: number              // 中心坐标 X",
         "  z: number              // 中心坐标 Z",
+        "  facing?: 'N' | 'S' | 'E' | 'W'",
+        "  /** v2.9 物理连通的其它楼栋 id（裙楼/连体楼）；引擎不消费，validate_spec 豁免 AABB */",
+        "  connects?: string[]",
+        "}",
+        "",
+        "export interface ScaffoldGarageRoom {",
+        "  name: string           // 房间名（配电室/消防控制室…）",
+        "  x: number              // 房间中心 X（相对坑体中心）",
+        "  z: number              // 房间中心 Z",
+        "  w: number              // 房间占地宽",
+        "  d: number              // 房间占地深",
+        "}",
+        "",
+        "// v2.6 地下场景（地下车库多层剖面）。每个条目=一个负层坑体（level=-1 B1, -2 B2…），",
+        "// 渲染为 Y=0 之下的透明玻璃柱（地面不开洞）。与 buildings[] 解耦，可整园范围。",
+        "export interface ScaffoldGarage {",
+        "  id: string",
+        "  name: string           // 层标牌 + GarageCard 标题",
+        "  usage?: string         // 地下用途：'parking'(缺省)/'mall'/'subway'/'shelter'/'workshop'/custom；非 parking 跳过车位网格",
+        "  level: number          // 负整数：-1=B1, -2=B2（决定渲染深度与多层堆叠）",
+        "  x: number              // 坑体中心 X",
+        "  z: number              // 坑体中心 Z",
+        "  w: number              // 坑体占地宽（可整园）",
+        "  d: number              // 坑体占地深",
+        "  deck_y: number         // 底板距地面深度（正数；渲染时取负）",
+        "  cols?: number          // 车位网格列数（仅 parking）",
+        "  rows?: number          // 车位网格行数（仅 parking）",
+        "  capacity?: number      // 总车位（仅 parking）",
+        "  occupied?: number      // 已占用（≤ capacity；仅 parking）",
+        "  rooms?: ScaffoldGarageRoom[]",
         "  facing?: 'N' | 'S' | 'E' | 'W'",
         "}",
         "",
@@ -182,6 +245,7 @@ def render_scaffold(spec: dict) -> str:
         "  from: { x: number; z: number }",
         "  to: { x: number; z: number }",
         "  floor: number          // 所在楼层（悬空高度 = floor*floorHeight）",
+        "  floorEnd?: number      // 跨层连廊终止楼层（≥ floor）；提供则连廊跨 floor..floorEnd",
         "  width: number",
         "  thickness: number",
         "  label: string",
@@ -190,7 +254,7 @@ def render_scaffold(spec: dict) -> str:
         "export interface CameraTourSpec {",
         "  enabled?: boolean       // 首屏自动开启（默认 false——用户点 TourToggleButton 触发）",
         "  speed?: number          // OrbitControls autoRotateSpeed（默认 0.6 缓慢）",
-        "  elevation?: number      // 巡航俯角 rad（above-horizon；默认 1.0 鸟瞰；钳到 polar[0.5,1.3]）",
+        "  elevation?: number      // 巡航俯角 rad（above-horizon；默认 1.0 鸟瞰；钳到 polar[0.5,π-0.1]）",
         "  framingK?: number       // 巡航取景内容占比（默认 0.55 俯瞰全城）",
         "  pauseOnInteract?: boolean // 用户拖拽自动退出（默认 true）",
         "}",
@@ -200,10 +264,14 @@ def render_scaffold(spec: dict) -> str:
         "  boundary: { x: number; z: number }",
         "  floorHeight: number",
         "  buildings: ScaffoldBuilding[]",
+        "  garages?: ScaffoldGarage[]   // v2.6 地下车库负层（缺省 = 无地下层）",
         "  environment: ParkEnvironment",
         "  legend: { label: string; category: string; color: string }[]",
         "  corridor?: CorridorSpec",
         "  cameraTour?: CameraTourSpec",
+        "  tokens?: Record<string, unknown>   // spec.tokens per-park 覆盖 → GlobalTwin onMounted applyCssVars 注入 --twin-*",
+        "  /** v2.12 多风格预览清单（spec.previewStyles）；提供则 UI 端可实时切换风格 */",
+        "  previewStyles?: string[]",
         "}",
         "",
         "export const parkScaffold: ParkScaffold = {",
@@ -214,11 +282,41 @@ def render_scaffold(spec: dict) -> str:
     ]
     for b in buildings:
         facing = f", facing: '{b['facing']}'" if b.get("facing") else ""
+        connects = b.get("connects")
+        connects_str = f", connects: {connects}" if connects else ""
         lines.append(
             f"    {{ id: '{b['id']}', category: '{b['category']}', w: {b['w']}, d: {b['d']}, "
-            f"x: {b['x']}, z: {b['z']}{facing} }},"
+            f"x: {b['x']}, z: {b['z']}{facing}{connects_str} }},"
         )
     lines.append("  ],")
+
+    # garages —— v2.6 地下场景（地下车库多层剖面）。缺省不输出该键（老 spec 行为不变）。
+    if garages:
+        lines.append("  garages: [")
+        for g in garages:
+            rooms_str = ""
+            rooms = g.get("rooms")
+            if rooms:
+                rooms_inner = ", ".join(
+                    f"{{ name: '{r.get('name', '')}', x: {r['x']}, z: {r['z']}, w: {r['w']}, d: {r['d']} }}"
+                    for r in rooms
+                )
+                rooms_str = f", rooms: [{rooms_inner}]"
+            facing = f", facing: '{g['facing']}'" if g.get("facing") else ""
+            usage_str = f", usage: '{g['usage']}'" if g.get("usage") else ""
+            # parking 字段（cols/rows/capacity/occupied）仅 parking 输出；非 parking 省略（逐字节兼容老 parking spec）
+            parking_str = ""
+            if g.get("usage", "parking") == "parking":
+                parking_str = (
+                    f", cols: {g.get('cols')}, rows: {g.get('rows')}, "
+                    f"capacity: {g.get('capacity')}, occupied: {g.get('occupied')}"
+                )
+            lines.append(
+                f"    {{ id: '{g['id']}', name: '{g.get('name', g['id'])}', level: {g['level']}, "
+                f"x: {g['x']}, z: {g['z']}, w: {g['w']}, d: {g['d']}, deck_y: {g['deck_y']}"
+                f"{usage_str}{parking_str}{rooms_str}{facing} }},"
+            )
+        lines.append("  ],")
 
     # environment —— 只输出 spec 给了的键（缺省 = ParkScene 智能默认）
     env_parts = []
@@ -260,12 +358,20 @@ def render_scaffold(spec: dict) -> str:
     )
     lines.append(f"  legend: [{legend_items}],")
 
+    # v2.12：previewStyles 透传（spec.previewStyles → ParkScaffold.previewStyles）
+    preview_styles = spec.get("previewStyles")
+    if preview_styles:
+        styles_arr = ", ".join(f"'{s}'" for s in preview_styles)
+        lines.append(f"  previewStyles: [{styles_arr}],")
+
     corridor = spec.get("corridor")
     if corridor:
+        floor_end = corridor.get("floorEnd")
+        floor_end_part = f", floorEnd: {floor_end}" if floor_end is not None else ""
         lines.append(
             f"  corridor: {{ from: {{ x: {corridor['from']['x']}, z: {corridor['from']['z']} }}, "
             f"to: {{ x: {corridor['to']['x']}, z: {corridor['to']['z']} }}, "
-            f"floor: {corridor.get('floor', 1)}, width: {corridor.get('width', 12)}, "
+            f"floor: {corridor.get('floor', 1)}{floor_end_part}, width: {corridor.get('width', 12)}, "
             f"thickness: {corridor.get('thickness', 6)}, label: '{corridor.get('label', '连廊')}' }},"
         )
 
@@ -286,6 +392,11 @@ def render_scaffold(spec: dict) -> str:
         if ct_parts:
             lines.append(f"  cameraTour: {{ {', '.join(ct_parts)} }},")
 
+    # tokens —— per-park 覆盖（spec.tokens），供 GlobalTwin onMounted 里 applyCssVars 运行时注入 --twin-*
+    tok = spec.get("tokens")
+    if tok:
+        lines.append(f"  tokens: {json.dumps(tok, ensure_ascii=False)},")
+
     lines.append("}")
     lines.append("")
     return "\n".join(lines)
@@ -299,7 +410,7 @@ def render_mock(spec: dict, rnd) -> str:
     buildings = spec.get("buildings") or []
     pois = spec.get("pois") or []
     env = spec.get("environment") or {}
-    stalls = ((env.get("surfaceParking") or {}) or {}).get("stalls")
+    stalls = (env.get("surfaceParking") or {}).get("stalls")
 
     used_companies: set[str] = set()
 
@@ -312,6 +423,19 @@ def render_mock(spec: dict, rnd) -> str:
                 used_companies.add(name)
                 return name
         return ind["companies"][start % len(ind["companies"])]
+
+    # v2.7：租户池 + 字段模板（缺省=办公：内置 8 行业池 + 8 办公字段，产物逐字节不变）。
+    ut = spec.get("unitTemplate") or {}
+    _raw_tenants = ut.get("tenants")
+    if _raw_tenants:
+        tenants = [
+            {"label": t.get("label", ""), "companies": t.get("names") or [],
+             "scope": t.get("scope", ""), "duty": t.get("duty", "")}
+            for t in _raw_tenants
+        ]
+    else:
+        tenants = INDUSTRIES
+    fields_tmpl = ut.get("fields")
 
     lines = [
         "// ==========================================================================",
@@ -355,21 +479,34 @@ def render_mock(spec: dict, rnd) -> str:
             units = []
             main_tenant = None
             for j in range(1, n_units + 1):
-                ind = _pick(rnd, INDUSTRIES)
+                ind = _pick(rnd, tenants)
                 company = fresh_company(ind)
                 if main_tenant is None:
                     main_tenant = company
-                area = 80 + int(rnd() * 520)
-                staff = 5 + int(rnd() * 75)
-                units.append(
-                    "      { "
-                    f"unit_id: '{b['id']}-f{i}-u{j}', name: '{company}', tenant: '{company}', "
-                    f"contact_person: '{_person(rnd)}', contact_phone: '{_phone(rnd)}', "
-                    f"staff_count: {staff}, area: {area}, nature: '{_pick(rnd, NATURES)}', "
-                    f"service_hours: '09:00-18:00', business_scope: '{ind['scope']}', "
-                    f"responsibilities: '{ind['duty']}' "
-                    "},"
-                )
+                if fields_tmpl:
+                    # v2.7：自定义字段模板——按 spec.unitTemplate.fields 产出 fields[]（替代办公字段）。
+                    flds = ", ".join(
+                        f"{{ label: '{_esc(fld['label'])}', value: '{_esc(_sample_field_value(rnd, fld, ind))}' }}"
+                        for fld in fields_tmpl
+                    )
+                    units.append(
+                        "      { "
+                        f"unit_id: '{b['id']}-f{i}-u{j}', name: '{company}', tenant: '{company}', "
+                        f"fields: [{flds}] "
+                        "},"
+                    )
+                else:
+                    area = 80 + int(rnd() * 520)
+                    staff = 5 + int(rnd() * 75)
+                    units.append(
+                        "      { "
+                        f"unit_id: '{b['id']}-f{i}-u{j}', name: '{company}', tenant: '{company}', "
+                        f"contact_person: '{_person(rnd)}', contact_phone: '{_phone(rnd)}', "
+                        f"staff_count: {staff}, area: {area}, nature: '{_pick(rnd, NATURES)}', "
+                        f"service_hours: '09:00-18:00', business_scope: '{ind['scope']}', "
+                        f"responsibilities: '{ind['duty']}' "
+                        "},"
+                    )
             lines.append(f"  {{")
             lines.append(f"    building_id: '{b['id']}', floor_id: '{b['id']}-f{i}', label: '{i}F',")
             lines.append(f"    tenant: '{main_tenant}',")
@@ -386,10 +523,12 @@ def render_mock(spec: dict, rnd) -> str:
     for p in pois:
         status = "PoiStatusEnum.Idle" if rnd() < 0.15 else "PoiStatusEnum.Online"
         ptype = p.get("type", "custom")
-        type_enum = "PoiTypeEnum." + {
+        _POI_ENUM = {
             "entrance": "Entrance", "exit": "Exit", "camera": "Camera", "gate": "Gate",
             "service": "Service", "landmark": "Landmark", "parking": "Parking", "custom": "Custom",
-        }.get(ptype, "Custom")
+        }
+        # v2.7：已知类型→PoiTypeEnum.X；自定义类型→原样字符串透传（renderer 以通用圆点标记渲染）。
+        type_enum = f"PoiTypeEnum.{_POI_ENUM[ptype]}" if ptype in _POI_ENUM else f"'{ptype}'"
         parts = [
             f"poi_id: '{p['id']}'",
             f"type: {type_enum}",
@@ -400,6 +539,8 @@ def render_mock(spec: dict, rnd) -> str:
             parts.append(f"y: {p['y']}")
         if p.get("buildingId"):
             parts.append(f"building_id: '{p['buildingId']}'")
+        if p.get("garageId"):
+            parts.append(f"garage_id: '{p['garageId']}'")
         if p.get("floorIndex") is not None:
             parts.append(f"floor_index: {p['floorIndex']}")
         parts.append(f"status: {status}")
@@ -418,6 +559,20 @@ def render_mock(spec: dict, rnd) -> str:
         if ptype == "parking" and stalls:
             occupied = int(stalls * (0.2 + rnd() * 0.3))
             parts.append(f"occupancy: {{ capacity: {stalls}, occupied: {occupied}, empty: {stalls - occupied} }}")
+        # v2.12：roomSpec 透传（spec.pois[].roomSpec → mockPois[].room_spec）
+        rs = p.get("roomSpec")
+        if rs:
+            rs_parts = []
+            if rs.get("area") is not None:
+                v = rs["area"]; rs_parts.append(f"area: '{v}'" if isinstance(v, str) else f"area: {v}")
+            if rs.get("capacity") is not None:
+                v = rs["capacity"]; rs_parts.append(f"capacity: '{v}'" if isinstance(v, str) else f"capacity: {v}")
+            if rs.get("dept"):
+                rs_parts.append(f"dept: '{rs['dept']}'")
+            if rs.get("duty"):
+                rs_parts.append(f"duty: '{rs['duty']}'")
+            if rs_parts:
+                parts.append(f"room_spec: {{ {', '.join(rs_parts)} }}")
         lines.append(f"  {{ {', '.join(parts)} }},")
     lines.append("]")
     lines.append("")

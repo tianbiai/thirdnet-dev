@@ -1,0 +1,170 @@
+{
+  "_comment": "Realistic theme — v2.5 恢复的日间写实风格（PBR）。配色单一事实来源。派生 SCSS / :root CSS 变量 / Three.js Color / 着色器 uniform——勿在别处复制 hex。与 cyber 的键集对齐（palette/accents 全键），保证 2D chrome 完整着色；区别在于自然去饱和色 + 激活写实引擎（envMap/GTAO/软阴影）。换肤改本文件（或给 generate_theme.py --brand 一个品牌色）。",
+  "scene": {
+    "_comment": "日间天空：顶→底浅蓝渐变 + 程序化白云（写进同一张背景纹理，零运行时成本；种子确定性）。不开星/月。",
+    "bgTop": "#bcd4ef",
+    "bgBottom": "#e4ecf4",
+    "sky": { "clouds": true, "stars": false, "moon": false }
+  },
+  "palette": {
+    "void-bg": "#9fb4c8",
+    "panel-top": "#f2f5f8",
+    "panel-bot": "#e6ecf2",
+    "divider": "#cdd6df",
+    "text-hi": "#1a2330",
+    "text-mid": "#2f3b4a",
+    "text-lo": "#6a7686",
+    "cyan": "#2a7de1",
+    "cyan-bright": "#4a9bf0",
+    "cyan-dim": "#7fa8d0",
+    "magenta": "#c0506a",
+    "magenta-bright": "#d06a84",
+    "magenta-dim": "#8a6068",
+    "mint": "#3aa68a"
+  },
+  "accents": {
+    "blue": "#2a7de1",
+    "blue-deep": "#1e5fb0",
+    "bright-cyan": "#4fb0f0",
+    "title-text": "#16202c",
+    "body-hi": "#28323f",
+    "body-lo": "#5a6878",
+    "date-text": "#6a7686",
+    "caption": "#5a6878",
+    "online": "#2fa876",
+    "online-light": "#48c090",
+    "amber": "#e09a2b",
+    "amber-light": "#ebb054",
+    "amber-bright": "#f5c060",
+    "select-yellow": "#e8b020",
+    "live-red": "#d24a5a",
+    "stat-cool": "#7fa8d0",
+    "hairline": "#c2ccd6",
+    "panel-stroke": "#b8c4d0",
+    "row-bg": "#eaeef3",
+    "tile-bg": "#e0e6ec",
+    "active-tab-bg": "#d6deea"
+  },
+  "category": {
+    "_comment": "写实楼栋按类别上色：building=建筑钢/混凝土灰蓝（facade 纹理叠细节），garage=自然绿。",
+    "building": "#7d8896",
+    "garage": "#4a9d7a"
+  },
+  "underground": {
+    "_comment": "v2.6 地下场景配色（§14）。写实日景：PBR 受光材质，弱自发光（靠日光 + 环境贴图照明，与楼上 realistic 同引擎）。底板近不透明混凝土深灰蓝、墙淡玻璃、边界/功能间去饱和绿/琥珀。",
+    "deck": "#1a2436",
+    "deckEmissive": "#0a0e16",
+    "deckOpacity": 0.5,
+    "wall": "#7fa8d0",
+    "wallOpacity": 0.16,
+    "edge": "#3aa68a",
+    "room": "#e09a2b",
+    "spot": "#e8eef5",
+    "ramp": "#2a3340"
+  },
+  "building": {
+    "_comment": "写实立面：roomShade 收小（去卡通强对比），dividerColor=窗框深线（facade 纹理画真实窗户网格 + 日间玻璃反光）。",
+    "roomShade": 0.1,
+    "dividerColor": "#5a6470"
+  },
+  "lights": {
+    "_comment": "日间自然光：暖金时段 DirectionalLight（高强度、低角度长投影）+ 天空/地面 HemisphereLight；ambientFloor 兜底消除死黑。不开 PointLight（写实日间靠太阳 + 环境贴图）。",
+    "sun": "#fff4e0",
+    "sunIntensity": 1.4,
+    "hemiSky": "#bcd4ef",
+    "hemiGround": "#5a5040",
+    "hemiIntensity": 0.6,
+    "ambient": null,
+    "ambientIntensity": 0.0,
+    "ambientFloor": 0.25,
+    "point": null,
+    "pointIntensity": 0.0,
+    "pointDistance": 0.0
+  },
+  "ground": {
+    "_comment": "写实地面：沥青灰 tiles 程序化纹理（CanvasTexture），接受软阴影与 AO。",
+    "texture": { "type": "tiles", "base": "#3a3e44", "line": "#c8ccd0", "cell": 60 }
+  },
+  "shaders": {
+    "_comment": "写实风格不消费赛博网格着色器；grid 留 null。",
+    "grid": null
+  },
+  "environment": {
+    "_comment": "写实园区环境：自然去饱和色——沥青道路、混凝土人行道、自然绿草/树冠/灌木、暖色路灯、真实水面。groundGlow 关（无霓虹标线）。",
+    "city-ground": "#4a4f56",
+    "groundGlow": false,
+    "road": "#3a3e44",
+    "roadLine": "#c8ccd0",
+    "sidewalk": "#9aa0a8",
+    "grass": "#5a8a4a",
+    "treeTrunk": "#5a3e2a",
+    "treeCanopy": "#4a7a3a",
+    "lampGlow": "#fff0c8",
+    "vehicle": "#3a5a8a",
+    "roadMarking": "#e8e8ec",
+    "water": "#3a6a8a",
+    "rooftop": "#6a6e74"
+  },
+  "garageEntrance": {
+    "_comment": "地下车库入口：自然框架色 + 高对比 P 牌（深底亮字）。",
+    "frame": "#4a9d7a",
+    "signBg": "#16202c",
+    "signFg": "#e8eef4",
+    "sign": "#4a9d7a"
+  },
+  "surfaceParking": {
+    "_comment": "地面车位：沥青底 + 白线 + 深底亮字 P 牌 + 示意车辆。",
+    "stallFill": "#44484e",
+    "stallLine": "#c8ccd0",
+    "pMarkBg": "#16202c",
+    "pMark": "#e8eef4",
+    "car": "#3a5a8a",
+    "frame": "#c8ccd0",
+    "sign": "#4a9d7a"
+  },
+  "poi": {
+    "_comment": "POI 类型→自然色（去饱和，非霓虹）；status 子块同 cyber 结构。",
+    "entrance": "#4a9d7a",
+    "exit": "#d24a5a",
+    "camera": "#e09a2b",
+    "gate": "#2a7de1",
+    "service": "#4fb0f0",
+    "landmark": "#c0506a",
+    "parking": "#4a9d7a",
+    "custom": "#2a7de1",
+    "status": {
+      "_comment": "POI 状态色（外圈光晕/动画色；写实取克制自然色）。",
+      "online": "#4a9d7a",
+      "offline": "#8a93a0",
+      "alarm": "#d24a5a",
+      "idle": "#e09a2b"
+    }
+  },
+  "realism": {
+    "_comment": "v2.5 日间写实激活：RoomEnvironment 环境贴图（玻璃/金属有反射、不发黑）+ GTAO 接触阴影 + 2048² PCFSoft 软阴影；bloom 极弱（仅高光微溢）；不开地面反射/雾。material 偏光滑（低 roughness）让环境贴图可见。",
+    "material": { "roughness": 0.35, "metalness": 0.1, "envMapIntensity": 1.0 },
+    "bloom": { "threshold": 0.85, "strength": 0.12, "radius": 0.4 },
+    "ao": { "enabled": true, "intensity": 1.0, "radius": 0.5 },
+    "reflection": { "enabled": false, "opacity": 0.5, "mixStrength": 0.5 },
+    "fog": null,
+    "sun": { "azimuth": 150, "elevation": 55 },
+    "shadow": { "radius": 4, "bias": -0.0003 }
+  },
+  "ui": {
+    "_comment": "写实 2D chrome：克制——半透浅底 + 细描边 + 极弱发光（glowStrength 0.1）+ flat 切换器。与日间自然气质一致，不抢 3D 主体。",
+    "panelOpacity": 0.92,
+    "panelBlur": 6,
+    "panelRadius": 8,
+    "glowStrength": 0.1,
+    "glowColor": "#2a7de1",
+    "borderWidth": 1,
+    "labelBg": "#f2f5f8",
+    "labelText": "#1a2330",
+    "switcherStyle": "flat",
+    "selectionBorder": "#d24a5a", "selectionFill": "#4a9bf0", "selectionFillOpacity": 0.35
+  },
+  "fonts": {
+    "zh": "Noto Sans SC",
+    "latin": "Inter"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "title": "政务单位模板 演示夹具",
+  "style": "cyber",
+  "floorHeight": 24,
+  "boundary": { "x": 360, "z": 220 },
+  "buildings": [
+    {
+      "id": "tower",
+      "name": "政务服务楼",
+      "category": "building",
+      "w": 80,
+      "d": 60,
+      "floors": 6,
+      "x": 0,
+      "z": 0,
+      "header": "6F · 12单位"
+    }
+  ],
+  "unitTemplate": {
+    "fields": [
+      { "key": "tenant", "label": "入驻单位" },
+      { "key": "dept", "label": "所属部门" },
+      { "key": "staff", "label": "在编人数", "unit": "人" },
+      { "key": "service_scope", "label": "服务范围" },
+      { "key": "duty", "label": "主要职责" },
+      { "key": "phone", "label": "联系电话" }
+    ],
+    "tenants": [
+      {
+        "label": "综合管理",
+        "names": ["综治办", "维稳办", "应急办"],
+        "scope": "基层治理/应急联动",
+        "duty": "统筹协调辖区综合事务"
+      },
+      {
+        "label": "公共服务",
+        "names": ["便民服务中心", "信访接待室", "司法所"],
+        "scope": "群众接待/法律咨询",
+        "duty": "一窗受理综合服务"
+      },
+      {
+        "label": "专项职能",
+        "names": ["武装部", "警务室", "消防办"],
+        "scope": "安全/治安/消防",
+        "duty": "辖区安全值守"
+      }
+    ]
+  }
+}

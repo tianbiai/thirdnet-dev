@@ -4,7 +4,7 @@ ThirdNet 全栈 Admin 开发插件（自包含）—— Claude Code 插件，为
 
 是 ThirdNet 前后端开发技能的**唯一来源**：后端 .NET 微服务与前端 Vue 3 的全部技能均收录于此，统一 `thirdnet-fullstack:` 命名空间，开箱即用。
 
-- **版本**：2.5.0（目录清单 `thirdnet-plugins` v0.49.0）
+- **版本**：2.16.0（目录清单 `thirdnet-plugins` v0.53.0）
 - **许可**：MIT
 
 ## 技术栈

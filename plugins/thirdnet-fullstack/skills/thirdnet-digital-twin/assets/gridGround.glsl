@@ -1,8 +1,7 @@
-// gridGround.glsl — UV-adapted derivative of ../../grid.glsl (source of truth).
-// Why adapted: the original uses gl_FragCoord/u_resolution (screen pixel space),
-// which would "swim" across a 3D ground plane as the camera moves. This version
-// drives the same grid recipe (fine grid + every-5th major grid + radial vignette)
-// from the plane's vUv so it tracks the ground correctly. Uniforms u_gridColor /
+// gridGround.glsl — the cyber grid-ground fragment shader (source of truth).
+// Drives a fine grid + every-5th major grid + radial vignette from the plane's
+// vUv so the grid tracks the ground (a gl_FragCoord/u_resolution variant would
+// "swim" across the 3D plane as the camera moves). Uniforms u_gridColor /
 // u_cell / u_strength are preserved from the .pen use-site
 // (u_gridColor #2a7fff, u_cell 46, u_strength 0.85).
 //
@@ -18,8 +17,7 @@ uniform vec2 u_scale; // plane "pixel" extent so vUv*u_scale ~ grid units
 void main() {
   vec2 uv = vUv;
 
-  // radial spotlight, softened so the grid stays visible across the whole plane
-  // (visibility tweak; grid.glsl is still the source of truth for the recipe).
+  // radial spotlight, softened so the grid stays visible across the whole plane.
   vec2 c = uv - vec2(0.5, 0.42);
   float vig = 1.0 - smoothstep(0.4, 1.3, length(c)) * 0.55;
 

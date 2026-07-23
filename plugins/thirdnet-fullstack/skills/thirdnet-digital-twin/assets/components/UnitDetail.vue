@@ -42,10 +42,10 @@
 
     <!-- 正常态 -->
     <div v-else class="unit-detail__body">
-      <div v-if="(detail?.units.length ?? 0) > 1" class="unit-detail__pager">
+      <div v-if="unitCount > 1" class="unit-detail__pager">
         <button type="button" class="unit-detail__btn" :disabled="sel.unitIndex.value <= 0" @click="sel.setUnit(sel.unitIndex.value - 1)">上一单位</button>
-        <span>{{ sel.unitIndex.value + 1 }} / {{ detail!.units.length }}</span>
-        <button type="button" class="unit-detail__btn" :disabled="sel.unitIndex.value >= detail!.units.length - 1" @click="sel.setUnit(sel.unitIndex.value + 1)">下一单位</button>
+        <span>{{ sel.unitIndex.value + 1 }} / {{ unitCount }}</span>
+        <button type="button" class="unit-detail__btn" :disabled="sel.unitIndex.value >= unitCount - 1" @click="sel.setUnit(sel.unitIndex.value + 1)">下一单位</button>
       </div>
       <h4 class="unit-detail__unit">{{ unit.name }}</h4>
       <dl class="unit-detail__grid">
@@ -61,35 +61,50 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useSelection } from '@/composables/useSelection'
-import { useTwinData } from '@/composables/useTwinData'
+import { buildingName, useTwinData } from '@/composables/useTwinData'
 
 const sel = useSelection()
 const twinData = useTwinData()
 const panelEl = ref<HTMLElement | null>(null)
 
 const detail = computed(() => twinData.floorDetail.value)
-const unit = computed(() => detail.value?.units[sel.unitIndex.value] ?? detail.value?.units[0])
+const units = computed(() => detail.value?.units ?? [])
+const unit = computed(() => units.value[sel.unitIndex.value] ?? units.value[0])
+const unitCount = computed(() => units.value.length)
 
 const detailTitle = computed(() => {
   const bid = sel.focusedBuildingId.value
-  const name = bid ? twinData.buildingName.value(bid) : ''
+  const name = bid ? buildingName(bid) : ''
   return `${name} ${detail.value?.label ?? ''}`.trim()
 })
 
-// 字段行（负责人/电话/在编/面积/性质/服务时间/业务范围/职责——契约固定顺序）
+// 办公园区默认 8 字段（label/取值键/格式化；与 generate_data.py Mock 行序对齐）。
+// v2.7 非办公园区由 spec.unitTemplate.fields 驱动 → 走 u.fields 分支，覆盖此表。
+type OfficeKey =
+  | 'contact_person' | 'contact_phone' | 'staff_count' | 'area'
+  | 'nature' | 'service_hours' | 'business_scope' | 'responsibilities'
+const OFFICE_FIELDS: { label: string; key: OfficeKey; fmt?: (v: string | number) => string }[] = [
+  { label: '负责人', key: 'contact_person' },
+  { label: '联系电话', key: 'contact_phone' },
+  { label: '在编人员', key: 'staff_count', fmt: (v) => `${v} 人` },
+  { label: '办公面积', key: 'area', fmt: (v) => `${v} ㎡` },
+  { label: '单位性质', key: 'nature' },
+  { label: '服务时间', key: 'service_hours' },
+  { label: '业务范围', key: 'business_scope' },
+  { label: '职责', key: 'responsibilities' },
+]
+
+// 字段行：单位带 fields（spec.unitTemplate.fields 驱动）则优先渲染它；否则回退办公默认 8 字段表。
 const rows = computed(() => {
   const u = unit.value
   if (!u) return []
-  return [
-    { label: '负责人', value: u.contact_person ?? '—' },
-    { label: '联系电话', value: u.contact_phone ?? '—' },
-    { label: '在编人员', value: u.staff_count != null ? `${u.staff_count} 人` : '—' },
-    { label: '办公面积', value: u.area != null ? `${u.area} ㎡` : '—' },
-    { label: '单位性质', value: u.nature ?? '—' },
-    { label: '服务时间', value: u.service_hours ?? '—' },
-    { label: '业务范围', value: u.business_scope ?? '—' },
-    { label: '职责', value: u.responsibilities ?? '—' },
-  ]
+  if (u.fields && u.fields.length) {
+    return u.fields.map((f) => ({ label: f.label, value: f.value ?? '—' }))
+  }
+  return OFFICE_FIELDS.map((f) => {
+    const raw = u[f.key]
+    return { label: f.label, value: raw == null ? '—' : f.fmt ? f.fmt(raw) : String(raw) }
+  })
 })
 
 function onClose() {

@@ -50,6 +50,18 @@
     "building": "#27a8ff",
     "garage": "#3df0c8"
   },
+  "underground": {
+    "_comment": "v2.6 地下场景配色（§14 地下车库多层剖面）。地面不开洞——坑体是 Y<0 的透明玻璃柱：底板半透明自发光 + 4 面青色玻璃墙，从侧面透视内部车位/车/功能房间/坡道。地下无独立光照，靠材质 emissive 伪造深度感（与 web 驾驶舱同源）。cyber 全自发光霓虹：wall=青玻璃、edge=薄荷绿边界虚线、room=琥珀功能间、deck=深蓝自发光底板。",
+    "deck": "#0a1320",
+    "deckEmissive": "#0a1830",
+    "deckOpacity": 0.32,
+    "wall": "#1de9ff",
+    "wallOpacity": 0.12,
+    "edge": "#3df0c8",
+    "room": "#ffc24a",
+    "spot": "#eaf6ff",
+    "ramp": "#10283a"
+  },
   "building": {
     "_comment": "v1.4/v1.7 楼栋楼层/贴砖层次（§4.1）。roomShade = 每层 1–5 块贴砖相对类别色的明度偏移幅度（HSL lightness ±），v1.7 起派生 light/dark 两色让相邻贴砖强对比交替；dividerColor = 贴砖之间竖实线 + 楼层之间横向虚线分隔的颜色（自发光青）。",
     "roomShade": 0.16,
@@ -78,7 +90,7 @@
     "grid": { "u_gridColor": "#2a7fff", "u_cell": 46, "u_strength": 0.85 }
   },
   "environment": {
-    "_comment": "v1.2 园区环境配色（道路/车位/绿化/围墙/路灯等，§10）。赛博气质：深蓝灰沥青 + 发光青色标线 + 暗紫青草地 + 霓虹树冠边光。所有颜色经此派生，不散落 hex。v1.8 groundGlow 默认 true（赛博地面发光标线，§10 buildAmbiance）。",
+    "_comment": "v1.2 园区环境配色（道路/车位/绿化/路灯等，§10）。赛博气质：深蓝灰沥青 + 发光青色标线 + 暗紫青草地 + 霓虹树冠边光。所有颜色经此派生，不散落 hex。v1.8 groundGlow 默认 true（赛博地面发光标线，§10 buildAmbiance）。",
     "city-ground": "#080418",
     "groundGlow": true,
     "road": "#0c1430",
@@ -87,7 +99,6 @@
     "grass": "#13304a",
     "treeTrunk": "#1a1028",
     "treeCanopy": "#1c4a5a",
-    "wall": "#16204a",
     "lampGlow": "#7ff5ff",
     "vehicle": "#1e6fff",
     "roadMarking": "#2bd4ff",

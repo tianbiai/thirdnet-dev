@@ -1,5 +1,51 @@
 # Changelog
 
+## 2.22.0 - 2026-07-23
+
+### Changed
+- **thirdnet-digital-twin v2.14.0 移除「园区外围墙」特性**：删 `buildSurrounding` 围墙渲染块 + `spec.environment.surrounding.wall` schema 字段 + 6 风格 token 的 `environment.wall` 配色（地下车库玻璃壁 `underground.wall` 不受影响）；同步清理 references / validate_spec.py / evals.json / fixture 相关描述；闸机 / 入口引道保留。
+- **版本同步**：`plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处 `2.21.0 → 2.22.0`（顺带修正协调技能此前滞留的 `2.19.0`）；digital-twin 技能 `metadata.version` `2.13.0 → 2.14.0`；`CLAUDE.md` 版本引用同步。
+
+## 2.20.0 - 2026-07-23
+
+### Changed (v2.12.1 增量)
+- **thirdnet-digital-twin v2.12.1 文档+脚本+夹具增量**：① **`references/intake.md` 新增「模式 E 建筑施工平面图」+ 政务园区调色指引**（建筑制图 intake 路径：制图轴 1-7/A-H → world 坐标 + 楼栋/房间/车位识别 + 「首层平面图 = 所有 POI floorIndex: 0」语义 + 政务/工业/办公 3 类调色对照表）。② **`references/park-spec.md` 加 3 段文档**：`PoiSpec.tooltip.meta` 标准键名约定（政务/物业/通用 3 组推荐键名 + 注 v2.12 优先 `roomSpec`）；**「阶梯裙楼建模」**段（方案 A 拆多栋 + `connects` 豁免 AABB 即可；方案 B `floorProfile?` v2.13+ 远期）；**PoiType 政务类型扩展表**（警务室/指挥所/武装部/医械库/党群中心映射到 `service`/`custom` + 远期专属 type 计划）。③ **`scripts/generate_data.py` 透传 3 个 v2.12 字段**：`ScaffoldBuilding.connects?`（v2.9 字段补回静态脚手架类型）+ `ParkScaffold.previewStyles?` + `mockPois[].room_spec?`（从 `spec.pois[].roomSpec` 派生），重跑后不再丢字段。④ **`scripts/validate_spec.py` 加车位密度 WARN**（`stalls × 72 / (boundary.x × boundary.z × 4) > 20%` 触发；提示扩 boundary 或拆 multi-lot）。⑤ **`SKILL.md` 验证 checklist 拆 6 个分支**（基础 30 条必查 + POI 条件 4 条 + 地下条件 6 条 + 写实条件 3 条 + 航拍条件 6 条 + 多风格条件 4 条 + 连廊条件 4 条 + 阶梯裙楼条件 2 条），按 spec 实际配置勾选对应子清单。⑥ **新增 `evals/files/generality/government.json` 政务单位模板夹具**（演示 `spec.unitTemplate` 政务单位字段：入驻单位/所属部门/在编人数/服务范围/主要职责/联系电话 + 3 类部门池：综合管理/公共服务/专项职能）。
+
+## 2.20.0 - 2026-07-23
+
+### Changed
+- **thirdnet-digital-twin v2.12.0 建筑平面图与多风格预览支持**：① **schema 扩 `poi.roomSpec`**（`area/capacity/dept/duty` 结构化字段，政务/功能房间用例；`PoiRuntimeItem` 同步增 `room_spec`，`PoiOverlay` 优先渲染 `roomSpec` 块，部门/职责/面积/容纳 4 字段 + 暗色 tile-bg 底色）。② **schema 扩顶层 `previewStyles?: Style[]`** — 允许 spec 一次性声明多套待切换风格；配合新增 `assets/components/StyleSwitcher.vue`（左上角 v-switch + 全 `--twin-*` 配色 + a11y `aria-pressed`）与 `assets/composables/useStyle.ts`（current/setStyle 单例 + applyTheme/applyCssVars 联动），`GlobalTwin.vue` 顶部叠加切换器、`watch(current) → scene.setStyle` 单向推回。③ **政府/政务园区 token 调色指引** + 新增 `evals/files/generality/government-complex.json` 夹具（11F 主楼 + 5F 裙楼 `connects` + 6 个功能房间 POI 带 `roomSpec` + 246 地面车位 + `previewStyles: 6 风格` 演示）。④ 顺手修：`ParkScaffold` 接口增 `connects?: string[]`（`v2.9` 字段补回到静态脚手架类型）、`previewStyles?: string[]`；`generate_data.py` 后续将透传这些字段（v2.12 当前由项目侧手动补）。
+- **版本同步**：`plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处 `2.19.0 → 2.20.0`；`marketplace.json` 顶层 `metadata.version` `0.56.0 → 0.57.0`；digital-twin 技能 `metadata.version` `2.11.0 → 2.12.0`；`CLAUDE.md` 版本引用同步。
+
+## 2.19.0 - 2026-07-23
+
+### Changed
+- **thirdnet-digital-twin v2.11.0 地下坑体推荐默认回调**：`deck_y` 推荐典型值 200→140（对 v2.10 加深的回调，平衡坑体可见性与场景紧凑度）；`validate_spec.py` 偏浅 WARN 阈值 `<160`→`<140`（否则新默认会自触告警）+ 提示文案 B1 典型 200→140、B2 范例 400→280；`setBelowView` 相机兜底深度常量 200→140；文档同步 `references/park-spec.md`（deck_y 注释 + 多层堆叠深度约定 + 校验规则偏浅 WARN）/`scene-recipe.md`（§14 序段）/`SKILL.md` description；范例 fixture `example-spec.json` B1 200→140 / B2 400→280、`underground.json` B1 200→140；顺手清理 `industrial.json` 漏改的 B1 120→140 与 `building-geometry.ts` `deckY` docstring -120→-140。
+- **版本同步**：`plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处 `2.18.0 → 2.19.0`；`marketplace.json` 顶层 `metadata.version` `0.55.0 → 0.56.0`；digital-twin 技能 `metadata.version` `2.10.0 → 2.11.0`；`CLAUDE.md` 版本引用同步。
+
+## 2.18.0 - 2026-07-23
+
+### Changed
+- **thirdnet-digital-twin v2.10.0 地下坑体加深 + 相机解锁地下俯仰**：① **deck_y 推荐默认 120→200**——renderer 仍 `deckY=-|deck_y|` 透传、不在引擎侧 clamp（避免多层堆叠相邻层 clamp 到同值致深层零高度）；`validate_spec.py` 新增 `deck_y<160` 偏浅 WARN；`setBelowView` 相机兜底深度 120→200；范例 fixture 同步（`underground.json` B1 120→200 / B2 100→320 修反向 bug，`example-spec.json` B1 120→200 / B2 240→400）。② **相机解锁地下俯仰**——`defaultMaxPolar` 1.3→π-0.1、`BELOW_POLAR_MAX` 2.6→π-0.1、构造期 `controls.maxPolarAngle` 改读 `defaultMaxPolar` 字段（修硬编码 1.3 脱节、启动仍被锁 bug）；正常交互即可拖到地面之下仰视坑体，从下方看 Y=0 不透明地面因 BackSide culling 自然消失。文档同步 `references/park-spec.md`（deck_y 注释 + 多层堆叠深度约定 + 校验规则补偏浅 WARN）/`scene-recipe.md`（极角范围 [0.5,1.3]→[0.5,π-0.1]、§14 序段 + §14.2 maxPolarAngle 说明）。
+- **版本同步**：`plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处 `2.17.0 → 2.18.0`；`marketplace.json` 顶层 `metadata.version` `0.54.0 → 0.55.0`；digital-twin 技能 `metadata.version` `2.9.0 → 2.10.0`；`CLAUDE.md` 版本引用同步。
+
+> 注：2.17.0（digital-twin v2.9 连廊跨层 + connects 豁免 + typecheck 修复）未单独记入 CHANGELOG，内容见 digital-twin 技能 `SKILL.md` 变更历史 v2.9 条目。
+
+## 2.16.0 - 2026-07-23
+
+### Changed
+- **thirdnet-digital-twin v2.8.0 通用化与死代码清扫**：① **解锁 `corridor`（楼栋间空中连廊）**——`spec.schema.json` 登记 `corridor` `$def` + 根属性、`park-spec.md` 补「连廊」节（引擎 `buildCorridor` 与 `generate_data.py` 早有实现，此前被 closed schema `additionalProperties:false` 锁死、用户走 `validate_spec.py` 会被拒）。② **删除引擎死代码**——v2.4 遗留的 `wire|white` 不可达材质分支（`PROFILES` 从不赋值，约 30 处）+ `fresnelRim.glsl` 空 `#if` 块 + `configureGTAO` 空 try/catch + `dispose()` 漏释放 `selectionOverlay.geometry` + `useTwinData` 返回对象里冗余的 `errMsg`（命名导出已是消费方）。③ **文档对齐当前 6 风格 / 13 组件事实**——清掉「当前 4 风格不启用 env/AO/反射」等与 v2.5 矛盾的陈述（scene-recipe / park-scene-impl / SKILL / evals）、渲染管线表补 realistic/night-realistic 两行、组件数 12→13（补 `GarageCard.vue`）、`DigitalTwin.ts` 幽灵引用改指 `park-scene.impl.ts`、`design-source.md` 去特定化重写为示例化通用指南、`spec.schema.json` 描述 v1.9→v2.7 + `building.floors` number→integer。④ 脚本小修——`extract_pen` 注入备注补 6 风格、`validate_spec` `VALID_CATEGORIES`→`KNOWN_CATEGORIES` + 无 jsonschema 降级路径补齐 token 必需块、`generate_theme` 去冗余判断、`generate_data` 收敛双重 `or {}`；删除冗余 `scripts/__pycache__/`。SKILL.md `description` 由 40 行 changelog 瘦身为紧凑触发描述、变更历史移入正文。
+- **版本同步**：`plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处 `2.15.0 → 2.16.0`；`marketplace.json` 顶层 `metadata.version` `0.52.0 → 0.53.0`；digital-twin 技能 `metadata.version` `2.7.0 → 2.8.0`；`README.md`/`CLAUDE.md` 版本引用同步。
+
+## 2.15.0 - 2026-07-23
+
+### Changed
+- **thirdnet-digital-twin v2.7.0 通用化**（不再假设园区是办公楼，办公为默认、向后兼容）：放开 `buildings[].category`（任意自定义串 factory/warehouse/residential/office…；非 garage 按挤出楼栋渲染、配色取 `tokens.category.<cat>` 缺省回退 building；`garage` 可多栋多入口）与 `pois[].type`（任意自定义串，未知类型通用圆点标记）；新增可选 `spec.unitTemplate`（`fields`/`tenants`）让非办公园区楼层单位字段与租户池可定制（缺省=办公 8 字段 + 8 行业池，产物逐字节不变）；契约层 `UnitDetail.fields?` + `UnitDetail.vue` 优先渲染 fields；renderer 楼栋配色按类别解析、图例/POI 容错回退。**地下泛化**——POI `floorIndex` 允许负值（-1=B1，标注地下楼层设施）+ 增 `garageId`（绑定 garages[].id）、`garages[]` 增 `usage`（缺省 `parking`；`mall`/`subway`/`shelter`/`workshop` 等非车库跳过车位网格、改显功能房间 + usage 标签，`GarageCard` 据 capacity 分支），可表达地下商场/地铁/人防/车间；`buildUndergroundGarage` 用 `if (cols && rows)` 守卫车位块、`resolveGarageRooms` 非 parking 无 rooms 返空。同步更新 `spec.schema.json`/`validate_spec.py`/`generate_data.py`/`building-geometry.ts`/`park-scene.impl.ts`/`GarageCard.vue`/`park-spec.md`/`scene-recipe.md`/`SKILL.md`。
+- **版本同步**：`plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处 `2.14.0 → 2.15.0`；`marketplace.json` 顶层 `metadata.version` `0.51.0 → 0.52.0`；digital-twin 技能 `metadata.version` `2.6.0 → 2.7.0`；`README.md`/`CLAUDE.md` 版本引用同步。
+
+### Cleanup（/simplify）
+- 删除死着色器 `assets/grid.glsl`（运行时仅消费 `gridGround.glsl`）+ 修正相关引用；删除自述「不随技能发布」的历史参考 `references/exemplar.md`；取消跟踪误提交的 `scripts/__pycache__/*.pyc` 并新增技能级 `.gitignore`；修正陈旧「4 风格」→「6 风格」计数；`validate_spec.py` 主题文件读取由 4 次/次收口为 1 次（`lru_cache`）；`park-scene.impl.ts` 移除 3 处死 `ground:'light'` 分支；`park-spec.md` 去重 `CameraTourSpec`。
+
 ## 2.5.0 - 2026-07-08
 
 ### Fixed

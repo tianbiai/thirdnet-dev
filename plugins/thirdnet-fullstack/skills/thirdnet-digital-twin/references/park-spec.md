@@ -1,234 +1,267 @@
 # Park Spec（园区规格说明）
 
-**Park Spec** 是一份园区数字孪生的唯一规范描述。每种输入模式（文字、草图、效果图、`.pen`）都会被转换成这样一份 spec，由用户确认，生成器只从它读取。任何特定园区的内容（“综合楼”、“10 层”等）都绝不硬编码在生成器里——一切都从 spec 流入。
+**Park Spec** 是一份园区数字孪生的唯一规范描述。每种输入模式（文字、草图、效果图、`.pen`、平面图）都会被转换成这样一份 spec，由用户确认，生成器只从它读取。任何特定园区的内容（"综合楼"、"10 层"等）都绝不硬编码在生成器里——一切都从 spec 流入。
 
 本文件是 schema 的事实来源。`scripts/validate_spec.py` 依据它校验 spec；`assets/spec.schema.json` 是同结构的 JSON Schema（draft-07），可供 IDE 自动补全与 CI 无 Python 校验。编写或编辑 spec 前先读本文件。
 
-> **命名约定边界（v1.8）**：spec 层与运行时 TypeScript **一律 camelCase**（`buildingId`、`floorIndex`、`poiId`）。**snake_case 仅出现在 HTTP DTO**（后端 `*Map` 响应，如 `building_id`、`floor_index`）—— 由 Real 工厂层在请求/响应边界做映射，前端组件永不知晓 snake_case。本文件里的 `buildingId`/`floorIndex` 是 camelCase；`dynamic-data-api.md` §4 的 `PoiRuntimeItem.building_id` 是后端 DTO 形态，工厂层映射为 camelCase 后再交组件消费。
+> **命名约定**：spec 层一律 **camelCase**（`buildingId`、`floorIndex`）。运行时 TypeScript 契约层（`api/types/digital-twin.ts`）与组件默认 snake_case（`building_id`、`floor_index`，类型即契约、零漂移）——见 `dynamic-data-api.md §4`。
 
-## 数据分层注记（v1.5）
+## 数据分层注记
 
-spec 仍是**创作唯一事实来源**（生成时读取），但生成器把它的内容**分区输出**为两层（详见 `dynamic-data-api.md`）：
+spec 仍是**创作唯一事实来源**（生成时读取），但生成器把内容**分区输出**为两层（详见 `dynamic-data-api.md`）：
 
-- **基础信息**（静态内联进页面）：风格 / tokens / shaders / 字体 / 舞台 / boundary / floorHeight；楼栋**位置与占地**（`buildings[].id/w/d/x/z/category/facing`）；园区环境（`environment`）；Legend / switcher 骨架。
-- **动态数据**（运行期走 `IDigitalTwinApi` 契约层，开发期由 spec 派生为 Mock、正式环境调真实后端）：楼幢**业务数据**（`buildings[].name/floors/floor_ids/header`、`floors_detail`）与 **POI 点位**（`pois[]`，含停车场 `occupancy`）。
+- **基础信息**（静态内联）：风格/tokens/shaders/字体/舞台/boundary/floorHeight；楼栋**位置与占地**（`buildings[].id/w/d/x/z/category/facing`）；园区环境（`environment`）；航拍（`cameraTour`）；连廊（`corridor`）；地下坑体（`garages`）；Legend/switcher 骨架。
+- **动态数据**（运行期走 `IDigitalTwinApi`，开发期由 spec 派生为 Mock、正式环境调真实后端）：楼幢**业务数据**（`buildings[].name/floors/floor_ids/header`、`floors_detail`）与 **POI 点位**（`pois[]`，含停车场 `occupancy`）。
 
-也就是说：下文 schema 里 `buildings[].name/floors/floors_detail` 与 `pois[]` 这些字段，**在生成时用于派生 Mock 数据**（动态），而**不是**静态内联进 `src/data/<park>.ts`——静态脚手架只保留楼栋占地几何。schema 本身不变；变的是生成器如何分区输出这些字段。
+下文 schema 里 `buildings[].name/floors/floors_detail` 与 `pois[]` 在生成时**用于派生 Mock 数据**（动态），而非静态内联——静态脚手架只保留楼栋占地几何。schema 本身不变；变的是生成器如何分区输出。
 
 ## 坐标系与单位
 
 - **世界单位**，任意尺度。X = 东，Z = 南，Y = 上。
-- 楼栋坐落在地面（Y=0）的 `(x, z)`；其占地为 `w`（X 方向尺寸）× `d`（Z 方向尺寸），以 `(x, z)` 为中心。
-- **`floorHeight`**（默认 `24`）—— 每层的世界单位高度。一栋楼总高 = `floors * floorHeight`。
-- **`boundary`**（默认 `{x:360, z:220}`）—— 园区在 X 上延展 ±`boundary.x`、Z 上延展 ±`boundary.z`。网格地面和相机取景都据此确定尺寸。让所有楼栋占地保持在其内部。
-- 散开楼栋以填满宽的中央面板（3–5 栋楼大致沿 左上→右下 对角线效果不错）。锁定前用截图目视校验布局。
+- 楼栋坐落在地面（Y=0）的 `(x, z)`；占地为 `w`（X 方向）× `d`（Z 方向），以 `(x, z)` 为中心。
+- **`floorHeight`**（默认 `24`）—— 每层世界单位高度。一栋楼总高 = `floors * floorHeight`。
+- **`boundary`**（默认 `{x:360, z:220}`）—— 园区在 X 上延展 ±`boundary.x`、Z 上延展 ±`boundary.z`。网格地面和相机取景都据此确定尺寸。
+- 散开楼栋填满宽的中央面板（3–5 栋楼大致沿 左上→右下 对角线效果不错）。锁定前用截图目视校验布局。
 
 ## TypeScript 接口
 
 ```ts
-type Category = 'building' | 'garage'
+type Category = string  // 开放：'building'（挤出楼栋）/ 'garage'（地面入口标记）/ 任意自定义串（factory/warehouse/residential/office…——按挤出楼栋渲染，配色取 tokens.category.<cat>，缺省回退 building）。详「类别语义」。
 
 interface ParkSpec {
   title: string                       // "XX园区" —— 页面/文档标题
-  style?: Style                       // 视觉风格；默认 'cyber'（见下方 Style）
+  style?: Style                       // 视觉风格；默认 'cyber'
   stage?: { width: number; height: number }  // 默认 1920×1080
   tokens?: Record<string, string>     // 颜色覆盖；省略则按 style 用 assets/themes/<style>.tokens.json
-  shaders?: {
-    grid?: { u_gridColor: string; u_cell: number; u_strength: number }
-  }                                   // 仅 cyber 风格消费；其它风格忽略
+  shaders?: { grid?: { u_gridColor: string; u_cell: number; u_strength: number } }  // 仅 cyber 消费
   floorHeight?: number                // 默认 24
   boundary?: { x: number; z: number } // 默认 {360, 220}
   buildings: BuildingSpec[]
   legend?: LegendEntry[]              // 默认 = 楼幢 + 地下车库 两个类别
-  switcher?: (string | { id: string; label?: string })[]
-                                // 标签页骨架。v1.8 推荐对象形式 {id,label?}：id 显式对齐
-                                // buildings[].id，label 缺省由 getBuildings() 水合 name。
-                                // 裸字符串形式仍兼容（按名字推断，较脆弱）。默认 = 全局视角 + 每栋非车库楼 + 地下车库
-  environment?: ParkEnvironment       // 园区环境（道路/地面车位/绿化/周边/氛围）；缺省 = 智能默认
-  pois?: PoiSpec[]                    // 兴趣点（类型+坐标+提示）；缺省 = []（不生成 POI）
-  cameraTour?: CameraTourSpec         // v2.2 航拍巡航（auto-orbit 展示）；缺省 = 智能默认（按钮触发）
+  switcher?: (string | { id: string; label?: string })[]  // 标签页骨架（推荐对象形式，id 对齐 buildings[].id）
+  environment?: ParkEnvironment       // 园区环境；缺省 = 智能默认
+  pois?: PoiSpec[]                    // 兴趣点；缺省 = []（不生成 POI）
+  garages?: GarageSpec[]              // 地下场景；缺省 = []（无地下层）
+  cameraTour?: CameraTourSpec         // 航拍巡航；缺省 = 智能默认（按钮触发）
+  corridor?: CorridorSpec            // 空中连廊；缺省 = 不画连廊
 }
 
-type Style = 'cyber' | 'holographic' | 'isometric' | 'nebula'
-// cyber          —— 赛博：着色器网格地面 + 自发光霓虹（默认）
-// holographic    —— 全息：半透青玻璃体 + 自发光边缘辉光 + bloom（未来科技感）
-// nebula         —— 深空星云：深空紫蓝 + 星空+月亮 + 虹彩边缘辉光 + 强 bloom（科幻指挥中心）
-// isometric      —— 等距插画：flatShading cel 着色的鲜活彩色楼栋（扁平信息图风）
-// 风格详细分支见 references/styles.md。（realistic/night-realistic/blueprint/white-model 已于 v2.4 移除；其引擎能力 envMap/GTAO/反射保留未用。）
+type Style = 'cyber' | 'holographic' | 'isometric' | 'nebula' | 'realistic' | 'night-realistic'
 
 interface BuildingSpec {
-  id: string                          // slug，唯一 —— 用于切换器、选中、详情视图
-  name: string                        // "主楼" —— 作为楼顶常驻标签 + 切换器 + 详情标题显示
-  category: Category                  // 驱动 3D 颜色 + 图例色块 + 车库入口渲染分支
-  w: number                           // 占地 X 方向尺寸（世界单位）
-  d: number                           // 占地 Z 方向尺寸
+  id: string                          // slug，唯一 —— 切换器/选中/详情
+  name: string                        // "主楼" —— 楼顶常驻标签 + 切换器 + 详情标题
+  category: Category                  // building/garage/自定义；驱动 3D 颜色 + 图例 + 是否按车库入口渲染
+  w: number                           // 占地 X 尺寸
+  d: number                           // 占地 Z 尺寸
   floors: number                      // 楼层数（高度 = floors * floorHeight）；车库条目可选/忽略
   x: number                           // 中心 X
   z: number                           // 中心 Z
-  facing?: 'N' | 'S' | 'E' | 'W'      // 朝向；仅对 category:'garage' 有意义（半金字塔入口朝向），默认 'S'
+  facing?: 'N' | 'S' | 'E' | 'W'      // 仅 category:'garage' 有意义（半金字塔入口朝向），默认 'S'
   header?: string                     // "10F · 12单位" —— 详情/切换器后缀
+  connects?: string[]                 // 声明物理连通的其它楼栋 id（裙楼/连体楼）；豁免 validate_spec 的 AABB 间距/重叠 FAIL
   floors_detail?: FloorSpec[]         // 详情面板的每层租户（可选）
 }
 
-// v1.3 起 GarageSpec 已删除：地下车库不再承载占用数据，仅作为 buildings[] 里
-// category:'garage' 的入口标记（半金字塔三角门 + P 牌）。运营态车位数据留给后台/详情面板按需拉取。
-//
-// v1.5 起数据分层（见文首「数据分层注记」与 dynamic-data-api.md）：
-//   静态内联（基础信息）= id / category / w / d / x / z / facing（楼栋占地几何 + 类别）。
-//   动态走 getBuildings()（Mock 由 spec 派生）= name / floors / header / floors_detail
-//     （楼幢业务数据：名/楼层数/floor_ids/楼层详情）。
-//   即：生成器把 name/floors/floors_detail 派生为 mockBuildings/mockFloorDetails，
-//   而不是静态写进 src/data/<park>.ts。
+// category:'garage' 楼栋 = 地面入口标记（半金字塔三角门 + P 牌，Y=0 之上、无几何体积）。
+// garages[] = 真正的地下剖面坑体（Y=0 之下透明玻璃柱，可整园范围）。两者可共存也可只用其一。
+
+interface GarageSpec {
+  id: string                          // slug，唯一 —— 地下拾取/选中/GarageCard
+  name: string                        // "地下车库 B1" —— 层标牌 + GarageCard 标题
+  usage?: string                      // 'parking'(缺省)/'mall'/'subway'/'shelter'/'workshop'/'custom'。非 parking 跳过车位网格，改显功能房间 + usage 标签
+  level: number                       // 负整数：-1 = B1，-2 = B2
+  x: number; z: number                // 坑体中心（Y 隐式 = 0，几何向下）
+  w: number; d: number                // 坑体占地尺寸（可整园）
+  deck_y: number                      // 该层底板距地面深度（正数；渲染取负，B1 典型 140；偏浅 <140 触发 WARN）
+  cols?: number; rows?: number        // 车位网格采样列/行（仅 parking）
+  capacity?: number; occupied?: number  // 总车位/已占用（仅 parking）
+  rooms?: { name: string; x: number; z: number; w: number; d: number }[]  // 功能房间（非 parking 为主内容；parking 缺省 8 间）
+  facing?: 'N' | 'S' | 'E' | 'W'      // 坡道朝向；默认 'S'
+}
 
 interface PoiSpec {
-  id: string                          // slug，唯一 —— 用于拾取/选中
-  type: PoiType                       // 驱动 3D 图标 + 颜色（token 的 poi.<type> 映射）
-  label: string                       // 标记旁短名；同时作为 tooltip 默认标题
-  x: number                           // 世界坐标 X
-  z: number                           // 世界坐标 Z
-  y?: number                          // 高度；默认地面（0），室内点位可给具体高度或配合 floorIndex
+  id: string                          // slug，唯一 —— 拾取/选中
+  type: PoiType                       // 已知 8 类有专属图标；自定义类型以通用圆点渲染
+  label: string                       // 标记旁短名；同时作 tooltip 默认标题
+  x: number; z: number                // 世界坐标
+  y?: number                          // 高度；默认地面（0）
   buildingId?: string                 // 可选：绑定到 buildings[].id（室内点位）
-  floorIndex?: number                 // 可选：绑定到某层（与 buildingId 配合，从 0 开始）
-  tooltip?: {                         // 可选：悬停/点击弹出的提示卡数据
-    title?: string                    // 缺省取 label
-    description?: string              // 正文，支持简单换行
-    meta?: Record<string, string>     // 键值对（如 负责人/电话/状态/容量）
-  }
+  garageId?: string                   // 可选：绑定到 garages[].id（地下点位）
+  floorIndex?: number                 // 可选：绑定到某层（0=地面层、正=地上、负=地下 -1=B1）
+  tooltip?: { title?: string; description?: string; meta?: Record<string, string> }
+  roomSpec?: { area?: string | number; capacity?: string | number; dept?: string; duty?: string }  // 功能房间结构化字段（推荐，比 meta 可读）
 }
 
-type PoiType = 'entrance' | 'exit' | 'camera' | 'gate' | 'service' | 'landmark' | 'parking' | 'custom'
-// entrance  —— 园区/楼栋出入口
-// exit      —— 出口
-// camera    —— 监控摄像头
-// gate      —— 闸机/道闸
-// service   —— 服务点（物业/客服/服务中心）
-// landmark  —— 地标/景观
-// parking   —— 停车场（地面/地下入口）
-// custom    —— 其它（用 token 的 poi.custom 兜底色）
+type PoiType = string  // 已知 entrance/exit/camera/gate/service/landmark/parking/custom；任意自定义串以通用圆点标记渲染
 
-interface LegendEntry {
-  label: string                       // "楼幢" | "地下车库"
-  category: Category
-  color: string                       // hex；应与 tokens 中的类别颜色一致
-}
+interface LegendEntry { label: string; category: Category; color: string }
 
-interface CameraTourSpec {
-  enabled?: boolean                   // 首屏自动开启巡航；默认 false（用户点 TourToggleButton 触发）
-  speed?: number                      // OrbitControls autoRotateSpeed（度/帧）；默认 0.6 缓慢
-  elevation?: number                  // 巡航相机俯角（rad，above-horizon）；默认 1.0≈57° 鸟瞰；运行时钳到 polar[0.5,1.3] 内
-  framingK?: number                   // 巡航取景内容占比；默认 0.55（俯瞰全城；默认取景 K=0.66）
-  pauseOnInteract?: boolean           // 用户拖拽自动退出巡航、交还控制权；默认 true
-}
-
-interface FloorSpec {
-  index: number                       // 从 0 开始，从地面往上
-  label: string                       // "1F".."10F"
-  tenant: string                      // 租户名
-  units?: UnitDetail[]                // ≥1；>1 时启用左右单位切换
-}
+interface FloorSpec { index: number; label: string; tenant: string; units?: UnitDetail[] }
 ```
 
-`UnitDetail`（用于 `FloorSpec.units`）镜像已存在的 `src/data/unit.ts` 形状 —— 参见 `references/shell.md` 和 `references/exemplar.md`。
+`UnitDetail`（用于 `FloorSpec.units`）镜像运行时契约层的 `UnitDetail` —— 参见 `references/dynamic-data-api.md §4`。
+
+## POI tooltip 标准键名约定
+
+`PoiSpec.tooltip.meta` 跨项目可比性靠这套约定（不强校验）：
+
+- 政务园区：`部门` / `职责` / `编制` / `在岗` / `面积` / `容纳`
+- 物业场景：`负责人` / `电话` / `营业时间` / `状态`
+- 通用：`状态` / `容量` / `编号` / `备注`
+
+> 优先推荐 `poi.roomSpec` 结构化字段（schema 已落）；`tooltip.meta` 退为兜底/兼容老项目。
 
 ## 园区环境（ParkEnvironment）
 
-`spec.environment` 是**可选**的。提供则按值生成园区地面、道路、地面车位、绿化、周边市政道路、围墙、路灯等环境元素；**省略则用智能默认**（环形内部道路 + 按楼栋规模推算的地面车位 + 普通密度绿化 + 四向市政道路 + 围墙 + 主闸机 + 路灯）——保证「不问也能产出一张完整的、嵌在城市里的全景图」。生成细则见 `references/scene-recipe.md §10`。
+`spec.environment` 可选。提供则按值生成园区地面、道路、地面车位、绿化、周边市政道路、路灯；**省略则用智能默认**（环形内部道路 + 按楼栋规模推算的地面车位 + 普通密度绿化 + 四向市政道路 + 主闸机 + 路灯）——保证「不问也能产出一张完整的全景图」。生成细则见 `references/scene-recipe.md §10`。
 
 ```ts
 interface ParkEnvironment {
-  internalRoads?: 'loop' | 'cross' | 'grid' | 'none'        // 园区内部道路形状；默认 'loop'
-  surfaceParking?: { stalls: number; occupied?: number } | null
-                                // v1.4 地面车位；stalls = 长方形车位数；occupied = 「示意停放车辆数」（缺省 round(stalls*0.3)≈30%，≤stalls），决定多少个车位放汽车代理体。null = 无地面车位
+  internalRoads?: 'loop' | 'cross' | 'grid' | 'none'        // 默认 'loop'
+  surfaceParking?: { stalls: number; occupied?: number } | null  // stalls=长方形车位数；occupied=示意停放车辆数（缺省 ~30%）；null=无
   greenery?: {
-    treeDensity?: 'sparse' | 'normal' | 'lush'               // 行道树密度；默认 'normal'
-    centralPlaza?: boolean                                   // 中央广场；默认 true
-    waterFeature?: boolean                                   // 水景/水池；默认 false
+    treeDensity?: 'sparse' | 'normal' | 'lush'               // 默认 'normal'
+    centralPlaza?: boolean                                   // 默认 true
+    waterFeature?: boolean                                   // 默认 false
   }
   surrounding?: {
     roads?: boolean        // 四向市政道路；默认 true
     sidewalk?: boolean     // 园区边沿人行道；默认 true
-    wall?: boolean         // 围墙/护栏（false 则改用绿篱）；默认 true
     gate?: boolean         // 主出入口闸机；默认 true
   }
   ambiance?: {
-    streetLamps?: boolean  // 街灯（引擎支持 PointLight，当前 4 风格不挂）；默认 true
-    groundGlow?: boolean   // 地面发光标线；cyber 默认 true，其余风格默认 false
+    streetLamps?: boolean  // 街灯（night-realistic 挂暖色实光源，其余仅自发光灯头）；默认 true
+    groundGlow?: boolean   // 地面发光标线；cyber 默认 true，其余 false
     vehicles?: boolean     // 周边道路与车位的车辆/行人代理体；默认 true
   }
 }
 ```
 
-**校验规则**（`validate_spec.py`）：`environment` 缺失 → 仅 `WARN`（不 FAIL）；存在时枚举字段必须合法、`surfaceParking.stalls > 0`、若给 `occupied` 则 `≤ stalls`。**字段全部可选**——给一个空 `{}` 也合法，等同智能默认。
+**校验规则**：`environment` 缺失 → 仅 `WARN`；存在时枚举字段必须合法、`surfaceParking.stalls > 0`、若给 `occupied` 则 `≤ stalls`。**字段全部可选**——给空 `{}` 也合法，等同智能默认。
 
 ## 兴趣点（POI）
 
-`spec.pois` 是**可选**的（缺省 `[]` = 不生成任何 POI）。每个 POI 描述地图上一个打点：**类型（驱动图标+颜色）+ 世界坐标 + 可选楼层归属 + 可选提示卡数据**。POI 与楼幢/单位同源——全部走 spec，是后台 API 可配置的数据契约。生成细则见 `references/scene-recipe.md §11`。
+`spec.pois` 可选（缺省 `[]` = 不生成任何 POI）。每个 POI = 类型 + 世界坐标 + 可选楼层归属 + 可选提示卡数据。**v1.5 起 POI 是动态数据**：`pois[]` 在生成时派生为 `mockPois`，运行期通过 `getPois()` 获取，而不静态内联。Mock 项在 `PoiSpec` 基础上补 `status`（`PoiStatusEnum`）与停车场 `occupancy`。生成细则见 `references/scene-recipe.md §11`。
 
-> **v1.5 起 POI 是动态数据**：`pois[]` 在生成时**派生为 `mockPois`**（`mock/data/manager/digital-twin.ts`），运行期通过 `getPois()` 获取（开发期 Mock、正式环境真实 API），而**不**静态内联进页面。Mock 项在 spec 的 `PoiSpec` 基础上补 `status`（`PoiStatusEnum`）与停车场 `occupancy`（v1.3 外包的车库占用并入此处）。POI 的 `tooltip` / 坐标 / 楼层归属字段在 spec 与运行期 `PoiRuntimeItem` 之间保持一致（见 `dynamic-data-api.md` §4）。
+**校验规则**：`pois` 缺失 → 合法（不 WARN）；存在时必须是数组，每项 `id` 唯一、`type` 非空、`label` 非空、`x/z` 为数字；`buildingId` 给定时必须命中某栋 `buildings[].id`，`floorIndex` 为整数（v2.7 起允许负值）。
 
-POI 的 `tooltip` 是规范化的「提示数据」：`title` / `description` / `meta`（键值对）。生成器把它渲染成悬停/点击的 HTML 弹出卡。不给 `tooltip` 的 POI 仅显示 `label` 标签。打点位置用世界坐标 `{x, z, y?}`；室内点位用 `buildingId` + `floorIndex` 绑定到具体楼层。
+## 地下车库（garages）
 
-**校验规则**（`validate_spec.py`）：`pois` 缺失 → 合法（不 WARN）；存在时必须是数组，每项 `id` 唯一、`type` ∈ 枚举、`label` 非空、`x/z` 为数字；`buildingId` 给定时必须命中某栋 `buildings[].id`，`floorIndex` 为非负整数。
+`spec.garages` 可选（缺省 `[]` = 不生成地下层）。每个条目描述**一个地下负层坑体**——`level: -1` 为 B1、`-2` 为 B2，多层即多个条目并按 `level` 堆叠。坑体渲染为 **Y=0 之下的透明玻璃柱**：地面**不开洞**（楼栋不悬空），4 面半透明玻璃壁 + 半透明自发光底板，从侧面透视内部的车位网格 + 车辆 + 功能房间线框 + 出入口坡道 + 层标牌。`usage` 区分用途：缺省 `'parking'`（车位网格 + 车辆 + GarageCard 占用）；`'mall'`/`'subway'`/`'shelter'`/`'workshop'` 等跳过车位网格，改显功能房间——可表达地下商场/地铁通道/人防工程/地下车间。生成细则见 `references/scene-recipe.md §14`。
+
+> **与 `category:'garage'` 楼栋的区别**：`buildings[]` 里 `category:'garage'` 是**地面入口标记**（半金字塔 + P 牌，Y=0 之上、无体积）；`garages[]` 是**真正的地下剖面几何**。二者独立——可只用地面试标记、可只用地下坑体、也可共存。地下交互走切换器「地下车库」标签 → `setBelowView(true)` 相机俯冲。
+
+> **全部静态内联**：坑体几何与 `capacity`/`occupied` 占用数据都写进 `ParkScaffold.garages`，由 `generate_data.py` 输出、ParkScene 构造期读取渲染，**不**走动态水合。如需运营态实时占用，后续可在 `IDigitalTwinApi` 加 `getGarages()` 覆盖（见 `dynamic-data-api.md`）。
+
+**多层堆叠**：`garages[]` 按 `level` 升序渲染。最浅层（B1）的坑顶 = Y=0；更深层（B2）的坑顶 = 上一层底板（`-deck_y`）。外壁从 Y=0 连续延伸到最深底，各层底板处画虚线层分隔。**深度约定**：`deck_y` 为距地面的**绝对**深度，故 B2 须大于 B1（如 B1=140、B2=280）保证多层单调；偏浅（<140）由 `validate_spec.py` 出 WARN。
+
+**校验规则**：`garages` 缺失 → 合法（不 WARN）；存在时每项 `id` 唯一、`level` 为 ≤ -1 的整数、`w/d/deck_y > 0`。`usage='parking'`（缺省）另校验 `cols/rows > 0`、`0 ≤ occupied ≤ capacity`；非 parking 这些字段可省。坑体 AABB **不参与**楼栋出界/重叠 FAIL（地下与楼上不同 Y，XZ 重叠合法）；仅超出 `boundary` 时 WARN。**`deck_y < 140` 出偏浅 WARN**。
 
 ## 相机巡航（cameraTour）
 
-`spec.cameraTour` 是**可选**的（v2.2 新增）。提供则按值配置「航拍巡航」（auto-orbit 展示）——相机过渡到鸟瞰取景后，沿园区缓慢自动环绕。**省略则用智能默认**（按钮触发，speed 0.6 / elevation 1.0 / framingK 0.55 / pauseOnInteract true）——保证「不问也能用」。生成细则见 `references/scene-recipe.md §13`。
+`spec.cameraTour` 可选。提供则配置「航拍巡航」——相机过渡到鸟瞰取景后，沿园区缓慢自动环绕。**省略则用智能默认**（按钮触发，speed 0.6 / elevation 1.0 / framingK 0.55 / pauseOnInteract true）。生成细则见 `references/scene-recipe.md §13`。
 
 ```ts
 interface CameraTourSpec {
-  enabled?: boolean                   // 首屏自动开启；默认 false（用户点 TourToggleButton 触发）
-  speed?: number                      // autoRotateSpeed（度/帧）；默认 0.6 缓慢
-  elevation?: number                  // 巡航俯角 rad（above-horizon）；默认 1.0 鸟瞰；钳到 polar[0.5,1.3]
-  framingK?: number                   // 巡航取景内容占比；默认 0.55 俯瞰全城（默认取景 K=0.66）
+  enabled?: boolean                   // 首屏自动开启；默认 false
+  speed?: number                      // autoRotateSpeed（度/帧）；默认 0.6
+  elevation?: number                  // 巡航俯角 rad；默认 1.0 鸟瞰；钳到 polar[0.5,π-0.1]
+  framingK?: number                   // 巡航取景内容占比；默认 0.55
   pauseOnInteract?: boolean           // 用户拖拽自动退出；默认 true
 }
 ```
 
-归属**基础信息（静态）**——`generate_data.py` 把它原样写进 `ParkScaffold.cameraTour`，ParkScene 构造期读取；**不**参与动态水合（巡航参数与楼栋业务数据无关）。`enabled:true` 时 `GlobalTwin.vue` `onMounted` 调 `tour.enable()` 首屏自动开启（取景只用静态几何，不等水合）。
+归属**基础信息（静态）**——`generate_data.py` 写进 `ParkScaffold.cameraTour`，ParkScene 构造期读取；**不**参与动态水合。
 
-要点（**理解 why**）：
-- **auto-orbit 而非路径飞行**：复用 `OrbitControls.autoRotate` + 现有 `focusBuilding` tween 机制，零新增运动学，正交相机下观感好、风险低。
-- **释放控制权铁律（与 §8 同源）**：取景过渡是「事件触发 + 有限时长」tween，结束后把缩放/平移/旋转完整交还 OrbitControls；用户一拖拽即自动退出（`pauseOnInteract`），滚轮缩放不退出（允许巡航中缩放）。
-- **`prefers-reduced-motion` 禁用**：autoRotate 是连续运动，`setTourEnabled(true)` 为 no-op，按钮 `aria-disabled`（与 §8 tween/呼吸动画同纪律）。
+要点（理解 why）：
+- **auto-orbit 而非路径飞行**：复用 `OrbitControls.autoRotate` + 现有 `focusBuilding` tween 机制，零新增运动学。
+- **释放控制权铁律**：取景过渡是「事件触发 + 有限时长」tween，结束后把控制权完整交还 OrbitControls；用户一拖拽即自动退出。
+- **`prefers-reduced-motion` 禁用**：autoRotate 是连续运动，按钮 `aria-disabled`。
 
-**校验规则**（`validate_spec.py`）：`cameraTour` 缺失 → 合法（不 WARN）；存在时 `enabled`/`pauseOnInteract` 为布尔、`speed>0`、`framingK∈(0,1)`、`elevation∈[0,π/2]`；未知键 → FAIL。
+**校验规则**：`cameraTour` 缺失 → 合法；存在时 `enabled`/`pauseOnInteract` 为布尔、`speed>0`、`framingK∈(0,1)`、`elevation∈[0,π/2]`；未知键 → FAIL。
+
+## 连廊（corridor）
+
+`spec.corridor` 可选。描述两栋楼之间的一条**空中连廊**（悬空连接体）。提供则 `generate_data.py` 原样写进 `ParkScaffold.corridor`，`ParkScene.buildCorridor` 架悬空桥体（`width × 厚 × len`，`len` = from→to 距离），配同名常驻标签；单层时悬高 = `floor*floorHeight`，给 `floorEnd`（≥ `floor`）则**跨层**。**省略即不画连廊**。
+
+```jsonc
+"corridor": {
+  "from": { "x": -60, "z": 0 },   // 起点（世界坐标 XZ）
+  "to":   { "x":  60, "z": 0 },   // 终点
+  "floor": 3,                      // 悬空起始楼层；缺省 1
+  "floorEnd": 5,                   // 跨层终止楼层（≥ floor）；省略 = 单层薄桥
+  "width": 12, "thickness": 6,    // 缺省 12 / 6
+  "label": "空中连廊"               // 缺省「连廊」
+}
+```
+
+归属**基础信息（静态）**——与 `cameraTour`/`garages` 同层，不参与动态水合。`from`/`to` 必填，其余可选。多条连廊目前需后续版本支持；当前 `corridor` 为单个对象。
 
 ## 类别语义
 
 | 类别 | 含义 | 默认颜色 | 3D 处理 |
 |---|---|---|---|
-| `building` | 楼幢 —— 一栋普通的地上建筑 | 青色 `#27a8ff` | 挤出的盒体、幕墙纹理（v1.4 每层 1–5 块贴砖；v1.7 相邻贴砖深浅两色交替 + 深色竖实线）、**楼层虚线分隔**、屋顶边线、**楼顶常驻名称标签** |
-| `garage` | 地下车库 —— 地下车库入口 | 薄荷绿 `#3df0c8` | **半金字塔三角门入口 + P 标识牌**（v1.3 起；不再有占用标牌/进度条） |
+| `building` | 楼幢 | 青色 `#27a8ff` | 挤出盒体、幕墙纹理（每层 1–5 块贴砖、相邻深浅交替）、楼层虚线分隔、屋顶边线、楼顶常驻名称标签 |
+| `garage` | 地下车库 —— **地面**入口标记 | 薄荷绿 `#3df0c8` | 半金字塔三角门入口 + P 牌（Y=0 之上、无几何体积）。真正的地下剖面由顶层 `garages[]` 描述 |
+| 自定义串 | factory/warehouse/residential/office/amenity… | `tokens.category.<cat>`（缺省回退 `building` 青） | 按挤出楼栋渲染（与 `building` 同几何）；用 `spec.tokens` 的 `category.<cat>` 或 `legend.color` 单独定色。`floors` 必填（仅 `garage` 免） |
 
-至多**一栋**楼是 `category: 'garage'`（校验器会拒绝更多）。车库楼承载入口标记，朝向由 `facing`（默认 `'S'`）决定。
+`garage` 不限制栋数——多个 `category:'garage'` 楼栋即多个地面入口标记（多入口物流园场景）。地下剖面坑体用 `garages[]`，二者可共存。
+
+## 阶梯裙楼建模
+
+`BuildingSpec.floors` 是**统一整数**——无法把一栋楼渲染成「主体 N 层、局部 M 层」的阶梯造型。**推荐方案**：拆多栋 + `connects`——将阶梯裙楼拆为多个 `BuildingSpec`，每段一层用一栋楼 + `connects` 字段豁免 AABB 间距校验：
+
+```jsonc
+"buildings": [
+  { "id": "podium-5f", "category": "building", "w": 200, "d": 100, "floors": 5, "x": 80, "z": -30, "connects": ["podium-2f"] },
+  { "id": "podium-2f", "category": "building", "w": 80,  "d": 60,  "floors": 2, "x": -50, "z": -20, "connects": ["podium-5f"] }
+]
+```
+
+优点：完全靠现有 schema 表达；validate_spec 自动豁免；引擎无需改。缺点：楼顶标签各自独立（可加 `header` 区分）。完整范式见 `evals/files/generality/government-complex.json`（11F 主楼 + 5F 裙楼 connects 演示）。
+
+## 楼层单位模板（unitTemplate）
+
+`spec.unitTemplate` 可选。缺省 = 办公园区默认（内置 8 行业租户名池 + 8 个办公字段）。非办公园区（工业/物流/住宅/商业…）提供 `unitTemplate` 让 Mock 单位数据贴合园区语义：
+
+```ts
+interface UnitTemplate {
+  fields?: { key: string; label: string; unit?: string }[]                  // 单位详情字段描述；提供则每单位产 UnitDetail.fields:[{label,value}]
+  tenants?: { label: string; names: string[]; scope?: string; duty?: string }[]  // 租户/实体池（替代内置 8 行业）
+}
+```
+
+- **`fields`**：提供时 `generate_data.py` 为每个单位产出 `UnitDetail.fields`，`UnitDetail.vue` 优先渲染它（覆盖办公字段）。`value` 按字段 `key`/`label` 语义启发式采样。
+- **`tenants`**：替代内置 8 行业池。每项 `{label, names[], scope?, duty?}`。
+
+> `unitTemplate` 只影响**开发/演示期 Mock 数据**（`generate_data.py` 派生）。正式环境单位详情仍由后端 `getFloorDetail()` 返回。
 
 ## 完整示例
 
-一份完整、通过校验的示例在 `evals/files/example-spec.json`（XX园区，含 综合楼/主楼/服务楼/地下车库 + 若干 POI）。从真实 `.pen` 自动抽取的草稿在 `evals/files/sample-pen-extract.json` —— 当输入是 `.pen` 时把它作为起点，然后通过检查 Scene 填补 `id`/`category`/`w`/`d`/`x`/`z`（抽取器把它们留为 null）。
+一份完整、通过校验的示例在 `evals/files/example-spec.json`（XX园区，含 综合楼/主楼/服务楼/地下车库 + 若干 POI）。从真实 `.pen` 自动抽取的草稿在 `evals/files/sample-pen-extract.json`。泛化夹具（工业/政务/地下）在 `evals/files/generality/`。
 
 ## 字段如何映射到输出
 
 | Spec 字段 | 驱动 |
 |---|---|
 | `title` | 页面/文档标题 |
-| `style` | 选取 `assets/themes/<style>.tokens.json` + 决定渲染器/灯光/材质/地面分支（见 `references/styles.md`） |
-| `tokens` / `shaders` | `_tokens.scss`、`theme.ts`、Three.js `Color`、着色器 uniform（唯一事实来源；`shaders` 仅 `cyber` 消费） |
+| `style` | 选取 `assets/themes/<style>.tokens.json` + 渲染器/灯光/材质/地面分支（见 `styles.md`） |
+| `tokens` / `shaders` | CSS 变量、`theme.ts`、Three.js `Color`、着色器 uniform（唯一事实来源；`shaders` 仅 `cyber` 消费） |
 | `buildings[].category` | 3D 材质/边线颜色 + 图例色块 + 车库入口渲染分支（**静态**） |
-| `buildings[].name` | 楼顶常驻名称标签 + 切换器标签页 + 详情标题（**v1.5 动态：`getBuildings()`**） |
-| `buildings[]` 几何 | 占地底板（**静态**）；挤出高度 / 楼层拾取板 / 楼层虚线分隔 + 房间明度层次（v1.4 程序化，不进 spec）/ 详情视图楼层 —— 由动态 `floors`/`floor_ids` 驱动（**v1.5：`getBuildings()`**） |
-| `garage` 类别的楼栋 + `facing` | §5 半金字塔三角门入口 + P 标识牌（**静态**；占用数据 v1.5 走 `getPois()` 停车场 POI 的 `occupancy`） |
-| `legend` | 屏幕上的 Legend 叠加（Hdr → Legend）（**静态**） |
-| `switcher` | BuildingSwitcher 标签页骨架（全局视角 + 每栋非车库楼一个条目 + 地下车库）（**静态骨架**；标签 `name` v1.5 由 `getBuildings()` 水合） |
-| `pois` | §11 `buildPOIs` —— 类型化标记杆 + 图标 + tooltip/popup（悬停/点击）（**v1.5 动态：`getPois()`**） |
-| `environment.internalRoads` | §10 `buildInternalRoads` —— 园区内部环形/十字/井字道路 |
-| `environment.surfaceParking` | §10 `buildSurfaceParking` —— 长方形车位 + 每位印 P + ~30% 示意车辆（v1.4；`occupied` 控制放车数量） |
-| `environment.greenery` | §10 `buildGreenery` —— 草地色块 + 行道树（密度）+ 中央广场/水景 |
-| `environment.surrounding` | §10 `buildSurrounding` —— 四向市政道路 + 人行道 + 围墙 + 主闸机 |
-| `environment.ambiance` | §10 `buildAmbiance` —— 街灯（夜间 PointLight）+ 地面发光标线 + 车辆/行人 |
-| `cameraTour` | §13 `setTourEnabled` + `OrbitControls.autoRotate` —— 航拍巡航（auto-orbit 展示）；`generate_data.py` 写进 `ParkScaffold.cameraTour`（**静态**） |
+| `buildings[].name` | 楼顶常驻标签 + 切换器标签 + 详情标题（**动态：`getBuildings()`**） |
+| `buildings[]` 几何 | 占地底板（**静态**）；挤出高度/楼层拾取板/楼层虚线分隔由动态 `floors`/`floor_ids` 驱动（**`getBuildings()`**） |
+| `garage` 类别楼栋 + `facing` | 半金字塔三角门入口 + P 牌（**静态**；占用走 `getPois()` 停车场 POI 的 `occupancy`） |
+| `garages[]` | Y=0 之下透明玻璃柱坑体；多层按 `level` 堆叠；`generate_data.py` 写进 `ParkScaffold.garages`（**静态**，含 `capacity`/`occupied`） |
+| `legend` | 屏幕 Legend 叠加（**静态**） |
+| `switcher` | BuildingSwitcher 标签骨架（**静态**；标签 `name` 由 `getBuildings()` 水合） |
+| `pois` | 类型化标记杆 + 图标 + tooltip/popup（**动态：`getPois()`**） |
+| `environment.*` | 道路/车位/绿化/周边/氛围（§10，**静态**） |
+| `cameraTour` | 航拍巡航（**静态**，写进 `ParkScaffold.cameraTour`） |
+| `corridor` | 空中连廊（**静态**，写进 `ParkScaffold.corridor`） |
 
 ## 编辑规则
 
-- **绝不在生成器里硬编码园区内容。** 如果你发现自己在场景代码里写了“主楼”或 `10`，那它应该进 spec。
-- **颜色只有一个事实来源。** 园区颜色放在所选风格的 `assets/themes/<style>.tokens.json`（或用 `spec.tokens` 覆盖）。从中派生 SCSS 变量、CSS 自定义属性、Three.js `Color` 和着色器 uniform 颜色——不要散落 hex 字面量。
+- **绝不在生成器里硬编码园区内容。** 发现自己在场景代码里写了"主楼"或 `10`，那它应该进 spec。
+- **颜色只有一个事实来源。** 园区颜色放在所选风格的 `assets/themes/<style>.tokens.json`（或用 `spec.tokens` 覆盖）。不要散落 hex 字面量。
 - 编辑后运行 `python scripts/validate_spec.py <spec.json>`，生成前修掉每一个 `FAIL:`。

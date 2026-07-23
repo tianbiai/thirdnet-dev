@@ -24,6 +24,8 @@
     <PoiOverlay :project="projectPoi" />
     <!-- v2.2 航拍巡航开关（右上角；读/写 useTour，watch 推回 scene.setTourEnabled） -->
     <TourToggleButton class="global-twin__tour" />
+    <!-- v2.12 多风格实时切换器（左上角；读/写 useStyle，watch 推回 scene.setStyle） -->
+    <StyleSwitcher v-if="parkScaffold.previewStyles && parkScaffold.previewStyles.length > 1" class="global-twin__style" />
     <!-- WebGL context 丢失遮罩（shell.md 契约：显式遮罩 + 停渲染，恢复时重建） -->
     <div v-if="contextLost" class="twin-mask">
       <p>3D 上下文丢失，正在恢复…</p>
@@ -50,13 +52,15 @@
 import { onMounted, onBeforeUnmount, ref, watch } from 'vue'
 import { ParkScene } from '@/scene/ParkScene'
 import { parkScaffold } from '@/data/park'
-import type { StyleKey } from '@/utils/theme'
+import { applyCssVars, type StyleKey } from '@/utils/theme'
 import { digitalTwinApi } from '@/api/modules/manager/digital-twin'
 import { useSelection } from '@/composables/useSelection'
 import { useTwinData, errMsg } from '@/composables/useTwinData'
 import { useTour } from '@/composables/useTour'
+import { initStyle, useStyle } from '@/composables/useStyle'
 import PoiOverlay from './PoiOverlay.vue'
 import TourToggleButton from './TourToggleButton.vue'
+import StyleSwitcher from './StyleSwitcher.vue'
 
 const props = withDefaults(defineProps<{ title?: string }>(), { title: '园区' })
 
@@ -65,6 +69,11 @@ const contextLost = ref(false)
 const sel = useSelection()
 const twinData = useTwinData()
 const tour = useTour()
+const style = useStyle()
+
+// v2.12：初始化风格单例（来自 spec.style + spec.previewStyles）。必须在 setup 顶层（早于首帧渲染），
+// 让 StyleSwitcher 首帧即拿到正确 current/available（useTour/useSelection 默认值即合法，故无需 init）。
+initStyle(parkScaffold.style as StyleKey, parkScaffold.previewStyles)
 
 let scene: ParkScene | null = null
 let onContextLost: (() => void) | null = null
@@ -112,17 +121,26 @@ onMounted(async () => {
     onPoiOpen: (poiId) => (poiId ? sel.openPoi(poiId) : sel.closePoi()),
     onPoiHover: (poiId) => twinData.setHoverPoi(poiId), // POI 悬停名称条（§11 仅悬停契约）
     onTourAutoExit: () => tour.disable(), // v2.2 §13：巡航中用户拖拽 → 关按钮态（watch 会推 setTourEnabled(false)）
+    onGarageSelect: (id) => sel.selectGarage(id), // v2.6 §14：地下点击 → 选中/取消车库（null=仅清卡片，留地下视角）
     // ⛔ 不要 onFocus 回调——相机聚焦由下面 watch(focusedBuildingId) 驱动（§8 反面模式）
   })
   scene.setStyle(parkScaffold.style as StyleKey)
+  // per-park token 覆盖注入 --twin-* CSS 变量（theme.ts 契约；静态基础主题由 generate_theme.py 产出的 tokens.css 提供）
+  if (parkScaffold.tokens) applyCssVars(parkScaffold.tokens)
+
+  // v2.12：StyleSwitcher 切换 → 推回 scene.setStyle（单向，与 focusedBuildingId → focusBuilding 同模式）
+  watch(style.current, (s) => scene?.setStyle(s))
 
   // v2.2 航拍巡航：按钮态 → 场景（单向，与 focusedBuildingId → focusBuilding 同模式）
-  watch(() => tour.enabled.value, (on) => scene?.setTourEnabled(on))
+  watch(tour.enabled, (on) => scene?.setTourEnabled(on))
   // 首屏自动巡航（spec.cameraTour.enabled=true 时）：水合前即可开（取景只用静态几何）
   if (parkScaffold.cameraTour?.enabled) tour.enable()
 
+  // v2.6 地下视角：切换器「地下车库」标签写 belowView → scene.setBelowView（单向，与巡航/聚焦同模式）
+  watch(sel.belowView, (on) => scene?.setBelowView(on))
+
   // 相机聚焦：跟随 focusedBuildingId（切换器标签页 / 3D 楼层点击都会改它）
-  watch(() => sel.focusedBuildingId.value, (id) => scene?.focusBuilding(id))
+  watch(sel.focusedBuildingId, (id) => scene?.focusBuilding(id))
   // 金色高亮：跟随「有效楼层」eff = 悬停 ?? 已选（鼠标移开高亮保留在已选层）
   watch(
     () => [sel.effBuildingId.value, sel.effFloorIndex.value] as const,
@@ -174,6 +192,7 @@ onBeforeUnmount(() => {
 .global-twin { position: relative; width: 100%; height: 100%; }
 .twin-canvas { display: block; width: 100%; height: 100%; outline: none; }
 .global-twin__tour { position: absolute; top: 20px; right: 24px; z-index: 20; }
+.global-twin__style { position: absolute; top: 20px; left: 24px; z-index: 20; }
 
 .twin-mask {
   position: absolute; inset: 0; z-index: 30;

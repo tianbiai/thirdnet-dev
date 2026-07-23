@@ -36,6 +36,7 @@ import argparse
 import json
 import math
 import sys
+from functools import lru_cache
 from pathlib import Path
 
 try:
@@ -44,11 +45,24 @@ try:
 except ImportError:
     _HAVE_JSONSCHEMA = False
 
-VALID_CATEGORIES = {"building", "garage"}
-VALID_STYLES = {"cyber", "holographic", "isometric", "nebula"}
+KNOWN_CATEGORIES = {"building", "garage"}
+# v2.5：恢复 realistic / night-realistic 两写实风格（激活 envMap/GTAO/反射/软阴影/雾）。
+VALID_STYLES = {"cyber", "holographic", "isometric", "nebula", "realistic", "night-realistic"}
 VALID_ROAD_SHAPES = {"loop", "cross", "grid", "none"}
 VALID_TREE_DENSITY = {"sparse", "normal", "lush"}
 VALID_FACING = {"N", "S", "E", "W"}
+
+# v2.5 (B3): spec.tokens 覆盖收口——只允许改这几个语义路径（品牌色/类别色/发光/天空底色）。
+# 其余散落 hex 覆盖会漂移（AI 每次取色不同）。换肤优先改 spec.style 或给 generate_theme.py
+# --brand 一个品牌色（脚本按 HSL 派生整套协调配色），而非在 spec.tokens 里散落 hex。
+ALLOWED_TOKEN_OVERRIDE_PATHS = {
+    "palette.cyan", "palette.cyan-bright", "palette.cyan-dim",
+    "palette.magenta", "palette.magenta-bright", "palette.mint",
+    "ui.glowColor", "ui.glowStrength", "ui.panelOpacity",
+    "scene.bgTop", "scene.bgBottom",
+}
+# v2.7：开放类别枚举后，任意 category.<cat> 覆盖都允许（自定义类别 factory/warehouse… 靠此定色）。
+ALLOWED_TOKEN_PREFIXES = ("category.",)
 VALID_POI_TYPES = {
     "entrance", "exit", "camera", "gate", "service", "landmark", "parking", "custom"
 }
@@ -62,6 +76,7 @@ _THEME_DIR = Path(__file__).resolve().parent.parent / "assets" / "themes"
 _TOKENS_SCHEMA = Path(__file__).resolve().parent.parent / "assets" / "tokens.schema.json"
 
 
+@lru_cache(maxsize=None)
 def _validate_tokens_schema(style):
     """v2.0: validate the chosen theme token file against assets/tokens.schema.json.
 
@@ -94,7 +109,7 @@ def _validate_tokens_schema(style):
             return errs, warns
 
     # 降级：无 jsonschema 时手动检查关键块（v1.9 防黑屏 + v2.0 realism + v2.1 sky/environment/ui）。
-    for blk in ("scene", "lights", "environment", "realism", "ui"):
+    for blk in ("scene", "palette", "category", "building", "lights", "environment", "realism", "ui"):
         if blk not in data:
             errs.append(f"theme {style}: assets/themes/{style}.tokens.json 缺必需块 '{blk}'")
     sc = data.get("scene")
@@ -119,6 +134,7 @@ def _validate_tokens_schema(style):
     return errs, warns
 
 
+@lru_cache(maxsize=None)
 def _load_style_token_keys(style):
     """v1.8: load assets/themes/<style>.tokens.json (flattened one level) for
     cross-field checks (token override typos, legend color consistency). Returns
@@ -136,8 +152,8 @@ def _load_style_token_keys(style):
             for kk, vv in v.items():
                 flat[kk] = vv
                 if isinstance(vv, dict):  # e.g. poi.status
-                    for kkk in vv.keys():
-                        flat[kkk] = kkk
+                    for kkk, vvv in vv.items():
+                        flat[kkk] = vvv
     return flat
 
 
@@ -205,17 +221,20 @@ def validate(spec):
         if bid is not None:
             ids.add(bid)
         cat = b.get("category")
-        if cat is not None and cat not in VALID_CATEGORIES:
-            errors.append(f"{ctx}.category: '{cat}' not in {sorted(VALID_CATEGORIES)}")
+        if cat is not None and cat not in KNOWN_CATEGORIES:
+            warnings.append(
+                f"{ctx}.category: '{cat}' 为自定义类别——按挤出楼栋渲染，配色取 tokens.category.{cat}"
+                f"（缺省回退 category.building，可用 spec.tokens 的 category.{cat} 或 legend.color 定色）"
+            )
         # v1.8 (B1): `floors` is REQUIRED for non-garage buildings (positive number).
         # The legacy comment claimed this was enforced, but REQUIRED_BUILDING omitted it,
         # so a building-category entry without `floors` validated clean. Garage is exempt
         # (v1.3 renders it as a half-pyramid entrance marker, no floors).
-        if cat == "building":
+        if cat != "garage":
             if "floors" not in b or b["floors"] is None:
-                errors.append(f"{ctx}.floors: missing (required for category='building')")
+                errors.append(f"{ctx}.floors: missing (required unless category='garage')")
             elif not is_number(b["floors"]) or b["floors"] <= 0:
-                errors.append(f"{ctx}.floors: must be a positive number for category='building'")
+                errors.append(f"{ctx}.floors: must be a positive number (unless category='garage')")
         facing = b.get("facing")
         if facing is not None and facing not in VALID_FACING:
             errors.append(f"{ctx}.facing: '{facing}' not in {sorted(VALID_FACING)}")
@@ -229,13 +248,10 @@ def validate(spec):
         if is_number(b.get("z")) and abs(b["z"]) > DEFAULT_BOUND:
             warnings.append(f"{ctx}.z: {b['z']} outside ±{DEFAULT_BOUND} (check park boundary)")
 
-    # At most one garage building; if garage present in legend, exactly one expected.
-    garages = [b for b in buildings if isinstance(b, dict) and b.get("category") == "garage"]
-    if len(garages) > 1:
-        errors.append(f"buildings: {len(garages)} garage-category buildings; expected at most 1")
+    # v2.7：允许多个 category='garage' 地面入口标记（多入口物流园等场景）——renderer 通用遍历 buildings。
 
     # v2.1: 布局几何校验 —— 出界 FAIL + AABB 重叠/间距不足 FAIL。
-    # AI 摆坐标最常见的翻车就是楼栋穿出园区围墙或两栋穿模；这里在生成前直接 fail fast。
+    # AI 摆坐标最常见的翻车就是楼栋穿出园区边界或两栋穿模；这里在生成前直接 fail fast。
     # 规则：每栋楼（含车库入口标记）的 AABB 必须完整落在 boundary 内（默认 {x:360, z:220}）；
     # 任意两栋 AABB 之间净间距 ≥ MIN_BUILDING_GAP（道路/人行道最小宽度）。
     MIN_BUILDING_GAP = 20
@@ -254,20 +270,30 @@ def validate(spec):
         if abs(x) + hw > bnd_x or abs(z) + hd > bnd_z:
             errors.append(
                 f"buildings[{i}] ({label}): AABB 出界 — |x|+w/2={abs(x)+hw:.0f} vs boundary.x={bnd_x:.0f}, "
-                f"|z|+d/2={abs(z)+hd:.0f} vs boundary.z={bnd_z:.0f}（楼栋须完整落在园区围墙内）"
+                f"|z|+d/2={abs(z)+hd:.0f} vs boundary.z={bnd_z:.0f}（楼栋须完整落在园区边界内）"
             )
         boxes.append((i, label, x, z, hw, hd))
+    # v2.9: connects 白名单——声明物理连通的楼栋对（裙楼/连体楼）豁免 AABB 间距/重叠 FAIL，
+    # 允许贴合或微重叠（引擎不消费 connects，仅校验语义）。
+    connects_of = {}
+    for b in buildings:
+        if isinstance(b, dict):
+            bid, cl = b.get("id"), b.get("connects")
+            if bid and isinstance(cl, list):
+                connects_of[bid] = {str(t) for t in cl if isinstance(t, str)}
     for a in range(len(boxes)):
         for c in range(a + 1, len(boxes)):
             i, la, xa, za, hwa, hda = boxes[a]
             j, lb, xb, zb, hwb, hdb = boxes[c]
+            if lb in connects_of.get(la, set()) or la in connects_of.get(lb, set()):
+                continue  # 声明连通（任一方向）→ 豁免间距 FAIL
             gap_x = abs(xa - xb) - (hwa + hwb)
             gap_z = abs(za - zb) - (hda + hdb)
             if gap_x < MIN_BUILDING_GAP and gap_z < MIN_BUILDING_GAP:
                 errors.append(
                     f"buildings[{i}] ({la}) 与 buildings[{j}] ({lb}): AABB 间距不足/重叠 — "
                     f"净间距 x={gap_x:.0f}, z={gap_z:.0f}（要求两方向至少其一 ≥ {MIN_BUILDING_GAP}；"
-                    f"可运行 scripts/layout_park.py 自动重排）"
+                    f"若为裙楼/连体楼物理连通，用 buildings[].connects 声明豁免；或运行 scripts/layout_park.py 自动重排）"
                 )
 
     # v1.3: top-level `garage` (capacity/empty/occupied) is deprecated — the garage
@@ -280,10 +306,95 @@ def validate(spec):
             "remove the `garage` block."
         )
 
+    # v2.6 地下剖面坑体（garages[]，与 buildings[] 解耦）；v2.7 起 usage 区分用途。
+    # 校验：id 唯一、level ≤-1 整数、w/d/deck_y >0（v2.11 起 deck_y<140 另出偏浅 WARN——坑顶贴近 Y=0 易被地面遮挡）；usage='parking'(缺省) 另校验 cols/rows>0、0≤occupied≤capacity；rooms 字段数值。
+    # 坑体 AABB 不参与楼栋出界/重叠 FAIL（地下与楼上不同 Y，XZ 重叠合法；整园大坑正常），
+    # 仅 |x|+w/2 或 |z|+d/2 超 boundary 时 WARN（提示核对）。
+    garages = spec.get("garages", [])
+    if garages is not None:
+        if not isinstance(garages, list):
+            errors.append("garages: must be an array")
+            garages = []
+        garage_ids = set()
+        for i, g in enumerate(garages):
+            if not isinstance(g, dict):
+                errors.append(f"garages[{i}]: must be an object")
+                continue
+            gctx = f"garages[{i}]" + (f" ({g.get('id')})" if g.get("id") else "")
+            gid = g.get("id")
+            if not isinstance(gid, str) or not gid:
+                errors.append(f"{gctx}.id: missing or not a non-empty string")
+            elif gid in garage_ids:
+                errors.append(f"{gctx}.id: duplicate id '{gid}'")
+            else:
+                garage_ids.add(gid)
+            if not isinstance(g.get("name"), str) or not g.get("name"):
+                errors.append(f"{gctx}.name: missing or not a non-empty string")
+            lvl = g.get("level")
+            if not isinstance(lvl, int) or isinstance(lvl, bool) or lvl > -1:
+                errors.append(f"{gctx}.level: must be an integer ≤ -1 (got {lvl!r}; -1=B1, -2=B2)")
+            for key in ("x", "z"):
+                if key in g and g[key] is not None and not is_number(g[key]):
+                    errors.append(f"{gctx}.{key}: must be a number")
+            for key in ("w", "d", "deck_y"):
+                if not is_number(g.get(key)):
+                    errors.append(f"{gctx}.{key}: must be a number")
+                elif g[key] <= 0:
+                    errors.append(f"{gctx}.{key}: must be > 0")
+            # v2.10：偏浅 WARN（非 FAIL）；v2.11 阈值 <160→<140（随推荐默认 200→140 下调）——deck_y<140 时坑顶贴近 Y=0 地面，地上/斜视视角易被不透明地面遮挡
+            if is_number(g.get("deck_y")) and g["deck_y"] < 140:
+                warnings.append(
+                    f"{gctx}.deck_y: {g['deck_y']} 偏浅（< 140），地上/斜视视角易被 Y=0 地面遮挡，"
+                    f"建议加深至 ≥ 140（B1 典型 140；B2 取更深绝对值如 280 以保证多层单调）。"
+                )
+            usage = g.get("usage", "parking")
+            if usage == "parking":
+                # 车位网格 + 占用仅 parking 必填；非 parking（商场/地铁/人防/车间…）可省
+                for key in ("cols", "rows"):
+                    v = g.get(key)
+                    if not isinstance(v, int) or isinstance(v, bool) or v <= 0:
+                        errors.append(f"{gctx}.{key}: must be a positive integer")
+                cap = g.get("capacity")
+                occ = g.get("occupied")
+                if not is_number(cap) or cap < 0:
+                    errors.append(f"{gctx}.capacity: must be a number ≥ 0")
+                if not is_number(occ) or occ < 0:
+                    errors.append(f"{gctx}.occupied: must be a number ≥ 0")
+                elif is_number(cap) and occ > cap:
+                    errors.append(f"{gctx}.occupied: {occ} > capacity {cap}")
+            rooms = g.get("rooms")
+            if rooms is not None:
+                if not isinstance(rooms, list):
+                    errors.append(f"{gctx}.rooms: must be an array")
+                else:
+                    for ri, rm in enumerate(rooms):
+                        if not isinstance(rm, dict):
+                            errors.append(f"{gctx}.rooms[{ri}]: must be an object")
+                            continue
+                        if not isinstance(rm.get("name"), str) or not rm.get("name"):
+                            errors.append(f"{gctx}.rooms[{ri}].name: missing or not a non-empty string")
+                        for rk in ("x", "z", "w", "d"):
+                            rv = rm.get(rk)
+                            if not is_number(rv):
+                                errors.append(f"{gctx}.rooms[{ri}].{rk}: must be a number")
+                            elif rk in ("w", "d") and rv <= 0:
+                                errors.append(f"{gctx}.rooms[{ri}].{rk}: must be > 0")
+            # 坑体出界 WARN（非 FAIL——整园大坑可能贴边；地下与楼上不同 Y，不参与重叠 FAIL）
+            if all(is_number(g.get(k)) for k in ("x", "w", "z", "d")):
+                if abs(g["x"]) + g["w"] / 2 > bnd_x or abs(g["z"]) + g["d"] / 2 > bnd_z:
+                    warnings.append(
+                        f"{gctx}: 坑体 AABB 超出 boundary — |x|+w/2={abs(g['x'])+g['w']/2:.0f} vs {bnd_x:.0f}, "
+                        f"|z|+d/2={abs(g['z'])+g['d']/2:.0f} vs {bnd_z:.0f}（地下坑体可与楼上重叠，整园大坑正常；请核对是否预期）"
+                    )
+
     # v1.3: POIs (interest points). Optional; absent = generate none.
     building_ids = {
         b.get("id") for b in buildings
         if isinstance(b, dict) and b.get("id") is not None
+    }
+    garage_ids = {
+        g.get("id") for g in (spec.get("garages") or [])
+        if isinstance(g, dict) and g.get("id") is not None
     }
     pois = spec.get("pois", [])
     if pois is not None:
@@ -306,8 +417,8 @@ def validate(spec):
                 poi_ids.add(pid)
             ptype = p.get("type")
             if ptype is not None and ptype not in VALID_POI_TYPES:
-                errors.append(
-                    f"{pctx}.type: '{ptype}' not in {sorted(VALID_POI_TYPES)}"
+                warnings.append(
+                    f"{pctx}.type: '{ptype}' 为自定义类型——以通用圆点标记渲染，名称走 label/tooltip"
                 )
             if "label" in p and p["label"] is not None and not str(p["label"]).strip():
                 errors.append(f"{pctx}.label: must be a non-empty string")
@@ -318,7 +429,7 @@ def validate(spec):
                 if is_number(p.get(key)) and abs(p[key]) > DEFAULT_BOUND:
                     warnings.append(f"{pctx}.{key}: {p[key]} outside ±{DEFAULT_BOUND} (check park boundary)")
             # v2.1: POI 相对园区边界的定位校验 —— 明显越界（> boundary+20 容差）FAIL；
-            # 贴边（越界 ≤20）仅 WARN（大门/闸机类 POI 贴在围墙边缘属正常）。
+            # 贴边（越界 ≤20）仅 WARN（大门/闸机类 POI 贴在边界边缘属正常）。
             for key, bv in (("x", bnd_x), ("z", bnd_z)):
                 if is_number(p.get(key)) and abs(p[key]) > bv + 20:
                     errors.append(
@@ -333,9 +444,14 @@ def validate(spec):
                 errors.append(
                     f"{pctx}.buildingId: '{bid}' does not match any buildings[].id"
                 )
+            gid = p.get("garageId")
+            if gid is not None and gid not in garage_ids:
+                errors.append(
+                    f"{pctx}.garageId: '{gid}' does not match any garages[].id"
+                )
             fi = p.get("floorIndex")
-            if fi is not None and (not isinstance(fi, int) or isinstance(fi, bool) or fi < 0):
-                errors.append(f"{pctx}.floorIndex: must be a non-negative integer")
+            if fi is not None and (not isinstance(fi, int) or isinstance(fi, bool)):
+                errors.append(f"{pctx}.floorIndex: must be an integer (negative = basement: -1=B1, -2=B2)")
             tt = p.get("tooltip")
             if tt is not None and not isinstance(tt, dict):
                 errors.append(f"{pctx}.tooltip: must be an object")
@@ -360,6 +476,31 @@ def validate(spec):
                     f"tokens: override keys not found in assets/themes/{style}.tokens.json "
                     f"(likely typos, will be ignored): {sorted(unknown)}"
                 )
+        # v2.5 (B3): 覆盖收口——深展开 spec.tokens，只允许 ALLOWED_TOKEN_OVERRIDE_PATHS 内的
+        # 叶子路径。超出即 WARN（散落 hex 易漂移；换肤请改 spec.style 或 generate_theme.py --brand）。
+        leaves = []
+
+        def _deep_leaves(node, prefix):
+            if not isinstance(node, dict):
+                if prefix:
+                    leaves.append(prefix)
+                return
+            for k, v in node.items():
+                if k.startswith("_"):
+                    continue
+                _deep_leaves(v, f"{prefix}.{k}" if prefix else k)
+
+        _deep_leaves(tokens, "")
+        off_allowlist = [
+            p for p in leaves
+            if p not in ALLOWED_TOKEN_OVERRIDE_PATHS
+            and not any(p.startswith(prefix) for prefix in ALLOWED_TOKEN_PREFIXES)
+        ]
+        if off_allowlist:
+            warnings.append(
+                f"tokens: 覆盖路径超出收口白名单（换肤优先改 spec.style 或 generate_theme.py "
+                f"--brand）：{sorted(off_allowlist)}"
+            )
 
     # v1.8 (B2): legend cross-field checks — category ∈ known set; color matches token category.
     legend = spec.get("legend")
@@ -374,8 +515,7 @@ def validate(spec):
                     errors.append(f"legend[{i}]: must be an object {{label, category, color}}")
                     continue
                 lcat = e.get("category")
-                if lcat is not None and lcat not in VALID_CATEGORIES:
-                    errors.append(f"legend[{i}].category: '{lcat}' not in {sorted(VALID_CATEGORIES)}")
+                # v2.7：legend.category 开放（与 buildings.category 同步）——任意自定义类别允许。
                 if lcat and isinstance(cat_colors, dict) and lcat in cat_colors:
                     if e.get("color") and e["color"].lower() != str(cat_colors[lcat]).lower():
                         warnings.append(
@@ -412,7 +552,7 @@ def validate(spec):
         warnings.append(
             "environment: missing — the generator will use smart defaults "
             "(internal loop road + surface parking by building scale + normal greenery + "
-            "surrounding roads/wall/gate + street lamps). Ask the user about parking/greenery/"
+            "surrounding roads/gate + street lamps). Ask the user about parking/greenery/"
             "surrounding roads to capture real conditions; see references/intake.md."
         )
     elif isinstance(env, dict):
@@ -442,6 +582,19 @@ def validate(spec):
                         )
                 elif is_number(sp.get("stalls")) and sp["stalls"] <= 0:
                     errors.append("environment.surfaceParking.stalls: must be > 0")
+
+                # v2.12：车位密度提示。density = stalls × 6×12 / (boundary.x × boundary.z × 4)
+                # 边界 ±x ±z，总面积 4 倍单象限。每车位约 6×12=72 世界单位。
+                # > 20% 触发 WARN（建议扩大 boundary 或拆 multi-lot）。
+                if is_number(sp.get("stalls")) and _bnd is not None:
+                    bx = _bnd.get("x", 360); bz = _bnd.get("z", 220)
+                    if bx > 0 and bz > 0:
+                        density = (sp["stalls"] * 72) / (bx * bz * 4)
+                        if density > 0.20:
+                            warnings.append(
+                                f"environment.surfaceParking: 车位密度 {density*100:.1f}% "
+                                f"> 20% (boundary {bx}×{bz} 较紧)；考虑扩 boundary 或拆 multi-lot"
+                            )
 
         gr = env.get("greenery")
         if gr is not None:
@@ -498,6 +651,20 @@ def validate(spec):
                     errors.append(
                         f"cameraTour.elevation: must be a number in [0, {math.pi / 2:.4f}] (rad, above-horizon)"
                     )
+
+    # v2.8+: corridor 跨层连廊（可选）—— floorEnd 语义校验（须为 ≥ floor 的整数）。
+    co = spec.get("corridor")
+    if co is not None:
+        if not isinstance(co, dict):
+            errors.append("corridor: must be an object or omitted")
+        else:
+            fl = co.get("floor", 1)
+            fe = co.get("floorEnd")
+            if fe is not None:
+                if isinstance(fe, bool) or not is_number(fe) or int(fe) != fe:
+                    errors.append("corridor.floorEnd: must be an integer >= 1")
+                elif is_number(fl) and not isinstance(fl, bool) and fe < fl:
+                    errors.append(f"corridor.floorEnd: must be >= floor ({fl})")
 
     return errors, warnings
 

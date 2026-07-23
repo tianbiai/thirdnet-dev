@@ -1,0 +1,46 @@
+{
+  "title": "临港智造园 数字孪生驾驶舱",
+  "style": "realistic",
+  "floorHeight": 24,
+  "boundary": { "x": 360, "z": 220 },
+  "tokens": {
+    "category": { "factory": "#5b8def", "warehouse": "#f0a040" }
+  },
+  "buildings": [
+    { "id": "workshop-a", "name": "一号厂房", "category": "factory", "w": 120, "d": 80, "floors": 2, "x": -120, "z": -40 },
+    { "id": "workshop-b", "name": "二号厂房", "category": "factory", "w": 120, "d": 80, "floors": 2, "x": 120, "z": -40 },
+    { "id": "warehouse",  "name": "智能仓库", "category": "warehouse", "w": 140, "d": 90, "floors": 1, "x": 0, "z": 90 },
+    { "id": "office",     "name": "研发办公楼", "category": "office", "w": 60, "d": 50, "floors": 6, "x": -200, "z": 120 },
+    { "id": "gate-east",  "name": "东门", "category": "garage", "w": 40, "d": 30, "x": 240, "z": 60 },
+    { "id": "gate-west",  "name": "西门", "category": "garage", "w": 40, "d": 30, "x": -240, "z": 60 }
+  ],
+  "legend": [
+    { "label": "厂房", "category": "factory", "color": "#5b8def" },
+    { "label": "仓库", "category": "warehouse", "color": "#f0a040" },
+    { "label": "研发办公", "category": "office", "color": "" },
+    { "label": "出入口", "category": "garage", "color": "" }
+  ],
+  "pois": [
+    { "id": "dock-1", "type": "loading-dock", "label": "装卸月台A", "x": 60, "z": 135 },
+    { "id": "crane-1", "type": "crane", "label": "龙门吊", "x": -60, "z": -10 },
+    { "id": "ev-1", "type": "ev-charger", "label": "充电桩区", "x": 200, "z": 100 },
+    { "id": "cam-gate", "type": "camera", "label": "东门监控", "x": 230, "z": 60 }
+  ],
+  "garages": [
+    { "id": "ug-b1", "name": "地下车库 B1", "level": -1, "x": 0, "z": 0, "w": 300, "d": 180, "deck_y": 140, "cols": 20, "rows": 12, "capacity": 240, "occupied": 60 }
+  ],
+  "environment": { "internalRoads": "loop" },
+  "unitTemplate": {
+    "fields": [
+      { "key": "tenant", "label": "入驻企业" },
+      { "key": "line", "label": "产线", "unit": "条" },
+      { "key": "capacity", "label": "设计产能", "unit": "吨/月" },
+      { "key": "contact", "label": "联系人" },
+      { "key": "phone", "label": "联系电话" }
+    ],
+    "tenants": [
+      { "label": "机械制造", "names": ["中机精工", "宏远装备", "锐达重工"], "scope": "精密机械加工", "duty": "厂房生产运营" },
+      { "label": "新材料", "names": ["星河新材", "聚能复合"], "scope": "复合材料研发生产", "duty": "产线研发与量产" }
+    ]
+  }
+}

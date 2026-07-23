@@ -46,6 +46,71 @@ def _kebab(key: str) -> str:
     return re.sub(r"(?<!^)(?=[A-Z])", "-", key).lower()
 
 
+# v2.5 (B3)：单品牌色 → 协调强调色族（HSL 派生）。收口 spec.tokens 散落 hex 漂移——
+# 换肤只需给一个品牌色，脚本派生整套，2D/3D 都吃这套色。
+def _hex_to_rgb(h: str):
+    h = h.lstrip('#')
+    return tuple(int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
+
+
+def _rgb_to_hsl(r, g, b):
+    mx, mn = max(r, g, b), min(r, g, b)
+    l = (mx + mn) / 2
+    if mx == mn:
+        return (0.0, 0.0, l)
+    d = mx - mn
+    s = d / (2 - mx - mn) if l > 0.5 else d / (mx + mn)
+    if mx == r:
+        h = ((g - b) / d) % 6
+    elif mx == g:
+        h = (b - r) / d + 2
+    else:
+        h = (r - g) / d + 4
+    return (h * 60, s, l)
+
+
+def _hsl_to_hex(h, s, l):
+    c = (1 - abs(2 * l - 1)) * s
+    hp = (h % 360) / 60
+    x = c * (1 - abs(hp % 2 - 1))
+    if hp < 1:
+        r1, g1, b1 = c, x, 0
+    elif hp < 2:
+        r1, g1, b1 = x, c, 0
+    elif hp < 3:
+        r1, g1, b1 = 0, c, x
+    elif hp < 4:
+        r1, g1, b1 = 0, x, c
+    elif hp < 5:
+        r1, g1, b1 = x, 0, c
+    else:
+        r1, g1, b1 = c, 0, x
+    m = l - c / 2
+    return '#' + ''.join(f'{round(max(0, min(1, v)) * 255):02x}' for v in (r1 + m, g1 + m, b1 + m))
+
+
+def _apply_brand(tokens: dict, brand_hex: str) -> dict:
+    """从单一品牌色按 HSL 派生强调色族（cyan 族 + blue/bright-cyan/panel-stroke + ui.glowColor）。
+    中性色（文字/底色）不动以保证可读性。非法色则原样返回。"""
+    try:
+        r, g, b = _hex_to_rgb(brand_hex)
+        h, s, l = _rgb_to_hsl(r, g, b)
+    except Exception:
+        print(f"warn: --brand '{brand_hex}' 非合法 #rrggbb，跳过品牌派生", file=sys.stderr)
+        return tokens
+    pal = tokens.setdefault('palette', {})
+    pal['cyan'] = brand_hex
+    pal['cyan-bright'] = _hsl_to_hex(h, s, min(0.85, l + 0.12))
+    pal['cyan-dim'] = _hsl_to_hex(h, s * 0.6, max(0.2, l - 0.15))
+    acc = tokens.setdefault('accents', {})
+    acc['blue'] = brand_hex
+    acc['bright-cyan'] = pal['cyan-bright']
+    acc['panel-stroke'] = brand_hex
+    ui = tokens.setdefault('ui', {})
+    ui['glowColor'] = brand_hex
+    return tokens
+
+
 def _flatten(node, path, out):
     """递归展平 token 树到 [(css_var_name, value)]。跳过注释键 / null / 布尔。"""
     if not isinstance(node, dict):
@@ -59,7 +124,7 @@ def _flatten(node, path, out):
         elif isinstance(v, (int, float)):
             name = "--twin-" + "-".join(_kebab(x) for x in p)
             top2 = (p[0], p[-1])
-            if top2 in _PX_KEYS or (p[0] == "ui" and p[-1] in {"panelBlur", "panelRadius", "borderWidth"}):
+            if top2 in _PX_KEYS:
                 out.append((name, f"{v}px"))
             else:
                 out.append((name, f"{v:g}"))
@@ -81,10 +146,12 @@ def render(tokens: dict, style: str) -> str:
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="从主题 token JSON 确定性生成 tokens.css（--twin-* CSS 变量）。")
-    p.add_argument("style", nargs="?", help="风格名（cyber/holographic/isometric/nebula）")
+    p.add_argument("style", nargs="?", help="风格名（cyber/holographic/isometric/nebula/realistic/night-realistic）")
     p.add_argument("--tokens", help="直接指定 token JSON 路径（优先于 style）")
     p.add_argument("--out", default="src/styles/tokens.css", help="输出路径（默认 src/styles/tokens.css；Windows 上务必写文件不要 --stdout）")
     p.add_argument("--check", metavar="EXISTING", help="校验已有 tokens.css 是否与当前 token 一致（不一致退出码 1）")
+    p.add_argument("--brand", metavar="HEX", help="v2.5 品牌色 #rrggbb——按 HSL 派生协调强调色族（收口散落 hex 漂移）；配合 --save-json 写回派生 token 驱动 3D")
+    p.add_argument("--save-json", metavar="PATH", help="v2.5 把（含 --brand 派生的）token JSON 写到此路径，供 theme.ts 导入驱动 3D 侧")
     args = p.parse_args(argv)
 
     if args.tokens:
@@ -107,6 +174,15 @@ def main(argv=None) -> int:
     except json.JSONDecodeError as e:
         print(f"error: token JSON 解析失败: {e}", file=sys.stderr)
         return 2
+
+    # v2.5：单品牌色派生（收口散落 hex）。--save-json 把派生 token 写回，供 theme.ts 驱动 3D。
+    if args.brand:
+        tokens = _apply_brand(tokens, args.brand)
+        if args.save_json:
+            save_path = Path(args.save_json)
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+            save_path.write_text(json.dumps(tokens, ensure_ascii=False, indent=2), encoding="utf-8")
+            print(f"OK: 品牌派生 token 已写入 {save_path}（驱动 3D 侧）", file=sys.stderr)
 
     css = render(tokens, style)
 

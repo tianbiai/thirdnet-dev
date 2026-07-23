@@ -31,10 +31,15 @@ const floorDetailLoading = ref(false)
 const floorDetailError = ref<string | null>(null)
 
 const buildingCount = computed(() => buildings.value.length)
-const buildingName = computed(() => (id: string) =>
-  buildings.value.find((b) => b.building_id === id)?.name ?? id)
-const poiById = computed(() => (id: string | null) =>
-  id == null ? undefined : pois.value.find((p) => p.poi_id === id))
+
+/** 楼幢名查询——直接访问 buildings.value（响应式：在 computed / 模板内调用即跟踪 buildings）。 */
+export function buildingName(id: string): string {
+  return buildings.value.find((b) => b.building_id === id)?.name ?? id
+}
+/** POI 按 id 查询——直接访问 pois.value（响应式：在 computed / 模板内调用即跟踪 pois）。 */
+export function poiById(id: string | null): PoiRuntimeItem | undefined {
+  return id == null ? undefined : pois.value.find((p) => p.poi_id === id)
+}
 
 function setBuildings(items: BuildingRuntimeItem[]) { buildings.value = items }
 function setPois(items: PoiRuntimeItem[]) { pois.value = items }
@@ -46,8 +51,8 @@ export function useTwinData() {
     buildings, pois, floorDetail, hoverPoiId,
     hydrating, buildingsError, poisError,
     floorDetailLoading, floorDetailError,
-    buildingCount, buildingName, poiById,
+    buildingCount,
     setBuildings, setPois, setFloorDetail, setHoverPoi,
-    errMsg,
+    // errMsg / buildingName / poiById 作为命名导出消费（不挂返回对象，避免 computed 返回函数的反模式）。
   }
 }

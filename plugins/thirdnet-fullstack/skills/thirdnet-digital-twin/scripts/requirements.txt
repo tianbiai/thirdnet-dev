@@ -1,0 +1,5 @@
+# thirdnet-digital-twin 脚本可选依赖。
+# validate_spec.py 在导入 jsonschema 时启用 assets/tokens.schema.json 的全量结构校验；
+# 缺失时自动降级为手工键检查（仍可用，但跳过若干 required-token-block 校验）。
+# 安装：pip install -r scripts/requirements.txt
+jsonschema>=4

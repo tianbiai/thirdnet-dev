@@ -51,6 +51,18 @@
     "building": "#5b8def",
     "garage": "#48c78a"
   },
+  "underground": {
+    "_comment": "v2.6 地下场景配色（§14）。等距插画：扁平去饱和色（flatShading cel 气质），不靠强自发光。底板更不透明（0.6）呈扁平铺装、墙用柔和蓝玻璃、边界/功能间用插画友好绿/琥珀。",
+    "deck": "#3a4660",
+    "deckEmissive": "#3a4660",
+    "deckOpacity": 0.6,
+    "wall": "#5b8def",
+    "wallOpacity": 0.22,
+    "edge": "#48c78a",
+    "room": "#f59e0b",
+    "spot": "#eef2f8",
+    "ramp": "#44526a"
+  },
   "building": {
     "_comment": "v1.4/v1.7 楼栋楼层/贴砖层次（§4.1）。等距插画：roomShade 较大强化 cel 阶梯、相邻贴砖两色交替；dividerColor 用深海军蓝贴砖竖实线 + 楼层横向虚线（在彩色面上可读）。",
     "roomShade": 0.18,
@@ -75,7 +87,7 @@
     "texture": { "type": "grid", "base": "#f0e8d6", "line": "#e0d8c4", "cell": 64 }
   },
   "shaders": {
-    "_comment": "Not used by the isometric style — flatShading + warm directional light carry the cel/illustration look. Generator skips grid.glsl.",
+    "_comment": "Not used by the isometric style — flatShading + warm directional light carry the cel/illustration look. Generator skips the grid shader.",
     "grid": null
   },
   "environment": {
@@ -88,7 +100,6 @@
     "grass": "#8fd17a",
     "treeTrunk": "#a9744f",
     "treeCanopy": "#5fbf5f",
-    "wall": "#d8cfbe",
     "lampGlow": "#ffe8a8",
     "vehicle": "#6a8dbf",
     "roadMarking": "#fff8e8",

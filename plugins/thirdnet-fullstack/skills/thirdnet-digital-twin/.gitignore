@@ -1,0 +1,3 @@
+# Python bytecode / caches (scripts are source — never track compiled output)
+__pycache__/
+*.py[cod]

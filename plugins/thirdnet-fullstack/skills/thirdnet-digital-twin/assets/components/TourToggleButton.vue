@@ -24,11 +24,21 @@
 </template>
 
 <script setup lang="ts">
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useTour } from '@/composables/useTour'
 
 const tour = useTour()
 // reduced-motion：autoRotate 是连续运动，整按钮禁用（与 §8 tween/呼吸动画同纪律）。
-const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+// 在 onMounted 里读取并监听变化（顶层直接读 window 在 SSR 下会炸；本技能虽纯 CSR，仍按生命周期规范走）。
+const reducedMotion = ref(false)
+let mql: MediaQueryList | null = null
+const onMqlChange = () => { reducedMotion.value = mql?.matches ?? false }
+onMounted(() => {
+  mql = window.matchMedia('(prefers-reduced-motion: reduce)')
+  reducedMotion.value = mql.matches
+  mql.addEventListener('change', onMqlChange)
+})
+onBeforeUnmount(() => mql?.removeEventListener('change', onMqlChange))
 </script>
 
 <style scoped>

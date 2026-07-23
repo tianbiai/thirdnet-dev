@@ -1,0 +1,26 @@
+{
+  "title": "地下空间泛化 测试夹具",
+  "style": "night-realistic",
+  "floorHeight": 24,
+  "boundary": { "x": 360, "z": 220 },
+  "buildings": [
+    { "id": "tower", "name": "主塔", "category": "building", "w": 100, "d": 70, "floors": 6, "x": -40, "z": -50 },
+    { "id": "wing", "name": "裙楼", "category": "building", "w": 90, "d": 60, "floors": 3, "x": 150, "z": 50 }
+  ],
+  "pois": [
+    { "id": "cam-b1", "type": "camera", "label": "B1 监控", "x": 20, "z": 20, "y": -100, "floorIndex": -1, "buildingId": "tower" },
+    { "id": "anchor", "type": "custom", "label": "主力店", "x": 130, "z": 0, "y": -100, "floorIndex": -1, "garageId": "ug-mall" }
+  ],
+  "garages": [
+    { "id": "ug-park", "name": "地下车库 B1", "level": -1, "x": -120, "z": 0, "w": 200, "d": 150, "deck_y": 140, "cols": 16, "rows": 10, "capacity": 160, "occupied": 48 },
+    { "id": "ug-mall", "name": "地下商场 B1", "usage": "mall", "level": -1, "x": 130, "z": 0, "w": 200, "d": 150, "deck_y": 140, "rooms": [
+      { "name": "服饰区", "x": -70, "z": -40, "w": 90, "d": 50 },
+      { "name": "餐饮区", "x": 70, "z": 40, "w": 90, "d": 50 },
+      { "name": "中庭", "x": 0, "z": 0, "w": 60, "d": 60 }
+    ] },
+    { "id": "ug-subway", "name": "地铁通道 B2", "usage": "subway", "level": -2, "x": 0, "z": 0, "w": 320, "d": 60, "deck_y": 320, "rooms": [
+      { "name": "站厅", "x": -100, "z": 0, "w": 80, "d": 40 },
+      { "name": "站台", "x": 100, "z": 0, "w": 100, "d": 40 }
+    ] }
+  ]
+}

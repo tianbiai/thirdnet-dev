@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://thirdnet/skills/thirdnet-digital-twin/spec.schema.json",
   "title": "Park Spec",
-  "description": "v1.9 — 园区数字孪生规格说明 schema。与 references/park-spec.md 对齐；scripts/validate_spec.py 在 jsonschema 结构校验之上再叠加业务规则（garage 至多一栋、legend category ∈ 已知集、POI 坐标范围、v1.9 主题防黑屏块完整性等）。v1.9 新增的 scene/ground/ambientFloor 块位于各 assets/themes/*.tokens.json（事实来源），spec.tokens 仅支持标量覆盖。IDE 可用 '$schema' 指向本文件做自动补全。",
+  "description": "v2.7 — 园区数字孪生规格说明 schema。与 references/park-spec.md 对齐；scripts/validate_spec.py 在 jsonschema 结构校验之上再叠加业务规则（楼栋出界/重叠/POI 越界 FAIL、spec.tokens 覆盖白名单 WARN 等）。各 assets/themes/*.tokens.json 是配色/主题的事实来源（spec.tokens 仅支持标量覆盖）。IDE 可用 '$schema' 指向本文件做自动补全。",
   "type": "object",
   "required": ["title", "buildings"],
   "additionalProperties": false,
@@ -10,7 +10,7 @@
     "title": { "type": "string", "minLength": 1 },
     "style": {
       "type": "string",
-      "enum": ["cyber", "holographic", "isometric", "nebula"]
+      "enum": ["cyber", "holographic", "isometric", "nebula", "realistic", "night-realistic"]
     },
     "stage": {
       "type": "object",
@@ -87,10 +87,60 @@
       "type": "array",
       "items": { "$ref": "#/$defs/poi" }
     },
-    "cameraTour": { "$ref": "#/$defs/cameraTour" }
+    "garages": {
+      "type": "array",
+      "description": "v2.6 地下场景（地下车库多层剖面）。每个条目=一个负层坑体（level=-1 为 B1，-2 为 B2…），渲染为 Y=0 之下的透明玻璃柱（地面不开洞，从侧面透视内部）。与 buildings[] 解耦，可整园范围。详见 references/park-spec.md「地下车库」。",
+      "items": { "$ref": "#/$defs/garage" }
+    },
+    "cameraTour": { "$ref": "#/$defs/cameraTour" },
+    "unitTemplate": { "$ref": "#/$defs/unitTemplate", "description": "v2.7 楼层单位详情的字段模板 + 租户池（缺省=办公默认）。详见 $defs/unitTemplate。" },
+    "corridor": { "$ref": "#/$defs/corridor", "description": "v2.8 楼栋间空中连廊（可选）。详见 $defs/corridor 与 references/park-spec.md「连廊」。" },
+    "previewStyles": {
+      "type": "array",
+      "description": "v2.12 多风格预览清单。提供则 UI 端可实时切换风格（无需重新加载）；风格取自 Style 枚举。缺省 = 仅 spec.style 一套。配合 useStyle 单例与 StyleSwitcher.vue 使用。",
+      "items": { "type": "string", "enum": ["cyber", "holographic", "isometric", "nebula", "realistic", "night-realistic"] }
+    }
   },
   "$defs": {
-    "category": { "type": "string", "enum": ["building", "garage"] },
+    "category": { "type": "string", "minLength": 1, "description": "楼栋类别（驱动图例色 + 渲染语义）。building=挤出楼栋（需 floors）；garage=地面入口三角门标记（免 floors）；任意自定义串（factory/warehouse/residential/office…）按挤出楼栋渲染，配色取 tokens.category.<cat>（缺省回退 category.building，可用 spec.tokens 的 category.<cat> 或 legend.color 定色）。" },
+    "garage": {
+      "type": "object",
+      "description": "v2.6 地下负层坑体；v2.7 起 usage 区分用途（默认 'parking'）。level 为负整数（-1=B1, -2=B2），决定渲染深度与多层堆叠；deck_y 为该层底板距地面深度（正数，渲染时取负）。与 buildings[] 解耦，可整园范围（XZ 可与楼上楼栋重叠，不同 Y）。usage='parking'（缺省）需 cols/rows/capacity/occupied、渲染车位网格+车辆+GarageCard 占用；其它 usage（mall/subway/shelter/workshop/custom…）跳过车位网格，渲染为带功能房间的玻璃坑体 + usage 标签。",
+      "required": ["id", "name", "level", "x", "z", "w", "d", "deck_y"],
+      "additionalProperties": true,
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "level": { "type": "integer", "maximum": -1, "description": "负整数：-1=B1, -2=B2…" },
+        "x": { "type": "number" },
+        "z": { "type": "number" },
+        "w": { "type": "number", "exclusiveMinimum": 0 },
+        "d": { "type": "number", "exclusiveMinimum": 0 },
+        "deck_y": { "type": "number", "exclusiveMinimum": 0, "description": "该层底板距地面深度（正数）" },
+        "usage": { "type": "string", "description": "地下用途：'parking'（缺省，车位网格+占用）/ 'mall'（地下商场）/ 'subway'（地铁通道）/ 'shelter'（人防工程）/ 'workshop'（地下车间）/ 'custom' / 任意串。非 parking 时 cols/rows/capacity/occupied 可省，渲染为带功能房间的玻璃坑体 + usage 标签。" },
+        "cols": { "type": "integer", "exclusiveMinimum": 0, "description": "车位网格采样列数（仅 parking 用；非 parking 可省）" },
+        "rows": { "type": "integer", "exclusiveMinimum": 0, "description": "车位网格采样行数（仅 parking 用；非 parking 可省）" },
+        "capacity": { "type": "integer", "minimum": 0 },
+        "occupied": { "type": "integer", "minimum": 0, "description": "已占用（须 ≤ capacity，由 validate_spec.py 跨字段校验）" },
+        "rooms": {
+          "type": "array",
+          "description": "功能房间（配电/消防/通风…）。缺省=内置 8 间沿边界内侧分布。",
+          "items": {
+            "type": "object",
+            "required": ["name", "x", "z", "w", "d"],
+            "additionalProperties": true,
+            "properties": {
+              "name": { "type": "string" },
+              "x": { "type": "number" },
+              "z": { "type": "number" },
+              "w": { "type": "number", "exclusiveMinimum": 0 },
+              "d": { "type": "number", "exclusiveMinimum": 0 }
+            }
+          }
+        },
+        "facing": { "type": "string", "enum": ["N", "S", "E", "W"] }
+      }
+    },
     "building": {
       "type": "object",
       "required": ["id", "name", "category", "w", "d", "x", "z"],
@@ -101,11 +151,16 @@
         "category": { "$ref": "#/$defs/category" },
         "w": { "type": "number", "exclusiveMinimum": 0 },
         "d": { "type": "number", "exclusiveMinimum": 0 },
-        "floors": { "type": "number", "exclusiveMinimum": 0 },
+        "floors": { "type": "integer", "exclusiveMinimum": 0 },
         "x": { "type": "number" },
         "z": { "type": "number" },
         "facing": { "type": "string", "enum": ["N", "S", "E", "W"] },
-        "header": { "type": "string" }
+        "header": { "type": "string" },
+        "connects": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "v2.9 声明与其它楼栋（id 列表）物理连通（裙楼/连体楼）。声明对在 validate_spec.py 的 AABB 间距/重叠 FAIL 中豁免（允许贴合或微重叠）；引擎不消费，仅校验语义。"
+        }
       }
     },
     "legendEntry": {
@@ -124,13 +179,14 @@
       "additionalProperties": true,
       "properties": {
         "id": { "type": "string", "minLength": 1 },
-        "type": { "type": "string", "enum": ["entrance", "exit", "camera", "gate", "service", "landmark", "parking", "custom"] },
+        "type": { "type": "string", "minLength": 1, "description": "POI 类型（驱动图标/颜色）。已知 8 类 entrance/exit/camera/gate/service/landmark/parking/custom 各有专属图标；任意自定义串（loading-dock/crane/ev-charger…）以通用圆点标记渲染，名称走 poi.label/tooltip。" },
         "label": { "type": "string", "minLength": 1 },
         "x": { "type": "number" },
         "z": { "type": "number" },
         "y": { "type": "number" },
         "buildingId": { "type": "string" },
-        "floorIndex": { "type": "integer", "minimum": 0 },
+        "garageId": { "type": "string", "description": "可选：绑定到 garages[].id（地下点位关联到具体地下坑体，如 B1 商场的某商铺/某层监控）。v2.7。" },
+        "floorIndex": { "type": "integer", "description": "室内点位楼层：0=地面层、正值=地上（从 0 起）、负值=地下（-1=B1, -2=B2）。v2.7 起允许负值（标注地下楼层设施）。" },
         "tooltip": {
           "type": "object",
           "additionalProperties": false,
@@ -138,6 +194,17 @@
             "title": { "type": "string" },
             "description": { "type": "string" },
             "meta": { "type": "object", "additionalProperties": { "type": "string" } }
+          }
+        },
+        "roomSpec": {
+          "type": "object",
+          "description": "v2.12 功能房间结构化字段（替代/补充 tooltip.meta）。用于政务/功能房间等非标准 POI 类型，提供结构化的「面积/容纳/隶属部门」等字段，由 PoiOverlay 优先渲染。缺省 = 仅渲染 tooltip。",
+          "additionalProperties": false,
+          "properties": {
+            "area": { "type": ["string", "number"], "description": "房间面积（带单位字符串如 '49.8㎡'，或纯数字平方米）" },
+            "capacity": { "type": ["string", "integer"], "description": "容纳人数（数字=人；字符串可带单位如 '5人'）" },
+            "dept": { "type": "string", "description": "隶属部门/机构名（中文，如 '党团办/武装部'）" },
+            "duty": { "type": "string", "description": "职责/业务范围简述" }
           }
         }
       }
@@ -176,7 +243,6 @@
           "properties": {
             "roads": { "type": "boolean" },
             "sidewalk": { "type": "boolean" },
-            "wall": { "type": "boolean" },
             "gate": { "type": "boolean" }
           }
         },
@@ -198,9 +264,76 @@
       "properties": {
         "enabled": { "type": "boolean", "description": "首屏自动开启巡航（默认 false——用户点 TourToggleButton 触发）" },
         "speed": { "type": "number", "exclusiveMinimum": 0, "description": "OrbitControls autoRotateSpeed（度/帧），默认 0.6 缓慢" },
-        "elevation": { "type": "number", "minimum": 0, "maximum": 1.5708, "description": "巡航相机俯角（弧度，above-horizon；默认 1.0≈57° 鸟瞰；运行时钳到 OrbitControls polar[0.5,1.3] 内）" },
+        "elevation": { "type": "number", "minimum": 0, "maximum": 1.5708, "description": "巡航相机俯角（弧度，above-horizon；默认 1.0≈57° 鸟瞰；运行时钳到 OrbitControls polar[0.5,π-0.1] 内）" },
         "framingK": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1, "description": "巡航取景内容占比（默认 0.55 俯瞰全城；默认取景 K=0.66）" },
         "pauseOnInteract": { "type": "boolean", "description": "用户拖拽自动退出巡航、把控制权还给用户（默认 true）" }
+      }
+    },
+    "unitTemplate": {
+      "type": "object",
+      "description": "v2.7 楼层单位详情的字段模板 + 租户池。缺省（整块缺省）= 办公默认：内置 8 行业租户池 + 8 个办公字段（负责人/电话/在编/面积/性质/服务时间/业务范围/职责），产物逐字节不变。提供 fields 则每单位按描述产出 UnitDetail.fields（覆盖办公字段）；提供 tenants 则模拟租户从该池派生（替代内置 8 行业）——用于工业/物流/住宅等非办公园区。",
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "type": "array",
+          "description": "单位详情字段描述，每项 {key,label,unit?}；生成器按此为每单位确定性产出 UnitDetail.fields:[{label,value}]（value 由 tenants 池/确定性采样派生，可带 unit 后缀）。",
+          "items": {
+            "type": "object",
+            "required": ["key", "label"],
+            "additionalProperties": false,
+            "properties": {
+              "key": { "type": "string", "minLength": 1, "description": "字段键（稳定性 id，如 tenant/contact/area/line/capacity）" },
+              "label": { "type": "string", "minLength": 1, "description": "面板显示的字段名（如 租户/联系人/产线/产能）" },
+              "unit": { "type": "string", "description": "可选单位后缀（如 ㎡/人/条/吨）" }
+            }
+          }
+        },
+        "tenants": {
+          "type": "array",
+          "description": "租户/实体池（替代内置 8 行业办公池）。每项 {label,names[],scope?,duty?}——label=行业/类别名，names=实体名候选，scope/duty=可选业务范围/职责文本。",
+          "items": {
+            "type": "object",
+            "required": ["label", "names"],
+            "additionalProperties": false,
+            "properties": {
+              "label": { "type": "string", "minLength": 1 },
+              "names": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+              "scope": { "type": "string" },
+              "duty": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
+    "corridor": {
+      "type": "object",
+      "description": "v2.8 楼栋间空中连廊（可选）。两栋楼之间的悬空连接体，悬空高度 = floor*floorHeight；由 generate_data.py 写进 ParkScaffold.corridor，ParkScene.buildCorridor 渲染。详见 references/park-spec.md「连廊」。",
+      "required": ["from", "to"],
+      "additionalProperties": false,
+      "properties": {
+        "from": {
+          "type": "object",
+          "required": ["x", "z"],
+          "additionalProperties": false,
+          "properties": {
+            "x": { "type": "number" },
+            "z": { "type": "number" }
+          }
+        },
+        "to": {
+          "type": "object",
+          "required": ["x", "z"],
+          "additionalProperties": false,
+          "properties": {
+            "x": { "type": "number" },
+            "z": { "type": "number" }
+          }
+        },
+        "floor": { "type": "integer", "minimum": 1, "description": "所在楼层（悬空高度 = floor*floorHeight）；缺省 1。" },
+        "floorEnd": { "type": "integer", "minimum": 1, "description": "v2.8+ 跨层连廊终止楼层（须 ≥ floor）。提供则连廊跨 floor..floorEnd 渲染为悬空体积；省略即单层薄桥（向后兼容）。" },
+        "width": { "type": "number", "exclusiveMinimum": 0, "description": "连廊宽度；缺省 12。" },
+        "thickness": { "type": "number", "exclusiveMinimum": 0, "description": "连廊厚度；缺省 6。" },
+        "label": { "type": "string", "description": "连廊名称标签；缺省「连廊」。" }
       }
     }
   }

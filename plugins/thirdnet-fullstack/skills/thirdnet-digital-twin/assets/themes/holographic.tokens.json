@@ -50,6 +50,18 @@
     "building": "#3ad4ff",
     "garage": "#2fe0c0"
   },
+  "underground": {
+    "_comment": "v2.6 地下场景配色（§14）。全息：青玻璃墙 + 菲涅尔边缘辉光气质，与楼上全息体同源。deck 半透明自发光深蓝、wall 青玻璃（更透）、edge 亮青边界、room 琥珀功能间。",
+    "deck": "#0a1a26",
+    "deckEmissive": "#0a2638",
+    "deckOpacity": 0.28,
+    "wall": "#3ad4ff",
+    "wallOpacity": 0.1,
+    "edge": "#7fe9ff",
+    "room": "#ffb24a",
+    "spot": "#d6ecff",
+    "ramp": "#0e2a3a"
+  },
   "building": {
     "_comment": "v1.4/v1.7 楼栋楼层/贴砖层次（§4.1）。全息：半透体上的相邻贴砖两色交替 + 自发光青色贴砖竖实线/楼层横向虚线（边缘辉光的一部分）。",
     "roomShade": 0.14,
@@ -74,7 +86,7 @@
     "texture": { "type": "dots", "base": "#1a2a44", "line": "#3ad4ff", "cell": 40 }
   },
   "shaders": {
-    "_comment": "Not used by the holographic style — translucent bodies + emissive edges + bloom carry the look. Generator skips grid.glsl; floor = dark MeshBasicMaterial + emissive cyan Line2 contour.",
+    "_comment": "Not used by the holographic style — translucent bodies + emissive edges + bloom carry the look. Generator skips the grid shader; floor = dark MeshBasicMaterial + emissive cyan Line2 contour.",
     "grid": null
   },
   "environment": {
@@ -87,7 +99,6 @@
     "grass": "#1a4458",
     "treeTrunk": "#0a1020",
     "treeCanopy": "#1a4458",
-    "wall": "#081224",
     "lampGlow": "#3ad4ff",
     "vehicle": "#1a8ab8",
     "roadMarking": "#3ad4ff",

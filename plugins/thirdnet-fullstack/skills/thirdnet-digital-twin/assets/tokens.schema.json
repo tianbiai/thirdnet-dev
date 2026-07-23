@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://thirdnet/skills/thirdnet-digital-twin/tokens.schema.json",
   "title": "Theme Tokens v2.1",
-  "description": "结构契约：assets/themes/*.tokens.json 的形状校验。validate_spec.py 加载本文件对所选风格 token 做结构校验——缺关键块或类型错 → FAIL。允许 key 带下划线前缀的注释字段（_comment 等），不参与校验。v2.0 新增 realism 块（写实增强旋钮：material/bloom/ao/reflection/fog/sun）。v2.1 新增 scene.sky（程序化天空开关）、environment.roadMarking/water/rooftop（标线/水景/楼顶设备色）、ui 块（2D 组件观感旋钮，assets/components/ 消费）。",
+  "description": "结构契约：assets/themes/*.tokens.json 的形状校验。validate_spec.py 加载本文件对所选风格 token 做结构校验——缺关键块或类型错 → FAIL。允许 key 带下划线前缀的注释字段（_comment 等），不参与校验。v2.0 新增 realism 块（写实增强旋钮：material/bloom/ao/reflection/fog/sun）。v2.1 新增 scene.sky（程序化天空开关）、environment.roadMarking/water/rooftop（标线/水景/楼顶设备色）、ui 块（2D 组件观感旋钮，assets/components/ 消费）。v2.5 新增可选 realism.shadow（软阴影 radius/bias），并恢复 realistic/night-realistic 两风格（写实引擎 envMap/GTAO/反射/软阴影/雾 全部激活）。v2.6 新增可选 underground 块（地下场景配色：deck/wall/edge/room/spot/ramp + deckOpacity/wallOpacity）。",
   "type": "object",
   "additionalProperties": true,
   "required": ["scene", "palette", "category", "building", "lights", "environment", "realism", "ui"],
@@ -77,7 +77,7 @@
         },
         "ao": {
           "type": "object",
-          "description": "GTAO 接触/环境光遮蔽；引擎保留，当前 4 风格不启用（enabled=false）。",
+          "description": "GTAO 接触/环境光遮蔽；v2.5 写实两风格启用（enabled=true），其余 4 风格 false。",
           "required": ["enabled", "intensity", "radius"],
           "properties": {
             "enabled": { "type": "boolean" },
@@ -87,7 +87,7 @@
         },
         "reflection": {
           "type": "object",
-          "description": "地面湿润反射（Reflector）；引擎保留，当前 4 风格不启用（enabled=false）。",
+          "description": "地面湿润反射（Reflector）；v2.5 night-realistic 启用，其余风格 false。",
           "required": ["enabled", "opacity", "mixStrength"],
           "properties": {
             "enabled": { "type": "boolean" },
@@ -117,6 +117,14 @@
           "properties": {
             "azimuth": { "type": "number", "minimum": 0, "maximum": 360 },
             "elevation": { "type": "number", "minimum": 0, "maximum": 90 }
+          }
+        },
+        "shadow": {
+          "type": "object",
+          "description": "v2.5 软阴影旋钮（可选；仅写实两风格 profile.shadows=true 时生效）。缺省时引擎用 radius=4 / bias=-0.0003。",
+          "properties": {
+            "radius": { "type": "number", "minimum": 0, "maximum": 16 },
+            "bias": { "type": "number", "minimum": -0.01, "maximum": 0.01 }
           }
         }
       }
@@ -174,7 +182,7 @@
     },
     "environment": {
       "type": "object",
-      "required": ["city-ground", "groundGlow", "road", "roadLine", "sidewalk", "grass", "treeTrunk", "treeCanopy", "wall", "lampGlow", "vehicle", "roadMarking", "water", "rooftop"],
+      "required": ["city-ground", "groundGlow", "road", "roadLine", "sidewalk", "grass", "treeTrunk", "treeCanopy", "lampGlow", "vehicle", "roadMarking", "water", "rooftop"],
       "properties": {
         "city-ground": { "type": "string" },
         "groundGlow": { "type": "boolean" },
@@ -184,7 +192,6 @@
         "grass": { "type": "string" },
         "treeTrunk": { "type": "string" },
         "treeCanopy": { "type": "string" },
-        "wall": { "type": "string" },
         "lampGlow": { "type": "string" },
         "vehicle": { "type": "string" },
         "roadMarking": { "type": "string", "description": "v2.1 内部道路中央虚线/斑马线/转向箭头色。" },
@@ -200,6 +207,22 @@
       "type": "object",
       "additionalProperties": { "type": "string" }
     },
+    "underground": {
+      "type": "object",
+      "description": "v2.6 地下场景配色（§14 地下车库多层剖面）。park-scene.impl.ts buildUnderground 消费——地面不开洞，坑体为 Y<0 透明玻璃柱：底板半透明自发光 + 4 面玻璃墙。所有风格都应有此块（非写实风格走自发光；写实风格走 PBR 受光）。deck/wall/edge/room/spot/ramp 为 hex；deckEmissive 为 hex（底板自发光色，写实日景可给极暗色近关）；deckOpacity/wallOpacity 为 0–1 不透明度。",
+      "required": ["deck", "deckEmissive", "deckOpacity", "wall", "wallOpacity", "edge", "room", "spot", "ramp"],
+      "properties": {
+        "deck": { "type": "string" },
+        "deckEmissive": { "type": "string" },
+        "deckOpacity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "wall": { "type": "string" },
+        "wallOpacity": { "type": "number", "minimum": 0, "maximum": 1 },
+        "edge": { "type": "string" },
+        "room": { "type": "string" },
+        "spot": { "type": "string" },
+        "ramp": { "type": "string" }
+      }
+    },
     "poi": {
       "type": "object",
       "required": ["status"],
@@ -214,7 +237,7 @@
     },
     "ui": {
       "type": "object",
-      "description": "v2.1 2D 组件观感旋钮（assets/components/ 消费，generate_theme.py 派生 --twin-ui-* CSS 变量）。赛博/全息发光强，白模/等距克制（glowStrength 0 → 组件退化为中性投影）。",
+      "description": "v2.1 2D 组件观感旋钮（assets/components/ 消费，generate_theme.py 派生 --twin-ui-* CSS 变量）。赛博/全息/星云发光强，等距克制（glowStrength 0 → 组件退化为中性投影）。",
       "required": ["panelOpacity", "panelBlur", "panelRadius", "glowStrength", "glowColor", "borderWidth", "labelBg", "labelText", "switcherStyle"],
       "properties": {
         "panelOpacity": { "type": "number", "minimum": 0, "maximum": 1 },

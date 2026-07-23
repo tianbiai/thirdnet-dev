@@ -4,7 +4,7 @@
 
 ## 为什么要有范式实现
 
-v1.x 的生成路径是「读 scene-recipe.md 散文 + 指向未随技能发布的 `DigitalTwin.ts`（exemplar.md 反复说『拷贝它、修剪它』）」。实测生成代码会漂移：金属材质无环境贴图导致玻璃发黑、`profile.bloom` 是死配置从不实例化 composer、`ambientFloor`/`scene.background` 写在规范里却被跳过。
+v1.x 的生成路径是「读 scene-recipe.md 散文 + 指向未随技能发布的 `DigitalTwin.ts`（旧文档反复说『拷贝它、修剪它』）」。实测生成代码会漂移：金属材质无环境贴图导致玻璃发黑、`profile.bloom` 是死配置从不实例化 composer、`ambientFloor`/`scene.background` 写在规范里却被跳过。
 
 范式实现把这些问题一次性解决：**技能随包发布一份完整、可直接 `cp` 的 `ParkScene.ts`**，所有 v1.9 漂移项与 v2.0 写实增强层都已落地。生成器只需替换数据源、按 spec 选风格，无需重新合成 Three.js 渲染管线代码。
 
@@ -15,7 +15,7 @@ v1.x 的生成路径是「读 scene-recipe.md 散文 + 指向未随技能发布�
 | 元素 | 实现 | token 驱动 |
 |---|---|---|
 | 程序化天空 | `makeBackgroundTexture` 升级版（canvas 512×256）：写实白云（3–6 朵椭圆组合）、夜景星空（130 颗亚像素暗星——**必须低于 bloom 阈值，否则晕成雪片**）+ 月亮（右上径向光晕） | `scene.sky: {clouds, stars, moon}` 开关 |
-| 楼顶设备 | `building-geometry.ts` 新增 `buildRooftopKit()`：电梯机房盒（w·0.18 × fh·0.5 × d·0.22）+ 1–2 根天线 + 警示灯（引擎保留，当前 4 风格不启用）；位置种子 = `rooftop:{buildingId}` | `environment.rooftop` 色 |
+| 楼顶设备 | `building-geometry.ts` 新增 `buildRooftopKit()`：电梯机房盒（w·0.18 × fh·0.5 × d·0.22）+ 1–2 根天线 + 警示灯（仅 `night-realistic` 接通红色航空警示灯，其余风格保留不亮）；位置种子 = `rooftop:{buildingId}` | `environment.rooftop` 色 |
 | 地面标线 | `buildRoadMarkings()`：环路/主路中央虚线（InstancedMesh 12×2 段）+ 大门斑马线（6×2.5×20）+ 引道（连接大门与环路）+ 引导箭头 | `environment.roadMarking` 色 |
 | 绿化多样性 | 行道树球形（Icosahedron）/锥形（Cone）按位置序奇偶交替 + 草地边缘灌木球丛（每块 6 丛，种子确定性） | 沿用 `environment.treeCanopy` |
 | 水景 | `greenery.waterFeature` 终于落地：Circle(50) 水面 + Ring 池缘；写实两风格低粗糙度 Standard 材质吃 envMap 反射 | `environment.water` 色 |
@@ -24,7 +24,7 @@ v1.x 的生成路径是「读 scene-recipe.md 散文 + 指向未随技能发布�
 **四个 v2.0 实测 bug 修复**（都在范式实现里，拷贝即修复）：
 
 1. **楼名标签埋进塔体**：`building-geometry.ts` 旧式 `label.y = h/2 + 22`——高楼（h > 44）标签被埋进塔体内部不可见。修复为 `y = h + 22`（屋顶上方）。
-2. **浅色风格标签黑块**：旧式标签配对 `(void-bg, cyan-bright)` 在 isometric 等亮底风格两字色都偏亮，违反 §4.2「亮底深字 / 暗底亮字」。修复为走 token `ui.labelBg/labelText`（4 风格各自的高对比配对）。
+2. **浅色风格标签黑块**：旧式标签配对 `(void-bg, cyan-bright)` 在 isometric 等亮底风格两字色都偏亮，违反 §4.2「亮底深字 / 暗底亮字」。修复为走 token `ui.labelBg/labelText`（6 风格各自的高对比配对）。
 3. **取景偏小**：`frameCamera()` 旧式用默认 18 层估算 Hmax——实际楼层更少时园区只占画面 ~1/3。修复为水合后用真实最高楼层（`maxBuildingHeight()`），`hydrateBuildings()` 末尾重新 `frameCamera()`。
 4. **`buildCorridor` 空指针**：未配置 `scaffold.corridor` 的园区 `c.floor` 直接抛 TypeError。修复为 `if (!c) return`。
 
@@ -70,7 +70,7 @@ for (const s of slabs) this.pickables.push(s)
 
 **铁律**：不要在 ParkScene 里重新手写 podium/body/edges/cap/dividers/label/slab 的 `position.y`——任何一处手写都可能重新引入错位。`setSelection()` 的金色高亮中心 y 必须用 `(fin+0.5)*fh`（与 `buildBuilding` 内 slab 同式）；楼名标签 y 必须是 `h + 22`（v2.1 修复，旧式 `h/2 + 22` 会把标签埋进塔体）。
 
-> 范式实现不依赖范例项目的外部 `DigitalTwin.ts`。exemplar.md 的「拷贝外部范例」指示在 v2.0 已改为「以本实现为基线」。
+> 范式实现不依赖范例项目的外部 `DigitalTwin.ts`。旧的「拷贝外部范例」指示在 v2.0 已改为「以本实现为基线」。
 
 ## 渲染管线一览（按风格分支开关）
 
@@ -80,8 +80,10 @@ for (const s of slabs) this.pickables.push(s)
 | holographic | ACES 1.0 | ✗ | ✗ | ✅ 0.3 | ✗ | ✗ | ✅+暗星 | ✅ | dots |
 | nebula | ACES 1.0 | ✗ | ✗ | ✅ 0.5 | ✗ | ✗ | ✅+星月 | ✅ | dots |
 | isometric | None | ✗ | ✗ | ✗ | ✗ | ✗ | ✅ | ✅ | grid |
+| realistic | ACES 1.0 | ✅ | ✅ | ✅（弱） | ✅ | ✗ | ✅+白云日空 | ✅ | pbr 地面（真实窗户立面） |
+| night-realistic | ACES 1.0 | ✅ | ✅ | ✅（强） | ✅ | ✅ Reflector | ✅+星空月色 | ✅ | 湿润反射地面（夜间发光窗） |
 
-环境贴图 / GTAO / 地面反射是 **v2.0 写实增强层保留的引擎能力**（接受 ~15–25% 帧率成本），**当前 4 风格均不启用**（realistic/night-realistic/blueprint/white-model 已于 v2.4 移除）。4 风格守纪律：无环境贴图、无 AO、PointLight≤8、transmission 禁用、DPR≤2。天空元素开关在各风格 token 的 `scene.sky`（v2.1）。
+环境贴图 / GTAO / 地面反射是 **v2.0 写实增强层保留的引擎能力**（接受 ~15–25% 帧率成本）。**v2.5 起 `realistic`/`night-realistic` 两风格已激活**（RoomEnvironment 环境贴图 + GTAO + 2048² 软阴影；night-realistic 额外开 Reflector 湿润反射 + 雾 + 强 bloom + 夜间发光窗）——以提交的 `assets/themes/realistic|night-realistic.tokens.json` 驱动。**cyber/holographic/nebula/isometric 4 风格仍守纪律**：无环境贴图、无 AO、PointLight≤8、transmission 禁用、DPR≤2。天空元素开关在各风格 token 的 `scene.sky`（v2.1）。
 
 ## token.realism 旋钮（调参表面）
 
@@ -91,8 +93,8 @@ for (const s of slabs) this.pickables.push(s)
 "realism": {
   "material":   { "roughness": 0.1, "metalness": 0.9, "envMapIntensity": 1.0 }, // PBR 材质（envMapIntensity 仅在开环境贴图时生效）
   "bloom":      { "threshold": 0.9, "strength": 0.0, "radius": 0.4 },           // strength=0 表示关 composer
-  "ao":         { "enabled": true, "intensity": 0.65, "radius": 0.5 },          // GTAO（引擎保留，当前 4 风格不启用）
-  "reflection": { "enabled": false, "opacity": 0.4, "mixStrength": 0.5 },       // 地面湿润反射（引擎保留，当前 4 风格不启用）
+  "ao":         { "enabled": true, "intensity": 0.65, "radius": 0.5 },          // GTAO（v2.5 realistic/night-realistic 启用）
+  "reflection": { "enabled": false, "opacity": 0.4, "mixStrength": 0.5 },       // 地面湿润反射（v2.5 night-realistic 启用；mixStrength 控制与地面混合）
   "fog":        { "color": "#a9c8e0", "near": 1800, "far": 6500 },              // 线性雾；null 关闭
   "sun":        { "azimuth": 120, "elevation": 48 }                             // 太阳方位（颜色/强度仍走 lights.sun/sunIntensity）
 }
@@ -115,8 +117,9 @@ for (const s of slabs) this.pickables.push(s)
 
 ## 不要做什么
 
-- ❌ 不要把 `realism` 数值硬编码进 ParkScene.ts 的材质构造——一律读 token。
-- ❌ 不要为追求「更真实」给当前 4 风格开环境贴图/AO/反射——破坏既有纪律（cyber/holo/nebula 靠自发光+bloom、isometric 靠哑光）。
+- ❌ 不要把 `realism` 数值硬编码进 ParkScene.ts 的材质构造——一律读 token（v2.5：`ao.radius`/`reflection.mixStrength`/`shadow.radius` 都已接通 token，勿改回硬编码）。
+- ❌ 不要为追求「更真实」给 cyber/holographic/nebula/isometric 4 风格开环境贴图/AO/反射——破坏既有纪律（cyber/holo/nebula 靠自发光+bloom、isometric 靠哑光）；写实效果只走 `realistic`/`night-realistic` 两风格（其 token 已配好）。
+- ❌ 不要在生成时手写 5 文件契约层——4 个静态样板从 `assets/api/` 拷贝（mock 数据由 `generate_data.py` 生成）。
 - ❌ 不要在真实 canvas 上 `getContext('webgl2')` 探测——用范式实现的 `detectWebGL2`。
 - ❌ 不要每帧重算环境贴图/亮窗 emissiveMap——范式实现里它们都是一次性烘焙（`buildEnvironmentMap` / `makeFacadeTexture`）。
 - ❌ 不要把楼名标签 y 改回 `h/2 + 22`（v2.1 修复点，标签会埋进塔体）；不要绕过 token `ui.labelBg/labelText` 自行配标签色（浅色风格会糊成黑块）。

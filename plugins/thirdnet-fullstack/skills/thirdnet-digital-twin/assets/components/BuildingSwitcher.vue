@@ -16,10 +16,10 @@
       type="button"
       role="tab"
       class="switcher__tab"
-      :class="{ 'switcher__tab--active': isActive(tab.id) }"
-      :aria-selected="isActive(tab.id)"
-      :tabindex="isActive(tab.id) || (i === 0 && sel.focusedBuildingId.value == null) ? 0 : -1"
-      @click="onTab(tab.id)"
+      :class="{ 'switcher__tab--active': isActive(tab) }"
+      :aria-selected="isActive(tab)"
+      :tabindex="isActive(tab) || (i === 0 && sel.focusedBuildingId.value == null && !sel.belowView.value) ? 0 : -1"
+      @click="onTab(tab)"
       @keydown="onKeydown($event, i)"
     >
       <span class="switcher__label">{{ tab.label }}</span>
@@ -33,39 +33,49 @@ import { computed, ref } from 'vue'
 import { parkScaffold } from '@/data/park'
 import { useSelection } from '@/composables/useSelection'
 import { useTwinData } from '@/composables/useTwinData'
+import { useStyle } from '@/composables/useStyle'
 import { applyTheme } from '@/utils/theme'
-import type { StyleKey } from '@/utils/theme'
 
 const sel = useSelection()
 const twinData = useTwinData()
+const style = useStyle()
 const tabEls = ref<HTMLButtonElement[]>([])
 
-// 切换器形态（neon=描边发光 pill / flat=填充块）由 token ui.switcherStyle 固化
+// 切换器形态（neon=描边发光 pill / flat=填充块）由 token ui.switcherStyle 固化；
+// 读 useStyle 单例当前风格 → 跟随 StyleSwitcher 实时切换 chrome（initStyle 在 setup 已完成，首帧即正确）。
 const switcherStyle = computed(
-  () => applyTheme(parkScaffold.style as StyleKey).ui?.switcherStyle ?? 'neon',
+  () => applyTheme(style.current.value).ui?.switcherStyle ?? 'neon',
 )
 
-interface Tab { id: string | null; label: string; header?: string }
+interface Tab { id: string | null; label: string; header?: string; kind: 'building' | 'garage' }
 
-// 标签 = 全局视角 + 每栋楼（骨架读静态脚手架 id；名称/层数由 getBuildings 水合）
+// v2.6：有 garages[] 时地下体验走独立「地下车库」标签（→ enterBelowView 相机俯冲）。
+const hasUnderground = computed(() => !!parkScaffold.garages && parkScaffold.garages.length > 0)
+
+// 标签 = 全局视角 + 每栋楼（骨架读静态脚手架 id；名称/层数由 getBuildings 水合）+ 可选「地下车库」
 const tabs = computed<Tab[]>(() => {
-  const list: Tab[] = [{ id: null, label: '全局视角' }]
+  const list: Tab[] = [{ id: null, label: '全局视角', kind: 'building' }]
   for (const b of parkScaffold.buildings) {
+    // 有地下坑体时跳过 category:'garage' 入口标记楼（地下体验由独立标签承载，避免重复入口）
+    if (hasUnderground.value && b.category === 'garage') continue
     const rt = twinData.buildings.value.find((x) => x.building_id === b.id)
     list.push({
       id: b.id,
       label: rt?.name ?? (twinData.hydrating.value ? '加载中…' : b.id),
       header: rt?.header,
+      kind: 'building',
     })
   }
+  if (hasUnderground.value) list.push({ id: '__garage__', label: '地下车库', kind: 'garage' })
   return list
 })
 
-const isActive = (id: string | null) => sel.focusedBuildingId.value === id
+const isActive = (tab: Tab) => tab.kind === 'garage' ? sel.belowView.value : sel.focusedBuildingId.value === tab.id
 
-function onTab(id: string | null) {
-  if (id === null) sel.clearFocus()
-  else sel.focusBuilding(id) // 仅切换器用：聚焦整楼、重置楼层（§8.1 铁律）
+function onTab(tab: Tab) {
+  if (tab.kind === 'garage') { sel.enterBelowView(); return } // v2.6：相机俯冲进入地下
+  if (tab.id === null) sel.clearFocus()
+  else sel.focusBuilding(tab.id) // 仅切换器用：聚焦整楼、重置楼层（§8.1 铁律）
 }
 
 function onKeydown(e: KeyboardEvent, i: number) {
@@ -75,7 +85,7 @@ function onKeydown(e: KeyboardEvent, i: number) {
   const dir = e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 1
   const next = (i + dir + tabs.value.length) % tabs.value.length
   tabEls.value[next]?.focus()
-  onTab(tabs.value[next].id)
+  onTab(tabs.value[next])
 }
 </script>
 
@@ -105,7 +115,7 @@ function onKeydown(e: KeyboardEvent, i: number) {
 .switcher__tab:hover { color: var(--twin-palette-text-hi); }
 .switcher__tab:focus-visible { outline: 2px solid var(--twin-accents-select-yellow); outline-offset: 2px; }
 
-/* neon：描边 + 发光 pill（cyber/holographic） */
+/* neon：描边 + 发光 pill（具体哪些风格走 neon/flat 由 tokens.ui.switcherStyle 决定） */
 .switcher--neon .switcher__tab--active {
   border-color: var(--twin-palette-cyan);
   background: var(--twin-accents-active-tab-bg);
@@ -115,7 +125,7 @@ function onKeydown(e: KeyboardEvent, i: number) {
     inset 0 0 calc(8px * var(--twin-ui-glow-strength, 0.5)) var(--twin-ui-glow-color);
   text-shadow: 0 0 calc(8px * var(--twin-ui-glow-strength, 0.5)) var(--twin-ui-glow-color);
 }
-/* flat：填充块 + 中性投影（realistic/white-model/isometric/blueprint/night-realistic） */
+/* flat：填充块 + 中性投影（见上方 neon 注释，风格→形态映射由 token 驱动） */
 .switcher--flat .switcher__tab--active {
   background: var(--twin-accents-active-tab-bg);
   color: var(--twin-palette-text-hi);

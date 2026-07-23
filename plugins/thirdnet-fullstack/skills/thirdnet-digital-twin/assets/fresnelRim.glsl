@@ -27,9 +27,8 @@
 // Inject this string AFTER `#include <emissivemap_fragment>` in the fragment shader.
 // It relies on `normal` (view-space, available after #include <normal_fragment_maps>)
 // and `geometryViewDir`/`vViewPosition` provided by the standard material's includes.
-#if defined(USE_NORMALMAP) || defined(USE_BUMPMAP) || defined(FLAT_SHADED)
-  // normal & view dir already established by standard includes above this point
-#endif
+// (normal & view dir are established by the standard material's includes above the
+// injection point, regardless of normal/bump/flat-shading flags.)
 {
   vec3 vNormal = normalize(normal);
   // view direction: Three.js MeshStandardMaterial provides vViewPosition (position - viewPosition)

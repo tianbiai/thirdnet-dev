@@ -15,6 +15,17 @@
  *   divider 第 i 层横向虚线 (1..floors-1): y = i·fh
  *   label 楼名 sprite : y = h + 22   ★须在屋顶上方（v2.1 修复：旧式 h/2+22 会把标签埋进塔体）
  *   slab 第 i 层拾取盒 (0..floors-1): position.y = (i+0.5)·fh   ★须与 setSelection 高亮一致
+ *
+ * 地下车库层 L（v2.6，level<0；deckY=该层底板 Y 为负；ceilY=该层壁顶 Y，B1=0、B2=B1.deckY）:
+ *   deck  底板      : y = deckY - 0.1（PlaneGeometry 平铺，半透明自发光）
+ *   wall  玻璃壁    : y ∈ [ceilY, deckY]（4 面；多层时拼成连续竖井）
+ *   divider 层分隔  : y = ceilY（壁顶四边虚线，多层标示楼板）
+ *   spot  车位描线  : y = deckY + 0.05
+ *   car   车辆      : y = deckY
+ *   room  功能间    : y ∈ [deckY, deckY+roomH]，线框盒居中 deckY+roomH/2；名标牌 deckY+roomH+14
+ *   ramp  坡道      : y 从 deckY 斜上到 ceilY（B1→地面；B2→上一层底板）
+ *   label 层标牌    : y = deckY + 28
+ *   pick  拾取盒    : y 居中 (ceilY+deckY)/2，高 (ceilY-deckY)
  * ─────────────────────────────────────────────────────────────────
  *
  * 风格相关的东西（材质、facade 纹理、标签配色）由调用方 ParkScene 构造后**作为入参传入**；
@@ -55,15 +66,15 @@ export interface BuildBuildingOptions {
   fh: number
   /** 塔体六面材质数组（[+x,-x,+y,-y,+z,-z]）。调用方已把 facade 纹理贴到侧面材质。 */
   sideMaterials: THREE.Material[]
-  /** 裙座材质；null 表示该风格不画裙座（如 wire 蓝图）。 */
+  /** 裙座材质；null 表示不画裙座。 */
   podiumMaterial: THREE.Material | null
-  /** 女儿墙/屋顶盖板材质；null 表示不画（如 wire / white）。 */
+  /** 女儿墙/屋顶盖板材质；null 表示不画。 */
   capMaterial: THREE.Material | null
   /** 楼层横向虚线分隔色。 */
   dividerColor: THREE.Color
   /** 立体轮廓线色。 */
   edgeColor: THREE.Color
-  /** 立体轮廓线不透明度（wire 风格 1，其余 ~0.6）。 */
+  /** 立体轮廓线不透明度（默认 ~0.6）。 */
   edgeOpacity: number
   /** 楼顶名称 Sprite 纹理（调用方经 makeContrastLabel 生成）。 */
   labelTexture: THREE.Texture
@@ -79,8 +90,8 @@ export interface BuiltBuilding {
   slabs: THREE.Mesh[]
   /**
    * 楼顶名称 Sprite（caller 自行挂到 overlay 场景，**不进主场景**）。
-   * 为什么不在 group 里：GTAO（引擎保留，当前 4 风格不启用）会把漂浮在天空区的透明 sprite 像素乘向黑，
-   * 挂在独立 overlay 场景里在 composer 之后第二遍渲染才能绕过 GTAO/bloom，保证 4 风格可读。
+   * 为什么不在 group 里：GTAO（v2.5 写实两风格已启用）会把漂浮在天空区的透明 sprite 像素乘向黑，
+   * 挂在独立 overlay 场景里在 composer 之后第二遍渲染才能绕过 GTAO/bloom，保证全风格可读。
    */
   label: THREE.Sprite
 }
@@ -210,6 +221,20 @@ export function buildRooftopKit(opts: RooftopKitOptions): void {
   if (opts.castShadow) { room.castShadow = true; room.receiveShadow = true }
   group.add(room)
 
+  // v2.5 AC 机组合（1–2 个扁盒，机房对侧）—— 真实建筑屋顶常见设备，丰富天际线。
+  const nAc = 1 + Math.floor(rnd() * 2)
+  for (let i = 0; i < nAc; i++) {
+    const acW = w * (0.1 + rnd() * 0.06)
+    const acD = d * (0.1 + rnd() * 0.06)
+    const acH = fh * (0.22 + rnd() * 0.12)
+    const acx = -ox * (0.5 + rnd() * 0.4) + (rnd() - 0.5) * w * 0.2
+    const acz = -oz * (0.5 + rnd() * 0.4) + (rnd() - 0.5) * d * 0.2
+    const ac = new THREE.Mesh(new THREE.BoxGeometry(acW, acH, acD), opts.roomMaterial)
+    ac.position.set(acx, h + acH / 2, acz)
+    if (opts.castShadow) { ac.castShadow = true; ac.receiveShadow = true }
+    group.add(ac)
+  }
+
   // 天线 1–2 根（种子决定），放在机房对侧
   const nAntenna = 1 + Math.floor(rnd() * 2)
   for (let i = 0; i < nAntenna; i++) {
@@ -229,4 +254,264 @@ export function buildRooftopKit(opts: RooftopKitOptions): void {
       group.add(beacon)
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// v2.6 地下车库（地下多层剖面）—— buildUndergroundGarage
+// ---------------------------------------------------------------------------
+// 设计取舍（对齐 web 驾驶舱 DigitalTwin.buildGarage）：地面**不开洞**，坑体是 Y<0 的
+// 透明玻璃柱——楼栋不悬空，从侧面透过半透明墙可见内部车位/车辆/功能房间/坡道。
+// 多层（B1/B2…）由调用方按 level 升序排序后逐层调用：每层 ceilY = 上一层 deckY（B1 的 ceilY=0），
+// 故每层的 4 面玻璃壁自然拼成连续竖井。地下无独立光照，靠材质 emissive 伪造深度感。
+//
+// 风格相关（材质/标牌纹理/车辆工厂）由调用方 ParkScene 构造后作为入参传入；本函数只负责
+// 形状与定位，不读 token、不查 profile——与 buildBuilding 同纪律。
+
+/** 由 4 个角点构造双面四边形 mesh（地下玻璃壁 / 坡道斜面）。 */
+export function quadMesh(a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, d: THREE.Vector3, mat: THREE.Material): THREE.Mesh {
+  const geo = new THREE.BufferGeometry()
+  geo.setAttribute('position', new THREE.Float32BufferAttribute([
+    a.x, a.y, a.z, b.x, b.y, b.z, c.x, c.y, c.z,
+    a.x, a.y, a.z, c.x, c.y, c.z, d.x, d.y, d.z,
+  ], 3))
+  geo.computeVertexNormals()
+  return new THREE.Mesh(geo, mat)
+}
+
+export interface GarageRoomSpec {
+  name: string
+  x: number; z: number            // 房间中心（相对坑体中心）
+  w: number; d: number            // 房间占地
+}
+
+export interface UndergroundMaterials {
+  deck: THREE.Material            // 底板（半透明自发光，调用方按风格构造）
+  wall: THREE.Material            // 4 面玻璃壁（半透明）
+  ramp: THREE.Material            // 坡道斜面
+  roomEdgeColor: THREE.Color      // 功能房间线框色
+  spotColor: THREE.Color          // 车位描线色
+  edgeColor: THREE.Color          // 边界虚线 / 层分隔 / 坡道门洞色
+}
+
+export interface BuildUndergroundGarageOptions {
+  /** 已定位到坑体中心的 group（调用方 `group.position.set(x,0,z)` 后传入）。 */
+  group: THREE.Group
+  id: string                      // 写入拾取盒 userData.garageId
+  name: string                    // 层标牌文字（"地下车库 B1"）
+  w: number; d: number            // 坑体占地
+  /** 该层底板 Y（负数，如 -140）。 */
+  deckY: number
+  /** 该层壁顶 Y（B1=0；B2=B1 的 deckY）。壁从 ceilY 延伸到 deckY。 */
+  ceilY: number
+  cols?: number; rows?: number    // 车位网格采样列/行（仅 parking；非 parking 省略→buildUndergroundGarage 跳过车位网格）
+  rooms: GarageRoomSpec[]         // 功能房间（调用方解析缺省 8 间）
+  materials: UndergroundMaterials
+  /** 层标牌纹理（调用方经 makeContrastLabel 生成）。 */
+  labelTexture: THREE.Texture
+  /** 房间/坡道名标牌纹理工厂（调用方按 name 生成，如 roomLabelTexture('入口')）。 */
+  labelTextureOf: (name: string) => THREE.Texture
+  /** 车辆工厂（调用方按风格构造，暗风格走 emissive 才地下可见）。 */
+  makeCar: (color: THREE.ColorRepresentation) => THREE.Group
+  carColors: THREE.ColorRepresentation[]
+  castShadow: boolean             // profile.shadows（写实两风格）
+  /** 画完的不可见拾取盒 push 进此数组（调用方再注入 garagePickables）。 */
+  pickSink: THREE.Object3D[]
+}
+
+export interface BuiltUndergroundGarage {
+  group: THREE.Group
+  pick: THREE.Mesh
+}
+
+const GARAGE_ROOM_H = 34
+
+interface Rect { x0: number; x1: number; z0: number; z1: number }
+
+/**
+ * 装配一个地下车库负层坑体：底板 + 4 面透明玻璃壁 + 层分隔虚线 + 车位网格/车辆 +
+ * 功能房间线框 + 2 条出入坡道 + 层标牌 + 不可见拾取盒。所有地下 y 坐标在本函数内统一。
+ */
+export function buildUndergroundGarage(opts: BuildUndergroundGarageOptions): BuiltUndergroundGarage {
+  const { group, id, w, d, deckY, ceilY, cols, rows, rooms, materials, makeCar, carColors } = opts
+  const fwx = w / 2
+  const fdz = d / 2
+
+  // 底板（半透明自发光，从下方仰视可透见其上车位/车辆，不被一片黑楼板挡住）
+  const deckFloor = new THREE.Mesh(new THREE.PlaneGeometry(w, d), materials.deck)
+  deckFloor.rotation.x = -Math.PI / 2
+  deckFloor.position.y = deckY - 0.1
+  if (opts.castShadow) deckFloor.receiveShadow = true
+  group.add(deckFloor)
+
+  // 4 面透明玻璃直壁（ceilY → deckY）
+  const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z)
+  const TNW = V(-fwx, ceilY, -fdz), TNE = V(fwx, ceilY, -fdz), TSE = V(fwx, ceilY, fdz), TSW = V(-fwx, ceilY, fdz)
+  const BNW = V(-fwx, deckY, -fdz), BNE = V(fwx, deckY, -fdz), BSE = V(fwx, deckY, fdz), BSW = V(-fwx, deckY, fdz)
+  const wall = materials.wall
+  group.add(quadMesh(TNW, TNE, BNE, BNW, wall)) // 北壁
+  group.add(quadMesh(TSW, TSE, BSE, BSW, wall)) // 南壁
+  group.add(quadMesh(TNE, TSE, BSE, BNE, wall)) // 东壁
+  group.add(quadMesh(TNW, TSW, BSW, BNW, wall)) // 西壁
+
+  // 壁顶层分隔虚线（多层时标示楼板位置；B1 时即地表边界 footprint 标记）+ 顶层 4 条垂直角线（示深度）
+  const dividerMat = new THREE.LineDashedMaterial({ color: materials.edgeColor, dashSize: 10, gapSize: 8, transparent: true, opacity: 0.7 })
+  const divGeo = new THREE.BufferGeometry().setFromPoints([TNW, TNE, TNE, TSE, TSE, TSW, TSW, TNW])
+  const divLine = new THREE.LineSegments(divGeo, dividerMat)
+  divLine.computeLineDistances()
+  group.add(divLine)
+  if (ceilY === 0) {
+    const dropMat = new THREE.LineDashedMaterial({ color: materials.edgeColor, dashSize: 10, gapSize: 8, transparent: true, opacity: 0.7 })
+    for (const [a, b] of [[TNW, BNW], [TNE, BNE], [TSE, BSE], [TSW, BSW]] as Array<[THREE.Vector3, THREE.Vector3]>) {
+      const drop = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([a, b]), dropMat)
+      drop.computeLineDistances()
+      group.add(drop)
+    }
+  }
+
+  // 坡道（入口在西、出口在东）：从 deckY 斜上到 ceilY，置于 z=±d/4 两侧（避让中央车位）
+  const rampRects = [
+    buildGarageRamp(group, 'x', -d / 4, -fwx + Math.min(80, w * 0.18), -fwx + Math.min(20, w * 0.05), 46, deckY, ceilY, opts.labelTextureOf('入口'), materials, opts.castShadow),
+    buildGarageRamp(group, 'x', d / 4, fwx - Math.min(20, w * 0.05), fwx - Math.min(80, w * 0.18), 46, deckY, ceilY, opts.labelTextureOf('出口'), materials, opts.castShadow),
+  ]
+
+  // 功能房间（线框盒 + 名标牌）+ 记录占地矩形（车位避让）
+  const roomRects: Rect[] = []
+  for (const rm of rooms) {
+    const wire = new THREE.LineSegments(
+      new THREE.EdgesGeometry(new THREE.BoxGeometry(rm.w, GARAGE_ROOM_H, rm.d)),
+      new THREE.LineBasicMaterial({ color: materials.roomEdgeColor, transparent: true, opacity: 0.85 }),
+    )
+    wire.position.set(rm.x, deckY + GARAGE_ROOM_H / 2, rm.z)
+    group.add(wire)
+    const rlab = new THREE.Sprite(new THREE.SpriteMaterial({ map: opts.labelTextureOf(rm.name), transparent: true, depthTest: true }))
+    rlab.scale.set(rm.w * 0.9, 22, 1)
+    rlab.position.set(rm.x, deckY + GARAGE_ROOM_H + 14, rm.z)
+    group.add(rlab)
+    roomRects.push({ x0: rm.x - rm.w / 2 - 8, x1: rm.x + rm.w / 2 + 8, z0: rm.z - rm.d / 2 - 8, z1: rm.z + rm.d / 2 + 8 })
+  }
+
+  // 车位网格 + 车辆（仅 parking：cols/rows 给定；非 parking 跳过）。确定性铺放，避让房间/坡道占地。
+  if (cols && rows) {
+    const rng = mulberry32(hashStr(`garage:${id}`))
+    const colStep = w / cols
+    const rowStep = d / rows
+    const spotW = colStep * 0.6
+    const stallL = rowStep * 0.6
+    const startX = -w / 2 + colStep / 2
+    const startZ = -d / 2 + rowStep / 2
+    const lineMat = new THREE.LineBasicMaterial({ color: materials.spotColor, transparent: true, opacity: 0.45 })
+    const avoid = [...roomRects, ...rampRects]
+    const inAvoid = (x: number, z: number) => avoid.some((r) => x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1)
+    // 车位描线批量合并为单个 LineSegments：每车位 3 段 U 形（近边→右边→回到近左），
+    // 取代每格一个 THREE.Line（200 个车位 = 200 个绘制调用 → 1）。视觉逐段等价。
+    const spotPts: THREE.Vector3[] = []
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const x = startX + c * colStep
+        const z = startZ + r * rowStep
+        if (inAvoid(x, z)) continue
+        const nx = x - spotW / 2, fx = x + spotW / 2, nz = z - stallL / 2, fz = z + stallL / 2
+        spotPts.push(
+          new THREE.Vector3(nx, 0, nz), new THREE.Vector3(fx, 0, nz),
+          new THREE.Vector3(fx, 0, nz), new THREE.Vector3(fx, 0, fz),
+          new THREE.Vector3(fx, 0, fz), new THREE.Vector3(nx, 0, nz),
+        )
+        if (rng() > 0.55) {
+          const car = makeCar(carColors[(rng() * carColors.length) | 0])
+          car.position.set(x, deckY, z)
+          if (rng() > 0.5) car.rotation.y = Math.PI
+          group.add(car)
+        }
+      }
+    }
+    if (spotPts.length) {
+      const spotLines = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(spotPts), lineMat)
+      spotLines.position.y = deckY + 0.05
+      group.add(spotLines)
+    }
+  }
+
+  // 层标牌（depthTest:true 随坑体一起被地面遮挡——地上视角不穿地乱显，地下视角在坑内可读）
+  const label = new THREE.Sprite(new THREE.SpriteMaterial({ map: opts.labelTexture, transparent: true, depthTest: true }))
+  label.scale.set(Math.min(200, w * 0.4), 48, 1)
+  label.position.set(0, deckY + 28, 0)
+  group.add(label)
+
+  // 不可见拾取盒（覆盖本层体积）→ 地下视角时点击出 GarageCard
+  const pick = new THREE.Mesh(
+    new THREE.BoxGeometry(w, ceilY - deckY, d),
+    new THREE.MeshBasicMaterial({ visible: false }),
+  )
+  pick.position.set(0, (ceilY + deckY) / 2, 0)
+  pick.userData = { kind: 'garage', garageId: id }
+  group.add(pick)
+  opts.pickSink.push(pick)
+
+  return { group, pick }
+}
+
+/**
+ * 单条地下车库坡道：斜坡面 + 中央虚线 + 地面端 2 立柱门洞 + 标牌。
+ * 沿 axis 方向从 (aDeep, deckY) 斜上到 (aSurf, ceilY)；cross 为垂直轴中线坐标。
+ * 返回占地矩形（供车位避让）。
+ */
+function buildGarageRamp(
+  group: THREE.Group,
+  axis: 'x' | 'z',
+  cross: number,
+  aDeep: number,
+  aSurf: number,
+  width: number,
+  deckY: number,
+  ceilY: number,
+  labelTexture: THREE.Texture,
+  materials: UndergroundMaterials,
+  castShadow: boolean,
+): Rect {
+  const yDeep = deckY
+  const ySurf = ceilY
+  const hw = width / 2
+  const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z)
+  let d1: THREE.Vector3, d2: THREE.Vector3, s1: THREE.Vector3, s2: THREE.Vector3
+  if (axis === 'z') {
+    d1 = V(cross - hw, yDeep, aDeep); d2 = V(cross + hw, yDeep, aDeep)
+    s1 = V(cross - hw, ySurf, aSurf); s2 = V(cross + hw, ySurf, aSurf)
+  } else {
+    d1 = V(aDeep, yDeep, cross - hw); d2 = V(aDeep, yDeep, cross + hw)
+    s1 = V(aSurf, ySurf, cross - hw); s2 = V(aSurf, ySurf, cross + hw)
+  }
+  const ramp = quadMesh(d1, d2, s2, s1, materials.ramp)
+  if (castShadow) { ramp.castShadow = true; ramp.receiveShadow = true }
+  group.add(ramp)
+  // 中央虚线（深端中点 → 地面端中点）
+  const midDeep = d1.clone().add(d2).multiplyScalar(0.5)
+  const midSurf = s1.clone().add(s2).multiplyScalar(0.5)
+  const dash = new THREE.LineSegments(
+    new THREE.BufferGeometry().setFromPoints([midDeep, midSurf]),
+    new THREE.LineDashedMaterial({ color: materials.edgeColor, dashSize: 7, gapSize: 5, transparent: true, opacity: 0.8 }),
+  )
+  dash.computeLineDistances()
+  group.add(dash)
+  // 地面端门洞：2 立柱 + 横梁
+  const postMat = new THREE.MeshBasicMaterial({ color: materials.edgeColor })
+  const postH = Math.max(16, ySurf - yDeep + 16)
+  for (const p of [s1, s2]) {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, postH, 6), postMat)
+    post.position.set(p.x, yDeep + postH / 2, p.z)
+    group.add(post)
+  }
+  const lintelW = axis === 'x' ? 2 : width + 4
+  const lintelD = axis === 'x' ? width + 4 : 2
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(lintelW, 2, lintelD), postMat)
+  lintel.position.set((s1.x + s2.x) / 2, yDeep + postH, (s1.z + s2.z) / 2)
+  group.add(lintel)
+  // 标牌
+  const lab = new THREE.Sprite(new THREE.SpriteMaterial({ map: labelTexture, transparent: true, depthTest: true }))
+  lab.scale.set(60, 18, 1)
+  lab.position.set(midSurf.x, ySurf + 14, midSurf.z)
+  group.add(lab)
+  // 占地矩形
+  const xs = [d1.x, d2.x, s1.x, s2.x]
+  const zs = [d1.z, d2.z, s1.z, s2.z]
+  return { x0: Math.min(...xs) - 6, x1: Math.max(...xs) + 6, z0: Math.min(...zs) - 6, z1: Math.max(...zs) + 6 }
 }

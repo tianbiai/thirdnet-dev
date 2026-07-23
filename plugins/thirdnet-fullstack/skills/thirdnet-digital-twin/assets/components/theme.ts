@@ -15,8 +15,10 @@ import cyberTokens from '@/scene/themes/cyber.tokens.json'
 import holographicTokens from '@/scene/themes/holographic.tokens.json'
 import isometricTokens from '@/scene/themes/isometric.tokens.json'
 import nebulaTokens from '@/scene/themes/nebula.tokens.json'
+import realisticTokens from '@/scene/themes/realistic.tokens.json'
+import nightRealisticTokens from '@/scene/themes/night-realistic.tokens.json'
 
-export type StyleKey = 'cyber' | 'holographic' | 'isometric' | 'nebula'
+export type StyleKey = 'cyber' | 'holographic' | 'isometric' | 'nebula' | 'realistic' | 'night-realistic'
 
 /** ThemeTokens：与 assets/tokens.schema.json 同形（注释键/null 允许存在，消费方自己判空）。 */
 export interface ThemeTokens {
@@ -31,6 +33,8 @@ export interface ThemeTokens {
   environment: Record<string, string | boolean>
   garageEntrance?: Record<string, string>
   surfaceParking?: Record<string, string>
+  /** v2.6 地下场景配色（deck/wall/edge/room/spot/ramp + deckOpacity/wallOpacity）。 */
+  underground?: Record<string, unknown>
   poi: Record<string, unknown>
   realism: {
     material: { roughness: number; metalness: number; envMapIntensity: number }
@@ -39,11 +43,13 @@ export interface ThemeTokens {
     reflection: { enabled: boolean; opacity: number; mixStrength: number }
     fog: { color: string; near: number; far: number } | null
     sun: { azimuth: number; elevation: number }
+    shadow?: { radius?: number; bias?: number }
   }
   ui?: {
     panelOpacity: number; panelBlur: number; panelRadius: number
     glowStrength: number; glowColor: string; borderWidth: number
     labelBg: string; labelText: string; switcherStyle: 'neon' | 'flat'
+    selectionBorder?: string; selectionFill?: string; selectionFillOpacity?: number
   }
   fonts?: { zh: string; latin: string }
 }
@@ -53,6 +59,21 @@ const THEMES: Record<StyleKey, ThemeTokens> = {
   holographic: holographicTokens as unknown as ThemeTokens,
   isometric: isometricTokens as unknown as ThemeTokens,
   nebula: nebulaTokens as unknown as ThemeTokens,
+  realistic: realisticTokens as unknown as ThemeTokens,
+  'night-realistic': nightRealisticTokens as unknown as ThemeTokens,
+}
+
+/**
+ * 风格 → 中文标签（StyleSwitcher 等展示层消费）。与 StyleKey/THEMES 同源单一事实来源：
+ * 新增风格只需在此加一行，避免各组件各抄一份 label map 漂移。
+ */
+export const STYLE_LABELS: Record<StyleKey, string> = {
+  cyber: '赛博',
+  holographic: '全息',
+  isometric: '等距',
+  nebula: '星云',
+  realistic: '写实',
+  'night-realistic': '夜景',
 }
 
 /** ParkScene 消费：按风格取主题 token（找不到风格回退 cyber）。 */

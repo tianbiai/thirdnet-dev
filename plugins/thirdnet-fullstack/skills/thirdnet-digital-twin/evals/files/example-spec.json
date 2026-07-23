@@ -18,6 +18,10 @@
     { "id": "fuwu",   "name": "服务楼", "category": "building",  "w": 82,  "d": 60, "floors": 3,  "x": 245,  "z": 55,  "header": "3F · 4单位" },
     { "id": "garage", "name": "地下车库","category": "garage",    "w": 150, "d": 90, "x": 0, "z": 175, "facing": "S" }
   ],
+  "garages": [
+    { "id": "garage-b1", "name": "地下车库 B1", "level": -1, "x": 0, "z": 0, "w": 560, "d": 380, "deck_y": 140, "cols": 10, "rows": 7, "capacity": 300, "occupied": 190 },
+    { "id": "garage-b2", "name": "地下车库 B2", "level": -2, "x": 0, "z": 0, "w": 560, "d": 380, "deck_y": 280, "cols": 10, "rows": 7, "capacity": 280, "occupied": 120 }
+  ],
   "legend": [
     { "label": "楼幢",     "category": "building", "color": "#27a8ff" },
     { "label": "地下车库", "category": "garage",   "color": "#3df0c8" }
@@ -27,7 +31,7 @@
     "internalRoads": "loop",
     "surfaceParking": { "stalls": 24 },
     "greenery": { "treeDensity": "normal", "centralPlaza": true },
-    "surrounding": { "roads": true, "sidewalk": true, "wall": true, "gate": true },
+    "surrounding": { "roads": true, "sidewalk": true, "gate": true },
     "ambiance": { "streetLamps": true, "groundGlow": true, "vehicles": true }
   },
   "pois": [

@@ -1,0 +1,114 @@
+{
+  "title": "XX综治中心 数字孪生驾驶舱",
+  "style": "cyber",
+  "previewStyles": ["cyber", "holographic", "isometric", "nebula", "realistic", "night-realistic"],
+  "stage": { "width": 1920, "height": 1080 },
+  "floorHeight": 24,
+  "boundary": { "x": 360, "z": 220 },
+  "buildings": [
+    {
+      "id": "tower",
+      "name": "主楼",
+      "category": "building",
+      "w": 80,
+      "d": 60,
+      "floors": 11,
+      "x": -200,
+      "z": 70,
+      "header": "11F · 12单位",
+      "connects": ["podium"]
+    },
+    {
+      "id": "podium",
+      "name": "裙楼",
+      "category": "building",
+      "w": 200,
+      "d": 120,
+      "floors": 5,
+      "x": 80,
+      "z": -30,
+      "header": "5F · 8单位",
+      "connects": ["tower"]
+    }
+  ],
+  "legend": [
+    { "label": "主楼(11F)", "category": "building", "color": "#27a8ff" },
+    { "label": "裙楼(5F)", "category": "building", "color": "#27a8ff" }
+  ],
+  "switcher": ["全局视角", "主楼", "裙楼"],
+  "environment": {
+    "internalRoads": "loop",
+    "surfaceParking": { "stalls": 246, "occupied": 0 },
+    "greenery": { "treeDensity": "normal", "centralPlaza": true, "waterFeature": false },
+    "surrounding": { "roads": true, "sidewalk": true, "gate": true },
+    "ambiance": { "streetLamps": true, "groundGlow": true, "vehicles": true }
+  },
+  "pois": [
+    {
+      "id": "police-room",
+      "type": "service",
+      "label": "警务室(党团)",
+      "x": -60,
+      "z": -90,
+      "buildingId": "podium",
+      "floorIndex": 0,
+      "tooltip": { "title": "警务室(党团)", "description": "党团活动与警务值班综合岗亭" },
+      "roomSpec": { "area": "49.8㎡", "capacity": "2人", "dept": "党团办/警务岗", "duty": "党团活动 + 警务值班" }
+    },
+    {
+      "id": "remote-military",
+      "type": "service",
+      "label": "远程军人室",
+      "x": 180,
+      "z": 30,
+      "buildingId": "podium",
+      "floorIndex": 0,
+      "tooltip": { "title": "远程军人室", "description": "远程协同办公与值班" },
+      "roomSpec": { "capacity": "5人", "dept": "远程协同岗", "duty": "远程协同办公 + 值班" }
+    },
+    {
+      "id": "armed-dept",
+      "type": "service",
+      "label": "武装部",
+      "x": 180,
+      "z": -10,
+      "buildingId": "podium",
+      "floorIndex": 0,
+      "tooltip": { "title": "武装部", "description": "基层武装部值班室" },
+      "roomSpec": { "capacity": "2人", "dept": "基层武装部", "duty": "基层民兵 + 武装值守" }
+    },
+    {
+      "id": "medical-store",
+      "type": "service",
+      "label": "医械库",
+      "x": 30,
+      "z": 100,
+      "buildingId": "podium",
+      "floorIndex": 0,
+      "tooltip": { "title": "医械库", "description": "应急医疗器材存储" },
+      "roomSpec": { "area": "20㎡", "dept": "应急物资科", "duty": "应急医疗器材存储" }
+    },
+    {
+      "id": "command-post",
+      "type": "service",
+      "label": "指挥所",
+      "x": 120,
+      "z": 30,
+      "buildingId": "podium",
+      "floorIndex": 0,
+      "tooltip": { "title": "指挥所", "description": "综治指挥调度中心" },
+      "roomSpec": { "capacity": "3人", "dept": "综治指挥中心", "duty": "综治指挥调度 + 应急联动" }
+    },
+    {
+      "id": "gov-hall",
+      "type": "service",
+      "label": "综治中心岗厅",
+      "x": -200,
+      "z": 70,
+      "buildingId": "tower",
+      "floorIndex": 0,
+      "tooltip": { "title": "综治中心岗厅", "description": "基层管理服务大厅" },
+      "roomSpec": { "dept": "基层管理岗", "duty": "基层管理服务 + 群众接待" }
+    }
+  ]
+}

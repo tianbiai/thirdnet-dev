@@ -5,7 +5,7 @@
       "id": 1,
       "name": "text-interview-new-park",
       "prompt": "帮我给『滨江科创园』做一个智慧运行驾驶舱的3D数字孪生大屏。园区有三栋楼：研发楼12层、办公楼6层、会展中心3层，还有一个地下车库大概400个车位差不多九成满。配色就用现在的赛博蓝。先别急着写一堆代码——我想先看到你整理出来的园区规格（每栋楼的尺寸、位置、类别、车库占用、图例、楼幢切换标签），确认没问题再生成场景。",
-      "expected_output": "A validated Park Spec JSON for 滨江科创园 with 3 buildings (研发楼 building 12F, 办公楼 building 6F, 会展中心 building 3F) + one garage-category building (v1.3: no capacity/occupied in spec) + legend (楼幢/地下车库) + switcher tabs (全局视角/研发楼/办公楼/会展中心/地下车库), written to the output dir. Garage occupancy (capacity 400, ~360 occupied, ~40 empty) is captured as a parking POI in the dynamic mock data (v1.5). Followed by: static scaffold src/data/<park>.ts (footprint geometry only) + the 5-file IDigitalTwinApi contract layer (mock derived from spec) + ParkScene.ts wiring grid.glsl floor + category-colored buildings + garage entrance, with onMounted hydration.",
+      "expected_output": "A validated Park Spec JSON for 滨江科创园 with 3 buildings (研发楼 building 12F, 办公楼 building 6F, 会展中心 building 3F) + one garage-category building (v1.3: no capacity/occupied in spec) + legend (楼幢/地下车库) + switcher tabs (全局视角/研发楼/办公楼/会展中心/地下车库), written to the output dir. Garage occupancy (capacity 400, ~360 occupied, ~40 empty) is captured as a parking POI in the dynamic mock data (v1.5). Followed by: static scaffold src/data/<park>.ts (footprint geometry only) + the 5-file IDigitalTwinApi contract layer (mock derived from spec) + ParkScene.ts wiring gridGround.glsl floor + category-colored buildings + garage entrance, with onMounted hydration.",
       "files": [],
       "expectations": [
         "Produces a spec.json that passes scripts/validate_spec.py (exit 0)",
@@ -16,7 +16,7 @@
         "Buildings are colored by category (cyan/mint) from tokens, not hardcoded",
         "Switcher list includes 全局视角 and 地下车库",
         "Generated ParkScene.ts derives the ortho frustum from spec geometry with content fill K≈0.66 (park occupies ~2/3 of the frame, surrounding roads/greenery visible), instead of the v1.1 K=0.88 close-up",
-        "Generated scene builds the §10 park environment (internal loop road + surface parking + street trees + surrounding municipal roads + wall + gate + street lamps), driven by spec.environment or smart defaults",
+        "Generated scene builds the §10 park environment (internal loop road + surface parking + street trees + surrounding municipal roads + gate + street lamps), driven by spec.environment or smart defaults",
         "Generated 5-file IDigitalTwinApi contract layer: api/types/digital-twin.ts + api/interfaces/(manager/)digital-twin.ts + api/modules/manager/digital-twin.ts + mock/api/manager/digital-twin.ts + mock/data/manager/digital-twin.ts (v1.5)",
         "IDigitalTwinApi has getBuildings/getFloorDetail/getPois; createDigitalTwinApi() switches Real/Mock by VITE_MOCK_ENABLED (v1.5)",
         "mockBuildings/mockPois are derived from spec (研发楼/办公楼/会展中心 names+floors; parking POI with occupancy 400/~360/~40) (v1.5)",
@@ -38,7 +38,7 @@
         "Spec shaders.grid matches the .pen fill uniforms (u_gridColor #2a7fff, u_cell 46, u_strength 0.85)",
         "Spec has NO garage.capacity/empty fields (v1.3); any 320/96 occupancy is a parking POI occupancy in mockPois, not in spec (v1.5)",
         "All non-garage buildings are category:building",
-        "Generated ParkScene.ts wires the grid.glsl ShaderMaterial floor",
+        "Generated ParkScene.ts wires the gridGround.glsl ShaderMaterial floor",
         "Generated scene includes a garage entrance (half-pyramid + P sign) with NO occupancy sign/progress bar in 3D (v1.3); occupancy shown via parking POI tooltip from getPois() (v1.5)",
         "Generated scene default framing shows the full park panorama (K≈0.66) and includes the §10 environment (roads/greenery/surrounding) from the .pen decorative layers",
         "Generated IDigitalTwinApi contract layer (5 files) with mock data derived from the spec; RealDigitalTwinApi calls /api/manager/park/* (v1.5)"
@@ -62,7 +62,7 @@
       "id": 4,
       "name": "environment-richer-default",
       "prompt": "给『云栖智造园』做个数字孪生大屏，赛博风格就行。园区有 4 栋楼和一个地下车库，具体你看着安排。我想看到的是一张能看全整个园区和周边环境的全景大图，不要那种把楼怼到镜头前的特写。",
-      "expected_output": "A validated Park Spec for 云栖智造园 (4 buildings + 1 garage, cyber style). Because the user gave no environment details, spec.environment is either omitted (smart defaults) or populated with sensible defaults — in either case the generated scene is NOT a bare 'buildings + empty ground' anymore. The scene includes internal roads, surface parking, street trees / green patches, surrounding municipal roads, a perimeter wall + main gate, and street lamps; cyber ground-glow markings on. Default framing is a panorama: park content fills ~2/3 of the frame (K≈0.66) with surrounding roads/greenery/wall visible around it, and the wheel can zoom out further (~0.45). Dynamic data (building names/floors, POIs) goes through the IDigitalTwinApi contract layer with mock data derived from spec.",
+      "expected_output": "A validated Park Spec for 云栖智造园 (4 buildings + 1 garage, cyber style). Because the user gave no environment details, spec.environment is either omitted (smart defaults) or populated with sensible defaults — in either case the generated scene is NOT a bare 'buildings + empty ground' anymore. The scene includes internal roads, surface parking, street trees / green patches, surrounding municipal roads, a main gate, and street lamps; cyber ground-glow markings on. Default framing is a panorama: park content fills ~2/3 of the frame (K≈0.66) with surrounding roads/greenery visible around it, and the wheel can zoom out further (~0.45). Dynamic data (building names/floors, POIs) goes through the IDigitalTwinApi contract layer with mock data derived from spec.",
       "files": [],
       "expectations": [
         "Produces a spec.json that passes scripts/validate_spec.py (exit 0); environment is either omitted or a valid object",
@@ -71,7 +71,7 @@
         "Generated scene builds internal roads (loop/cross/grid) inside the boundary",
         "Generated scene includes surface parking stalls (with vehicle proxies matching occupancy) — count derived from building scale when not specified",
         "Generated scene includes greenery: grass patches + street trees (trunk + canopy), density 'normal' by default",
-        "Generated scene includes surrounding municipal roads on all 4 sides + perimeter wall + main entrance gate",
+        "Generated scene includes surrounding municipal roads on all 4 sides + main entrance gate",
         "Generated scene includes street lamps; cyber ground-glow markings (Line2 emissive road lines) are visible",
         "Environment meshes do NOT enter pickables[] — building floor raycast selection still works correctly",
         "All environment colors come from the cyber theme tokens environment block, not hardcoded hex",
@@ -127,14 +127,13 @@
     {
       "id": 12,
       "name": "negative-malformed-spec",
-      "prompt": "我整理了个园区规格，你先帮我校验一下有没有问题再生成。规格在 spec.json：两栋楼都标成了地下车库、有一栋楼没写楼层数、style 写成了 'neon'、有个 POI 的 buildingId 指向不存在的楼。",
-      "expected_output": "Runs validate_spec.py and reports every FAIL/WARN WITHOUT generating the scene. The v1.8 validator must catch: 2 garages (at most 1), missing floors on a building-category entry, unknown style 'neon', and POI buildingId not matching any building. The assistant fixes each FAIL before proceeding.",
+      "prompt": "我整理了个园区规格，你先帮我校验一下有没有问题再生成。规格在 spec.json：有一栋普通楼没写楼层数、style 写成了 'neon'、有个 POI 的 buildingId 指向不存在的楼、有两栋楼的占地完全重叠。",
+      "expected_output": "Runs validate_spec.py and reports every FAIL/WARN WITHOUT generating the scene. The validator must catch: missing floors on a building-category entry, unknown style 'neon', POI buildingId not matching any building, and overlapping building footprints (v2.1 layout check). The assistant fixes each FAIL before proceeding.",
       "files": [],
       "expectations": [
         "Output runs scripts/validate_spec.py and reports exit code 1 with specific FAIL lines",
-        "Validator flags the 2 garage-category buildings (expected at most 1)",
         "Validator flags the building-category entry missing 'floors' (v1.8 B1 — was previously silent)",
-        "Validator flags style 'neon' as not in the 4-style enum",
+        "Validator flags style 'neon' as not in the 6-style enum",
         "Validator flags the POI buildingId that doesn't match any buildings[].id",
         "Assistant does NOT proceed to generate the scene until every FAIL is resolved"
       ]
@@ -200,13 +199,13 @@
       "id": 17,
       "name": "v2-1-cured-determinism-and-realism",
       "prompt": "给『未来港科技园』做个数字孪生大屏。3 栋楼（研发楼 9F、综合楼 5F、展示中心 3F）+ 地下车库，风格用深空星云(nebula)。我希望有科幻氛围：深空星空+月亮、楼顶有机房天线、路上有标线。另外园区里要个小水景。尺寸位置你安排，但别把楼摆穿模了。",
-      "expected_output": "A validated Park Spec (style='nebula', greenery.waterFeature=true) — building positions either from scripts/layout_park.py or hand-placed then confirmed via validate_spec.py v2.1 layout checks (no overlap/out-of-bounds). Data layer generated by scripts (generate_data.py for scaffold+mock, generate_theme.py for tokens.css). 2D components copied from assets/components/ (10 files). Scene shows v2.1 details: deep-space starfield + moon in the sky, rooftop machine-room + antenna per building, road center dashes + gate zebra crossing, water feature with reflective surface. Labels readable (ui.labelBg/labelText pair).",
+      "expected_output": "A validated Park Spec (style='nebula', greenery.waterFeature=true) — building positions either from scripts/layout_park.py or hand-placed then confirmed via validate_spec.py v2.1 layout checks (no overlap/out-of-bounds). Data layer generated by scripts (generate_data.py for scaffold+mock, generate_theme.py for tokens.css). 2D components copied from assets/components/ (13 files). Scene shows v2.1 details: deep-space starfield + moon in the sky, rooftop machine-room + antenna per building, road center dashes + gate zebra crossing, water feature with reflective surface. Labels readable (ui.labelBg/labelText pair).",
       "files": [],
       "expectations": [
         "Produces a spec.json that passes scripts/validate_spec.py (exit 0) including the v2.1 layout checks (no AABB overlap/gap<20, nothing out of boundary, POIs inside boundary+20)",
         "src/data/<park>.ts and src/mock/data/manager/digital-twin.ts are generated by scripts/generate_data.py (NOT hand-written); mock data contains the spec building names (研发楼/综合楼/展示中心) and re-running the script produces byte-identical output (deterministic seed)",
         "src/styles/tokens.css is generated by scripts/generate_theme.py and contains --twin-ui-* variables (panelOpacity/glowStrength/labelBg/labelText/switcherStyle) matching the chosen theme JSON",
-        "All 10 assets/components/ files are copied into the project (GlobalTwin/CenterStage/BuildingSwitcher/UnitDetail/LegendPanel/PoiOverlay + useSelection/useScaleBoard/useTwinData + theme.ts); component CSS uses var(--twin-*) with zero hex literals",
+        "All 13 assets/components/ files are copied into the project (GlobalTwin/CenterStage/BuildingSwitcher/UnitDetail/GarageCard/LegendPanel/PoiOverlay/TourToggleButton + useSelection/useScaleBoard/useTwinData/useTour + theme.ts); component CSS uses var(--twin-*) with zero hex literals",
         "spec.environment.greenery.waterFeature is true; generated scene renders the water surface + rim (CircleGeometry + RingGeometry at token environment.water color)",
         "Generated ParkScene.ts (from assets/park-scene.impl.ts) includes buildRooftopKit wiring (machine-room box + antenna per building, seeded by buildingId) and buildRoadMarkings (center dashes InstancedMesh + zebra + driveway + arrow at token environment.roadMarking color)",
         "nebula style shows programmatic starfield + moon in the background texture (scene.sky.stars=true, moon=true); cyber/isometric have sky all-off, holographic shows sparse stars",
@@ -233,7 +232,7 @@
         "When prefers-reduced-motion is set, setTourEnabled(true) is a no-op and TourToggleButton renders aria-disabled + disabled (autoRotate is motion, same discipline as the §8 tween/breathing disable)",
         "generate_data.py emits spec.cameraTour into ParkScaffold.cameraTour in src/data/<park>.ts when provided (and omits it cleanly when not); re-running is byte-identical (deterministic)",
         "validate_spec.py returns exit 1 with specific FAIL lines for a bad cameraTour (speed=0, framingK=1.5, elevation=2, unknown key) and exit 0 for a valid/omitted one",
-        "The tour works across all 4 styles without breaking the existing framing / engine realism enhancements (env map, bloom, AO — retained but no current style enables them) — tour only changes framing + autoRotate, not materials/lights"
+        "The tour works across all 6 styles without breaking the existing framing / engine realism enhancements (env map, bloom, AO — enabled in realistic/night-realistic, retained-but-off in the other 4) — tour only changes framing + autoRotate, not materials/lights"
       ]
     }
   ]
