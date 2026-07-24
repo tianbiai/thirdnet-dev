@@ -15,7 +15,7 @@ description: >
   增加地下场景/连廊等。
 license: MIT
 metadata:
-  version: "2.15.0"
+  version: "2.16.0"
   author: park-cockpit
 compatibility: Vue 3 + TypeScript + Vite + Three.js 项目；赛博风格消费 WebGL 片段着色器（`gridGround.glsl` 网格地面），全息/星云消费菲涅尔边缘辉光注入（`fresnelRim.glsl`）。动态数据契约层遵循 `api-typescript-spec`（`IDigitalTwinApi` + Real/Mock 工厂，`VITE_MOCK_ENABLED` 切换）。可在范例仓库、create-thirdnet-admin 项目或任何最小化的 Vite+Vue+Three 脚手架中运行。
 ---
@@ -89,7 +89,7 @@ python scripts/generate_theme.py <style> --out <项目根>/src/styles/tokens.css
 
 ## Park Spec（速查）
 
-完整 schema 见 `references/park-spec.md`，完整示例在 `evals/files/example-spec.json`。坐标系：世界单位，Y 轴朝上，`floorHeight`=24，`boundary`={x:360, z:220}。类别：`building`（青色，楼顶显示楼名）/ `garage`（薄荷绿，渲染为半金字塔三角门入口 + P 牌，可多栋多入口）/ 任意自定义串（factory/warehouse/residential/office…，按挤出楼栋渲染，配色取 `tokens.category.<cat>`）。POI `type` 同样开放（自定义类型以通用圆点渲染）。非办公园区可用 `spec.unitTemplate` 定制单位字段与租户池。
+完整 schema 见 `references/park-spec.md`，完整示例在 `evals/files/example-spec.json`。坐标系：世界单位，Y 轴朝上，`floorHeight`=40，`boundary`={x:360, z:220}。类别：`building`（青色，楼顶显示楼名）/ `garage`（薄荷绿，渲染为半金字塔三角门入口 + P 牌，可多栋多入口）/ 任意自定义串（factory/warehouse/residential/office…，按挤出楼栋渲染，配色取 `tokens.category.<cat>`）。POI `type` 同样开放（自定义类型以通用圆点渲染）。非办公园区可用 `spec.unitTemplate` 定制单位字段与租户池。
 
 ## 设计 token（唯一事实来源）
 

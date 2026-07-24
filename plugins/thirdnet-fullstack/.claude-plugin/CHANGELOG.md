@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.23.1 - 2026-07-24
+
+### Changed
+- **thirdnet-digital-twin v2.16.0 楼层高度加高**：`floorHeight` 默认值由 `24` 调整为 `40`（`scripts/generate_data.py` 默认 + `references/park-spec.md` 文档两处）；5 个示例 spec（`evals/files/example-spec.json` 与 `generality/` 下 industrial/government/government-complex/underground）显式 `floorHeight` 同步 `24 → 40`。`floorHeight` 为 spec 级单值、与视觉风格解耦，所有几何（楼栋挤出 / 楼层分割虚线 / 女儿墙 / 楼顶机房 / 楼层拾取盒 / 金色高亮 / 连廊悬高 / POI 锚定 / 相机取景 `Hmax = max(floors) × floorHeight`）均从 `scaffold.floorHeight` 派生，运行时无硬编码 24，几何与对齐按新值自动等比缩放，无回归。
+- **版本同步**：`plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处 `2.23.0 → 2.23.1`；digital-twin 技能 `metadata.version` `2.15.0 → 2.16.0`。
+
 ## 2.22.0 - 2026-07-23
 
 ### Changed

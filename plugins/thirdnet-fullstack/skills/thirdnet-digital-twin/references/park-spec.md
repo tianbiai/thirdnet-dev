@@ -19,7 +19,7 @@ spec 仍是**创作唯一事实来源**（生成时读取），但生成器把�
 
 - **世界单位**，任意尺度。X = 东，Z = 南，Y = 上。
 - 楼栋坐落在地面（Y=0）的 `(x, z)`；占地为 `w`（X 方向）× `d`（Z 方向），以 `(x, z)` 为中心。
-- **`floorHeight`**（默认 `24`）—— 每层世界单位高度。一栋楼总高 = `floors * floorHeight`。
+- **`floorHeight`**（默认 `40`）—— 每层世界单位高度。一栋楼总高 = `floors * floorHeight`。
 - **`boundary`**（默认 `{x:360, z:220}`）—— 园区在 X 上延展 ±`boundary.x`、Z 上延展 ±`boundary.z`。网格地面和相机取景都据此确定尺寸。
 - 散开楼栋填满宽的中央面板（3–5 栋楼大致沿 左上→右下 对角线效果不错）。锁定前用截图目视校验布局。
 
@@ -34,7 +34,7 @@ interface ParkSpec {
   stage?: { width: number; height: number }  // 默认 1920×1080
   tokens?: Record<string, string>     // 颜色覆盖；省略则按 style 用 assets/themes/<style>.tokens.json
   shaders?: { grid?: { u_gridColor: string; u_cell: number; u_strength: number } }  // 仅 cyber 消费
-  floorHeight?: number                // 默认 24
+  floorHeight?: number                // 默认 40
   boundary?: { x: number; z: number } // 默认 {360, 220}
   buildings: BuildingSpec[]
   legend?: LegendEntry[]              // 默认 = 楼幢 + 地下车库 两个类别

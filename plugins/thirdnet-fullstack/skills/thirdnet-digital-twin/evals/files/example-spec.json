@@ -10,7 +10,7 @@
   "shaders": {
     "grid": { "u_gridColor": "#2a7fff", "u_cell": 46, "u_strength": 0.85 }
   },
-  "floorHeight": 24,
+  "floorHeight": 40,
   "boundary": { "x": 360, "z": 220 },
   "buildings": [
     { "id": "zonghe", "name": "综合楼", "category": "building",  "w": 82,  "d": 68, "floors": 5,  "x": -235, "z": -25, "header": "5F · 6单位" },

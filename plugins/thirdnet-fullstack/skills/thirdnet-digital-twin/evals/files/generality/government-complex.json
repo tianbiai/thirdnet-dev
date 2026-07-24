@@ -3,7 +3,7 @@
   "style": "cyber",
   "previewStyles": ["cyber", "holographic", "isometric", "nebula", "realistic", "night-realistic"],
   "stage": { "width": 1920, "height": 1080 },
-  "floorHeight": 24,
+  "floorHeight": 40,
   "boundary": { "x": 360, "z": 220 },
   "buildings": [
     {

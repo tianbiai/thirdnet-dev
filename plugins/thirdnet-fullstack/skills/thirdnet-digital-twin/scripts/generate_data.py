@@ -210,7 +210,7 @@ def _narrative_fragment(rnd, ind: dict, building_name: str, floor_label: str, co
 
 def render_scaffold(spec: dict) -> str:
     bnd = spec.get("boundary") or {"x": 360, "z": 220}
-    fh = spec.get("floorHeight", 24)
+    fh = spec.get("floorHeight", 40)
     env = spec.get("environment") or {}
     buildings = spec.get("buildings") or []
     garages = spec.get("garages") or []
