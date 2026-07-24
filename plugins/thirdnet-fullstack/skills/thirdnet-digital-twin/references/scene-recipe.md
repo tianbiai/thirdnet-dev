@@ -415,12 +415,45 @@ class ParkScene {
 
 `useSelection.ts`：新增 `belowView`（驱动相机）+ `selectedGarageId`（驱动卡片）+ `enterBelowView/selectGarage`（退出地下由 `clearFocus` 的退地下分支承担、`selectGarage(null)` 仅清卡片留地下视角）；与楼上楼栋/楼层/POI 互斥。`BuildingSwitcher.vue`：有 `garages[]` 时追加「地下车库」标签 → `enterBelowView`。`GarageCard.vue`：地下选中时浮出（右下），展示容量/已占用/空余/占用率；Esc/× → `selectGarage(null)`。`GlobalTwin.vue`：`onGarageSelect → selectGarage` + `watch(belowView → setBelowView)`。
 
+## 15. 夜间发光窗流水线（v2.15，仅 `night-realistic`）—— 移植自 Park 驾驶舱
+
+写实夜景的窗户不再「整楼统一 ~42% 静态点亮」，改走 Park 驾驶舱 `DigitalTwin.ts` 同款程序化流水线（**仅 `profile.building === 'pbr-night'` 消费；其余 5 风格立面像素级不变**）。旋钮全走可选 `tokens.windows` 块（缺省 `DEFAULT_WINDOWS`；`animRatio=0` 退化为静态烘焙=与 v2.14 一致）。
+
+### §15.1 双纹理接线（`map` + `emissiveMap`）
+
+`extrudeBuildings` 对 pbr-night 楼栋的 `sideMat`（`MeshStandardMaterial`）：
+- `.map` = `makeFacadeTexture` 产出的 **albedo 立面**：纵向渐变墙（`gradient.top→bottom`）+ 逐层面板窗户（亮窗画**暗同色**让 bloom 发光、未亮画 `glassOff`）+ 窗框/楼板暗带。
+- `.emissiveMap` = `buildWindowEmissive` 产出的 **发光图**：仅亮窗画满色（暖/冷），其余黑；`emissive:#ffffff` + `emissiveIntensity`（token）让贴图驱动色，配 `UnrealBloomPass` 产生夜景窗光。
+
+### §15.2 逐层窗户布局（`computeWindowLayout`，确定性——albedo 与 emissive 各调一次结果一致）
+
+- **度量** `windowMetricsTower(w, floors)`：画布 `min(720,max(256, w*3))` × 按立面比的高；`rooms = windows.roomsAxisTower`（默认 3）、`cellW=padW/rooms`、`winW=cellW*0.5`、`rowH=padH/floors`、`insetY=rowH*0.22`。
+- **砖错位面板** `floorRoomDividerFracs(floorIndex, rooms)`：偶数层相位 0、奇数层相位 `0.5/rooms`（半面板偏移），相邻层窗户不连成长条。面板像素宽 < `winW*1.1` 自动过滤；Fisher-Yates 洗牌（确定性）后取 `want = 2..5` 窗；窗在面板内中心抖动。
+- **分层点亮率**（注意 BoxGeometry `flipY`：canvas 行 0=顶层、行 `rows-1`=底层）：底层 `litRatio.ground`（默认 0，商业/大堂夜间暗）、顶层 `litRatio.top`（默认 0.22，住宅较稀）、中层 `litRatio.middle`（默认 0.38，最密）。
+- **暖冷双辉光**：亮窗按 `warmRatio`（默认 0.7）选 `warmColor`（`#ffd989`）/ `coolColor`（`#bfe2ff`）。
+- **确定性**：点亮种子 `mulberry32(hashStr('lit:'+seedSalt+':'+buildingId))`；动画子集选择 `mulberry32(hashStr('flip:'+seedSalt+':'+buildingId))`（独立流，与点亮无关——亮可灭、灭可亮）。禁用 `Math.random`。
+
+### §15.3 开关灯动画（dirty-gated 局部重绘，reduced-motion 关闭）
+
+`buildWindowEmissive` 把 `animRatio`（默认 0.2）比例的窗户收入 `FacadeAnim`（仅动画子集，底层不参与）；实例状态 `facadeAnims: FacadeAnim[]`。`animate()` 逐帧 `updateFacade(fa, now, colors)`：
+
+- **绝对时钟** `now = performance.now()`：`nextFlip`/`fadeStart` 用绝对值，切后台 rAF 停、回来不跳相（仅追赶一次）。
+- **翻转**：到期 `nextFlip ≤ now` → `from=cur, to=1-cur`（toggle）、`fadeStart=now`、重排 `nextFlip = now + flipMinMs + rngFlip()*flipVarMs`（默认 3000+rand*8000 ms 错峰）。
+- **渐隐**：`cur = from + (to-from)*smoothstep((now-fadeStart)/fadeMs)`（默认 800ms）；完成 `fadeStart=0`。
+- **dirty-gated**：仅当该帧有窗在过渡/到期时，`clearRect`+重绘其小矩形并返回 true → `tex.needsUpdate=true`；空闲帧零 GL 上传。**只重绘动画窗矩形，静态亮窗从不重画**（非整图重烘焙——见 `park-scene-impl.md` 规则）。
+- **reduced-motion**：构造期（`!this.reducedMotion && animRatio>0` 才 push）+ update 期双重门控；关后保留静态点亮图。
+
+### §15.4 生命周期
+
+`clearSceneGroup()` 弃 `facadeAnims = []`；`CanvasTexture` 经 `disposeObject` 的 `mm.emissiveMap.dispose()` 释放（与 v2.5 静态发光窗同路径）。`setStyle()` 切走 night-realistic → `rebuildScene → clearSceneGroup` 正确清空动画态；切回重建。
+
 ## 验证
 
 生成后，`npm run dev`（端口 3000）并确认（条件子清单见 SKILL.md「验证」段 + `shell.md`）：
 
 - [ ] **场景不死黑**：6 种风格首屏都有可辨识的 `scene.background`（暗色风格为顶→底渐变、非纯黑）；未受光区域不再是纯黑（`ambientFloor` 生效）。
 - [ ] **写实增强层**：`realistic`/`night-realistic` 启用 env/AO（night-realistic 另开反射/雾），其余 4 风格守纪律不启用；`EffectComposer`+`UnrealBloomPass` 已实例化（cyber/holographic/nebula 亮部有溢光）；isometric 不挂 bloom。
+- [ ] **夜间发光窗流水线（v2.15，night-realistic）**：立面纵向渐变墙；顶层比中层少亮窗、**底层零亮窗**；亮窗两色（暖黄/冷蓝）≈70/30；等 5–15s 约 20% 窗 800ms 渐隐渐显、无全屏闪烁；切后台回来不爆发；开 OS reduced-motion 重载→零动画、静态点亮图仍在；cyber→night-realistic→cyber 切换无报错、切走后 `facadeAnims` 清空。其余 5 风格立面与改动前像素一致。
 - [ ] **轮廓对齐**：楼栋几何装配走 `building-geometry.ts` 的 `buildBuilding()`（不在 ParkScene 里手写 `position.y`）；金色楼层高亮对齐楼层 slab、不偏移。
 - [ ] **地面有纹理**：cyber 显示着色器网格；holographic/nebula 显示点阵；isometric 显示细网格——没有一种风格是「纯色色片」。破坏 cyber shader 引用后地面降级为带网格纹理的纯色平面（不消失）。
 - [ ] 楼栋按类别上色，与 Legend 一致；每栋楼顶常驻名称标签；立面有楼层虚线分隔 + 贴砖（相邻两块深浅交替）；同一 spec 重复生成一致。

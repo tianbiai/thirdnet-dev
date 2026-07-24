@@ -48,12 +48,31 @@
         <button type="button" class="unit-detail__btn" :disabled="sel.unitIndex.value >= unitCount - 1" @click="sel.setUnit(sel.unitIndex.value + 1)">下一单位</button>
       </div>
       <h4 class="unit-detail__unit">{{ unit.name }}</h4>
+      <p v-if="unit.subtitle" class="unit-detail__unit-sub">{{ unit.subtitle }}</p>
       <dl class="unit-detail__grid">
         <template v-for="row in rows" :key="row.label">
           <dt>{{ row.label }}</dt>
           <dd>{{ row.value }}</dd>
         </template>
       </dl>
+      <!-- v2.15 叙事档案块（参照 Park 驾驶舱 ParkUnit；单位含叙事字段时追加渲染） -->
+      <section v-if="hasNarrative" class="unit-detail__narrative">
+        <div v-if="unit.scope" class="unit-detail__narr-row">
+          <span class="unit-detail__narr-label">业务范围</span>
+          <span class="unit-detail__narr-text">{{ unit.scope }}</span>
+        </div>
+        <div v-if="unit.intro_title || unit.intro_body" class="unit-detail__narr-block">
+          <p v-if="unit.intro_title" class="unit-detail__narr-title">{{ unit.intro_title }}</p>
+          <p v-if="unit.intro_body" class="unit-detail__narr-body">{{ unit.intro_body }}</p>
+        </div>
+        <div v-if="unit.duties && unit.duties.length" class="unit-detail__narr-row">
+          <span class="unit-detail__narr-label">主要职责</span>
+          <ul class="unit-detail__narr-list">
+            <li v-for="(d, i) in unit.duties" :key="i">{{ d }}</li>
+          </ul>
+        </div>
+        <p v-if="unit.closing" class="unit-detail__narr-closing">{{ unit.closing }}</p>
+      </section>
     </div>
   </aside>
 </template>
@@ -71,6 +90,12 @@ const detail = computed(() => twinData.floorDetail.value)
 const units = computed(() => detail.value?.units ?? [])
 const unit = computed(() => units.value[sel.unitIndex.value] ?? units.value[0])
 const unitCount = computed(() => units.value.length)
+
+// v2.15：是否含叙事档案块（任一叙事字段存在即为真）。
+const hasNarrative = computed(() => {
+  const u = unit.value
+  return !!(u && (u.scope || u.intro_title || u.intro_body || (u.duties && u.duties.length) || u.closing))
+})
 
 const detailTitle = computed(() => {
   const bid = sel.focusedBuildingId.value
@@ -186,6 +211,18 @@ onMounted(() => {
 .unit-detail__grid { display: grid; grid-template-columns: 84px 1fr; row-gap: 12px; margin: 0; }
 .unit-detail__grid dt { color: var(--twin-palette-text-lo); font-size: 13px; }
 .unit-detail__grid dd { margin: 0; color: var(--twin-palette-text-hi); font-size: 14px; line-height: 1.5; }
+
+.unit-detail__unit-sub { margin: -8px 0 14px; font-size: 12px; color: var(--twin-palette-text-lo); }
+/* v2.15 叙事档案块 */
+.unit-detail__narrative { margin-top: 18px; padding-top: 14px; border-top: 1px solid color-mix(in srgb, var(--twin-accents-panel-stroke) 60%, transparent); display: flex; flex-direction: column; gap: 12px; }
+.unit-detail__narr-row { display: flex; flex-direction: column; gap: 4px; }
+.unit-detail__narr-label { font-size: 12px; color: var(--twin-palette-text-lo); }
+.unit-detail__narr-text { font-size: 13px; color: var(--twin-palette-text-mid); line-height: 1.6; }
+.unit-detail__narr-block { padding: 10px 12px; border-radius: var(--twin-ui-panel-radius, 6px); background: color-mix(in srgb, var(--twin-accents-tile-bg) 60%, transparent); }
+.unit-detail__narr-title { margin: 0 0 6px; font-size: 13px; font-weight: 600; color: var(--twin-accents-title-text); }
+.unit-detail__narr-body { margin: 0; font-size: 13px; line-height: 1.7; color: var(--twin-palette-text-mid); }
+.unit-detail__narr-list { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.8; color: var(--twin-palette-text-mid); }
+.unit-detail__narr-closing { margin: 0; font-size: 12px; font-style: italic; color: var(--twin-palette-text-lo); }
 
 .skeleton {
   height: 14px; margin-bottom: 14px;

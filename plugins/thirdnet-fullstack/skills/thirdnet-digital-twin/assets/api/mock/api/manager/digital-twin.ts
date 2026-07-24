@@ -6,9 +6,10 @@ import type {
   BuildingQueryParams, BuildingRuntimeItem,
   FloorDetail, FloorDetailQueryParams,
   PoiQueryParams, PoiRuntimeItem,
+  PoiDetail, PoiDetailQueryParams,
 } from '@/api/types/digital-twin'
 import { ApiError } from '@/api/request'   // v1.8: Mock 也抛 ApiError，与 Real 错误类型一致
-import { mockBuildings, mockFloorDetails, mockPois } from '@/mock/data/manager/digital-twin'
+import { mockBuildings, mockFloorDetails, mockPois, mockPoiDetails } from '@/mock/data/manager/digital-twin'
 
 export class MockDigitalTwinApi implements IDigitalTwinApi {
   async getBuildings(_params?: BuildingQueryParams, _opts?: DigitalTwinRequestOptions): Promise<BuildingRuntimeItem[]> {
@@ -32,5 +33,13 @@ export class MockDigitalTwinApi implements IDigitalTwinApi {
     if (params?.building_id) list = list.filter(p => p.building_id === params.building_id)
     if (params?.type) list = list.filter(p => p.type === params.type)
     return list
+  }
+
+  async getPoiDetail(params: PoiDetailQueryParams, opts?: DigitalTwinRequestOptions): Promise<PoiDetail> {
+    // v2.15: mockPoiDetails 按 poi_id 索引（generate_data.py 产物），缺失抛 404——与 getFloorDetail 同款
+    const detail = mockPoiDetails[params.poi_id]
+    if (!detail) throw new ApiError(404, `POI ${params.poi_id} 的业务详情不存在`)
+    if (opts?.signal?.aborted) throw new ApiError(0, 'aborted')
+    return detail
   }
 }

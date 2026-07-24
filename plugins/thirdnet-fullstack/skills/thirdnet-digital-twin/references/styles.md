@@ -11,7 +11,7 @@
 | `realistic` | 写实日景 | `assets/themes/realistic.tokens.json` | ❌ | ✅ envMap+GTAO+软阴影 |
 | `night-realistic` | 写实夜景 | `assets/themes/night-realistic.tokens.json` | ❌ | ✅ envMap+GTAO+软阴影+反射+雾+强bloom |
 
-**写实两风格**以**提交的 token 文件**激活 `assets/park-scene.impl.ts` 内置的写实能力——`RoomEnvironment` PMREM 环境贴图（玻璃/金属真实反射、不发黑）、`GTAOPass` 接触阴影、2048² `PCFSoftShadowMap` 软阴影、`Reflector` 夜间湿润地面反射、线性雾、`UnrealBloomPass`（夜景窗光/路灯辉光）。写实立面为真实窗户网格，夜间叠 ~42% 发光窗 `emissiveMap`。**不要手改 `PROFILES` 表或临场编写实 token**——改观感只改对应 `assets/themes/<style>.tokens.json` 的 `realism` 块（旋钮说明见 `park-scene-impl.md`）。
+**写实两风格**以**提交的 token 文件**激活 `assets/park-scene.impl.ts` 内置的写实能力——`RoomEnvironment` PMREM 环境贴图（玻璃/金属真实反射、不发黑）、`GTAOPass` 接触阴影、2048² `PCFSoftShadowMap` 软阴影、`Reflector` 夜间湿润地面反射、线性雾、`UnrealBloomPass`（夜景窗光/路灯辉光）。写实立面为真实窗户网格；**夜间（night-realistic）走 Park 驾驶舱同款程序化发光窗流水线**（v2.15）：双纹理（`map` 全窗 + `emissiveMap` 仅亮窗辉光）、逐层砖错位面板窗（塔体 `roomsAxisTower` 3 列；`roomsAxisPodium` 5 列已入 schema/`tokens.windows` 预留，当前 facade 仅绘塔体）、分层点亮（底层 0% / 中层 0.38 / 顶层 0.22）、暖冷双辉光（70/30）、`animRatio=0.2` 的窗户 dirty-gated 开关灯翻转动画（`prefers-reduced-motion` 关闭）。旋钮走可选 `tokens.windows` 块（缺省 `DEFAULT_WINDOWS`；`animRatio=0` 退化为静态烘焙）。**不要手改 `PROFILES` 表或临场编写实 token**——改观感只改对应 `assets/themes/<style>.tokens.json` 的 `realism` 块 / `windows` 块（旋钮说明见 `park-scene-impl.md` + `scene-recipe.md §15`）。
 
 **网格着色器的归属**：只有 `cyber` 接入 `gridGround.glsl`。其余 5 种风格跳过 shader 地面，但都叠一层 `makeGroundTexture` 程序化 `CanvasTexture`（holographic/nebula 用 `dots`、isometric 用 `grid`）——不再是纯色色片。
 

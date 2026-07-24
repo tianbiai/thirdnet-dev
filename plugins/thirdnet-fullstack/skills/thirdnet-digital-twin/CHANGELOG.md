@@ -4,6 +4,31 @@
 
 ---
 
+## v2.15.0（2026-07-24）
+
+两条工作流合并升级：写实夜景窗户流水线移植（参照 Park 驾驶舱）+ POI/楼层单位信息 API 标准化。
+
+### Part A — 写实夜景程序化窗户流水线（移植自 Park 驾驶舱 `DigitalTwin.ts`）
+
+旧 v2.14 夜景发光窗是**静态烘焙**：单一 `emissiveMap`、整楼统一 ~42% 点亮、单暖色、无动画、整楼统一窗列数。本次移植 Park 项目成熟流水线到 `night-realistic`（其余 5 风格像素级不变）：
+
+- **逐层窗户宽度/数量**：新增 `windowMetricsTower`（读 `roomsAxisTower`，默认 3 列）+ `floorRoomDividerFracs` 砖错位面板切片，每层 2–5 窗、面板太窄自动过滤（替代旧整楼统一 `cols`）。`roomsAxisPodium`（默认 5 列）已入 schema/`tokens.windows` **预留**，当前 facade 仅绘塔体（schema 自承「预留；当前 facade 仅绘塔体」），裙楼分支后续接入。
+- **分层点亮率**：底层 0%（商业/大堂夜间暗）、中层 0.38、顶层 0.22（注意 BoxGeometry `flipY`：canvas 行 0=顶层、行 rows-1=底层）。
+- **暖冷双辉光**：70% 暖 `#ffd989` / 30% 冷 `#bfe2ff`，未亮 `#0c2240`；albedo 立面改纵向渐变墙（`gradient.top→bottom`）。
+- **开关灯动画**：`animRatio=0.2` 的窗户 dirty-gated 翻转（800ms smoothstep、3–11s 错峰、绝对时钟 `performance.now()` 暂停/恢复不跳相、`prefers-reduced-motion` 关闭保留静态点亮图）。仅重绘 emissiveMap 上动画窗小矩形、仅脏帧 `tex.needsUpdate=true`（空闲零 GL 上传）。
+- **双纹理接线**：`map`（albedo 全窗）+ `emissiveMap`（仅亮窗辉光），`emissive:white` 让贴图驱动色；`buildWindowEmissive` 返回 `{tex, anim}`，动画子集入 `facadeAnims`，`animate()` 逐帧 `updateFacade`，`clearSceneGroup` 弃引用、`CanvasTexture` 经 `disposeObject.emissiveMap.dispose()` 释放。
+- **token 化**：新增可选 `tokens.windows` 块（schema + night-realistic 主题；缺省走 `DEFAULT_WINDOWS`，`animRatio=0` 退化为静态烘焙=与 v2.14 一致）。确定性（三条独立流，禁用 `Math.random`）：点亮种子 `hashStr('lit:'+salt+id)`、动画子集选择 `hashStr('flip:'+salt+id)`、翻转时序 `hashStr('fliprng:'+salt+id)`。
+- **规则改写**：`references/park-scene-impl.md` 的「❌ 不要每帧重算 emissiveMap」改写为——禁止整图全量重烘焙，**允许**对动画子集（≤ animRatio·窗数、reduced-motion 门控）dirty-gated 局部重绘。
+
+### Part B — API 标准化：POI 业务详情 + 楼层单位档案
+
+楼层点击→单位信息**已**走 `getFloorDetail`（含 mock、AbortController 防竞态）；本次补齐 POI 详情标准接口并丰富单位档案（参照 Park `IParkTwinApi`）：
+
+- **`getPoiDetail(park_id?, poi_id)`**：新增 `IDigitalTwinApi` 第 4 个方法（`GET /api/manager/park/poi-detail`，权限 `biz:monitor:query`）。返回 `PoiDetail { title, subtitle?, status, fields:[{label,value}], live?:[{label,value}] }`——通用键值包（静态档案 + 实时指标），后端按 `(type,ref_id)` 分派、业务表零改动。Mock 查 `mockPoiDetails[poi_id]` 表，缺失抛 404。
+- **消费接线**：`useTwinData` 增 `poiDetail`/`poiDetailLoading`/`poiDetailError`；`GlobalTwin.vue` watch `sel.openPoiId` → `getPoiDetail({signal})`（onCleanup + AbortController 防快速切点 race）；`PoiOverlay.vue` 优先渲染详情 fields/live 表格，失败降级读列表 inline `tooltip`/`room_spec`/`occupancy`（向后兼容）。详情按 `poi_id === openPoiId` 防串显。
+- **单位档案丰富**：`UnitDetail` 加可选叙事块 `subtitle`/`scope`/`intro_title`/`intro_body`/`duties[]`/`closing`（参照 Park `ParkUnit`）；`UnitDetail.vue` 含叙事字段时追加「业务范围/单位介绍/主要职责/结尾语」段落。`generate_data.py` 确定性派生叙事文案（`_narrative_fragment`）+ 产 `mockPoiDetails`（按 type 套 camera/gate/通用档案模板）。
+- **保留技能既有更优约定**：`floor_id` 字符串（非 Park 的 0-based int `floor`）、可选 `park_id`、POI `floor_index` 0-based 带符号——不为对齐 Park 而改既有楼层点击链路。GET-only / snake_case / 无分页不变。
+
 ## v2.14.2（2026-07-23）
 
 - **消除「地平线长直线」**：`buildGround` 外圈城市地面 plane `PlaneGeometry(bx*3.2, bz*3.2)`→`bx*30, bz*30`（1152×704→10800×6600）。原尺寸远端 Z 边（z=−352）落在画面中段、且 X±576 略大于可视区±545 故横贯整屏，地面在此戛然而止露出星空背景 → 一条贯穿页面的地平线硬边；放大后远端退到真实地平线（视消失点），地面与天空在色差极小处（cyber `environment.city-ground` `#080418` ≈ 背景渐变中段 `~#080614`）天然相接，硬边消失。技能 `assets/park-scene.impl.ts` 与生成产物 `src/scene/ParkScene.ts` 同改（单 plane，成本可忽略）。注：移除外围墙（v2.14）后该地平线硬边才暴露——此前被远端围墙遮挡。

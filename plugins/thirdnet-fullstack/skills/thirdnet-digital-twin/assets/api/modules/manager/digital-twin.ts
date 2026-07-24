@@ -8,6 +8,7 @@ import type {
   BuildingQueryParams, BuildingRuntimeItem,
   FloorDetail, FloorDetailQueryParams,
   PoiQueryParams, PoiRuntimeItem,
+  PoiDetail, PoiDetailQueryParams,
 } from '@/api/types/digital-twin'
 import { MockDigitalTwinApi } from '@/mock/api/manager/digital-twin'
 
@@ -20,6 +21,9 @@ class RealDigitalTwinApi implements IDigitalTwinApi {
   }
   async getPois(params?: PoiQueryParams, opts?: DigitalTwinRequestOptions): Promise<PoiRuntimeItem[]> {
     return request<PoiRuntimeItem[]>({ url: '/api/manager/park/pois', method: 'GET', params, signal: opts?.signal })
+  }
+  async getPoiDetail(params: PoiDetailQueryParams, opts?: DigitalTwinRequestOptions): Promise<PoiDetail> {
+    return request<PoiDetail>({ url: '/api/manager/park/poi-detail', method: 'GET', params, signal: opts?.signal })
   }
 }
 

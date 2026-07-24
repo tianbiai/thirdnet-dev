@@ -34,17 +34,35 @@
     >
       <div class="poi-card__head">
         <span class="poi-card__badge" :data-type="openPoi.type">{{ typeLabel }}</span>
-        <h4 class="poi-card__title">{{ openPoi.tooltip?.title ?? openPoi.label }}</h4>
+        <h4 class="poi-card__title">{{ cardTitle }}</h4>
         <button type="button" class="poi-card__close" aria-label="关闭" @click="onClose">×</button>
       </div>
+      <p v-if="cardSubtitle" class="poi-card__subtitle">{{ cardSubtitle }}</p>
       <p v-if="openPoi.tooltip?.description" class="poi-card__desc">{{ openPoi.tooltip.description }}</p>
-      <!-- v2.12：键值表——功能房间优先 room_spec 结构化字段，缺省回退 tooltip.meta（同一 <dl> 驱动） -->
-      <dl v-if="metaRows.length" class="poi-card__meta" :class="{ 'poi-card__room': hasRoomSpec }">
+      <!-- v2.15：富详情优先——getPoiDetail 返回静态档案 fields + 实时指标 live（参照 Park 驾驶舱）。
+        缺失/失败时降级到 v2.12 inline 路径（room_spec / tooltip.meta）——向后兼容未升级 POI。 -->
+      <template v-if="detail">
+        <dl v-if="detail.fields.length" class="poi-card__meta">
+          <template v-for="row in detail.fields" :key="row.label">
+            <dt>{{ row.label }}</dt>
+            <dd>{{ row.value }}</dd>
+          </template>
+        </dl>
+        <div v-if="detail.live && detail.live.length" class="poi-card__live">
+          <span class="poi-card__live-label">实时</span>
+          <span v-for="row in detail.live" :key="row.label" class="poi-card__live-item">
+            {{ row.label }}：<strong>{{ row.value }}</strong>
+          </span>
+        </div>
+      </template>
+      <!-- 降级路径：无 getPoiDetail 详情时走 v2.12 inline 键值表 -->
+      <dl v-else-if="metaRows.length" class="poi-card__meta" :class="{ 'poi-card__room': hasRoomSpec }">
         <template v-for="row in metaRows" :key="row.label">
           <dt>{{ row.label }}</dt>
           <dd>{{ row.value }}</dd>
         </template>
       </dl>
+      <p v-if="twinData.poiDetailLoading.value" class="poi-card__desc">详情加载中…</p>
       <p v-if="openPoi.occupancy" class="poi-card__occupancy">
         车位剩余 <strong>{{ openPoi.occupancy.empty }}</strong> / {{ openPoi.occupancy.capacity }}
       </p>
@@ -69,6 +87,14 @@ const cardEl = ref<HTMLElement | null>(null)
 
 const openPoi = computed(() => poiById(sel.openPoiId.value))
 const hoverPoi = computed(() => poiById(twinData.hoverPoiId.value))
+
+// v2.15：富详情——仅当详情属于当前打开的 POI 时才用（防快速切点时短暂串显上一 POI 详情）。
+const detail = computed(() => {
+  const d = twinData.poiDetail.value
+  return d && d.poi_id === sel.openPoiId.value ? d : null
+})
+const cardTitle = computed(() => detail.value?.title ?? openPoi.value?.tooltip?.title ?? openPoi.value?.label ?? '')
+const cardSubtitle = computed(() => detail.value?.subtitle ?? null)
 
 // v2.12 功能房间结构化字段顺序（room_spec；政务/功能房间）。与 tooltip.meta 共用同一 <dl>。
 const ROOM_FIELDS = [
@@ -186,6 +212,7 @@ onBeforeUnmount(() => cancelAnimationFrame(rafId))
   font-size: 11px;
 }
 .poi-card__title { flex: 1; margin: 0; font-size: 15px; color: var(--twin-accents-title-text); }
+.poi-card__subtitle { margin: -2px 0 8px; font-size: 12px; color: var(--twin-palette-text-lo); }
 .poi-card__close {
   width: 22px; height: 22px;
   border: none; border-radius: 50%;
@@ -199,6 +226,10 @@ onBeforeUnmount(() => cancelAnimationFrame(rafId))
 .poi-card__meta dt { color: var(--twin-palette-text-lo); font-size: 12px; }
 .poi-card__meta dd { margin: 0; color: var(--twin-palette-text-hi); font-size: 13px; }
 .poi-card__room { padding: 8px 10px; border-radius: 4px; background: color-mix(in srgb, var(--twin-accents-tile-bg) 60%, transparent); }
+/* v2.15 实时指标行（getPoiDetail.live）：紧凑横排，强调值 */
+.poi-card__live { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 10px; padding-top: 8px; border-top: 1px solid color-mix(in srgb, var(--twin-accents-panel-stroke) 60%, transparent); font-size: 12px; color: var(--twin-palette-text-lo); }
+.poi-card__live-label { color: var(--twin-accents-online-light, var(--twin-palette-mint, #3df0c8)); font-weight: 600; }
+.poi-card__live-item strong { color: var(--twin-palette-text-hi); font-weight: 500; }
 .poi-card__occupancy { margin: 10px 0 0; font-size: 13px; color: var(--twin-palette-text-lo); }
 .poi-card__occupancy strong { color: var(--twin-accents-online-light); font-size: 16px; }
 </style>

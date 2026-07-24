@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://thirdnet/skills/thirdnet-digital-twin/tokens.schema.json",
   "title": "Theme Tokens v2.1",
-  "description": "结构契约：assets/themes/*.tokens.json 的形状校验。validate_spec.py 加载本文件对所选风格 token 做结构校验——缺关键块或类型错 → FAIL。允许 key 带下划线前缀的注释字段（_comment 等），不参与校验。v2.0 新增 realism 块（写实增强旋钮：material/bloom/ao/reflection/fog/sun）。v2.1 新增 scene.sky（程序化天空开关）、environment.roadMarking/water/rooftop（标线/水景/楼顶设备色）、ui 块（2D 组件观感旋钮，assets/components/ 消费）。v2.5 新增可选 realism.shadow（软阴影 radius/bias），并恢复 realistic/night-realistic 两风格（写实引擎 envMap/GTAO/反射/软阴影/雾 全部激活）。v2.6 新增可选 underground 块（地下场景配色：deck/wall/edge/room/spot/ramp + deckOpacity/wallOpacity）。",
+  "description": "结构契约：assets/themes/*.tokens.json 的形状校验。validate_spec.py 加载本文件对所选风格 token 做结构校验——缺关键块或类型错 → FAIL。允许 key 带下划线前缀的注释字段（_comment 等），不参与校验。v2.0 新增 realism 块（写实增强旋钮：material/bloom/ao/reflection/fog/sun）。v2.1 新增 scene.sky（程序化天空开关）、environment.roadMarking/water/rooftop（标线/水景/楼顶设备色）、ui 块（2D 组件观感旋钮，assets/components/ 消费）。v2.5 新增可选 realism.shadow（软阴影 radius/bias），并恢复 realistic/night-realistic 两风格（写实引擎 envMap/GTAO/反射/软阴影/雾 全部激活）。v2.6 新增可选 underground 块（地下场景配色：deck/wall/edge/room/spot/ramp + deckOpacity/wallOpacity）。v2.15 新增可选 windows 块（夜间发光窗流水线：逐层窗列数/分层点亮率/暖冷双辉光/dirty-gated 翻转动画，仅 night-realistic 消费；缺省走 park-scene.impl.ts 内置 DEFAULT_WINDOWS；animRatio=0 退化为静态烘焙=与 v2.14 行为一致）。",
   "type": "object",
   "additionalProperties": true,
   "required": ["scene", "palette", "category", "building", "lights", "environment", "realism", "ui"],
@@ -221,6 +221,43 @@
         "room": { "type": "string" },
         "spot": { "type": "string" },
         "ramp": { "type": "string" }
+      }
+    },
+    "windows": {
+      "type": "object",
+      "description": "v2.15 夜间发光窗流水线（仅 night-realistic 实际消费；realistic 日景可选静默）。animRatio=0 → 退化为静态烘焙发光窗（与 v2.14 行为一致）。缺省整个块时，pbr-night 走 park-scene.impl.ts 内置 DEFAULT_WINDOWS（litRatio 0.38/0.22/0、warm #ffd989 70%、cool #bfe2ff 30%、glassOff #0c2240、animRatio 0.2、fade 800ms、flip 3000+8000ms）。换肤改本块即可调整夜间窗光气质。",
+      "properties": {
+        "roomsAxisTower": { "type": "integer", "minimum": 2, "maximum": 12, "description": "塔体立面窗列数（cellW=padW/rooms，winW=cellW*0.5）。默认 3。" },
+        "roomsAxisPodium": { "type": "integer", "minimum": 2, "maximum": 12, "description": "裙楼长面窗列数（预留；当前 facade 仅绘塔体）。默认 5。" },
+        "litRatio": {
+          "type": "object",
+          "description": "分层点亮率：底层（商业/大堂夜间暗）、中层（最密）、顶层（住宅较稀）。注意 BoxGeometry flipY：canvas 行 0=顶层、行 rows-1=底层。",
+          "required": ["ground", "middle", "top"],
+          "properties": {
+            "ground": { "type": "number", "minimum": 0, "maximum": 1 },
+            "middle": { "type": "number", "minimum": 0, "maximum": 1 },
+            "top": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "warmColor": { "type": "string", "description": "亮窗暖辉光色（多数）。" },
+        "coolColor": { "type": "string", "description": "亮窗冷辉光色（少数）。" },
+        "warmRatio": { "type": "number", "minimum": 0, "maximum": 1, "description": "亮窗中暖色占比，默认 0.7。" },
+        "glassOff": { "type": "string", "description": "未亮窗玻璃色（绘于 albedo facade，非发光图）。" },
+        "gradient": {
+          "type": "object",
+          "description": "albedo facade 墙面纵向渐变（顶→底），替代单色墙。",
+          "required": ["top", "bottom"],
+          "properties": {
+            "top": { "type": "string" },
+            "bottom": { "type": "string" }
+          }
+        },
+        "animRatio": { "type": "number", "minimum": 0, "maximum": 1, "description": "0=静态烘焙；>0=此比例的窗户参与开关翻转动画（dirty-gated 局部重绘 emissiveMap，reduced-motion 自动关闭）。" },
+        "fadeMs": { "type": "integer", "minimum": 0, "description": "单窗开关 smoothstep 渐隐时长 ms。" },
+        "flipMinMs": { "type": "integer", "minimum": 0, "description": "同一窗两次翻转最小间隔 ms。" },
+        "flipVarMs": { "type": "integer", "minimum": 0, "description": "翻转间隔随机附加范围 ms（错峰）。" },
+        "emissiveIntensity": { "type": "number", "minimum": 0, "maximum": 4, "description": "覆盖默认 1.3。" },
+        "seedSalt": { "type": "string", "description": "可选；混入 hashStr 种子让多园区发光图案各异。" }
       }
     },
     "poi": {

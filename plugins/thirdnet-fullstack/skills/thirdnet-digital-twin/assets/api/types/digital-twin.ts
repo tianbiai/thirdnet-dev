@@ -42,6 +42,13 @@ export interface UnitDetail {
   responsibilities?: string   // 职责
   /** v2.7：自定义字段（spec.unitTemplate.fields 驱动）。存在时 UnitDetail.vue 优先渲染它，覆盖上方办公字段。 */
   fields?: { label: string; value: string }[]
+  /** v2.15：叙事档案块（参照 Park 驾驶舱 ParkUnit）。存在时 UnitDetail.vue 追加渲染「业务范围/单位介绍/主要职责/结尾语」段落。 */
+  subtitle?: string           // 副标题，如 "A楼 5F · 互联网科技 · 在驻"
+  scope?: string              // 业务范围一句话（与 business_scope 互补：后者偏结构化、本字段偏文案）
+  intro_title?: string        // 单位介绍标题
+  intro_body?: string         // 单位介绍正文
+  duties?: string[]           // 主要职责列表
+  closing?: string            // 结尾语
 }
 
 export interface FloorDetail {
@@ -110,4 +117,36 @@ export interface PoiQueryParams {
   park_id?: string
   building_id?: string         // 只取某栋楼（含室内）的 POI
   type?: PoiTypeEnum | string  // 只取某类（v2.7：可为自定义类型字符串）
+}
+
+// ---- POI 业务详情（getPoiDetail 返回，v2.15）----
+
+/**
+ * 详情卡片键值对行（POI/单位档案通用）——参照 Park 驾驶舱 ParkDetailField。
+ * 后端按 (type, ref_id) 分派查业务表，前端只发 poi_id；业务表零改动。
+ */
+export interface PoiDetailField {
+  label: string                // 标签，如 "IP 地址"
+  value: string                // 值，如 "10.20.1.11"
+}
+
+export interface PoiDetailQueryParams {
+  park_id?: string             // 单园区可省略
+  poi_id: string
+}
+
+/**
+ * POI 业务详情（v2.15）。通用键值包——静态档案 fields + 实时指标 live，
+ * 而非强类型 camera/gate 联合（便于后端按类型分派、前端零改造成本扩展类型）。
+ * 失败/缺失时 PoiOverlay 降级读列表项的 inline tooltip/room_spec/occupancy（向后兼容）。
+ */
+export interface PoiDetail {
+  poi_id: string
+  ref_id?: string              // 关联业务实体 id（透传，便于追溯）
+  type: PoiTypeEnum | string
+  title: string                // 设备/点位名
+  subtitle?: string            // 型号 / 安装位置
+  status: PoiStatusEnum        // 实时状态（详情时刻最新值）
+  fields: PoiDetailField[]     // 静态档案（IP/厂家/设备编码…）
+  live?: PoiDetailField[]      // 实时指标（今日通行/最近抓拍…），可选
 }

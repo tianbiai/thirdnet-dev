@@ -175,6 +175,35 @@ def _sample_field_value(rnd, fld: dict, tenant: dict) -> str:
     return f"{1 + int(rnd() * 200)}{unit}"
 
 
+def _narrative_fragment(rnd, ind: dict, building_name: str, floor_label: str, company: str) -> str:
+    """v2.15：参照 Park 驾驶舱 ParkUnit 产出叙事档案块（subtitle/scope/intro_title/intro_body/duties[]/closing）。
+
+    从行业 ind（label/scope/duty）+ 楼层/公司名确定性派生文案占位——既保证可读，又逐字节稳定。
+    返回可直接拼入单位对象的 TS 片段字符串（不含外层花括号）。
+    """
+    label = ind.get("label", "综合服务")
+    scope = ind.get("scope", "综合服务")
+    duty = ind.get("duty", "负责园区相关业务运营")
+    subtitle = f"{building_name} {floor_label} · {label} · 在驻"
+    intro_title = f"{company}——园区{label}入驻单位"
+    intro_body = (
+        f"{company}是入驻{building_name} {floor_label}的{label}单位，"
+        f"主要开展{scope}相关业务，为园区及合作方提供专业化服务。"
+    )
+    # duties：把 scope/duty 拆成 3–4 条要点
+    duty_items = [s.strip() for s in (scope.replace("、", ",") + "," + duty).split(",") if s.strip()]
+    duty_items = duty_items[:4]
+    if len(duty_items) < 3:
+        duty_items.append("园区协同与资源对接")
+    duties = ", ".join(f"'{_esc(d)}'" for d in duty_items)
+    closing = f"以专业能力服务园区，共建{label}生态。"
+    return (
+        f"subtitle: '{_esc(subtitle)}', scope: '{_esc(scope)}', "
+        f"intro_title: '{_esc(intro_title)}', intro_body: '{_esc(intro_body)}', "
+        f"duties: [{duties}], closing: '{_esc(closing)}'"
+    )
+
+
 # ---------------------------------------------------------------------------
 # 生成静态脚手架 src/data/<park>.ts
 # ---------------------------------------------------------------------------
@@ -444,7 +473,7 @@ def render_mock(spec: dict, rnd) -> str:
         "// 要换内容：改 spec.json 后重跑 generate_data.py --mock-only。",
         "// ==========================================================================",
         "",
-        "import type { BuildingRuntimeItem, FloorDetail, PoiRuntimeItem, UnitDetail } from '@/api/types/digital-twin'",
+        "import type { BuildingRuntimeItem, FloorDetail, PoiRuntimeItem, PoiDetail, UnitDetail } from '@/api/types/digital-twin'",
         "import { PoiStatusEnum, PoiTypeEnum } from '@/api/types/digital-twin'",
         "",
         "// ---- 楼幢业务数据（getBuildings）—— 从 spec.buildings[] 派生 ----",
@@ -474,6 +503,7 @@ def render_mock(spec: dict, rnd) -> str:
         if b.get("category") == "garage":
             continue
         floors = int(b.get("floors", 1))
+        building_name = b.get("name", b["id"])
         for i in range(1, floors + 1):
             n_units = 1 + int(rnd() * 3) % 3  # 1–3
             units = []
@@ -483,6 +513,8 @@ def render_mock(spec: dict, rnd) -> str:
                 company = fresh_company(ind)
                 if main_tenant is None:
                     main_tenant = company
+                # v2.15：叙事档案块（subtitle/scope/intro_title/intro_body/duties[]/closing）
+                narr = _narrative_fragment(rnd, ind, building_name, f"{i}F", company)
                 if fields_tmpl:
                     # v2.7：自定义字段模板——按 spec.unitTemplate.fields 产出 fields[]（替代办公字段）。
                     flds = ", ".join(
@@ -492,7 +524,7 @@ def render_mock(spec: dict, rnd) -> str:
                     units.append(
                         "      { "
                         f"unit_id: '{b['id']}-f{i}-u{j}', name: '{company}', tenant: '{company}', "
-                        f"fields: [{flds}] "
+                        f"fields: [{flds}], {narr} "
                         "},"
                     )
                 else:
@@ -504,7 +536,7 @@ def render_mock(spec: dict, rnd) -> str:
                         f"contact_person: '{_person(rnd)}', contact_phone: '{_phone(rnd)}', "
                         f"staff_count: {staff}, area: {area}, nature: '{_pick(rnd, NATURES)}', "
                         f"service_hours: '09:00-18:00', business_scope: '{ind['scope']}', "
-                        f"responsibilities: '{ind['duty']}' "
+                        f"responsibilities: '{ind['duty']}', {narr} "
                         "},"
                     )
             lines.append(f"  {{")
@@ -520,8 +552,10 @@ def render_mock(spec: dict, rnd) -> str:
     # ---- POI ----
     lines.append("// ---- POI 点位（getPois）—— 坐标/类型/tooltip 直接搬 spec，status 给合理初值 ----")
     lines.append("export const mockPois: PoiRuntimeItem[] = [")
+    poi_status_map = {}   # v2.15：记录每个 POI 的 status，供下方 mockPoiDetails 复用（列表/详情状态一致观感）
     for p in pois:
         status = "PoiStatusEnum.Idle" if rnd() < 0.15 else "PoiStatusEnum.Online"
+        poi_status_map[p["id"]] = status
         ptype = p.get("type", "custom")
         _POI_ENUM = {
             "entrance": "Entrance", "exit": "Exit", "camera": "Camera", "gate": "Gate",
@@ -574,6 +608,71 @@ def render_mock(spec: dict, rnd) -> str:
             if rs_parts:
                 parts.append(f"room_spec: {{ {', '.join(rs_parts)} }}")
         lines.append(f"  {{ {', '.join(parts)} }},")
+    lines.append("]")
+    lines.append("")
+
+    # ---- v2.15 POI 业务详情（getPoiDetail）—— 参照 Park 驾驶舱 ParkPoiDetail ----
+    # 通用键值包：静态档案 fields + 实时指标 live。按 type 套模板（camera/gate 给设备档案；
+    # 其余给点位档案）。键按 poi_id 索引，Mock getPoiDetail 直接查表。
+    # status 复用上方 mockPois 的派生（poi_status_map）——列表卡与详情卡状态一致观感。
+    lines.append("// ---- POI 业务详情（getPoiDetail）—— 按 type 套档案模板，键=poi_id ----")
+    lines.append("export const mockPoiDetails: Record<string, PoiDetail> = {")
+    _DEVICE_BRANDS = ["海康威视", "大华", "宇视", "商汤", "科大讯飞"]
+    _DEVICE_MODELS_CAM = ["IPC-7841", "DS-2CD2", "H.265 球机", "4K 枪机"]
+    _DEVICE_MODELS_GATE = ["FACE-200", "QR-300", "IC/ID 闸机", "车牌识别一体机"]
+    for p in pois:
+        pid = p["id"]
+        ptype = p.get("type", "custom")
+        label = p.get("label", pid)
+        status = poi_status_map.get(pid, "PoiStatusEnum.Online")   # 复用列表同款 online/idle 分布
+        if ptype == "camera":
+            ref_id = f"dev-cam-{pid}"
+            subtitle = f"{_pick(rnd, _DEVICE_BRANDS)} {_pick(rnd, _DEVICE_MODELS_CAM)}"
+            fields = [
+                ("设备编码", f"CAM-{pid.upper()}"),
+                ("IP 地址", f"10.{int(rnd()*255)}.{int(rnd()*255)}.{1 + int(rnd()*254)}"),
+                ("厂家", _pick(rnd, _DEVICE_BRANDS)),
+                ("安装位置", label),
+            ]
+            live = [
+                ("最近抓拍", f"{1 + int(rnd() * 30)} 分钟前"),
+                ("今日录像", "正常"),
+            ]
+        elif ptype == "gate":
+            ref_id = f"dev-gate-{pid}"
+            subtitle = f"{_pick(rnd, _DEVICE_BRANDS)} {_pick(rnd, _DEVICE_MODELS_GATE)}"
+            fields = [
+                ("设备编码", f"GATE-{pid.upper()}"),
+                ("设备型号", _pick(rnd, _DEVICE_MODELS_GATE)),
+                ("安装位置", label),
+            ]
+            live = [
+                ("今日通行", f"{50 + int(rnd() * 600)} 次"),
+                ("状态", "正常"),
+            ]
+        else:
+            ref_id = f"poi-{pid}"
+            subtitle = label
+            fields = [
+                ("点位编码", pid.upper()),
+                ("点位类型", label),
+                ("所属区域", "园区"),
+            ]
+            live = [("最近更新", f"{1 + int(rnd() * 60)} 分钟前")]
+        flds_str = ", ".join(
+            f"{{ label: '{_esc(l)}', value: '{_esc(v)}' }}" for l, v in fields
+        )
+        live_str = ", ".join(
+            f"{{ label: '{_esc(l)}', value: '{_esc(v)}' }}" for l, v in live
+        )
+        type_enum = f"PoiTypeEnum.{_POI_ENUM[ptype]}" if ptype in _POI_ENUM else f"'{ptype}'"
+        lines.append(
+            f"  '{pid}': {{ "
+            f"poi_id: '{pid}', ref_id: '{ref_id}', type: {type_enum}, "
+            f"title: '{_esc(label)}', subtitle: '{_esc(subtitle)}', status: {status}, "
+            f"fields: [{flds_str}], live: [{live_str}] "
+            f"}},"
+        )
     lines.append("]")
     lines.append("")
     return "\n".join(lines)

@@ -1,56 +1,104 @@
-# Thirdnet Plugins - Claude Code 插件集合
+# CLAUDE.md
 
-本项目是为 Claude Code 开发的全栈开发插件集合，提供后端（.NET 微服务）和前端（Vue 3）的专业开发辅助。
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## 项目结构
+## 仓库性质
+
+这是一个 **Claude Code 插件集合仓库**，不是可运行的应用——没有 build/test/lint 流水线。产出物是插件包（`plugin.json` + `skills/` + `agents/` + `hooks/`），由 Claude Code 以 marketplace 方式加载后，在其会话内提供前后端开发技能与强制规范钩子。所有文档和 commit message 使用中文。
 
 ```
 thirdnet-dev/
-├── plugins/
-│   └── thirdnet-fullstack/        # 全栈开发插件（自包含）(v2.22.0)：后端 .NET 微服务 + 前端 Vue 3 + 数字孪生 + 全栈协调 + 全栈审查 + 项目文档生成 + 模板升级 + Markdown 转 Word（全部技能内聚于此）
-└── .claude-plugin/
-    └── marketplace.json      # 插件集合注册清单 (v0.57.0)
+├── .claude-plugin/marketplace.json          # 插件集合注册清单（顶层 metadata.version + 各 plugin 条目）
+└── plugins/thirdnet-fullstack/               # 唯一的自包含插件（v2.23.0）
+    ├── .claude-plugin/plugin.json            # 插件元数据（version 权威来源之一）
+    ├── .claude-plugin/hooks/hooks.json       # 3 个 Stop + 2 个 PreToolUse + 2 个 PostToolUse 钩子
+    ├── agents/                               # 子代理：backend-developer.md / frontend-developer.md
+    └── skills/                               # 25 个技能（见下「技能体系」）
 ```
 
-## 核心约定
+marketplace 还声明了若干外部插件（superpowers / supabase-postgres-best-practices / ui-ux-pro-max / webapp-testing），通过 URL source 引用，不在本仓库内。
 
-### 文档驱动开发
+## 核心架构（需读多文件才能理解的大图）
 
-本插件强制执行文档驱动开发流程：
+### 四要素模型：plugin → skill → agent → hook
+
+- **plugin**（`thirdnet-fullstack`）：自包含单元，是 ThirdNet 前后端开发技能的**唯一来源**，统一 `thirdnet-fullstack:` 命名空间。
+- **skill**（`skills/*/SKILL.md`）：领域知识与工作流。每个技能有 frontmatter `metadata.version`，技能内可含 `references/`（深度文档）、`assets/`（可拷贝范式代码）、`scripts/`（生成/校验脚本）、`templates/`。
+- **agent**（`agents/*.md`）：瘦封装子代理，由协调技能 `thirdnet-fullstack` 在重型阶段通过 Task 工具派发，隔离上下文（`backend-developer` 跟随前端契约实现后端、`frontend-developer` 先行产出前端契约层）。
+- **hook**（`.claude-plugin/hooks/hooks.json`）：强制规范执行点（见下「钩子」）。
+
+### 文档驱动开发流程（强制）
 
 ```
-需求分析 → 生成 plan.md → 生成 changelog.md → 生成 spec.md → 编码 → 校验 + 同步更新文档
+需求分析 → plan.md → changelog.md → spec.md → 编码 → 校验 + 同步更新文档
 ```
 
-所有功能变更必须同步更新文档——**文档完整性 Stop Hook（后端文档门 + 前端文档门，共两个）** 会在文档未更新时阻断完成。另有**全栈质量收尾门 Stop Hook**：检测到功能性代码变更（后端 `*.cs` 或前端 `*.vue`/`*.ts`）未通过 `fullstack-review` 审查、或仍有 Critical/Major 问题时，阻断会话结束。合计**三个 Stop Hook**。
+功能性变更必须同步更新对应 `plan/changelog/spec`，否则 Stop Hook 阻断会话结束。模板位于 `backend-workflow` / `frontend-workflow` 技能内（`project-spec-template`、`changelog-template`、`page-spec-template` 等）。
 
-### 技能体系
+### 钩子（hooks.json）—— 操作性事实
 
-`thirdnet-fullstack` 插件通过 `skills/` 目录组织全部领域知识（共 25 个技能）：
+共 7 个钩子，是本插件「不可跳过」约束的执行点：
 
-- **后端（8 个）**：微服务生成、API 开发、EF Core（含批量操作）、认证授权、缓存、后台任务、枚举字典、后端工作流
-- **前端（11 个）**：Vue 3 最佳实践、设计规范、API TypeScript 规范、Admin 模板安装、前端工作流、Pinia、Router、JSX、Composable 设计、Apple 设计规范、枚举字典规范（vue-enum-dict）
-- **数字孪生（1 个）**：`thirdnet-digital-twin`（v2.14.0）——园区数字孪生 3D 模块生成（Vue 3 + Three.js，1920×1080 舞台 + 楼栋切换器 + POI 打点 + **地下车库多层剖面**，6 种视觉风格（cyber/holographic/isometric/nebula/realistic/night-realistic））；数据分层：基础信息静态内联（含地下车库 `garages[]` 几何+占用），动态数据（楼幢名/楼层数/楼层详情/POI 点位）走 `IDigitalTwinApi` 契约层（Mock/Real 工厂，`VITE_MOCK_ENABLED` 切换）；随包发布完整范式实现 `assets/park-scene.impl.ts` + `building-geometry.ts` + 14 个 2D 组件范式文件（`assets/components/` 含 v2.12 新增 `StyleSwitcher.vue`）+ 6 个 API 契约层模板（`assets/api/`），生成器「拷贝-改」消灭渲染管线/组件 CSS/契约层漂移；3 个生成脚本（generate_data.py 脚手架+Mock 数据、generate_theme.py token→tokens.css 含 `--brand` 品牌色派生、layout_park.py 自动不重叠布局）+ validate_spec.py 校验（含楼栋出界/重叠/POI 越界 FAIL、spec.tokens 覆盖白名单 WARN）；v2.5 恢复写实两风格（realistic/night-realistic）并以提交 token 文件激活内置写实引擎（RoomEnvironment 环境贴图 + GTAO + 2048² 软阴影 + Reflector 湿润反射 + 雾 + 强 bloom + 夜间发光窗），强化共享几何（真实窗户立面/升级车辆/树冠/楼顶设备），修复失效旋钮（ao.radius/reflection.mixStrength/shadow），5 文件契约层 4 个静态样板固化为可拷贝模板；v2.6 新增地下场景（顶层 `garages[]` 负层坑体，Y<0 透明玻璃柱 + `setBelowView` 相机俯冲 + `GarageCard` + `underground` token，支持 B1/B2 多层堆叠）；v2.7 通用化——放开楼栋 `category` 与 POI `type` 枚举（自定义类别/类型，garage 可多栋多入口）、新增 `spec.unitTemplate` 定制非办公园区（工业/物流/住宅）单位字段与租户池（办公为默认、向后兼容）；v2.8 解锁 `corridor`（楼栋间空中连廊）+ 清引擎 v2.4 遗留 `wire/white` 不可达分支等死代码 + 文档全面对齐 6 风格 / 13 组件事实；v2.9 连廊跨层（`corridor.floorEnd`）+ 连体楼 `connects` 豁免间距校验 + 修 typecheck bug；v2.10 地下坑体加深（`deck_y` 推荐 120→200 + 偏浅 `<160` WARN + 范例 B2 反向 bug 修正）+ 相机解锁地下俯仰（`defaultMaxPolar` 1.3→π-0.1，可拖到地面之下仰视看坑）；v2.11 地下坑体推荐默认回调（`deck_y` 200→140 + 偏浅 WARN 阈值 <160→<140 + 兜底常量/文档/范例 fixture 同步 + 顺手清理 industrial.json 漏改的 120）；v2.12 建筑平面图与多风格预览支持——schema 扩 `poi.roomSpec`（area/capacity/dept/duty 结构化字段）+ 顶层 `previewStyles?`（多风格实时切换清单）+ 新增 `StyleSwitcher.vue` + `useStyle.ts` 范式文件 + 政府/政务园区 token 调色指引与 `government-complex.json` 夹具；v2.14 移除园区外围墙特性（删 `buildSurrounding` 围墙渲染块 + `environment.surrounding.wall` schema + 6 风格 `environment.wall` token，地下车库玻璃壁 `underground.wall` 保留）
-- **全栈协调（1 个）**：`thirdnet-fullstack` 协调技能——前端先行开发顺序、Admin CRUD 页面模式、前后端类型映射、RBAC 桥接、子代理调度
-- **质量保障（1 个）**：`fullstack-review`——功能开发完成后的全栈代码审查与验证（前后端规范、API、数据库、跨端契约、业务正确性、性能、安全、文档），产出审查报告与修改方案
-- **文档交付（1 个）**：`thirdnet-doc-generator`——功能开发完成后基于代码库功能模块生成项目交付文档（需求规格说明书、系统设计文档、用户手册、测试用例文档等，每类有专属模板，输出 Markdown 可转 Word）
-- **模板升级（1 个）**：`thirdnet-template-upgrade`——前后端模板升级操作指南（thirdnet-migrate / create-thirdnet-admin），工具出 diff 素材、AI 全量判定并直接升级文件
-- **工具（1 个）**：`md-to-word`——Markdown 转 Word（.docx）转换工具技能
+- **PreToolUse × 2**（matcher `Write|Edit`）— **技能合规门**：编辑后端 `*.cs/*.csproj` 或前端 `src/**/*.{vue,ts,tsx,scss,css}` 前，检查本次会话是否已用 Skill 工具加载对应技能；未加载则 `block`。路由表：
+  - 后端：`net-microservice-generator`（新项目/Program.cs）、`net-api-developer`（Controller/API）、`net-efcore-developer`（Models/Configurations/DbContext/Migrations/批量/分组查询）、`net-auth`（认证/加密/权限）、`net-cache-use`（缓存）、`net-background-job`（Job/Task/Worker）、`net-enum-dict`（Enums/SystemDict）。
+  - 前端：`vue-best-practices`（所有 .vue/.ts）、`api-typescript-spec`（api/mock/）、`vue-pinia-best-practices`（stores/）、`vue-router-best-practices`（router/）、`frontend-design`（新建 views/pages/components 文件）。
+  - **因此编辑前后端代码前，必须先 Skill 调用对应技能**——否则写入被拦截，即使父代理指令说跳过也不行。
+- **PostToolUse × 2**（matcher `Write|Edit`）— **规范告警**：编辑后端功能性文件检查「仅 GET/POST、Fluent API（禁数据注解）、单文件单类型、`[ProducesResponseType]`」等；编辑前端 `src/api/modules/**/*.ts` 检查「策略工厂三件套（I{Entity}Api 接口 + Real/Mock 实现 + createXxxApi 工厂）」。
+- **Stop × 3** — **收尾门**：① 后端文档门（backend/ 下功能性变更须更新 spec/changelog/plan + 中文注释完整性）；② 前端文档门（frontend/ 下同，含 Web `public/changelog.md` 或小程序 `static/changelog.md` + viewer.html + marked.min.js）；③ **全栈质量收尾门**——功能性 `*.cs` / `*.vue` / `*.ts` 变更未经 `thirdnet-fullstack:fullstack-review` 审查、或 review-report.md 仍存 Critical/Major 问题时阻断结束（用户明确说「跳过审查」方可放行）。
 
-## 插件说明
+### 版本号三处同步（修改插件内容时必做）
 
-### thirdnet-fullstack
+修改插件内容后，以下三处版本号必须保持一致：
+1. `plugins/thirdnet-fullstack/.claude-plugin/plugin.json` 的 `version`
+2. 协调技能 `skills/thirdnet-fullstack/SKILL.md` 的 `metadata.version`
+3. `.claude-plugin/marketplace.json` 中 `thirdnet-fullstack` 条目的 `version`（重大变更还需同步顶层 `metadata.version`）
 
-ThirdNet 全栈 Admin 开发插件（自包含），是前后端开发技能的唯一来源。技术栈：
+每次同步在 `plugins/thirdnet-fullstack/.claude-plugin/CHANGELOG.md` 记录条目。
 
-- **后端**：.NET 10 + PostgreSQL + EF Core；ThirdNet.Vibe 框架（自定义模板）；Redis 缓存 + JWT（国密）认证；仅允许 GET/POST 方法（网关限制）
-- **前端**：Vue 3 + Element Plus + Vite（Web 端）；uniapp + Vant（移动端，发布为微信小程序 mp-weixin）
-- **全栈协调**：前端先行、Admin CRUD 页面模式、前后端类型映射、RBAC 权限桥接、共享 API 约定同步；含 `backend-developer` / `frontend-developer` 两个子代理隔离重型阶段
+## 技能体系（25 个，统一 thirdnet-fullstack: 命名空间）
 
-**使用方式**：全栈场景由 `thirdnet-fullstack` 协调技能进入（可派发子代理）；纯后端/纯前端单侧任务直接用 `backend-workflow` / `frontend-workflow` 技能。技能可被 PreToolUse 钩子按编辑的文件类型自动触发，或用 Skill 工具手动调用。
+- **后端（8）**：`backend-workflow`（后端总工作流，含框架/模板目录）、`net-microservice-generator`、`net-api-developer`、`net-efcore-developer`（含批量操作）、`net-auth`、`net-cache-use`、`net-background-job`、`net-enum-dict`
+- **前端（11）**：`frontend-workflow`、`vue-best-practices`、`api-typescript-spec`（策略工厂 Real/Mock 切换）、`frontend-design`、`design-apple`、`admin-template-setup`、`create-adaptable-composable`、`vue-pinia-best-practices`、`vue-router-best-practices`、`vue-jsx-best-practices`、`vue-enum-dict`
+- **数字孪生（1）**：`thirdnet-digital-twin`——园区 3D 模块生成（Vue 3 + Three.js，1920×1080 舞台 + 楼栋切换器 + POI 打点 + 地下车库多层剖面，6 种视觉风格：cyber/holographic/isometric/nebula/realistic/night-realistic）。数据分层：基础信息静态内联（含地下车库 `garages[]` 几何+占用），动态数据走 `IDigitalTwinApi` 契约层（Mock/Real 工厂，`VITE_MOCK_ENABLED` 切换）。随包发布完整范式 `assets/park-scene.impl.ts` + `building-geometry.ts` + 2D 组件范式 + 6 个 API 契约层模板，生成器「拷贝-改」。详见技能内 `SKILL.md` 与 `references/`。
+- **协调（1）**：`thirdnet-fullstack`——全栈协调（前端先行、Admin CRUD 模式、前后端类型映射、RBAC 桥接、子代理调度）
+- **质量（1）**：`fullstack-review`——全栈代码审查（前后端规范、API、数据库、跨端契约、业务正确性、性能、安全、文档），产出 review-report.md
+- **文档（1）**：`thirdnet-doc-generator`——项目交付文档生成（需求规格/系统设计/用户手册/测试用例，Markdown 可转 Word）
+- **模板升级（1）**：`thirdnet-template-upgrade`
+- **工具（1）**：`md-to-word`
 
-## 开发注意事项
+## 常用命令
 
-- 所有文档和 commit message 使用中文
-- 插件内的技能（skills/）和钩子（hooks/）定义了具体的开发规范
-- 修改插件内容后，注意同步更新版本号：插件 `plugin.json`、协调技能 `SKILL.md` 的 `metadata.version`、`marketplace.json` 中对应条目三处须保持一致
+本仓库无构建系统。唯一可执行脚本是数字孪生技能下的 Python 工具（位于 `plugins/thirdnet-fullstack/skills/thirdnet-digital-twin/scripts/`）：
+
+```bash
+# 校验 Park Spec JSON（结构 + 业务规则：楼栋出界/重叠、POI 越界 FAIL；token 覆盖白名单、车位密度 WARN）
+python validate_spec.py <spec.json>            # 详细输出
+python validate_spec.py <spec.json> --quiet    # 仅退出码（0=有效 / 1=无效 / 2=用法错误）
+
+# 自动不重叠布局（修复 validate_spec.py 报告的 AABB 重叠/出界）
+python layout_park.py <spec.json>
+
+# token → tokens.css（含 --brand 品牌色派生）
+python generate_theme.py <theme.tokens.json>
+
+# 脚手架 + Mock 数据生成
+python generate_data.py <spec.json>
+```
+
+可选依赖（启用 `validate_spec.py` 的 jsonschema 全量校验，缺失则降级为手工键检查）：
+
+```bash
+pip install -r plugins/thirdnet-fullstack/skills/thirdnet-digital-twin/scripts/requirements.txt
+```
+
+## 技术栈（生成项目使用，非本仓库）
+
+- **后端**：.NET 10 + PostgreSQL + EF Core；ThirdNet.Vibe 框架；Redis 三层缓存 + JWT（国密）认证；网关仅允许 GET/POST。
+- **前端**：Vue 3 + Element Plus + Vite（Web）；uniapp + Vant（移动端，发布为微信小程序 mp-weixin）。
+
+## 开发约定
+
+- 全栈场景由 `thirdnet-fullstack` 协调技能进入（可派发子代理）；纯单侧任务直接用 `backend-workflow` / `frontend-workflow`。
+- 编辑前后端功能性代码前先 Skill 加载对应技能（PreToolUse 门）。
+- 功能性变更收尾前调用 `fullstack-review`（Stop 收尾门）。
+- `.gitignore` 排除 `.playwright-mcp/` 与本地 `park-digital-twin/` 工程——不要提交这些目录。

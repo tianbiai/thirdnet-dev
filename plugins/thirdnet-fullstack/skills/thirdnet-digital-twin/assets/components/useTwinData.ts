@@ -8,7 +8,7 @@
  * 按方法独立错误 + 重试入口，绝不静默 catch。
  */
 import { ref, computed } from 'vue'
-import type { BuildingRuntimeItem, FloorDetail, PoiRuntimeItem } from '@/api/types/digital-twin'
+import type { BuildingRuntimeItem, FloorDetail, PoiRuntimeItem, PoiDetail } from '@/api/types/digital-twin'
 
 /** ApiError.status → 用户可读文案（shell.md 契约）。 */
 export function errMsg(e: unknown): string {
@@ -22,6 +22,7 @@ export function errMsg(e: unknown): string {
 const buildings = ref<BuildingRuntimeItem[]>([])
 const pois = ref<PoiRuntimeItem[]>([])
 const floorDetail = ref<FloorDetail | null>(null)
+const poiDetail = ref<PoiDetail | null>(null)        // v2.15：POI 业务详情（getPoiDetail 拉取）
 const hoverPoiId = ref<string | null>(null)   // 悬停 POI（ParkScene onPoiHover 写入）
 
 const hydrating = ref(true)               // 首屏水合中（脚手架先行，不白屏）
@@ -29,6 +30,8 @@ const buildingsError = ref<string | null>(null)
 const poisError = ref<string | null>(null)
 const floorDetailLoading = ref(false)
 const floorDetailError = ref<string | null>(null)
+const poiDetailLoading = ref(false)             // v2.15
+const poiDetailError = ref<string | null>(null) // v2.15
 
 const buildingCount = computed(() => buildings.value.length)
 
@@ -45,14 +48,16 @@ function setBuildings(items: BuildingRuntimeItem[]) { buildings.value = items }
 function setPois(items: PoiRuntimeItem[]) { pois.value = items }
 function setFloorDetail(d: FloorDetail | null) { floorDetail.value = d }
 function setHoverPoi(id: string | null) { hoverPoiId.value = id }
+function setPoiDetail(d: PoiDetail | null) { poiDetail.value = d }
 
 export function useTwinData() {
   return {
-    buildings, pois, floorDetail, hoverPoiId,
+    buildings, pois, floorDetail, poiDetail, hoverPoiId,
     hydrating, buildingsError, poisError,
     floorDetailLoading, floorDetailError,
+    poiDetailLoading, poiDetailError,
     buildingCount,
-    setBuildings, setPois, setFloorDetail, setHoverPoi,
+    setBuildings, setPois, setFloorDetail, setHoverPoi, setPoiDetail,
     // errMsg / buildingName / poiById 作为命名导出消费（不挂返回对象，避免 computed 返回函数的反模式）。
   }
 }

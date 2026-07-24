@@ -21,8 +21,9 @@
 | 园区环境 + 航拍巡航 + 连廊 + 地下坑体 | 基础信息 | 编译进 `ParkScaffold` | 静态 |
 | Legend 类别 / switcher 骨架 | 基础信息 | 编译进页面 | 静态 |
 | 楼幢业务数据（name/floors/floor_ids/header） | **动态** | 派生为 mock + API 契约 | `getBuildings()` |
-| 楼层详情（租户/单位，点击楼层后取） | **动态** | 派生为 mock + API 契约 | `getFloorDetail()` |
+| 楼层详情（租户/单位 + 叙事档案块，点击楼层后取） | **动态** | 派生为 mock + API 契约 | `getFloorDetail()` |
 | POI 点位（含坐标 + 实时状态 + 占用） | **动态** | 派生为 mock + API 契约 | `getPois()` |
+| POI 业务详情（静态档案 + 实时指标，点击 POI 后取，v2.15） | **动态** | 派生为 mock + API 契约 | `getPoiDetail()` |
 
 **为什么这样切**：楼栋的**物理位置/占地**是场景配置（改建才变，生成时内联）；楼栋的**业务身份**（叫什么名、有几层、每层有什么）和**运营点位**（设备/监控/停车场及其实时状态）是后端管理的业务数据——这些是数字孪生「活」的部分，必须走 API。spec 在生成时仍是这些动态数据的**种子**（派生为 Mock），保证开发期开箱即用、不依赖后端。
 
@@ -85,17 +86,20 @@ src/
 
 ## 5. 接口契约（`IDigitalTwinApi`）
 
-**逐字拷贝 `assets/api/interfaces/manager/digital-twin.ts`**。数字孪生动态数据全是**只读聚合查询**，一个接口承载三方法即可（GET-only、响应**无 `{code,message,data}` 信封**——列表直接返回数组、详情直接返回对象）：
+**逐字拷贝 `assets/api/interfaces/manager/digital-twin.ts`**。数字孪生动态数据全是**只读聚合查询**，一个接口承载四方法（GET-only、响应**无 `{code,message,data}` 信封**——列表直接返回数组、详情直接返回对象）：
 
 ```ts
-export interface DigitalTwinRequestOptions { signal?: AbortSignal }   // 透传 AbortSignal（防快速切换楼层 race）
+export interface DigitalTwinRequestOptions { signal?: AbortSignal }   // 透传 AbortSignal（防快速切换楼层/POI race）
 
 export interface IDigitalTwinApi {
   getBuildings(params?: BuildingQueryParams, opts?): Promise<BuildingRuntimeItem[]>
   getFloorDetail(params: FloorDetailQueryParams, opts?): Promise<FloorDetail>
   getPois(params?: PoiQueryParams, opts?): Promise<PoiRuntimeItem[]>
+  getPoiDetail(params: PoiDetailQueryParams, opts?): Promise<PoiDetail>   // v2.15：POI 业务详情（点击 POI 后取）
 }
 ```
+
+`getPoiDetail`（v2.15）：参数 `{ park_id?, poi_id }`，返回 `PoiDetail { poi_id, ref_id?, type, title, subtitle?, status, fields:[{label,value}], live?:[{label,value}] }`——通用键值包（静态档案 `fields` + 实时指标 `live`），后端按 `(type, ref_id)` 分派查业务表、业务表零改动（参照 Park 驾驶舱）。POI 详情失败时 `PoiOverlay` 降级读列表项 inline `tooltip`/`room_spec`/`occupancy`，不阻断。
 
 ## 6. Mock 数据（由 spec 派生）
 
@@ -105,11 +109,11 @@ python scripts/generate_data.py spec.json --out-dir <项目根> --mock-only
 ```
 种子 = FNV-1a(spec.title) 的 mulberry32（与范式实现视觉装饰同款伪随机），同一 spec 重跑输出逐字节一致。行业/公司名/负责人/电话默认从脚本内置的 8 行业办公池选取；非办公园区可由 `spec.unitTemplate`（`tenants`/`fields`）覆盖（缺省时产物逐字节不变）。
 
-产出三个导出：`mockBuildings: BuildingRuntimeItem[]`（从 `spec.buildings[]` 派生 name/floors/floor_ids）、`mockFloorDetails: FloorDetail[]`（每层 1–3 个单位，确定性生成）、`mockPois: PoiRuntimeItem[]`（从 `spec.pois[]` 派生，status 给合理初值 ~85% online，停车场 POI 带 occupancy）。`building_id` 必须与静态脚手架 `buildings[].id` 一致。
+产出四个导出：`mockBuildings: BuildingRuntimeItem[]`（从 `spec.buildings[]` 派生 name/floors/floor_ids）、`mockFloorDetails: FloorDetail[]`（每层 1–3 个单位，含 v2.15 叙事档案块 `subtitle/scope/intro_title/intro_body/duties[]/closing`，确定性生成）、`mockPois: PoiRuntimeItem[]`（从 `spec.pois[]` 派生，status 给合理初值 ~85% online，停车场 POI 带 occupancy）、`mockPoiDetails: Record<string, PoiDetail>`（v2.15，键=`poi_id`，按 type 套档案模板：camera/gate 给设备编码/IP/厂家 + 实时抓拍/通行，其余给点位档案）。`building_id` 必须与静态脚手架 `buildings[].id` 一致。
 
 ## 7. Mock 实现（`mock/api/manager/digital-twin.ts`）
 
-**逐字拷贝 `assets/api/mock/api/manager/digital-twin.ts`**。`async` 方法直接返回派生数据；`getFloorDetail` 按 `building_id + floor_id` 查找，未命中抛 `ApiError(404)`，响应 `signal.aborted` 抛 `ApiError(0, 'aborted')`（Mock 也尊重取消，便于测试 race）。Mock 抛 `ApiError` 与 Real 一致——组件 `instanceof ApiError` 可判 status。
+**逐字拷贝 `assets/api/mock/api/manager/digital-twin.ts`**。`async` 方法直接返回派生数据；`getFloorDetail` 按 `building_id + floor_id` 查找、`getPoiDetail` 按 `poi_id` 查 `mockPoiDetails` 表，未命中抛 `ApiError(404)`，响应 `signal.aborted` 抛 `ApiError(0, 'aborted')`（Mock 也尊重取消，便于测试 race）。Mock 抛 `ApiError` 与 Real 一致——组件 `instanceof ApiError` 可判 status。
 
 ## 8. Real 实现 + 工厂（`api/modules/manager/digital-twin.ts`）
 
@@ -120,6 +124,7 @@ class RealDigitalTwinApi implements IDigitalTwinApi {
   getBuildings(params, opts) { return request<BuildingRuntimeItem[]>({ url: '/api/manager/park/buildings', method: 'GET', params, signal: opts?.signal }) }
   getFloorDetail(params, opts) { return request<FloorDetail>({ url: '/api/manager/park/floor-detail', method: 'GET', params, signal: opts?.signal }) }
   getPois(params, opts) { return request<PoiRuntimeItem[]>({ url: '/api/manager/park/pois', method: 'GET', params, signal: opts?.signal }) }
+  getPoiDetail(params, opts) { return request<PoiDetail>({ url: '/api/manager/park/poi-detail', method: 'GET', params, signal: opts?.signal }) }
 }
 export function createDigitalTwinApi(): IDigitalTwinApi {
   return MOCK_ENABLED ? new MockDigitalTwinApi() : new RealDigitalTwinApi()
@@ -136,6 +141,7 @@ export const digitalTwinApi = createDigitalTwinApi()   // 模块级单例
 - `Promise.allSettled([getBuildings(), getPois()])`（**非** `Promise.all`）——POI 失败不连累楼栋水合，各自 try/catch 写独立错误态。
 - 成功 → `scene.hydrateBuildings(items)` / `scene.hydratePois(items)`；失败 → 分方法错误态（楼栋失败显降级 + 重试，POI 失败显轻提示且楼栋仍可交互）。
 - 点击楼层 → `watch([focusedBuildingId, floorIndex], …, onCleanup)` + `AbortController` 取消旧请求（防快速切换 race）；错误驱动 UnitDetail 面板内联报错 + 重试。
+- 点击 POI → `watch(openPoiId, …, onCleanup)` + `AbortController` 取 `getPoiDetail({poi_id})`（v2.15，同款防 race）；详情按 `poi_id === openPoiId` 防串显；失败时 `PoiOverlay` 降级读列表 inline tooltip，不阻断。
 - 统一用 `ApiError`（§10），Mock 与 Real 抛同型错误，组件 `instanceof ApiError` 可区分 401/404/5xx/0。
 
 **调用约定**（对齐 `api-typescript-spec`）：从 `@/api/modules/manager/digital-twin` 导入 `digitalTwinApi` 单例；类型/枚举从 `@/api/types/digital-twin` 导入；不在页面里引用 `IDigitalTwinApi`（实现细节）。`BuildingSwitcher` 标签与 `UnitDetail` 数据源来自 `getBuildings()` / `getFloorDetail()`（详见 `references/shell.md`）。
@@ -164,15 +170,18 @@ VITE_API_BASE_URL=           VITE_API_BASE_URL=
 
 ## 11. 后端接口契约（前端先行）
 
-后端按 `backend-workflow` / `net-api-developer` 实现以下三个端点。前端类型（§4）与后端 `*Map` DTO 在字段名（snake_case）、类型、枚举值上**必须一致**。成功**无 `{code,message,data}` 信封**，直接返回实体 JSON；错误用 HTTP 状态码（401/403/404/500）+ `{code,error,error_description}`。列表非分页直接返回 `List<T>`。
+后端按 `backend-workflow` / `net-api-developer` 实现以下四个端点。前端类型（§4）与后端 `*Map` DTO 在字段名（snake_case）、类型、枚举值上**必须一致**。成功**无 `{code,message,data}` 信封**，直接返回实体 JSON；错误用 HTTP 状态码（401/403/404/500）+ `{code,error,error_description}`。列表非分页直接返回 `List<T>`。
 
 | 端点 | QueryMap（`FromQuery`） | 返回 | 权限 | Controller |
 |---|---|---|---|---|
 | `GET /api/manager/park/buildings` | `ParkBuildingQueryMap { park_id? }` | `List<BuildingRuntimeItemMap>` | `[PermissionAuthorize("biz:park:list")]` | `ParkManagerController`（`api/manager/park`） |
 | `GET /api/manager/park/floor-detail` | `FloorDetailQueryMap { building_id, floor_id }` | `FloorDetailMap`（未命中 `NotFound`） | `[PermissionAuthorize("biz:park:query")]` | `ParkManagerController` |
 | `GET /api/manager/park/pois` | `PoiQueryMap { park_id?, building_id?, type? }` | `List<PoiRuntimeItemMap>` | `[PermissionAuthorize("biz:monitor:list")]` | `MonitorManagerController`（`api/manager/monitor`）或并入 `ParkManagerController`（前端 URL 以上表为准） |
+| `GET /api/manager/park/poi-detail` | `PoiDetailQueryMap { park_id?, poi_id }` | `PoiDetailMap`（未命中 `NotFound`） | `[PermissionAuthorize("biz:monitor:query")]` | `MonitorManagerController` 或 `ParkManagerController`（前端 URL 以上表为准） |
 
-**后端 DTO 字段**（snake_case，对齐 §4）：`BuildingRuntimeItemMap { building_id, name, floors, floor_ids, header? }`；`FloorDetailMap { building_id, floor_id, label, tenant?, units }`；`PoiRuntimeItemMap { poi_id, type, label, x, z, y?, building_id?, floor_index?, status, tooltip?, occupancy?, room_spec? }`。
+**后端 DTO 字段**（snake_case，对齐 §4）：`BuildingRuntimeItemMap { building_id, name, floors, floor_ids, header? }`；`FloorDetailMap { building_id, floor_id, label, tenant?, units }`（`UnitDetailMap` 含办公字段 + 可选叙事块 `subtitle/scope/intro_title/intro_body/duties[]/closing`）；`PoiRuntimeItemMap { poi_id, type, label, x, z, y?, building_id?, floor_index?, status, tooltip?, occupancy?, room_spec? }`；`PoiDetailMap { poi_id, ref_id?, type, title, subtitle?, status, fields:[{label,value}], live?:[{label,value}] }`。
+
+**POI 详情分派**（v2.15）：`poi-detail` 端点收到 `poi_id` 后，按 POI 记录的 `(type, ref_id)` 在后端内部分派查业务表（camera→摄像头档案、gate→门禁设备…），业务表零改动；返回通用键值包（静态 `fields` + 实时 `live`），前端不感知具体业务类型。
 
 **实时性**：POI `status` 与停车场 `occupancy` 是实时数据。首屏 `getPois()` 一次性拉取后，若要持续刷新，由调用方在 `GlobalTwin.vue` 加定时轮询（如 `setInterval(() => getPois().then(scene.hydratePois), 30_000)`）或接 WebSocket——本技能只保证契约层支持，轮询策略留给调用方。
 

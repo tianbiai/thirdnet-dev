@@ -5,15 +5,17 @@ description: >
   固定 1920×1080 舞台内的中央 Three.js 场景 + 楼栋切换器 + 点击选中/详情交互（外围留空）。产出 Vue 3 + TypeScript + Three.js
   场景：按类别上色的楼栋、每栋楼顶常驻名称标签、屏幕图例、完整园区环境（内部道路/地面车位/绿化/周边市政道路/路灯）、
   POI 兴趣点打点、地下车库多层剖面与楼栋间空中连廊；全部由一份用户确认的 Park Spec 驱动、绝不硬编码园区内容。
-  支持 6 种视觉风格（赛博/全息/等距/深空星云/写实日景/写实夜景）。数据分层：基础信息静态内联，动态数据（楼幢名/楼层数/
-  楼层详情/POI 点位）走 `IDigitalTwinApi` 契约层（Mock/Real 工厂，`VITE_MOCK_ENABLED` 切换）。
+  支持 6 种视觉风格（赛博/全息/等距/深空星云/写实日景/写实夜景）。写实夜景发光窗走 Park 驾驶舱同款程序化流水线——
+  逐层砖错位面板窗、分层点亮（底层 0%/中层/顶层）、暖冷双辉光、dirty-gated 开关灯翻转动画（reduced-motion 关闭）。
+  数据分层：基础信息静态内联，动态数据（楼幢名/楼层数/楼层详情/POI 点位/**POI 业务详情**）走 `IDigitalTwinApi` 契约层
+  （Mock/Real 工厂，`VITE_MOCK_ENABLED` 切换）。
   只要用户想 构建 / 生成 / 复刻 / 换肤 一个 园区数字孪生、智慧园区驾驶舱、园区 3D 大屏、数字孪生驾驶舱、社区驾驶舱，
   或提供了园区/社区的草图/效果图/`.pen` 想得到可运行前端，**就必须使用本技能**（即使没明说「数字孪生」这些词）；
   同样适用于扩展/修复已存在驾驶舱——接入着色器、加图例、按类别重上色、切换风格、丰富环境、打 POI、把写死数据改走后端 API、
   增加地下场景/连廊等。
 license: MIT
 metadata:
-  version: "2.14.2"
+  version: "2.15.0"
   author: park-cockpit
 compatibility: Vue 3 + TypeScript + Vite + Three.js 项目；赛博风格消费 WebGL 片段着色器（`gridGround.glsl` 网格地面），全息/星云消费菲涅尔边缘辉光注入（`fresnelRim.glsl`）。动态数据契约层遵循 `api-typescript-spec`（`IDigitalTwinApi` + Real/Mock 工厂，`VITE_MOCK_ENABLED` 切换）。可在范例仓库、create-thirdnet-admin 项目或任何最小化的 Vite+Vue+Three 脚手架中运行。
 ---
@@ -81,9 +83,9 @@ python scripts/generate_theme.py <style> --out <项目根>/src/styles/tokens.css
 | 风格 / tokens / shaders / 字体 / 舞台 / boundary / floorHeight | 基础信息 | 静态内联 |
 | 楼栋位置与占地（id/w/d/x/z/category/facing）+ 园区环境 + Legend | 基础信息 | 静态内联（`src/data/<park>.ts`） |
 | 航拍巡航参数（cameraTour）+ 连廊（corridor）+ 地下车库坑体（garages） | 基础信息 | 静态内联（`ParkScaffold`） |
-| 楼幢业务数据（name/floors/floor_ids/header）+ 楼层详情 + POI 点位（含状态+占用） | **动态** | `IDigitalTwinApi`（`getBuildings`/`getFloorDetail`/`getPois`） |
+| 楼幢业务数据（name/floors/floor_ids/header）+ 楼层详情（含叙事档案块）+ POI 点位（含状态+占用）+ POI 业务详情 | **动态** | `IDigitalTwinApi`（`getBuildings`/`getFloorDetail`/`getPois`/`getPoiDetail`） |
 
-加载序列「脚手架先行，再水合」：① 同步渲染静态脚手架（取景只用静态几何）→ ② `Promise.allSettled([getBuildings(), getPois()])`（POI 失败不连累楼栋）→ ③ 点击楼层 → `getFloorDetail({signal})`（AbortSignal + onCleanup 防 race）。详见 `references/dynamic-data-api.md §2`。
+加载序列「脚手架先行，再水合」：① 同步渲染静态脚手架（取景只用静态几何）→ ② `Promise.allSettled([getBuildings(), getPois()])`（POI 失败不连累楼栋）→ ③ 点击楼层 → `getFloorDetail({signal})` / 点击 POI → `getPoiDetail({signal})`（AbortSignal + onCleanup 防 race；POI 详情失败降级读列表 inline tooltip，不阻断）。详见 `references/dynamic-data-api.md §2`。
 
 ## Park Spec（速查）
 
@@ -104,7 +106,7 @@ python scripts/generate_theme.py <style> --out <项目根>/src/styles/tokens.css
 | `nebula` | 深空星云：紫蓝 + 星空月 + 虹彩辉光 + 强 bloom | ❌ | ❌ |
 | `isometric` | 等距插画：flatShading cel 着色 | ❌ | ❌ |
 | `realistic` | 写实日景：PBR + 环境贴图 + GTAO + 2048² 软阴影 + 真实窗户立面 | ❌ | ✅ |
-| `night-realistic` | 写实夜景：日景 + 发光窗 + 湿润反射 + 雾 + 强 bloom + 暖色路灯 | ❌ | ✅ |
+| `night-realistic` | 写实夜景：日景 + **程序化分层发光窗**（逐层面板窗/暖冷双辉光/dirty-gated 开关灯动画）+ 湿润反射 + 雾 + 强 bloom + 暖色路灯 | ❌ | ✅ |
 
 仅 `cyber` 消费 `gridGround.glsl`；写实两风格激活引擎内置的 envMap/GTAO/反射/软阴影/雾（`realism` token 旋钮块），其余 4 风格守纪律不启用。
 
@@ -149,10 +151,12 @@ python scripts/generate_theme.py <style> --out <项目根>/src/styles/tokens.css
 - [ ] 楼栋按类别上色且与图例一致；每栋楼顶常驻名称标签；立面有楼层虚线分隔 + 贴砖（相邻两块深浅交替）。
 - [ ] 所有标签（楼名/车库 P/车位 P/POI）高对比可读。
 - [ ] 赛博风格下着色器网格地面可见；其它风格按 `styles.md` 材质构建且未接入 grid。
-- [ ] 切换器含所有标签页；点击楼层金色高亮 + 打开 UnitDetail；悬停金边、点击锁定、点空白取消。
+- [ ] 切换器含所有标签页；点击楼层金色高亮 + 打开 UnitDetail（含叙事档案块时显示「业务范围/介绍/职责/结尾语」）；悬停金边、点击锁定、点空白取消。
+- [ ] 点击 POI 出详情卡（`getPoiDetail` 的 fields/live 表格；失败降级 inline tooltip）；快速切点不串显。
 - [ ] 滚轮可缩放、右键平移、左键旋转，松手后视角保持；默认取景为全景（K=0.66，四周可见周边环境）。
 - [ ] 园区环境完整（内部道路、地面车位带、行道树/绿地、四向市政道路、主出入口、路灯）。
-- [ ] 动态数据契约层齐全；脚手架先行再水合；正式环境走真实 API（404 属预期）；三态兜底。
+- [ ] 动态数据契约层齐全（四方法含 `getPoiDetail`）；脚手架先行再水合；正式环境走真实 API（404 属预期）；三态兜底。
+- [ ] night-realistic 程序化发光窗：分层点亮（底层 0/中层密/顶层稀）+ 暖冷双辉光 + 开关灯动画（reduced-motion 关闭）。
 - [ ] 性能/健壮性/a11y/token 自洽（详见条件子清单）。
 - [ ] `npm run typecheck` 干净通过。
 

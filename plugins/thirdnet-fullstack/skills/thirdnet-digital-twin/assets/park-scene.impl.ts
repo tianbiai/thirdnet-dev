@@ -45,6 +45,71 @@ export interface ParkSceneCallbacks {
   onGarageSelect?: (id: string | null) => void
 }
 
+// ---------------------------------------------------------------------------
+// v2.15 夜间发光窗流水线类型 + 默认（仅 pbr-night 消费）
+// ---------------------------------------------------------------------------
+/** 单扇可动画窗户在 emissive 画布上的状态（绝对时钟，便于暂停/恢复不跳相）。 */
+interface FacadeWindow {
+  x: number; y: number; w: number; h: number   // emissive 画布像素矩形
+  color: 'warm' | 'cool'                        // 创建时定的辉光色
+  cur: number                                   // 当前亮度 0..1
+  from: number; to: number                      // 当前过渡端点
+  fadeStart: number                             // 过渡起始 ms（绝对；0=空闲）
+  nextFlip: number                              // 下次翻转目标 ms（绝对）
+}
+/** 单立面（一楼一侧）动画聚合：emissive 画布的 ctx + tex + 仅动画子集 + 独立翻转种子流。 */
+interface FacadeAnim {
+  ctx: CanvasRenderingContext2D
+  tex: THREE.CanvasTexture
+  rngFlip: () => number                          // 独立于点亮种子的翻转时序流
+  windows: FacadeWindow[]                        // 仅参与动画的子集（≤ animRatio·总数）
+  warmColor: string                              // 构造时定格的辉光色（避免 animate 每帧读 token）
+  coolColor: string
+  fadeMs: number
+  flipMinMs: number
+  flipVarMs: number
+}
+/** computeWindowLayout 产出的单扇窗单元（albedo 与 emissive 共用，确定性一致）。 */
+interface WindowCell {
+  x: number; y: number; w: number; h: number     // albedo/emissive 画布像素矩形
+  color: 'warm' | 'cool'
+  lit: boolean                                   // 初始是否点亮
+  animatable: boolean                            // 是否参与开关动画
+}
+/** tokens.windows 的读取形状（缺省走 DEFAULT_WINDOWS）。 */
+interface WindowsTokens {
+  roomsAxisTower: number
+  roomsAxisPodium: number
+  litRatio: { ground: number; middle: number; top: number }
+  warmColor: string
+  coolColor: string
+  warmRatio: number
+  glassOff: string
+  gradient: { top: string; bottom: string }
+  animRatio: number
+  fadeMs: number
+  flipMinMs: number
+  flipVarMs: number
+  emissiveIntensity: number
+  seedSalt?: string
+}
+/** 缺省（token 无 windows 块时兜底；animRatio>0 默认开启动画）。 */
+const DEFAULT_WINDOWS: WindowsTokens = {
+  roomsAxisTower: 3,
+  roomsAxisPodium: 5,
+  litRatio: { ground: 0.0, middle: 0.38, top: 0.22 },
+  warmColor: '#ffd989',
+  coolColor: '#bfe2ff',
+  warmRatio: 0.7,
+  glassOff: '#0c2240',
+  gradient: { top: '#4a93d8', bottom: '#27609c' },
+  animRatio: 0.2,
+  fadeMs: 800,
+  flipMinMs: 3000,
+  flipVarMs: 8000,
+  emissiveIntensity: 1.3,
+}
+
 interface StyleProfile {
   toneMapping: THREE.ToneMapping
   toneExposure: number
@@ -137,6 +202,9 @@ export class ParkScene {
   private garagePickables: THREE.Object3D[] = []
   /** 报警 POI 的 halo 列表（animate 逐帧呼吸缩放，免整树 traverse——v2.6 地下节点膨胀后尤为关键）。随 buildPOIs 重建、clearSceneGroup 清空。 */
   private alarmPois: THREE.Object3D[] = []
+  /** v2.15 夜间发光窗动画状态（每楼一顶）。clearSceneGroup 清空；CanvasTexture 经 disposeObject 释放。
+   * reducedMotion 时根本不填（构造期门控），animate 也不再驱动——保留静态点亮图。 */
+  private facadeAnims: FacadeAnim[] = []
   /** worldToScreen 投影复用向量（每帧调用，避免逐次 new Vector3）。 */
   private _proj = new THREE.Vector3()
 
@@ -415,6 +483,7 @@ export class ParkScene {
     this.poiPickables = []
     this.garagePickables = []
     this.alarmPois = []
+    this.facadeAnims = []   // v2.15：CanvasTexture 由 disposeObject 经 material.emissiveMap 释放，此处仅弃引用
     this.buildingMap.clear()
     this.floorIdMap.clear()
     this.poiMap.clear()
@@ -1159,13 +1228,16 @@ export class ParkScene {
           ;(sideMat as THREE.MeshStandardMaterial).map = facade
         }
       }
-      // v2.5 夜间发光窗：pbr-night 叠 emissiveMap（~42% 暖光窗）+ bloom 产生夜景窗光。
+      // v2.15 夜间发光窗：pbr-night 叠 emissiveMap（分层点亮 + 暖冷双辉光）+ bloom 产生夜景窗光。
+      // emissive:white 让 emissiveMap 直接驱动色（暖/冷由贴图决定，不再统一暖色）；动画子集入 facadeAnims。
       if (b === 'pbr-night' && sideMat instanceof THREE.MeshStandardMaterial) {
-        const em = this.makeWindowEmissiveMap(item.building_id, item.floors, w)
-        if (em) {
-          sideMat.emissive = new THREE.Color('#ffb066')
-          sideMat.emissiveMap = em
-          sideMat.emissiveIntensity = 1.3
+        const wtk = this.windowsTokens()
+        const built = this.buildWindowEmissive(item.building_id, item.floors, w)
+        if (built) {
+          sideMat.emissive = new THREE.Color('#ffffff')
+          sideMat.emissiveMap = built.tex
+          sideMat.emissiveIntensity = wtk.emissiveIntensity
+          if (!this.reducedMotion && wtk.animRatio > 0) this.facadeAnims.push(built.anim)
         }
       }
       const topMat = (b === 'pbr' || b === 'pbr-night')
@@ -1249,8 +1321,40 @@ export class ParkScene {
 
 
   /**
-   * 窗格画布尺寸 + 窗户网格（makeFacadeTexture 写实分支与 makeWindowEmissiveMap 共用——
-   * 同一网格避免夜间发光窗与幕墙窗框错位）。padW/padH 与 cols/rows/cellW/cellH 只在此定义一次。
+   * 读取 tokens.windows（缺省合并 DEFAULT_WINDOWS）。仅 pbr-night 消费；其余风格不读。
+   * 为什么兜底：schema 把 windows 标为可选，用户自定义 night-realistic token 缺该块时仍可工作。
+   */
+  private windowsTokens(): WindowsTokens {
+    const raw = (this.tokens as ThemeTokens & { windows?: Partial<WindowsTokens> }).windows
+    if (!raw) return DEFAULT_WINDOWS
+    return {
+      roomsAxisTower: raw.roomsAxisTower ?? DEFAULT_WINDOWS.roomsAxisTower,
+      roomsAxisPodium: raw.roomsAxisPodium ?? DEFAULT_WINDOWS.roomsAxisPodium,
+      litRatio: {
+        ground: raw.litRatio?.ground ?? DEFAULT_WINDOWS.litRatio.ground,
+        middle: raw.litRatio?.middle ?? DEFAULT_WINDOWS.litRatio.middle,
+        top: raw.litRatio?.top ?? DEFAULT_WINDOWS.litRatio.top,
+      },
+      warmColor: raw.warmColor ?? DEFAULT_WINDOWS.warmColor,
+      coolColor: raw.coolColor ?? DEFAULT_WINDOWS.coolColor,
+      warmRatio: raw.warmRatio ?? DEFAULT_WINDOWS.warmRatio,
+      glassOff: raw.glassOff ?? DEFAULT_WINDOWS.glassOff,
+      gradient: {
+        top: raw.gradient?.top ?? DEFAULT_WINDOWS.gradient.top,
+        bottom: raw.gradient?.bottom ?? DEFAULT_WINDOWS.gradient.bottom,
+      },
+      animRatio: raw.animRatio ?? DEFAULT_WINDOWS.animRatio,
+      fadeMs: raw.fadeMs ?? DEFAULT_WINDOWS.fadeMs,
+      flipMinMs: raw.flipMinMs ?? DEFAULT_WINDOWS.flipMinMs,
+      flipVarMs: raw.flipVarMs ?? DEFAULT_WINDOWS.flipVarMs,
+      emissiveIntensity: raw.emissiveIntensity ?? DEFAULT_WINDOWS.emissiveIntensity,
+      seedSalt: raw.seedSalt,
+    }
+  }
+
+  /**
+   * v2.14 及之前：风格化贴砖分支（cyber/holo/nebula/iso）+ pbr 日景用的窗格度量。
+   * 保留勿删——风格化分支仍依赖此 cols/cellW。
    */
   private windowMetrics(w: number, floors: number): {
     padW: number; padH: number; cols: number; rows: number; cellW: number; cellH: number
@@ -1264,26 +1368,140 @@ export class ParkScene {
   }
 
   /**
-   * 程序化幕墙 CanvasTexture（v2.5 风格分支）。
-   * 写实（pbr/pbr-night）：真实窗户网格——玻璃 + 窗框 + 楼板暗带（受 envMap/AO/阴影影响，远观像真楼）。
+   * v2.15 夜间塔体窗度量（Park 流水线）：画布随立面尺寸缩放，rows=楼层数，
+   * rooms=塔体窗列数，winW=cellW*0.5 统一窗宽，insetY=rowH*0.22 留出窗框/楼板暗带。
+   * albedo facade 与 emissiveMap 共用此度量——同网格杜绝错位（v2.5 bug 教训）。
+   */
+  private windowMetricsTower(w: number, floors: number): {
+    padW: number; padH: number; rooms: number; rows: number; cellW: number; rowH: number; winW: number; insetY: number
+  } {
+    const fh = this.scaffold.floorHeight
+    const faceH = Math.max(floors * fh, 10)
+    const padW = Math.min(720, Math.max(256, Math.round(w * 3)))
+    const padH = Math.max(64, Math.round(padW * (faceH / w)))
+    const rooms = Math.max(2, this.windowsTokens().roomsAxisTower)
+    const rows = Math.max(1, floors)
+    const cellW = padW / rooms
+    const rowH = padH / rows
+    return { padW, padH, rooms, rows, cellW, rowH, winW: cellW * 0.5, insetY: rowH * 0.22 }
+  }
+
+  /**
+   * v2.15 计算一栋楼的窗户布局（确定性——albedo 与 emissive 各自调用结果完全一致）。
+   * 每层用 floorRoomDividerFracs 砖错位切片面板，Fisher-Yates 洗牌取 2..5 窗，面板过窄过滤；
+   * 分层点亮率（底层 0 / 中层 / 顶层）+ 暖冷双辉光（warmRatio）+ 动画子集（独立 flip 种子流）。
+   * 注意 BoxGeometry flipY：canvas 行 0=顶层、行 rows-1=底层——与 litRatio.top/ground 对应。
+   */
+  private computeWindowLayout(buildingId: string, floors: number, w: number): {
+    m: { padW: number; padH: number; rooms: number; rows: number; cellW: number; rowH: number; winW: number; insetY: number }
+    cells: WindowCell[]
+  } {
+    const tk = this.windowsTokens()
+    const m = this.windowMetricsTower(w, floors)
+    const salt = tk.seedSalt ? tk.seedSalt + ':' : ''
+    const rngLit = mulberry32(hashStr('lit:' + salt + buildingId))
+    const rngFlip = mulberry32(hashStr('flip:' + salt + buildingId))
+    const cells: WindowCell[] = []
+    const rows = m.rows
+    for (let r = 0; r < rows; r++) {
+      // 行 r：r===0 顶层、r===rows-1 底层（BoxGeometry flipY）
+      const litR = r === rows - 1 ? tk.litRatio.ground : (r === 0 ? tk.litRatio.top : tk.litRatio.middle)
+      const yTop = r * m.rowH
+      const winH = m.rowH - 2 * m.insetY
+      const y = yTop + m.insetY
+      // 面板切片（砖错位）→ 像素段
+      const fracs = floorRoomDividerFracs(r, m.rooms)
+      const panels: { x0: number; x1: number }[] = []
+      for (let i = 0; i < m.rooms; i++) {
+        const f0 = fracs[i]
+        const f1 = Math.min(1, f0 + 1 / m.rooms)
+        if (f0 >= 1) continue              // 相位偏移推出右边界的面板丢弃
+        const x0 = f0 * m.padW
+        const x1 = f1 * m.padW
+        if (x1 - x0 < m.winW * 1.1) continue   // 面板太窄容不下一扇窗
+        panels.push({ x0, x1 })
+      }
+      // Fisher-Yates 洗牌（确定性），取 want 窗
+      for (let i = panels.length - 1; i > 0; i--) {
+        const j = Math.floor(rngLit() * (i + 1))
+        ;[panels[i], panels[j]] = [panels[j], panels[i]]
+      }
+      const want = 2 + Math.floor(rngLit() * 4)   // 2..5
+      const take = Math.min(want, panels.length)
+      for (let i = 0; i < take; i++) {
+        const p = panels[i]
+        const mid = (p.x0 + p.x1) / 2
+        const span = Math.max(0, p.x1 - p.x0 - m.winW)
+        const cx = Math.max(p.x0 + 1, Math.min(p.x1 - m.winW - 1, mid + (rngLit() - 0.5) * span * 0.7))
+        const x = cx
+        const lit = rngLit() < litR
+        const color: 'warm' | 'cool' = rngLit() < tk.warmRatio ? 'warm' : 'cool'
+        // 动画子集：与 lit 无关——亮可灭、灭可亮（Park 同款）
+        const animatable = r !== rows - 1 && rngFlip() < tk.animRatio   // 底层不参与动画（本就不亮）
+        cells.push({ x, y, w: m.winW, h: winH, color, lit, animatable })
+      }
+    }
+    return { m, cells }
+  }
+
+  /**
+   * 程序化幕墙 CanvasTexture（风格分支）。
+   * pbr-night（v2.15）：纵向渐变墙 + 逐层面板窗户（亮窗画暗同色让 bloom 发光，未亮画 glassOff）+ 窗框/楼板线。
+   * pbr 日景：真实窗户网格——玻璃 + 窗框 + 楼板暗带（受 envMap/AO/阴影影响，远观像真楼）。
    * 风格化（emissive/holo/flat）：沿用 v1.7 贴砖拼花（相邻两色强对比交替 + 深色竖实线），气质不变。
-   * 夜间发光窗由 makeWindowEmissiveMap 单独产 emissiveMap（仅 pbr-night）。
+   * 夜间发光窗由 buildWindowEmissive 单独产 emissiveMap（仅 pbr-night，与 albedo 同布局）。
    */
   private makeFacadeTexture(buildingId: string, floors: number, w: number, d: number, color: THREE.Color, roomShade: number, dividerColor: THREE.Color): THREE.CanvasTexture | null {
     const b = this.profile.building
-    const m = this.windowMetrics(w, floors)
-    const padW = m.padW
-    const padH = m.padH
     const canvas = document.createElement('canvas')
-    canvas.width = padW
-    canvas.height = padH
     const ctx = canvas.getContext('2d')
     if (!ctx) return null
     const baseHsl = { h: 0, s: 0, l: 0 }
     color.getHSL(baseHsl)
 
-    if (b === 'pbr' || b === 'pbr-night') {
-      // 写实窗户网格：墙面底 → 玻璃单元 → 窗框/楼板线。
+    if (b === 'pbr-night') {
+      // v2.15 Park 流水线 albedo：渐变墙 + 分层面板窗户。
+      const tk = this.windowsTokens()
+      const { m, cells } = this.computeWindowLayout(buildingId, floors, w)
+      canvas.width = m.padW; canvas.height = m.padH
+      const grad = ctx.createLinearGradient(0, 0, 0, m.padH)
+      grad.addColorStop(0, tk.gradient.top)
+      grad.addColorStop(1, tk.gradient.bottom)
+      ctx.fillStyle = grad
+      ctx.fillRect(0, 0, m.padW, m.padH)
+      // 窗户：亮窗画暗同色（bloom 负责发光），未亮画 glassOff
+      for (const c of cells) {
+        ctx.fillStyle = c.lit ? (c.color === 'warm' ? tk.warmColor : tk.coolColor) : tk.glassOff
+        ctx.globalAlpha = c.lit ? 0.55 : 1
+        ctx.fillRect(c.x, c.y, c.w, c.h)
+      }
+      ctx.globalAlpha = 1
+      // 楼板暗带（每层底）+ 竖向窗框（rooms 列）
+      const frame = new THREE.Color().setHSL(baseHsl.h, baseHsl.s * 0.5, Math.max(0.05, baseHsl.l * 0.3))
+      const frameHex = `#${frame.getHexString()}`
+      const frameH = Math.max(1, Math.round(m.insetY * 0.6))
+      ctx.fillStyle = frameHex
+      for (let r = 0; r <= m.rows; r++) {
+        const y = Math.min(m.padH - frameH, Math.round(r * m.rowH))
+        ctx.fillRect(0, y, m.padW, frameH)
+      }
+      const frameW = Math.max(1, Math.round(m.cellW * 0.08))
+      for (let i = 0; i <= m.rooms; i++) {
+        const x = Math.min(m.padW - frameW, Math.round(i * m.cellW))
+        ctx.fillRect(x, 0, frameW, m.padH)
+      }
+      const tex = new THREE.CanvasTexture(canvas)
+      tex.colorSpace = THREE.SRGBColorSpace
+      tex.anisotropy = 4
+      return tex
+    }
+
+    if (b === 'pbr') {
+      // v2.5 写实日景窗户网格：墙面底 → 玻璃单元 → 窗框/楼板线（原样保留）。
+      const m = this.windowMetrics(w, floors)
+      const padW = m.padW
+      const padH = m.padH
+      canvas.width = padW; canvas.height = padH
       const wall = new THREE.Color().setHSL(baseHsl.h, baseHsl.s * 0.8, Math.max(0.1, baseHsl.l * 0.85))
       const frame = new THREE.Color().setHSL(baseHsl.h, baseHsl.s * 0.5, Math.max(0.05, baseHsl.l * 0.4))
       const glass = new THREE.Color().setHSL(baseHsl.h, 0.28, Math.min(0.85, baseHsl.l * 1.2))
@@ -1293,7 +1511,6 @@ export class ParkScene {
       const rows = m.rows
       const cellW = m.cellW
       const cellH = m.cellH
-      // 玻璃单元（内缩留出窗框）
       const inX = Math.max(1, cellW * 0.1)
       const inY = Math.max(1, cellH * 0.12)
       ctx.fillStyle = `#${glass.getHexString()}`
@@ -1302,7 +1519,6 @@ export class ParkScene {
           ctx.fillRect(c * cellW + inX, r * cellH + inY, cellW - 2 * inX, cellH - 2 * inY)
         }
       }
-      // 窗框（竖框 + 横框/楼板暗带）
       const frameW = Math.max(1, Math.round(cellW * 0.1))
       const frameH = Math.max(1, Math.round(cellH * 0.12))
       ctx.fillStyle = `#${frame.getHexString()}`
@@ -1320,7 +1536,11 @@ export class ParkScene {
       return tex
     }
 
-    // 风格化贴砖拼花（v1.7）
+    // 风格化贴砖拼花（v1.7）——风格化分支保持像素级不变
+    const m = this.windowMetrics(w, floors)
+    const padW = m.padW
+    const padH = m.padH
+    canvas.width = padW; canvas.height = padH
     const light = new THREE.Color().setHSL(baseHsl.h, baseHsl.s, Math.min(0.97, baseHsl.l + roomShade))
     const dark = new THREE.Color().setHSL(baseHsl.h, baseHsl.s, Math.max(0.03, baseHsl.l - roomShade))
     const fillLight = `#${light.getHexString()}`
@@ -1352,31 +1572,44 @@ export class ParkScene {
   }
 
   /**
-   * v2.5 夜间发光窗 emissiveMap（仅 pbr-night）：与 makeFacadeTexture 同网格，
-   * ~42% 窗户确定性点亮暖色（其余黑=不发光）。配 emissiveIntensity + bloom 产生夜景窗光。
+   * v2.15 夜间发光窗 emissiveMap + 动画状态（仅 pbr-night）：与 makeFacadeTexture 同布局。
+   * 亮窗画满色（emissive:white 驱动 + bloom 发光），未亮黑（不发光）；动画子集收入 FacadeAnim 供
+   * animate 逐帧 dirty-gated 局部重绘。返回 null 时调用方跳过 emissive 接线。
    */
-  private makeWindowEmissiveMap(buildingId: string, floors: number, w: number): THREE.CanvasTexture | null {
-    const m = this.windowMetrics(w, floors)
+  private buildWindowEmissive(buildingId: string, floors: number, w: number): { tex: THREE.CanvasTexture; anim: FacadeAnim } | null {
+    const tk = this.windowsTokens()
+    const { m, cells } = this.computeWindowLayout(buildingId, floors, w)
     const canvas = document.createElement('canvas')
-    canvas.width = m.padW
-    canvas.height = m.padH
+    canvas.width = m.padW; canvas.height = m.padH
     const ctx = canvas.getContext('2d')
     if (!ctx) return null
     ctx.fillStyle = '#000000'
     ctx.fillRect(0, 0, m.padW, m.padH)
-    const rand = mulberry32(hashStr('night:' + buildingId))
-    ctx.fillStyle = '#fff0d0' // 暖光窗（emissive 色再统一调暖）
-    for (let r = 0; r < m.rows; r++) {
-      for (let c = 0; c < m.cols; c++) {
-        if (rand() < 0.42) {
-          ctx.fillRect(c * m.cellW + m.cellW * 0.16, r * m.cellH + m.cellH * 0.18, m.cellW * 0.68, m.cellH * 0.64)
-        }
+    // 初始静态点亮：仅画 lit 窗（动画窗的初始态也由 lit 决定，cur/from/to 同步）
+    const rngFlip = mulberry32(hashStr('fliprng:' + (tk.seedSalt ? tk.seedSalt + ':' : '') + buildingId))
+    const animWindows: FacadeWindow[] = []
+    const now = performance.now()
+    for (const c of cells) {
+      if (c.lit) {
+        ctx.fillStyle = c.color === 'warm' ? tk.warmColor : tk.coolColor
+        ctx.fillRect(c.x, c.y, c.w, c.h)
+      }
+      if (c.animatable) {
+        // 首次翻转错峰：now + flipMin + [0,flipVar)——绝对时钟，暂停/恢复不跳相
+        animWindows.push({
+          x: c.x, y: c.y, w: c.w, h: c.h,
+          color: c.color,
+          cur: c.lit ? 1 : 0, from: c.lit ? 1 : 0, to: c.lit ? 1 : 0,
+          fadeStart: 0,
+          nextFlip: now + tk.flipMinMs + rngFlip() * tk.flipVarMs,
+        })
       }
     }
     const tex = new THREE.CanvasTexture(canvas)
     tex.colorSpace = THREE.SRGBColorSpace
     tex.anisotropy = 4
-    return tex
+    const anim: FacadeAnim = { ctx, tex, rngFlip, windows: animWindows, warmColor: tk.warmColor, coolColor: tk.coolColor, fadeMs: tk.fadeMs, flipMinMs: tk.flipMinMs, flipVarMs: tk.flipVarMs }
+    return { tex, anim }
   }
 
   // ---------- 车库入口（半金字塔三角门 + P 牌） ----------
@@ -2086,6 +2319,11 @@ export class ParkScene {
       const s = 1 + Math.sin(performance.now() * 0.004) * 0.18
       for (const o of this.alarmPois) o.scale.setScalar(s)
     }
+    // v2.15 夜间发光窗开关动画：dirty-gated 局部重绘 emissiveMap（仅动画窗小矩形；空闲帧零上传）。
+    if (!this.reducedMotion && this.facadeAnims.length) {
+      const now = performance.now()
+      for (const fa of this.facadeAnims) if (updateFacade(fa, now)) fa.tex.needsUpdate = true
+    }
     // v2.0：启用 composer 时走后处理链（含 bloom/AO/OutputPass），否则直渲。
     if (this.composer) this.composer.render()
     else this.renderer.render(this.sceneObj, this.camera)
@@ -2225,4 +2463,61 @@ function mulberry32(a: number) {
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296
   }
+}
+
+/** v2.15 smoothstep 缓动（窗户开关渐隐用）。t 限 [0,1]。 */
+function smoothstep(t: number): number {
+  const x = Math.max(0, Math.min(1, t))
+  return x * x * (3 - 2 * x)
+}
+
+/**
+ * v2.15 楼层房间面板竖向分割比例（砖错位：偶数层相位 0、奇数层相位 0.5）。
+ * 返回每个面板的左边界比例数组（长度 = rooms），如 rooms=3 偶层 → [0, 0.333, 0.667]，
+ * 奇层 → [0.5/3, 0.5/3+0.333, ...]（半面板偏移）。facade 纹理按此切片画窗，保证相邻层
+ * 窗户不连成长条、更接近真实楼层入户错位。
+ */
+function floorRoomDividerFracs(floorIndex: number, rooms: number): number[] {
+  const cell = 1 / rooms
+  const phase = floorIndex % 2 === 0 ? 0 : cell * 0.5
+  const fracs: number[] = []
+  for (let i = 0; i < rooms; i++) fracs.push(phase + i * cell)
+  return fracs
+}
+
+/**
+ * v2.15 单立面动画推进（绝对时钟 now）。仅当本帧有窗在过渡/到期翻转时重绘其小矩形并返回 true。
+ * 调用方据返回值决定是否 tex.needsUpdate=true（dirty-gated：空闲帧零 GL 上传）。
+ * 注意：只重绘 emissiveMap 画布上动画窗的矩形——其余静态亮窗从不重画（局部重绘，非整图重烘焙）。
+ */
+function updateFacade(fa: FacadeAnim, now: number): boolean {
+  let dirty = false
+  for (const w of fa.windows) {
+    if (now >= w.nextFlip) {
+      w.from = w.cur
+      w.to = w.to > 0.5 ? 0 : 1
+      w.fadeStart = now
+      w.nextFlip = now + fa.flipMinMs + fa.rngFlip() * fa.flipVarMs
+    }
+    if (w.fadeStart) {
+      const t = (now - w.fadeStart) / fa.fadeMs
+      if (t >= 1) { w.cur = w.to; w.fadeStart = 0 }
+      else { w.cur = w.from + (w.to - w.from) * smoothstep(t) }
+      dirty = true
+    }
+  }
+  if (dirty) {
+    for (const w of fa.windows) {
+      if (!w.fadeStart && w.cur >= 0.999) continue   // 稳态亮——初画已着色，跳过
+      fa.ctx.fillStyle = '#000000'
+      fa.ctx.fillRect(w.x, w.y, w.w, w.h)
+      if (w.cur > 0.001) {
+        fa.ctx.globalAlpha = w.cur
+        fa.ctx.fillStyle = w.color === 'warm' ? fa.warmColor : fa.coolColor
+        fa.ctx.fillRect(w.x, w.y, w.w, w.h)
+        fa.ctx.globalAlpha = 1
+      }
+    }
+  }
+  return dirty
 }

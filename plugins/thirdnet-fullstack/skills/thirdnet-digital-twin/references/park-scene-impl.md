@@ -121,7 +121,7 @@ for (const s of slabs) this.pickables.push(s)
 - ❌ 不要为追求「更真实」给 cyber/holographic/nebula/isometric 4 风格开环境贴图/AO/反射——破坏既有纪律（cyber/holo/nebula 靠自发光+bloom、isometric 靠哑光）；写实效果只走 `realistic`/`night-realistic` 两风格（其 token 已配好）。
 - ❌ 不要在生成时手写 5 文件契约层——4 个静态样板从 `assets/api/` 拷贝（mock 数据由 `generate_data.py` 生成）。
 - ❌ 不要在真实 canvas 上 `getContext('webgl2')` 探测——用范式实现的 `detectWebGL2`。
-- ❌ 不要每帧重算环境贴图/亮窗 emissiveMap——范式实现里它们都是一次性烘焙（`buildEnvironmentMap` / `makeFacadeTexture`）。
+- ❌ 不要每帧重算环境贴图——它是 `buildEnvironmentMap` 一次性烘焙。亮窗 emissiveMap **静态亮窗也是一次性烘焙**（`buildWindowEmissive`），但 v2.15 起夜景开关灯动画允许 **dirty-gated 局部重绘**：仅对动画子集（≤ `windows.animRatio`·窗数、`prefers-reduced-motion` 门控）在翻转/渐变帧 `clearRect`+重绘其小矩形、仅脏帧 `tex.needsUpdate=true`（`updateFacade`）。**禁止整图全量重烘焙** emissiveMap（重现 v2.5 错位 + 性能崩）。
 - ❌ 不要把楼名标签 y 改回 `h/2 + 22`（v2.1 修复点，标签会埋进塔体）；不要绕过 token `ui.labelBg/labelText` 自行配标签色（浅色风格会糊成黑块）。
 - ❌ 不要在 `buildRoadMarkings`/`buildRooftopKit` 里引入非种子随机（`Math.random`）——重复生成必须一致，用 `mulberry32(hashStr(...))`。
 

@@ -169,6 +169,28 @@ onMounted(async () => {
     },
   )
 
+  // v2.15 POI 业务详情：POI 打开变化 → getPoiDetail（onCleanup + AbortController 防快速切点 race）。
+  // 失败不阻断——PoiOverlay 降级读列表项 inline tooltip/room_spec/occupancy（向后兼容）。
+  watch(
+    () => sel.openPoiId.value,
+    async (poiId, _prev, onCleanup) => {
+      if (!poiId) { twinData.setPoiDetail(null); twinData.poiDetailError.value = null; return }
+      const ctrl = new AbortController()
+      onCleanup(() => ctrl.abort())
+      twinData.poiDetailLoading.value = true
+      twinData.poiDetailError.value = null
+      try {
+        twinData.setPoiDetail(
+          await digitalTwinApi.getPoiDetail({ poi_id: poiId }, { signal: ctrl.signal }),
+        )
+      } catch (e) {
+        if (!ctrl.signal.aborted) twinData.poiDetailError.value = errMsg(e)
+      } finally {
+        if (!ctrl.signal.aborted) twinData.poiDetailLoading.value = false
+      }
+    },
+  )
+
   // ② 并行水合（allSettled：POI 失败不连累楼栋）
   twinData.hydrating.value = true
   await Promise.allSettled([loadBuildings(), loadPois()])

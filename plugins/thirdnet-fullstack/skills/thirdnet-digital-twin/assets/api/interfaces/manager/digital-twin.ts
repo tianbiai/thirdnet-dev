@@ -5,6 +5,7 @@ import type {
   BuildingRuntimeItem, BuildingQueryParams,
   FloorDetail, FloorDetailQueryParams,
   PoiRuntimeItem, PoiQueryParams,
+  PoiDetail, PoiDetailQueryParams,
 } from '@/api/types/digital-twin'
 
 /** v1.8: 调用选项——透传 AbortSignal 以取消请求（防快速切换楼层 race）。 */
@@ -19,4 +20,7 @@ export interface IDigitalTwinApi {
   getFloorDetail(params: FloorDetailQueryParams, opts?: DigitalTwinRequestOptions): Promise<FloorDetail>
   /** POI 点位（设备/监控/停车场 + 实时状态 + 占用）。水合 POI 标记层。 */
   getPois(params?: PoiQueryParams, opts?: DigitalTwinRequestOptions): Promise<PoiRuntimeItem[]>
+  /** v2.15: POI 业务详情（静态档案 fields + 实时指标 live）。点击 POI 后按需拉取，驱动 PoiOverlay 详情卡。
+   * 失败时 PoiOverlay 降级读列表项 inline tooltip/room_spec/occupancy（向后兼容）。 */
+  getPoiDetail(params: PoiDetailQueryParams, opts?: DigitalTwinRequestOptions): Promise<PoiDetail>
 }
