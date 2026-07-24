@@ -121,7 +121,11 @@ onMounted(async () => {
     onPoiOpen: (poiId) => (poiId ? sel.openPoi(poiId) : sel.closePoi()),
     onPoiHover: (poiId) => twinData.setHoverPoi(poiId), // POI 悬停名称条（§11 仅悬停契约）
     onTourAutoExit: () => tour.disable(), // v2.2 §13：巡航中用户拖拽 → 关按钮态（watch 会推 setTourEnabled(false)）
-    onGarageSelect: (id) => sel.selectGarage(id), // v2.6 §14：地下点击 → 选中/取消车库（null=仅清卡片，留地下视角）
+    onGarageSelect: (id) => {
+      // 默认鸟瞰点击地表开口时先进入地下，再保留车库选中态；地下视角点击 null 仅清卡片。
+      if (id && !sel.belowView.value) sel.enterBelowView()
+      sel.selectGarage(id)
+    }, // v2.6 §14：地下/地表开口点击 → 选中车库
     // ⛔ 不要 onFocus 回调——相机聚焦由下面 watch(focusedBuildingId) 驱动（§8 反面模式）
   })
   scene.setStyle(parkScaffold.style as StyleKey)

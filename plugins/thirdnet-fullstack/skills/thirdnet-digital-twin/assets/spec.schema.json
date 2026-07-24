@@ -89,7 +89,7 @@
     },
     "garages": {
       "type": "array",
-      "description": "v2.6 地下场景（地下车库多层剖面）。每个条目=一个负层坑体（level=-1 为 B1，-2 为 B2…），渲染为 Y=0 之下的透明玻璃柱（地面不开洞，从侧面透视内部）。与 buildings[] 解耦，可整园范围。详见 references/park-spec.md「地下车库」。",
+      "description": "v2.6 地下场景（地下车库多层剖面）。每个条目=一个负层坑体（level=-1 为 B1，-2 为 B2…），渲染为 Y=0 之下的透明玻璃柱；园区地面在车库 footprint 留开口，城市底板只覆盖 boundary 外道路环带。与 buildings[] 解耦，可整园范围。详见 references/park-spec.md「地下车库」。",
       "items": { "$ref": "#/$defs/garage" }
     },
     "cameraTour": { "$ref": "#/$defs/cameraTour" },
@@ -264,7 +264,7 @@
       "properties": {
         "enabled": { "type": "boolean", "description": "首屏自动开启巡航（默认 false——用户点 TourToggleButton 触发）" },
         "speed": { "type": "number", "exclusiveMinimum": 0, "description": "OrbitControls autoRotateSpeed（度/帧），默认 0.6 缓慢" },
-        "elevation": { "type": "number", "minimum": 0, "maximum": 1.5708, "description": "巡航相机俯角（弧度，above-horizon；默认 1.0≈57° 鸟瞰；运行时钳到 OrbitControls polar[0.5,π-0.1] 内）" },
+        "elevation": { "type": "number", "minimum": 0, "maximum": 1.5708, "description": "巡航相机俯角（弧度，above-horizon；默认 1.0≈57° 鸟瞰；运行时钳到 OrbitControls polar[0.05,π-0.05] 内）" },
         "framingK": { "type": "number", "exclusiveMinimum": 0, "exclusiveMaximum": 1, "description": "巡航取景内容占比（默认 0.55 俯瞰全城；默认取景 K=0.66）" },
         "pauseOnInteract": { "type": "boolean", "description": "用户拖拽自动退出巡航、把控制权还给用户（默认 true）" }
       }

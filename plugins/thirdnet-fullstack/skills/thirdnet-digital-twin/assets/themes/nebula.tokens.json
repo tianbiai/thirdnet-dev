@@ -86,15 +86,17 @@
     "groundGlow": true,
     "road": "#180e2a",
     "roadLine": "#b8a0ff",
-    "sidewalk": "#241640",
-    "grass": "#2a1a4a",
-    "treeTrunk": "#0a0418",
-    "treeCanopy": "#2a1a4a",
+    "sidewalk": "#49336f",
+    "grass": "#503a78",
+    "treeTrunk": "#35234d",
+    "treeCanopy": "#6a4d99",
     "lampGlow": "#d8c4ff",
     "vehicle": "#6a4ab0",
     "roadMarking": "#b8a0ff",
-    "water": "#1a0a3a",
-    "rooftop": "#6a4ab0"
+    "water": "#3b2670",
+    "rooftop": "#6a4ab0",
+    "decorOutline": "#d8c4ff",
+    "decorEmissive": 0.25
   },
   "garageEntrance": {
     "frame": "#5fe0d0",

@@ -30,7 +30,7 @@ export interface ThemeTokens {
   lights: Record<string, string | number | null>
   ground?: { texture?: { type: 'tiles' | 'grid' | 'dots'; base: string; line: string; cell: number } }
   shaders?: { grid?: { u_gridColor: string; u_cell: number; u_strength: number } | null }
-  environment: Record<string, string | boolean>
+  environment: Record<string, string | boolean | number>
   garageEntrance?: Record<string, string>
   surfaceParking?: Record<string, string>
   /** v2.6 地下场景配色（deck/wall/edge/room/spot/ramp + deckOpacity/wallOpacity）。 */

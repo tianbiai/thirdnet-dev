@@ -24,6 +24,7 @@
 - **程序化天空（token `scene.sky`）**：nebula 开星空+月亮；holographic 开稀疏星点（须低于 bloom 阈值）；cyber/isometric 无天空元素。
 - **`ui` 块**：2D 组件观感旋钮（`panelOpacity/panelBlur/panelRadius/glowStrength/glowColor/borderWidth/labelBg/labelText/switcherStyle`）。赛博/全息/nebula = neon 描边发光 pill；等距 = flat 克制。
 - **程序化地面纹理 `ground.texture`**（`{type, base, line, cell}`）：非 cyber 风格地面叠一层 CanvasTexture（见 `scene-recipe.md §3.1`）。
+- **地面装饰可读性**：`buildGreenery` 统一走装饰材质 helper；cyber/holographic/nebula 用不受光材质 + `environment.decorOutline`，night-realistic 用 Standard + `environment.decorEmissive`，避免草地、树冠、灌木、广场和水景在暗色背景中融成黑块。realistic/isometric 分别保持 PBR 与 flatShading。
 
 ---
 

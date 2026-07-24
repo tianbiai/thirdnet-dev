@@ -22,7 +22,7 @@
 
 | 组件（`assets/components/`） | 角色 | 数据形状 |
 |---|---|---|
-| `GlobalTwin.vue` | 挂载 canvas，实例化场景，接入选中 | `onMounted` 拉 `getBuildings()`+`getPois()` 水合场景；点击楼层拉 `getFloorDetail()`（见 `scene-recipe.md §12`）；`onGarageSelect → selectGarage` + `watch(belowView → setBelowView)`；`watch(current → scene.setStyle)` 多风格切换 |
+| `GlobalTwin.vue` | 挂载 canvas，实例化场景，接入选中 | `onMounted` 拉 `getBuildings()`+`getPois()` 水合场景；点击楼层拉 `getFloorDetail()`（见 `scene-recipe.md §12`）；地表车库开口或地下点击 → `onGarageSelect`（地表命中先 enterBelowView）+ `watch(belowView → setBelowView)`；`watch(current → scene.setStyle)` 多风格切换 |
 | `CenterStage.vue` | 常驻 `<canvas>` + 聚焦时 `UnitDetail` 叠加 + Legend 定位 + 地下选中时 `GarageCard`（右下） | — |
 | `BuildingSwitcher.vue` | 标签页：全局视角 + 每栋楼一个（+ 地下车库） | 骨架读静态脚手架 `parkScaffold.buildings`；标签 `name`/`header` 由 `getBuildings()` 水合；有 `garages[]` 时追加「地下车库」标签 → `enterBelowView` |
 | `UnitDetail.vue` | 右半详情面板 + 多单位上一/下一 | 数据源 = `getFloorDetail()` 返回的 `FloorDetail`（`units: UnitDetail[]`） |

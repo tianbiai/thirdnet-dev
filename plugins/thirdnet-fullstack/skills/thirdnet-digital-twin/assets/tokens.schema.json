@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://thirdnet/skills/thirdnet-digital-twin/tokens.schema.json",
   "title": "Theme Tokens v2.1",
-  "description": "结构契约：assets/themes/*.tokens.json 的形状校验。validate_spec.py 加载本文件对所选风格 token 做结构校验——缺关键块或类型错 → FAIL。允许 key 带下划线前缀的注释字段（_comment 等），不参与校验。v2.0 新增 realism 块（写实增强旋钮：material/bloom/ao/reflection/fog/sun）。v2.1 新增 scene.sky（程序化天空开关）、environment.roadMarking/water/rooftop（标线/水景/楼顶设备色）、ui 块（2D 组件观感旋钮，assets/components/ 消费）。v2.5 新增可选 realism.shadow（软阴影 radius/bias），并恢复 realistic/night-realistic 两风格（写实引擎 envMap/GTAO/反射/软阴影/雾 全部激活）。v2.6 新增可选 underground 块（地下场景配色：deck/wall/edge/room/spot/ramp + deckOpacity/wallOpacity）。v2.15 新增可选 windows 块（夜间发光窗流水线：逐层窗列数/分层点亮率/暖冷双辉光/dirty-gated 翻转动画，仅 night-realistic 消费；缺省走 park-scene.impl.ts 内置 DEFAULT_WINDOWS；animRatio=0 退化为静态烘焙=与 v2.14 行为一致）。",
+  "description": "结构契约：assets/themes/*.tokens.json 的形状校验。validate_spec.py 加载本文件对所选风格 token 做结构校验——缺关键块或类型错 → FAIL。允许 key 带下划线前缀的注释字段（_comment 等），不参与校验。v2.0 新增 realism 块（写实增强旋钮：material/bloom/ao/reflection/fog/sun）。v2.1 新增 scene.sky（程序化天空开关）、environment.roadMarking/water/rooftop（标线/水景/楼顶设备色）、ui 块（2D 组件观感旋钮，assets/components/ 消费）。v2.5 新增可选 realism.shadow（软阴影 radius/bias），并恢复 realistic/night-realistic 两风格（写实引擎 envMap/GTAO/反射/软阴影/雾 全部激活）。v2.6 新增可选 underground 块（地下场景配色：deck/wall/edge/room/spot/ramp + deckOpacity/wallOpacity）。v2.15 新增可选 windows 块（夜间发光窗流水线：逐层窗列数/分层点亮率/暖冷双辉光/dirty-gated 翻转动画，仅 night-realistic 消费；缺省走 park-scene.impl.ts 内置 DEFAULT_WINDOWS；animRatio=0 退化为静态烘焙=与 v2.14 行为一致）。v2.17 新增可选 environment.decorOutline/decorEmissive（暗色地面装饰可读性）。",
   "type": "object",
   "additionalProperties": true,
   "required": ["scene", "palette", "category", "building", "lights", "environment", "realism", "ui"],
@@ -196,7 +196,9 @@
         "vehicle": { "type": "string" },
         "roadMarking": { "type": "string", "description": "v2.1 内部道路中央虚线/斑马线/转向箭头色。" },
         "water": { "type": "string", "description": "v2.1 水景水面色。" },
-        "rooftop": { "type": "string", "description": "v2.1 楼顶电梯机房/天线设备色。" }
+        "rooftop": { "type": "string", "description": "v2.1 楼顶电梯机房/天线设备色。" },
+        "decorOutline": { "type": "string", "description": "暗色风格地面装饰物的可选高对比轮廓色。" },
+        "decorEmissive": { "type": "number", "minimum": 0, "maximum": 1, "description": "夜景地面装饰物的可选自发光强度。" }
       }
     },
     "garageEntrance": {
@@ -209,7 +211,7 @@
     },
     "underground": {
       "type": "object",
-      "description": "v2.6 地下场景配色（§14 地下车库多层剖面）。park-scene.impl.ts buildUnderground 消费——地面不开洞，坑体为 Y<0 透明玻璃柱：底板半透明自发光 + 4 面玻璃墙。所有风格都应有此块（非写实风格走自发光；写实风格走 PBR 受光）。deck/wall/edge/room/spot/ramp 为 hex；deckEmissive 为 hex（底板自发光色，写实日景可给极暗色近关）；deckOpacity/wallOpacity 为 0–1 不透明度。",
+      "description": "v2.6 地下场景配色（§14 地下车库多层剖面）。park-scene.impl.ts buildUnderground 消费——园区地面在车库 footprint 留开口，坑体为 Y<0 透明玻璃柱：底板半透明自发光 + 4 面玻璃墙。所有风格都应有此块（非写实风格走自发光；写实风格走 PBR 受光）。deck/wall/edge/room/spot/ramp 为 hex；deckEmissive 为 hex（底板自发光色，写实日景可给极暗色近关）；deckOpacity/wallOpacity 为 0–1 不透明度。",
       "required": ["deck", "deckEmissive", "deckOpacity", "wall", "wallOpacity", "edge", "room", "spot", "ramp"],
       "properties": {
         "deck": { "type": "string" },

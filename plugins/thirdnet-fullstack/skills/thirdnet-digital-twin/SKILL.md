@@ -15,7 +15,7 @@ description: >
   增加地下场景/连廊等。
 license: MIT
 metadata:
-  version: "2.16.0"
+  version: "2.17.0"
   author: park-cockpit
 compatibility: Vue 3 + TypeScript + Vite + Three.js 项目；赛博风格消费 WebGL 片段着色器（`gridGround.glsl` 网格地面），全息/星云消费菲涅尔边缘辉光注入（`fresnelRim.glsl`）。动态数据契约层遵循 `api-typescript-spec`（`IDigitalTwinApi` + Real/Mock 工厂，`VITE_MOCK_ENABLED` 切换）。可在范例仓库、create-thirdnet-admin 项目或任何最小化的 Vite+Vue+Three 脚手架中运行。
 ---
@@ -153,8 +153,10 @@ python scripts/generate_theme.py <style> --out <项目根>/src/styles/tokens.css
 - [ ] 赛博风格下着色器网格地面可见；其它风格按 `styles.md` 材质构建且未接入 grid。
 - [ ] 切换器含所有标签页；点击楼层金色高亮 + 打开 UnitDetail（含叙事档案块时显示「业务范围/介绍/职责/结尾语」）；悬停金边、点击锁定、点空白取消。
 - [ ] 点击 POI 出详情卡（`getPoiDetail` 的 fields/live 表格；失败降级 inline tooltip）；快速切点不串显。
-- [ ] 滚轮可缩放、右键平移、左键旋转，松手后视角保持；默认取景为全景（K=0.66，四周可见周边环境）。
-- [ ] 园区环境完整（内部道路、地面车位带、行道树/绿地、四向市政道路、主出入口、路灯）。
+- [ ] 滚轮可缩放、右键平移、左键旋转，松手后视角保持；默认取景为全景（K=0.66，四周可见周边环境），方位角无限制且极角可到接近天顶/天底（保留 0.05rad 极点安全余量）。
+- [ ] 有 `garages[]` 时，城市底板只铺在边界外道路环带，园区地面在车库 footprint 留开口；默认鸟瞰能看到地下元素，点击开口可进入地下剖面视角。
+- [ ] 园区环境完整（内部道路、自动换行且不越界的地面车位带、行道树/绿地、四向市政道路、主出入口、路灯）。
+- [ ] cyber/holographic/nebula/night-realistic 下草地 patch、树冠、灌木、中央广场、水景和池缘与背景有清晰层次；realistic/isometric 保持各自 PBR/flatShading 观感。
 - [ ] 动态数据契约层齐全（四方法含 `getPoiDetail`）；脚手架先行再水合；正式环境走真实 API（404 属预期）；三态兜底。
 - [ ] night-realistic 程序化发光窗：分层点亮（底层 0/中层密/顶层稀）+ 暖冷双辉光 + 开关灯动画（reduced-motion 关闭）。
 - [ ] 性能/健壮性/a11y/token 自洽（详见条件子清单）。

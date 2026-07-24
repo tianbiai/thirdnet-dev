@@ -148,9 +148,9 @@ interface ParkEnvironment {
 
 ## 地下车库（garages）
 
-`spec.garages` 可选（缺省 `[]` = 不生成地下层）。每个条目描述**一个地下负层坑体**——`level: -1` 为 B1、`-2` 为 B2，多层即多个条目并按 `level` 堆叠。坑体渲染为 **Y=0 之下的透明玻璃柱**：地面**不开洞**（楼栋不悬空），4 面半透明玻璃壁 + 半透明自发光底板，从侧面透视内部的车位网格 + 车辆 + 功能房间线框 + 出入口坡道 + 层标牌。`usage` 区分用途：缺省 `'parking'`（车位网格 + 车辆 + GarageCard 占用）；`'mall'`/`'subway'`/`'shelter'`/`'workshop'` 等跳过车位网格，改显功能房间——可表达地下商场/地铁通道/人防工程/地下车间。生成细则见 `references/scene-recipe.md §14`。
+`spec.garages` 可选（缺省 `[]` = 不生成地下层）。每个条目描述**一个地下负层坑体**——`level: -1` 为 B1、`-2` 为 B2，多层即多个条目并按 `level` 堆叠。坑体渲染为 **Y=0 之下的透明玻璃柱**：园区地面在车库 footprint 处留出开口，城市底板只覆盖 `boundary` 外道路环带，因此默认鸟瞰可以看到真实地下元素；楼栋仍不悬空。坑体由 4 面半透明玻璃壁 + 半透明自发光底板组成，内部有车位网格 + 车辆 + 功能房间线框 + 出入口坡道 + 层标牌。`usage` 区分用途：缺省 `'parking'`（车位网格 + 车辆 + GarageCard 占用）；`'mall'`/`'subway'`/`'shelter'`/`'workshop'` 等跳过车位网格，改显功能房间——可表达地下商场/地铁通道/人防工程/地下车间。生成细则见 `references/scene-recipe.md §14`。
 
-> **与 `category:'garage'` 楼栋的区别**：`buildings[]` 里 `category:'garage'` 是**地面入口标记**（半金字塔 + P 牌，Y=0 之上、无体积）；`garages[]` 是**真正的地下剖面几何**。二者独立——可只用地面试标记、可只用地下坑体、也可共存。地下交互走切换器「地下车库」标签 → `setBelowView(true)` 相机俯冲。
+> **与 `category:'garage'` 楼栋的区别**：`buildings[]` 里 `category:'garage'` 是**地面入口标记**（半金字塔 + P 牌，Y=0 之上、无体积）；`garages[]` 是**真正的地下剖面几何**，其 footprint 在地面留开口并绘制边缘拾取面。二者独立——可只用地面试标记、可只用地下坑体、也可共存。地下交互走切换器「地下车库」标签，或从默认鸟瞰点击开口进入 `setBelowView(true)` 相机俯冲。
 
 > **全部静态内联**：坑体几何与 `capacity`/`occupied` 占用数据都写进 `ParkScaffold.garages`，由 `generate_data.py` 输出、ParkScene 构造期读取渲染，**不**走动态水合。如需运营态实时占用，后续可在 `IDigitalTwinApi` 加 `getGarages()` 覆盖（见 `dynamic-data-api.md`）。
 
@@ -166,7 +166,7 @@ interface ParkEnvironment {
 interface CameraTourSpec {
   enabled?: boolean                   // 首屏自动开启；默认 false
   speed?: number                      // autoRotateSpeed（度/帧）；默认 0.6
-  elevation?: number                  // 巡航俯角 rad；默认 1.0 鸟瞰；钳到 polar[0.5,π-0.1]
+  elevation?: number                  // 巡航俯角 rad；默认 1.0 鸟瞰；钳到 polar[0.05,π-0.05]，保留极点安全余量
   framingK?: number                   // 巡航取景内容占比；默认 0.55
   pauseOnInteract?: boolean           // 用户拖拽自动退出；默认 true
 }

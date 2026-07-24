@@ -105,6 +105,8 @@
     "roadMarking": "#fff8e8",
     "water": "#7ec8e8",
     "rooftop": "#d8cfbe",
+    "decorOutline": "#fff8e8",
+    "decorEmissive": 0,
     "_v21_comment": "v2.1 新增：roadMarking=内部道路中央虚线/斑马线/箭头色（奶油色）；water=水景水面色（插画浅蓝）；rooftop=楼顶电梯机房/天线设备色（暖灰）。"
   },
   "garageEntrance": {

@@ -51,7 +51,7 @@
     "garage": "#3df0c8"
   },
   "underground": {
-    "_comment": "v2.6 地下场景配色（§14 地下车库多层剖面）。地面不开洞——坑体是 Y<0 的透明玻璃柱：底板半透明自发光 + 4 面青色玻璃墙，从侧面透视内部车位/车/功能房间/坡道。地下无独立光照，靠材质 emissive 伪造深度感（与 web 驾驶舱同源）。cyber 全自发光霓虹：wall=青玻璃、edge=薄荷绿边界虚线、room=琥珀功能间、deck=深蓝自发光底板。",
+    "_comment": "v2.6 地下场景配色（§14 地下车库多层剖面）。地面在车库 footprint 留开口，坑体是 Y<0 的透明玻璃柱：底板半透明自发光 + 4 面青色玻璃墙，从默认鸟瞰开口或地下侧视透视内部车位/车/功能房间/坡道。地下无独立光照，靠材质 emissive 伪造深度感（与 web 驾驶舱同源）。cyber 全自发光霓虹：wall=青玻璃、edge=薄荷绿边界虚线、room=琥珀功能间、deck=深蓝自发光底板。",
     "deck": "#0a1320",
     "deckEmissive": "#0a1830",
     "deckOpacity": 0.32,
@@ -95,15 +95,17 @@
     "groundGlow": true,
     "road": "#0c1430",
     "roadLine": "#2bd4ff",
-    "sidewalk": "#13204a",
-    "grass": "#13304a",
-    "treeTrunk": "#1a1028",
-    "treeCanopy": "#1c4a5a",
+    "sidewalk": "#244d70",
+    "grass": "#245f70",
+    "treeTrunk": "#4a3158",
+    "treeCanopy": "#2f8c91",
     "lampGlow": "#7ff5ff",
     "vehicle": "#1e6fff",
     "roadMarking": "#2bd4ff",
-    "water": "#0a4a6e",
+    "water": "#167aa0",
     "rooftop": "#160a30",
+    "decorOutline": "#7ff5ff",
+    "decorEmissive": 0.2,
     "_v21_comment": "v2.1 新增：roadMarking=内部道路中央虚线/斑马线/箭头色（赛博发光青）；water=水景水面色；rooftop=楼顶电梯机房/天线设备色。"
   },
   "garageEntrance": {

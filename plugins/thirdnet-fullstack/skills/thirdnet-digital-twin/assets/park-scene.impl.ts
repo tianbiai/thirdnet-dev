@@ -130,6 +130,13 @@ interface StyleProfile {
   perspective?: boolean
 }
 
+interface SurfaceRect {
+  x0: number
+  x1: number
+  z0: number
+  z1: number
+}
+
 const PROFILES: Record<StyleKey, StyleProfile> = {
   // cyber：bloom 为主 + 网格着色器地面，无 env/AO/反射
   cyber:             { toneMapping: THREE.ACESFilmicToneMapping, toneExposure: 1.0, shadows: false, ground: 'grid',  building: 'emissive',   composer: true,  envMap: false, ao: false, reflect: false },
@@ -200,6 +207,8 @@ export class ParkScene {
   private poiMap = new Map<string, PoiRuntimeItem>()
   /** v2.6 地下车库拾取盒（仅 belowView 时参与 raycast）。 */
   private garagePickables: THREE.Object3D[] = []
+  /** 默认鸟瞰时车库开口的薄拾取面，与地下体积拾取盒分离，避免地面未开口时误命中。 */
+  private garageSurfacePickables: THREE.Object3D[] = []
   /** 报警 POI 的 halo 列表（animate 逐帧呼吸缩放，免整树 traverse——v2.6 地下节点膨胀后尤为关键）。随 buildPOIs 重建、clearSceneGroup 清空。 */
   private alarmPois: THREE.Object3D[] = []
   /** v2.15 夜间发光窗动画状态（每楼一顶）。clearSceneGroup 清空；CanvasTexture 经 disposeObject 释放。
@@ -218,8 +227,8 @@ export class ParkScene {
   private sideTarget = new THREE.Vector3()
   private belowZoom = 1
   private belowZoomAnchor = 1
-  /** OrbitControls 极角上限（v2.10 起放开到 π-0.1≈174°——允许拖到地面之下、从下仰视坑体；从下方看 Y=0 不透明地面因 BackSide culling 自然消失，坑体净可见）。belowView 期间沿用同值。 */
-  private static readonly MAX_POLAR = Math.PI - 0.1
+  /** 地下视角仍允许穿过水平面，但在天顶/天底保留安全余量，避免 OrbitControls 极点翻转。 */
+  private static readonly MAX_POLAR = Math.PI - 0.05
 
   private hydratedBuildings: BuildingRuntimeItem[] | null = null
   private hydratedPois: PoiRuntimeItem[] | null = null
@@ -275,8 +284,11 @@ export class ParkScene {
       : new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 8000)
     this.controls = new OrbitControls(this.camera, canvas)
     this.controls.enableDamping = true
-    this.controls.minPolarAngle = 0.5
-    this.controls.maxPolarAngle = ParkScene.MAX_POLAR   // v2.10：放开到 π-0.1 允许地下俯仰
+    this.controls.minPolarAngle = 0.05
+    this.controls.maxPolarAngle = ParkScene.MAX_POLAR
+    // 水平方位角不设界，拖动可绕园区完整一周；极角保留 0.05rad 极点安全余量。
+    this.controls.minAzimuthAngle = -Infinity
+    this.controls.maxAzimuthAngle = Infinity
     this.controls.minZoom = 0.45
     this.controls.maxZoom = 2.6
     this.controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN }
@@ -482,6 +494,7 @@ export class ParkScene {
     this.pickables = []
     this.poiPickables = []
     this.garagePickables = []
+    this.garageSurfacePickables = []
     this.alarmPois = []
     this.facadeAnims = []   // v2.15：CanvasTexture 由 disposeObject 经 material.emissiveMap 释放，此处仅弃引用
     this.buildingMap.clear()
@@ -637,15 +650,23 @@ export class ParkScene {
     const bx = this.scaffold.boundary.x
     const bz = this.scaffold.boundary.z
     const env = this.tokens.environment as Record<string, unknown>
+    const parkHoles = this.garageCutoutRects()
 
     const cityColor = (env['city-ground'] as string) ?? '#080418'
-    const cityGeo = new THREE.PlaneGeometry(bx * 30, bz * 30)
+    // 城市底板只保留 boundary 外的环形区域；园区及地下坑体正下方不再有 y=-0.5 的遮挡面。
+    const cityGeo = this.createSurfaceGeometry(
+      -bx * 15, bx * 15, -bz * 15, bz * 15,
+      [{ x0: -bx, x1: bx, z0: -bz, z1: bz }],
+    )
     const cityMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(cityColor) })
     const city = new THREE.Mesh(cityGeo, cityMat)
     city.rotation.x = -Math.PI / 2
     city.position.y = -0.5
     if (this.profile.shadows) city.receiveShadow = true
     this.sceneGroup.add(city)
+
+    // 有地下车库时按 footprint 开口，默认鸟瞰可直接看到真实坑体；无车库仍是完整园区平面。
+    const parkGeo = this.createSurfaceGeometry(-bx, bx, -bz, bz, parkHoles)
 
     if (this.profile.ground === 'grid') {
       const grid = this.tokens.shaders?.grid ?? { u_gridColor: '#2a7fff', u_cell: 46, u_strength: 0.85 }
@@ -655,7 +676,6 @@ export class ParkScene {
         u_strength: { value: grid.u_strength },
         u_scale: { value: new THREE.Vector2(bx * 2, bz * 2) },
       }
-      const geo = new THREE.PlaneGeometry(bx * 2, bz * 2)
       const mat = new THREE.ShaderMaterial({
         glslVersion: THREE.GLSL1,
         uniforms,
@@ -664,7 +684,7 @@ export class ParkScene {
         transparent: true,
         depthWrite: false,
       })
-      const m = new THREE.Mesh(geo, mat)
+      const m = new THREE.Mesh(parkGeo, mat)
       m.rotation.x = -Math.PI / 2
       m.position.y = 0
       this.sceneGroup.add(m)
@@ -672,12 +692,10 @@ export class ParkScene {
     }
 
     // v2.0/v2.5 夜间湿润反射（Reflector，仅 night-realistic + WebGL2）。预算超限或缺 WebGL2 时降级为普通地面。
-    // opacity = 反射强度上限；mixStrength = 与地面的混合权重（0=几乎只看地面、1=强反射）。二者相乘为有效不透明度
-    // （v2.5：mixStrength 此前声明却从不消费——死旋钮，现已接通）。
     const r = this.tokens.realism as { reflection?: { enabled?: boolean; opacity?: number; mixStrength?: number } } | undefined
     if (this.profile.reflect && r?.reflection?.enabled && this.isWebGL2) {
       try {
-        this.reflector = new Reflector(new THREE.PlaneGeometry(bx * 2, bz * 2), {
+        this.reflector = new Reflector(parkGeo, {
           clipBias: 0.003,
           textureWidth: (this.canvas.clientWidth || 1920) * Math.min(window.devicePixelRatio, 2),
           textureHeight: (this.canvas.clientHeight || 1080) * Math.min(window.devicePixelRatio, 2),
@@ -696,7 +714,6 @@ export class ParkScene {
     }
 
     const grass = (env.grass as string) ?? '#13304a'
-    // v1.9 程序化地面纹理叠加（消灭纯色色片）。提前取纹理。
     const groundTex = this.makeGroundTexture()
     let mat: THREE.Material
     if (this.profile.ground === 'flat') {
@@ -704,17 +721,60 @@ export class ParkScene {
     } else if (this.profile.ground === 'pbr') {
       mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(grass), roughness: 0.95, metalness: 0 })
     } else {
-      // dark 地面改用 MeshBasicMaterial（不受光）：夜景/全息灯光暗，受光 Standard 会被压成近黑「看不见地面」；
-      // 不受光直接按 token ground.texture 全色显示，保证地面可辨、与背景强对比。
+      // dark 地面不受光，避免夜景/全息灯光把园区基础面压成黑块。
       mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(groundTex ? '#ffffff' : '#06070d') })
     }
-    if (groundTex && mat instanceof THREE.MeshBasicMaterial) (mat as THREE.MeshBasicMaterial).map = groundTex
-    else if (groundTex && mat instanceof THREE.MeshStandardMaterial) (mat as THREE.MeshStandardMaterial).map = groundTex
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(bx * 2, bz * 2), mat)
+    if (groundTex && mat instanceof THREE.MeshBasicMaterial) mat.map = groundTex
+    else if (groundTex && mat instanceof THREE.MeshStandardMaterial) mat.map = groundTex
+    const m = new THREE.Mesh(parkGeo, mat)
     m.rotation.x = -Math.PI / 2
     m.position.y = 0
     if (this.profile.shadows) m.receiveShadow = true
     this.sceneGroup.add(m)
+  }
+
+  /** 车库 footprint 作为园区地面开口；范围裁剪到 boundary，异常尺寸仍由 spec 校验提示。 */
+  private garageCutoutRects(): SurfaceRect[] {
+    const bx = this.scaffold.boundary.x
+    const bz = this.scaffold.boundary.z
+    return (this.scaffold.garages ?? []).map((g) => ({
+      x0: Math.max(-bx, g.x - Math.abs(g.w) / 2),
+      x1: Math.min(bx, g.x + Math.abs(g.w) / 2),
+      z0: Math.max(-bz, g.z - Math.abs(g.d) / 2),
+      z1: Math.min(bz, g.z + Math.abs(g.d) / 2),
+    })).filter((r) => r.x1 > r.x0 && r.z1 > r.z0)
+  }
+
+  /** 生成带矩形开口的水平面。局部 XY 经旋转 -π/2 后对应世界 XZ，适用于 shader/纹理/Reflector。 */
+  private createSurfaceGeometry(x0: number, x1: number, z0: number, z1: number, holes: SurfaceRect[] = []): THREE.BufferGeometry {
+    const xs = [...new Set([x0, x1, ...holes.flatMap((r) => [r.x0, r.x1])])].filter((x) => x >= x0 && x <= x1).sort((a, b) => a - b)
+    const zs = [...new Set([z0, z1, ...holes.flatMap((r) => [r.z0, r.z1])])].filter((z) => z >= z0 && z <= z1).sort((a, b) => a - b)
+    const vertices: number[] = []
+    const uvs: number[] = []
+    const indices: number[] = []
+    const width = Math.max(1, x1 - x0)
+    const depth = Math.max(1, z1 - z0)
+    const isHole = (x: number, z: number) => holes.some((r) => x > r.x0 && x < r.x1 && z > r.z0 && z < r.z1)
+
+    for (let xi = 0; xi < xs.length - 1; xi++) {
+      for (let zi = 0; zi < zs.length - 1; zi++) {
+        const ax = xs[xi], bx = xs[xi + 1], az = zs[zi], bz = zs[zi + 1]
+        if (bx <= ax || bz <= az || isHole((ax + bx) / 2, (az + bz) / 2)) continue
+        const base = vertices.length / 3
+        // 逆 Z 顺序使旋转后的法线朝向 +Y。
+        for (const [x, z] of [[ax, bz], [bx, bz], [bx, az], [ax, az]] as Array<[number, number]>) {
+          vertices.push(x, -z, 0)
+          uvs.push((x - x0) / width, (z1 - z) / depth)
+        }
+        indices.push(base, base + 1, base + 2, base, base + 2, base + 3)
+      }
+    }
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3))
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
+    geo.setIndex(indices)
+    geo.computeVertexNormals()
+    return geo
   }
 
   private disposeReflector() {
@@ -908,39 +968,156 @@ export class ParkScene {
 
   private buildSurfaceParking(stalls: number, occupied?: number) {
     const sp = this.tokens.surfaceParking as Record<string, string>
-    const cars = occupied ?? Math.round(stalls * 0.3)
-    const stallW = 14
-    const stallD = 26
-    const rowX = this.scaffold.boundary.x - 70
-    const rowZ0 = -((stalls * stallD) / 2)
+    const total = Math.max(0, Math.floor(stalls))
+    if (total === 0) return
+    const cars = Math.max(0, Math.min(total, Math.round(occupied ?? total * 0.3)))
+    const bx = Math.abs(this.scaffold.boundary.x)
+    const bz = Math.abs(this.scaffold.boundary.z)
+    const edge = 30
+    const availableX = Math.max(0, bx * 2 - edge * 2)
+    const availableZ = Math.max(0, bz * 2 - edge * 2)
+    if (availableX <= 0 || availableZ <= 0) return
+
+    // 标准车位优先保持 14×26；极小边界下整体缩放，确保四角和标牌都在 boundary 内。
+    const baseW = 14
+    const baseD = 26
+    const scale = Math.min(
+      1,
+      availableX / baseD,
+      availableZ / baseD,
+      Math.sqrt((availableX * availableZ) / (total * baseW * baseD)),
+    )
+    const stallW = baseW * scale
+    const stallD = baseD * scale
+    const aisle = Math.max(4, 10 * scale)
+    const lineMat = new THREE.LineBasicMaterial({ color: new THREE.Color(sp.stallLine) })
     const fillMat = this.profile.shadows
       ? new THREE.MeshLambertMaterial({ color: new THREE.Color(sp.stallFill) })
       : new THREE.MeshBasicMaterial({ color: new THREE.Color(sp.stallFill) })
-    const lineMat = new THREE.LineBasicMaterial({ color: new THREE.Color(sp.stallLine) })
-    // P 牌纹理/材质全车位共用（同字同色，每车位重建一份 canvas 纹理是纯浪费）。
     const pTex = this.makeContrastLabel('P', sp.pMarkBg ?? sp.stallFill, sp.pMark, sp.stallLine)
     const pMat = new THREE.SpriteMaterial({ map: pTex, depthTest: false, transparent: true })
-    for (let i = 0; i < stalls; i++) {
-      const z = rowZ0 + i * stallD
-      const stall = new THREE.Mesh(new THREE.PlaneGeometry(stallW, stallD - 2), fillMat)
+    const placements: Array<{ x: number; z: number; rotation: number }> = []
+
+    type Side = 'east' | 'west' | 'north' | 'south'
+    const sideOrder: Side[] = ['east', 'west', 'north', 'south']
+    const maxAlong = (length: number) => Math.max(1, Math.floor(length / stallD))
+    const maxLanes = (length: number) => Math.max(1, Math.floor(Math.max(0, length - stallW) / (stallW + aisle)) + 1)
+    const sideSlots = (side: Side, lane: number, count: number) => {
+      if (side === 'east' || side === 'west') {
+        const length = availableZ
+        const usable = count * stallD
+        const start = -length / 2 + (length - usable) / 2 + stallD / 2
+        const x = side === 'east'
+          ? bx - edge - stallW / 2 - lane * (stallW + aisle)
+          : -bx + edge + stallW / 2 + lane * (stallW + aisle)
+        for (let i = 0; i < count; i++) placements.push({ x, z: start + i * stallD, rotation: 0 })
+      } else {
+        const length = availableX
+        const usable = count * stallD
+        const start = -length / 2 + (length - usable) / 2 + stallD / 2
+        const z = side === 'north'
+          ? bz - edge - stallW / 2 - lane * (stallW + aisle)
+          : -bz + edge + stallW / 2 + lane * (stallW + aisle)
+        for (let i = 0; i < count; i++) placements.push({ x: start + i * stallD, z, rotation: Math.PI / 2 })
+      }
+    }
+
+    // 逐层轮转四条边：24 个车位会自然分成东西两排；大数量继续向内扩展为多行。
+    let remaining = total
+    let lane = 0
+    while (remaining > 0) {
+      let added = 0
+      for (const side of sideOrder) {
+        const crossLength = side === 'east' || side === 'west' ? availableX : availableZ
+        if (lane >= maxLanes(crossLength)) continue
+        const count = Math.min(remaining, maxAlong(side === 'east' || side === 'west' ? availableZ : availableX))
+        if (count <= 0) continue
+        sideSlots(side, lane, count)
+        remaining -= count
+        added += count
+        if (remaining === 0) break
+      }
+      if (added === 0) break
+      lane++
+    }
+
+    // 理论上仅在 boundary 小于一个车位时触发；仍把剩余数压回安全矩形，不再向边界外溢出。
+    if (remaining > 0) {
+      const cols = Math.max(1, Math.floor(availableX / stallD))
+      const rows = Math.max(1, Math.ceil(remaining / cols))
+      for (let i = 0; i < remaining; i++) {
+        const col = i % cols
+        const row = Math.floor(i / cols) % rows
+        const x = -bx + edge + stallD / 2 + col * stallD
+        const z = -bz + edge + stallW / 2 + row * stallW
+        placements.push({ x: Math.max(-bx + edge, Math.min(bx - edge, x)), z: Math.max(-bz + edge, Math.min(bz - edge, z)), rotation: 0 })
+      }
+    }
+
+    placements.slice(0, total).forEach((placement, i) => {
+      const { x, z, rotation } = placement
+      const stall = new THREE.Mesh(new THREE.PlaneGeometry(stallW, stallD - 2 * scale), fillMat)
       stall.rotation.x = -Math.PI / 2
-      stall.position.set(rowX, 0.3, z)
+      stall.rotation.y = rotation
+      stall.position.set(x, 0.3, z)
       this.sceneGroup.add(stall)
       const loop = new THREE.LineLoop(new THREE.EdgesGeometry(new THREE.PlaneGeometry(stallW, stallD)), lineMat)
       loop.rotation.x = -Math.PI / 2
-      loop.position.set(rowX, 0.35, z)
+      loop.rotation.y = rotation
+      loop.position.set(x, 0.35, z)
       this.sceneGroup.add(loop)
       const psprite = new THREE.Sprite(pMat)
-      psprite.position.set(rowX, 2, z)
-      psprite.scale.set(7, 7, 1)
+      psprite.position.set(x, 2, z)
+      psprite.scale.set(7 * scale, 7 * scale, 1)
       this.overlayScene.add(psprite)
       if (i < cars) {
         const car = this.makeCarProxy(sp.car ?? '#1e6fff')
-        car.position.set(rowX, 0, z)
-        car.rotation.y = Math.PI / 2
+        car.position.set(x, 0, z)
+        car.rotation.y = rotation
+        car.scale.setScalar(scale)
         this.sceneGroup.add(car)
       }
+    })
+  }
+
+  /** 低层园林材质统一分支：暗色不受光、夜景轻微自发光，等距/日景不改变原有风格。 */
+  private greeneryMaterial(color: THREE.ColorRepresentation, opacity = 1, roughness = 0.85): THREE.Material {
+    const col = new THREE.Color(color)
+    const env = this.tokens.environment as Record<string, unknown>
+    const decorEmissive = typeof env.decorEmissive === 'number' ? env.decorEmissive : 0.18
+    const transparent = opacity < 1 ? { transparent: true, opacity, depthWrite: false } : {}
+    if (this.profile.ground === 'flat') {
+      return new THREE.MeshLambertMaterial({ color: col, flatShading: true, ...transparent })
     }
+    if (this.profile.ground === 'pbr') {
+      return new THREE.MeshStandardMaterial({ color: col, roughness, metalness: 0, ...transparent })
+    }
+    if (this.profile.ground === 'dark' && this.profile.shadows) {
+      return new THREE.MeshStandardMaterial({
+        color: col,
+        roughness,
+        metalness: 0,
+        emissive: col,
+        emissiveIntensity: decorEmissive,
+        ...transparent,
+      })
+    }
+    return new THREE.MeshBasicMaterial({ color: col, ...transparent })
+  }
+
+  /** 暗色风格的低层轮廓只画一次，避免对 InstancedMesh 的每个树冠/灌木生成昂贵边线。 */
+  private addGreeneryOutline(geo: THREE.BufferGeometry, x: number, y: number, z: number) {
+    if (this.profile.ground !== 'dark' && this.profile.ground !== 'grid') return
+    const env = this.tokens.environment as Record<string, unknown>
+    const outline = (typeof env.decorOutline === 'string' ? env.decorOutline : env.roadLine) as string
+    const line = new THREE.LineSegments(
+      new THREE.EdgesGeometry(geo),
+      new THREE.LineBasicMaterial({ color: new THREE.Color(outline), transparent: true, opacity: 0.58, depthWrite: false }),
+    )
+    line.position.set(x, y, z)
+    line.rotation.x = -Math.PI / 2
+    line.renderOrder = 1
+    this.sceneGroup.add(line)
   }
 
   private buildGreenery(env: ParkScaffold['environment']) {
@@ -949,19 +1126,23 @@ export class ParkScene {
     const step = density === 'lush' ? 60 : density === 'sparse' ? 130 : 90
     const bx = this.scaffold.boundary.x
     const bz = this.scaffold.boundary.z
-    const grassMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(e.grass), ...(this.profile.flatShading ? { flatShading: true } : {}) })
+    const grassMat = this.greeneryMaterial(e.grass as string)
     for (const [gx, gz] of [[-bx * 0.5, -bz * 0.3], [bx * 0.5, -bz * 0.3], [-bx * 0.5, bz * 0.4], [bx * 0.5, bz * 0.4]]) {
-      const patch = new THREE.Mesh(new THREE.PlaneGeometry(160, 90), grassMat)
+      const patchGeo = new THREE.PlaneGeometry(160, 90)
+      const patch = new THREE.Mesh(patchGeo, grassMat)
       patch.rotation.x = -Math.PI / 2
       patch.position.set(gx, 0.15, gz)
       this.sceneGroup.add(patch)
+      this.addGreeneryOutline(patchGeo, gx, 0.18, gz)
     }
     if (env.greenery?.centralPlaza !== false) {
-      const plazaMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(e.sidewalk) })
-      const plaza = new THREE.Mesh(new THREE.CircleGeometry(70, 48), plazaMat)
+      const plazaGeo = new THREE.CircleGeometry(70, 48)
+      const plazaMat = this.greeneryMaterial(e.sidewalk as string)
+      const plaza = new THREE.Mesh(plazaGeo, plazaMat)
       plaza.rotation.x = -Math.PI / 2
       plaza.position.set(0, 0.2, -70)
       this.sceneGroup.add(plaza)
+      this.addGreeneryOutline(plazaGeo, 0, 0.23, -70)
     }
     const positions: THREE.Matrix4[] = []
     const tmp = new THREE.Matrix4()
@@ -975,7 +1156,7 @@ export class ParkScene {
     }
     if (positions.length > 0) {
       const trunkGeo = new THREE.CylinderGeometry(1.6, 2.2, trunkH, 6)
-      const trunkMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(e.treeTrunk), ...(this.profile.flatShading ? { flatShading: true } : {}) })
+      const trunkMat = this.greeneryMaterial(e.treeTrunk as string)
       const trunkInst = new THREE.InstancedMesh(trunkGeo, trunkMat, positions.length)
       positions.forEach((m, i) => trunkInst.setMatrixAt(i, m))
       trunkInst.castShadow = this.profile.shadows
@@ -984,7 +1165,7 @@ export class ParkScene {
       // v2.1/v2.5 树冠双形态：偶数位球形（Icosahedron）、奇数位锥形（Cone）——两种树形
       // 间隔排布打破「一整排同款球」的塑料感。v2.5：非 flat 风格球冠 detail 0→1（去宝石感、更有机），
       // 并加每株确定性缩放/Y 旋转变化；flat（等距 cel）保留 detail 0 低面数气质。
-      const canopyMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(e.treeCanopy), ...(this.profile.flatShading ? { flatShading: true } : {}) })
+      const canopyMat = this.greeneryMaterial(e.treeCanopy as string)
       const sphereIdx = positions.map((_, i) => i).filter((i) => i % 2 === 0)
       const coneIdx = positions.map((_, i) => i).filter((i) => i % 2 === 1)
       const up = new THREE.Matrix4()
@@ -1020,7 +1201,7 @@ export class ParkScene {
 
     // v2.1 灌木球丛：沿 4 块草地边缘点缀（每块 6 丛，种子确定性偏移），增加绿化层次
     {
-      const bushMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(e.treeCanopy), ...(this.profile.flatShading ? { flatShading: true } : {}) })
+      const bushMat = this.greeneryMaterial(e.treeCanopy as string)
       const bushMats: THREE.Matrix4[] = []
       const tmpB = new THREE.Matrix4()
       const patches: Array<[number, number]> = [[-bx * 0.5, -bz * 0.3], [bx * 0.5, -bz * 0.3], [-bx * 0.5, bz * 0.4], [bx * 0.5, bz * 0.4]]
@@ -1045,20 +1226,28 @@ export class ParkScene {
     // 写实两风格用低粗糙度 Standard 材质吃 envMap 反射；其余风格半透明色。
     if (env.greenery?.waterFeature) {
       const waterColor = new THREE.Color(e.water ?? '#4a90c0')
-      const waterMat = (this.profile.ground === 'pbr' || this.profile.ground === 'dark')
+      const envTk = this.tokens.environment as Record<string, unknown>
+      const decorEmissive = typeof envTk.decorEmissive === 'number' ? envTk.decorEmissive : 0.18
+      const waterMat = this.profile.ground === 'pbr'
         ? new THREE.MeshStandardMaterial({ color: waterColor, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.9 })
-        : new THREE.MeshLambertMaterial({ color: waterColor, transparent: true, opacity: 0.85, ...(this.profile.flatShading ? { flatShading: true } : {}) })
-      const water = new THREE.Mesh(new THREE.CircleGeometry(50, 48), waterMat)
+        : this.profile.ground === 'dark' && this.profile.shadows
+          ? new THREE.MeshStandardMaterial({ color: waterColor, roughness: 0.05, metalness: 0.1, emissive: waterColor, emissiveIntensity: decorEmissive, transparent: true, opacity: 0.9, depthWrite: false })
+          : this.greeneryMaterial(waterColor, 0.85, 0.05)
+      const waterGeo = new THREE.CircleGeometry(50, 48)
+      const water = new THREE.Mesh(waterGeo, waterMat)
       water.rotation.x = -Math.PI / 2
       water.position.set(bx * 0.3, 0.25, bz * 0.42)
       this.sceneGroup.add(water)
+      this.addGreeneryOutline(waterGeo, bx * 0.3, 0.28, bz * 0.42)
+      const rimGeo = new THREE.RingGeometry(50, 56, 48)
       const rim = new THREE.Mesh(
-        new THREE.RingGeometry(50, 56, 48),
-        new THREE.MeshLambertMaterial({ color: new THREE.Color(e.sidewalk) }),
+        rimGeo,
+        this.greeneryMaterial(e.sidewalk as string),
       )
       rim.rotation.x = -Math.PI / 2
       rim.position.set(bx * 0.3, 0.22, bz * 0.42)
       this.sceneGroup.add(rim)
+      this.addGreeneryOutline(rimGeo, bx * 0.3, 0.25, bz * 0.42)
     }
   }
 
@@ -1679,9 +1868,10 @@ export class ParkScene {
   // ---------- v2.6 地下场景（地下车库多层剖面，§14）----------
 
   /**
-   * 装配所有地下车库负层（scaffold.garages[]）。地面不开洞——坑体是 Y<0 的透明玻璃柱：
-   * 楼栋不悬空，从侧面透过半透明墙可见内部。多层按 level 升序堆叠，每层 ceilY = 上一层 deckY，
-   * 故 4 面玻璃壁拼成连续竖井。挂在 sceneGroup（随 clearSceneGroup 释放）。
+   * 装配所有地下车库负层（scaffold.garages[]）。地面在车库 footprint 处开口：坑体是 Y<0 的透明玻璃柱，
+   * 默认鸟瞰可透过开口看到实际底板/车位；楼栋不悬空，setBelowView() 仍提供完整坑内侧视剖面。
+   * 多层按 level 升序堆叠，每层 ceilY = 上一层 deckY，故 4 面玻璃壁拼成连续竖井。
+   * 挂在 sceneGroup（随 clearSceneGroup 释放）。
    */
   private buildUnderground() {
     const garages = this.scaffold.garages
@@ -1729,6 +1919,43 @@ export class ParkScene {
       })
       this.sceneGroup.add(grp)
       prevDeckY = deckY
+    }
+    this.buildGarageSurfaceMarkers(this.surfaceGarages(garages))
+  }
+
+  /** 只给每个重叠 footprint 的最浅层画地表开口边线和默认视角拾取面。 */
+  private surfaceGarages(garages: ScaffoldGarage[]): ScaffoldGarage[] {
+    return garages.filter((g) => !garages.some((other) => {
+      if (other === g || other.level <= g.level) return false
+      const overlapX = Math.abs(other.x - g.x) < (Math.abs(other.w) + Math.abs(g.w)) / 2
+      const overlapZ = Math.abs(other.z - g.z) < (Math.abs(other.d) + Math.abs(g.d)) / 2
+      return overlapX && overlapZ
+    }))
+  }
+
+  private buildGarageSurfaceMarkers(garages: ScaffoldGarage[]) {
+    const ug = ((this.tokens as unknown as Record<string, unknown>).underground ?? {}) as Record<string, unknown>
+    const edge = typeof ug.edge === 'string' ? ug.edge : '#3df0c8'
+    for (const g of garages) {
+      const outlineGeo = new THREE.PlaneGeometry(Math.abs(g.w), Math.abs(g.d))
+      const outline = new THREE.LineSegments(
+        new THREE.EdgesGeometry(outlineGeo),
+        new THREE.LineBasicMaterial({ color: new THREE.Color(edge), transparent: true, opacity: 0.82, depthWrite: false }),
+      )
+      outline.rotation.x = -Math.PI / 2
+      outline.position.set(g.x, 0.42, g.z)
+      outline.renderOrder = 2
+      this.sceneGroup.add(outline)
+
+      const hit = new THREE.Mesh(
+        new THREE.PlaneGeometry(Math.abs(g.w), Math.abs(g.d)),
+        new THREE.MeshBasicMaterial({ visible: false }),
+      )
+      hit.rotation.x = -Math.PI / 2
+      hit.position.set(g.x, 0.35, g.z)
+      hit.userData = { kind: 'garage-surface', garageId: g.id }
+      this.sceneGroup.add(hit)
+      this.garageSurfacePickables.push(hit)
     }
   }
 
@@ -1825,8 +2052,8 @@ export class ParkScene {
   /**
    * 地下视角开关（v2.6，§14）。on=相机补间到坑体中深度的南侧水平直视（看负层侧立面/剖面：
    * 地表、坡道下沉、透明墙、车位与房间）；off=补间回到原视角。对齐 web 驾驶舱 setBelowView。
-   * 设的是 position/target/zoom（非 polar），正交/透视相机都适用。v2.10 起 MAX_POLAR 已放开到
-   * π-0.1，正常交互即可拖到地面之下仰视坑体（不透明地面因 BackSide culling 从下方不可见）；
+   * 设的是 position/target/zoom（非 polar），正交/透视相机都适用。MAX_POLAR=π-0.05，
+   * 正常交互可接近天底并拖到地面之下仰视坑体；地表开口使默认鸟瞰也能看到坑体。
    * belowView 的角色回归为「补间到坑中平视取景位」，此处 maxPolarAngle 沿用 MAX_POLAR、不再独占放宽。
    * 复用 §8/§13「事件触发+有限时长+结束释放 OrbitControls」纪律。
    */
@@ -1840,11 +2067,13 @@ export class ParkScene {
       this.controls.autoRotate = false
     }
     this.controls.enabled = false   // 补间期间手动定位相机
-    this.controls.maxPolarAngle = ParkScene.MAX_POLAR   // belowView 不改极角（v2.10 起 default 已放开到 π-0.1，此处仅保持一致）
+    this.controls.maxPolarAngle = ParkScene.MAX_POLAR   // belowView 与默认交互共用同一极点安全边界
     if (on) {
+      // 进入地下：记录用户进入前的地面相机，sideCamPos/sideTarget 作为地下终点。
       this.belowAnchor.copy(this.camera.position)
       this.belowTargetAnchor.copy(this.controls.target)
       this.belowZoomAnchor = this.camera.zoom
+      this.belowBlend = 0
       const g = this.shallowestGarage()
       const cx = g ? g.x : 0
       const cz = g ? g.z : 0
@@ -1865,6 +2094,13 @@ export class ParkScene {
         this.belowZoom = Math.max(0.3, Math.min(2.6, frustW / (pitW * 1.15)))
         this.sideCamPos.set(cx, cy, cz + Math.max(420, pitW * 0.9))
       }
+    } else {
+      // 退出地下：当前相机可能已被用户拖动/缩放，先把它作为退出补间的起点；
+      // belowAnchor 仍是进入地下前保存的地面终点，避免回到旧的 sideCamPos。
+      this.sideCamPos.copy(this.camera.position)
+      this.sideTarget.copy(this.controls.target)
+      this.belowZoom = this.camera.zoom
+      this.belowBlend = 1
     }
   }
 
@@ -1872,6 +2108,13 @@ export class ParkScene {
   private pickGarage(): string | null {
     if (!this.belowView || !this.garagePickables.length) return null
     const hits = this.raycaster.intersectObjects(this.garagePickables, false)
+    return hits.length ? (hits[0].object.userData.garageId as string) : null
+  }
+
+  /** 默认鸟瞰时只测地表开口薄面，避免隐藏的地下体积拾取盒穿过完整地面误命中。 */
+  private pickGarageSurface(): string | null {
+    if (this.belowView || !this.garageSurfacePickables.length) return null
+    const hits = this.raycaster.intersectObjects(this.garageSurfacePickables, false)
     return hits.length ? (hits[0].object.userData.garageId as string) : null
   }
 
@@ -2061,7 +2304,7 @@ export class ParkScene {
     return Math.atan2(off.z, off.x)
   }
 
-  /** 把俯角钳到 OrbitControls polar 夹紧 [minPolarAngle, maxPolarAngle] 允许的范围（v2.10 起 maxPolarAngle=π-0.1，范围跨越水平面、含地下仰视）。 */
+  /** 把俯角钳到 OrbitControls polar 夹紧 [minPolarAngle, maxPolarAngle] 允许的范围（接近天顶/天底但保留 0.05rad 安全余量，范围跨越水平面、含地下仰视）。 */
   private clampElevation(elev: number): number {
     const minElev = Math.PI / 2 - this.controls.maxPolarAngle
     const maxElev = Math.PI / 2 - this.controls.minPolarAngle
@@ -2245,6 +2488,13 @@ export class ParkScene {
       this.canvas.style.cursor = gid ? 'pointer' : 'default'
       return
     }
+    const surfaceGarageId = this.pickGarageSurface()
+    if (surfaceGarageId) {
+      this.cb.onHover?.(null, null)
+      this.cb.onPoiHover?.(null)
+      this.canvas.style.cursor = 'pointer'
+      return
+    }
     const poiId = this.pickPoi()
     if (poiId) { this.cb.onHover?.(null, null); this.cb.onPoiHover?.(poiId); this.canvas.style.cursor = 'pointer'; return }
     this.cb.onPoiHover?.(null)
@@ -2259,6 +2509,12 @@ export class ParkScene {
     // v2.6：地下视角点击 → 选中/取消车库（null=取消）
     if (this.belowView) {
       this.cb.onGarageSelect?.(this.pickGarage())
+      return
+    }
+    const surfaceGarageId = this.pickGarageSurface()
+    if (surfaceGarageId) {
+      // GlobalTwin 负责先进入 belowView，再把车库 id 写入选中态。
+      this.cb.onGarageSelect?.(surfaceGarageId)
       return
     }
     const poiId = this.pickPoi()

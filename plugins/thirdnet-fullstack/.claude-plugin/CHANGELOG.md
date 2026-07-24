@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.24.0 - 2026-07-24
+
+### Changed
+- **thirdnet-digital-twin v2.17.0 场景修复**：① 地面车位从固定单排改为按 boundary 自适应的东西/南北停车带，自动换行、统一 placement 并保证车位/车辆/P 标牌不越界；② 城市底板收敛为 boundary 外道路环带，地下车库 footprint 留地面开口，默认鸟瞰可见真实地下坑体，开口点击进入 belowView；③ OrbitControls 显式支持无限方位角，极角放宽到 `[0.05, π-0.05]`；④ buildGreenery 新增暗色装饰材质/轮廓 helper，调亮 cyber/holographic/nebula/night-realistic 的草地、树冠、灌木、广场与水景。
+- **主题与规范同步**：tokens schema 增加可选 `environment.decorOutline`/`decorEmissive`，六套主题和数字孪生 references/evals 同步；修复 digital-twin v2.16.0 CHANGELOG 漂移。
+- **版本同步**：`plugin.json` / 协调技能 `SKILL.md` / `marketplace.json` 条目由 `2.23.1` 升至 `2.24.0`，marketplace 顶层 metadata `0.57.0` 升至 `0.58.0`。
+
 ## 2.23.1 - 2026-07-24
 
 ### Changed

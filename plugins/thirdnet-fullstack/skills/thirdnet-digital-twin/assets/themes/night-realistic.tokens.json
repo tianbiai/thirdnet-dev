@@ -111,15 +111,17 @@
     "groundGlow": false,
     "road": "#0e1420",
     "roadLine": "#3a5070",
-    "sidewalk": "#2a3444",
-    "grass": "#243a2a",
-    "treeTrunk": "#1a1208",
-    "treeCanopy": "#1e3024",
+    "sidewalk": "#46566c",
+    "grass": "#3f6747",
+    "treeTrunk": "#4e3824",
+    "treeCanopy": "#477657",
     "lampGlow": "#ffd09a",
     "vehicle": "#2a3a5a",
     "roadMarking": "#5a7090",
-    "water": "#1a3a5a",
-    "rooftop": "#2a3038"
+    "water": "#2d6485",
+    "rooftop": "#2a3038",
+    "decorOutline": "#7fc8ff",
+    "decorEmissive": 0.22
   },
   "garageEntrance": {
     "_comment": "夜间车库入口：深底 + 冷光高对比 P 牌。",

@@ -78,7 +78,7 @@ this.camera.bottom = ymin - M*frustumH                        // 地面最近端
   - **留周边环境余量（默认 K=0.66）**：四周各留 ~17% 显示周边市政道路/行道树——默认就是一张能看全园区轮廓和紧邻环境的「全景图」。特写主体可调 K→0.8；航拍俯瞰 K→0.55（§13 巡航落地）。
   - **取景高度用真实楼层**：`frameCamera()` 的 `Hmax` 水合前用默认 18 层估算（保证首屏不白屏），`hydrateBuildings()` 末尾必须用真实最高楼层重新 `frameCamera()`（范式实现已内置 `maxBuildingHeight()`）。
   - **程序化天空（token `scene.sky` 开关）**：背景纹理 canvas 加宽到 512，按风格画入白云（写实）/ 星空（夜景，130 颗）/ 月亮（夜景）。**星星必须暗淡（alpha ≤ 0.45）**——亮星会被 bloom 晕成「雪片」。
-  - **`OrbitControls`**：带阻尼，极角夹紧 [0.5, π-0.1]（允许拖到地面之下仰视坑体），缩放夹紧 [0.45, 2.6]。
+  - **`OrbitControls`**：带阻尼，极角夹紧 [0.05, π-0.05]（接近天顶/天底但保留极点安全余量，可穿过水平面仰视坑体），方位角为 `[-Infinity, Infinity]` 可水平绕园区完整一周，缩放夹紧 [0.45, 2.6]。
   - **resize 重算**：宽高比 A 变了要重跑 (d)(e)——封装成 `frameCamera()`，`setupCamera` 末尾和 `onResize` 里都调，**防抖 150ms**。
 - **灯光**：刻意保持平，让着色器地面 + 自发光边线读起来像「数字孪生」而非「建筑可视化」。一个 `HemisphereLight` + 一盏柔和 `DirectionalLight`。丢掉 VSM 阴影贴图和 PMREM 环境（会与赛博地面打架）。
 - **环境光下限（所有风格强制）**：无论风格 `lights.ambient` 是否为 `null`，都额外补一盏低强度 `AmbientLight`，强度取 token `lights.ambientFloor`（暗色风格 ~0.18–0.20、亮色风格 ~0.08）。why：cyber 等风格原本刻意无环境光，实测导致未受光面纯黑、被判定为「黑屏」；一道极弱环境光只抬起阴影、不破坏氛围。
@@ -99,7 +99,7 @@ const ground = new THREE.Mesh(new THREE.PlaneGeometry(boundary.x * 2, boundary.z
 ground.rotation.x = -Math.PI / 2
 ```
 
-**外圈城市地面（所有风格）**：园区的周边道路、行道树落在 `boundary` 之外，所以地面分两层——园区地面（cyber 用 shader，其它风格按 `styles.md`）+ 外圈城市地面（比园区大一圈的更深/冷纯色 `MeshBasicMaterial`，铺在园区地面之下作周边道路画布）。两层 `rotation.x = -π/2`，Y 略低避免 z-fight。
+**外圈城市地面（所有风格）**：城市底板只覆盖 `boundary` 外部的四向环形区域，园区内部由园区地面单独承载；这样地下车库开口下方不会再叠着 `y=-0.5` 的不透明城市平面。园区地面根据 `scaffold.garages[]` 在车库 footprint 处留出开口，周边道路、行道树仍落在 `boundary` 之外的城市底板/市政道路上。两层均 `rotation.x = -π/2`，Y 略低避免 z-fight。
 
 ### §3.1 程序化地面纹理 `makeGroundTexture`（非 cyber 风格主地面 + cyber 降级）
 
@@ -287,11 +287,11 @@ watch(() => [sel.effBuildingId.value, sel.effFloorIndex.value] as const,
 在 `boundary` 内、楼栋间隙画园区内部道路。形状由 `env.internalRoads` 决定（默认 `'loop'` 环形）：`loop`（沿 boundary 内侧绕一圈）、`cross`（十字主干）、`grid`（井字网格）、`none`（跳过）。材质：沥青色 `MeshBasicMaterial`（isometric 用哑光 `MeshStandardMaterial`），`rotation.x=-π/2`、Y 略高于地面。车道虚线用 `Line2`/`LineSegments`。**不进 `pickables[]`**。
 
 ### buildSurfaceParking(env)
-若 `env.surfaceParking` 非 null，在内部道路某一侧铺一排**长方形地面车位**（真实车位语义）。`stalls` 缺省时按楼栋规模推算（如 `sum(floors) * 6`）。每个车位表达为「**长方形铺装 + 描边 + 中央印 P**」：
-- **车位几何**：贴地长方形（~12×24 世界单位），底=扁平 `PlaneGeometry`（`surfaceParking.stallFill`），外框=`EdgesGeometry`（`stallLine`）。
+若 `env.surfaceParking` 非 null，渲染器按 `boundary` 与道路预留自动分配东/西/南/北周边停车带；不再假设所有车位沿一条直线排开。`stalls` 缺省时按楼栋规模推算（如 `sum(floors) * 6`），车位会在停车带内按多列/多行确定性换行，必要时按统一比例缩放，保证车位四角、车辆、P 标牌和描边都在边界安全余量内。每个车位表达为「**长方形铺装 + 描边 + 中央印 P**」：
+- **车位几何**：贴地长方形（标准约 14×26 世界单位，狭小边界下统一缩放），底=扁平 `PlaneGeometry`（`surfaceParking.stallFill`），外框=`EdgesGeometry`（`stallLine`）。停车带轴向改变时，车位面、外框与车辆统一旋转。
 - **逐位印 P**：每个车位中心放小 `Sprite`，走 §4.2 的 `makeContrastLabelTexture('P', { bg: pMarkBg ?? stallFill, fg: pMark })`。
 - **示意停放车辆**：默认 `round(stalls * 0.3)` 个车位放低多边形汽车代理体（车身 `BoxGeometry` + 车顶 + 4 轮），车身色取 `surfaceParking.car`。哪些车位放车由 `occupied` 决定（给了放前 occupied 个，没给按 30% 默认）。
-- **不进 `pickables[]`**。
+- **不进 `pickables[]`**，placement 结果只在车位内部共享给面、线、标牌和车辆。
 
 ### buildGreenery(env)
 - **草地色块**：楼栋之间、道路两侧低 `PlaneGeometry`，颜色取 `environment.grass`。
@@ -299,6 +299,7 @@ watch(() => [sel.effBuildingId.value, sel.effFloorIndex.value] as const,
 - **灌木球丛**：每块草地边缘 6 丛（`SphereGeometry`，种子确定性偏移），一个 `InstancedMesh` 合批。
 - `centralPlaza`（默认 true）：园区中心铺装广场。
 - `waterFeature`（默认 false）：`CircleGeometry(50)` 水面 + `RingGeometry(50,56)` 池缘，写实两风格吃 envMap 反射、其余用半透明 Lambert/Basic。**不进 `pickables[]`**。
+- **暗色可读性**：cyber/holographic/nebula 的低层装饰走不受光材质并使用 `environment.decorOutline` 轮廓；night-realistic 走 Standard + `environment.decorEmissive` 轻微自发光；realistic 保持 PBR，isometric 保持 flatShading。树冠/灌木继续 InstancedMesh 合批，不逐实例生成边线。所有装饰不进 `pickables[]`。
 
 ### buildRoadMarkings(env)
 内部道路标线（色取 `environment.roadMarking`）：中央虚线（环路 + 主路，两个 `InstancedMesh` 横/纵合批）、大门引道（连接主出入口与环路）、斑马线（引道上 6 条白杠）、引导箭头（`ShapeGeometry` 直行箭头）。`surrounding.gate===false` 时引道/斑马线/箭头跳过；`internalRoads==='none'` 时整段跳过。
@@ -383,7 +384,7 @@ class ParkScene {
 
 ## 14. 地下场景（地下车库多层剖面）—— Y<0 透明玻璃柱坑体
 
-`spec.garages[]`（每个条目=一个负层坑体，`level: -1` B1、`-2` B2…）渲染为 **Y=0 之下的透明玻璃柱**。设计取舍：**地面不开洞**——楼栋不悬空，坑体从侧面透过 4 面半透明玻璃壁 + 半透明自发光底板透视内部的车位网格 + 车辆 + 功能房间线框 + 出入口坡道 + 层标牌。这比「地面挖洞」简单稳健（无裁剪/模板），且楼上视角下坑体被不透明地面自然遮挡、不干扰全景。相机可自由俯仰到地面之下仰视（`MAX_POLAR=π-0.1`）：从下方看时 Y=0 不透明地面因 BackSide culling 自然消失、坑体可净看入。
+`spec.garages[]`（每个条目=一个负层坑体，`level: -1` B1、`-2` B2…）渲染为 **Y=0 之下的透明玻璃柱**。默认园区地面在每个车库 footprint 处留出开口，城市底板只铺在 `boundary` 外的道路环带，因此鸟瞰视角可以透过开口看到真实底板、车位网格、车辆、功能房间线框、坡道和层标牌；楼栋仍不悬空。切换器与地表开口点击都可进入 `setBelowView()` 的完整坑内侧视剖面。多层按 level 堆叠时仅最浅重叠层画地表边缘与默认拾取面。
 
 **`usage` 区分用途**：缺省 `'parking'`（下述车位网格 + 车辆 + GarageCard 占用）；`'mall'`/`'subway'`/`'shelter'`/`'workshop'`/`'custom'` 等非车库用途**跳过车位网格与车辆**，坑体改显功能房间（spec `rooms[]`）+ 层标牌——可表达地下商场/地铁通道/人防工程/地下车间。`buildUndergroundGarage` 用 `if (cols && rows)` 守卫车位块；`GarageCard` 据 `capacity` 是否存在分支：parking 显占用率、非 parking 显用途 + 功能间数。
 
@@ -391,29 +392,30 @@ class ParkScene {
 
 ### §14.1 几何装配（`building-geometry.ts::buildUndergroundGarage`，所有 y 坐标单一事实来源）
 
-`rebuildScene()` 在 `buildGround()` 后调 `buildUnderground()`：按 `level` 升序（B1 先于 B2）逐层调用 `buildUndergroundGarage`，每层 `ceilY = 上一层 deckY`（B1 的 ceilY=0）→ 4 面玻璃壁拼成**连续竖井**，各层底板处画虚线层分隔。单层装配（所有 y 只在此定义）：
+`rebuildScene()` 在 `buildGround()` 后调 `buildUnderground()`：按 `level` 升序（B1 先于 B2）逐层调用 `buildUndergroundGarage`，每层 `ceilY = 上一层 deckY`（B1 的 ceilY=0）→ 4 面玻璃壁拼成**连续竖井**，各层底板处画虚线层分隔；地面开口由 ParkScene 的矩形分割几何生成，不能另加一块不透明平面。单层装配（所有 y 只在此定义）：
 - **底板** `PlaneGeometry(w,d)` 平铺，`y = deckY - 0.1`，半透明自发光。
 - **4 面玻璃壁** `quadMesh`（4 角点双面四边形）从 `ceilY` 到 `deckY`，半透明（opacity 走 token `underground.wallOpacity`）。
 - **层分隔虚线** 壁顶四边 `LineDashedMaterial`（`underground.edge`）；顶层额外画 4 条垂直角线示深度。
 - **车位网格** `cols×rows`（仅 `usage='parking'`），所有车位的 L 形描线批量合并为单个 `LineSegments`（`underground.spot`，每车位 3 段 U 形），整体 `y = deckY + 0.05`（取代每格一个 `Line`，数百车位 → 1 次绘制调用）；确定性铺车（`mulberry32(hashStr('garage:'+id))`，~45% 占用），自动避让房间/坡道。
 - **功能房间** `EdgesGeometry(BoxGeometry)` 线框盒（`underground.room`），`y ∈ [deckY, deckY+roomH]`；parking 缺省 8 间沿边界内侧，spec `rooms[]` 可覆盖；**非 parking 时为主内容**，无 rooms 则不画。
 - **坡道** `buildGarageRamp`：斜坡面 + 中央虚线 + 地面端 2 立柱门洞 + 标牌；入口在西、出口在东，从 `deckY` 斜上到 `ceilY`，天然泛化多层。
-- **层标牌** `Sprite`，`y = deckY + 28`，`depthTest:true`（地上视角被地面遮挡不穿地乱显，地下坑内可读）。
-- **不可见拾取盒** `BoxGeometry(w, ceilY-deckY, d)` `visible:false`，`userData={kind:'garage',garageId}`，push 进 `garagePickables`。
+- **层标牌** `Sprite`，`y = deckY + 28`，`depthTest:true`（默认鸟瞰仅在开口内可见，地下坑内完整可读）。
+- **地表开口标识/拾取**：最浅重叠层复用 `underground.edge` 绘制 footprint 边缘，并挂一个仅用于默认鸟瞰的薄拾取面；命中后先进入 `belowView` 再选中车库。
+- **不可见地下拾取盒** `BoxGeometry(w, ceilY-deckY, d)` `visible:false`，`userData={kind:'garage',garageId}`，push 进 `garagePickables`，仅 belowView 测量。
 
 材质由 `ParkScene.undergroundMaterials()` 按 `profile.building` 分支构造（flat / pbr / emissive，pbr-night 与 holo 经 emissiveIntensity 区分）。颜色全走 `underground` token 块（6 风格各配），禁手写 hex。
 
 ### §14.2 地下视角相机（`ParkScene.setBelowView`）
 
 切换器「地下车库」标签 → `useSelection.enterBelowView()` → `GlobalTwin watch(belowView) → scene.setBelowView(on)`。复用 §8/§13「事件触发 + 有限时长 + 结束释放 OrbitControls」纪律：
-- **on**：记当前相机位为锚点；取消进行中的 focus/frame tween + 关 autoRotate（互斥）；`controls.enabled=false`；`maxPolarAngle` 沿用 `MAX_POLAR=π-0.1`；设 `sideCamPos/sideTarget` = 坑体中心 `(g.x, -deck_y/2, g.z)` 南侧水平直视，`belowZoom` 按坑宽算。**设的是 position/target/zoom 非 polar，故正交/透视相机都适用。**
+- **on**：记当前相机位为锚点；取消进行中的 focus/frame tween + 关 autoRotate（互斥）；`controls.enabled=false`；`maxPolarAngle` 沿用 `MAX_POLAR=π-0.05`，默认与地下视角共用极点安全边界；设 `sideCamPos/sideTarget` = 坑体中心 `(g.x, -deck_y/2, g.z)` 南侧水平直视，`belowZoom` 按坑宽算。**设的是 position/target/zoom 非 polar，故正交/透视相机都适用。**
 - **补间**在 `animate()` 里 `belowBlend` lerp（0.1 阻尼）相机 position/target/zoom 在「锚点 ↔ 坑中平视」之间过渡；完成 `controls.enabled=true`。
 - **取景守卫**：`belowView` 时 `frameCamera()` 早 return（hydrate/resize/setStyle 不把相机回拽到地面）。
-- **拾取门控**：`belowView` 时 `onPointerMove/Up` 只测 `garagePickables`（`pickGarage`），命中 → `onGarageSelect(id)` → `selectGarage`（出 `GarageCard`）；点空白 → `onGarageSelect(null)` 仅清卡片、留地下视角。
+- **拾取门控**：belowView 时只测地下 `garagePickables`；默认视角只测地表 `garageSurfacePickables`，命中 → `onGarageSelect(id)`，GlobalTwin 先切换 belowView 再 `selectGarage`；地下点空白 → `onGarageSelect(null)` 仅清卡片、留地下视角。
 
 ### §14.3 组件（详见 shell.md）
 
-`useSelection.ts`：新增 `belowView`（驱动相机）+ `selectedGarageId`（驱动卡片）+ `enterBelowView/selectGarage`（退出地下由 `clearFocus` 的退地下分支承担、`selectGarage(null)` 仅清卡片留地下视角）；与楼上楼栋/楼层/POI 互斥。`BuildingSwitcher.vue`：有 `garages[]` 时追加「地下车库」标签 → `enterBelowView`。`GarageCard.vue`：地下选中时浮出（右下），展示容量/已占用/空余/占用率；Esc/× → `selectGarage(null)`。`GlobalTwin.vue`：`onGarageSelect → selectGarage` + `watch(belowView → setBelowView)`。
+`useSelection.ts`：新增 `belowView`（驱动相机）+ `selectedGarageId`（驱动卡片）+ `enterBelowView/selectGarage`（退出地下由 `clearFocus` 的退地下分支承担、`selectGarage(null)` 仅清卡片留地下视角）；与楼上楼栋/楼层/POI 互斥。`BuildingSwitcher.vue`：有 `garages[]` 时追加「地下车库」标签 → `enterBelowView`。`GarageCard.vue`：地下选中时浮出（右下），展示容量/已占用/空余/占用率；Esc/× → `selectGarage(null)`。`GlobalTwin.vue`：地表开口命中时先 `enterBelowView` 再 `selectGarage`，并继续由 `watch(belowView → setBelowView)` 驱动相机。
 
 ## 15. 夜间发光窗流水线（v2.15，仅 `night-realistic`）—— 移植自 Park 驾驶舱
 

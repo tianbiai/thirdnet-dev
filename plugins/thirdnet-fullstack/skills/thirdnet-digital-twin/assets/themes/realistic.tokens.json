@@ -103,7 +103,9 @@
     "vehicle": "#3a5a8a",
     "roadMarking": "#e8e8ec",
     "water": "#3a6a8a",
-    "rooftop": "#6a6e74"
+    "rooftop": "#6a6e74",
+    "decorOutline": "#e8eef4",
+    "decorEmissive": 0
   },
   "garageEntrance": {
     "_comment": "地下车库入口：自然框架色 + 高对比 P 牌（深底亮字）。",

@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 thirdnet-dev/
 ├── .claude-plugin/marketplace.json          # 插件集合注册清单（顶层 metadata.version + 各 plugin 条目）
-└── plugins/thirdnet-fullstack/               # 唯一的自包含插件（v2.23.0）
+└── plugins/thirdnet-fullstack/               # 唯一的自包含插件（v2.24.0）
     ├── .claude-plugin/plugin.json            # 插件元数据（version 权威来源之一）
     ├── .claude-plugin/hooks/hooks.json       # 3 个 Stop + 2 个 PreToolUse + 2 个 PostToolUse 钩子
     ├── agents/                               # 子代理：backend-developer.md / frontend-developer.md
