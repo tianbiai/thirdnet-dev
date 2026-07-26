@@ -7,6 +7,7 @@ description: >
   POI 兴趣点打点、地下车库多层剖面与楼栋间空中连廊；全部由一份用户确认的 Park Spec 驱动、绝不硬编码园区内容。
   支持 3 种视觉风格（赛博/写实日景/写实夜景）。2 个深色风格（赛博/写实夜景）均走 Park 驾驶舱同款程序化发光窗流水线——
   逐层砖错位面板窗、分层点亮（底层 0%/中层/顶层）、暖冷双辉光、dirty-gated 开关灯翻转动画（reduced-motion 关闭）。夜景楼幢立体轮廓走淡色 edgeColor（暗天空下可辨）；
+  支持楼栋类型化外观（spec `buildings[].type`，只区分构造不改变颜色：写字楼 office=横带幕墙冷光+无裙楼 / 居民楼 residential=单元小窗暖光+阳台挑板 / 商业 commercial=大裙楼+底盘灯带橱窗，3 种风格全覆盖）；
   园区边界内地面不透明、边界外透明（漂浮园区岛，市政道路保留）。
   数据分层：基础信息静态内联，动态数据（楼幢名/楼层数/楼层详情/POI 点位/**POI 业务详情**）走 `IDigitalTwinApi` 契约层
   （Mock/Real 工厂，`VITE_MOCK_ENABLED` 切换）。
@@ -16,7 +17,7 @@ description: >
   增加地下场景/连廊等。
 license: MIT
 metadata:
-  version: "2.29.0"
+  version: "2.30.0"
   author: park-cockpit
 compatibility: Vue 3 + TypeScript + Vite + Three.js 项目；赛博风格消费 WebGL 片段着色器（`gridGround.glsl` 网格地面）。动态数据契约层遵循 `api-typescript-spec`（`IDigitalTwinApi` + Real/Mock 工厂，`VITE_MOCK_ENABLED` 切换）。可在范例仓库、create-thirdnet-admin 项目或任何最小化的 Vite+Vue+Three 脚手架中运行。
 ---
@@ -143,6 +144,7 @@ v2.17 起**程序化发光窗流水线覆盖全部 2 个深色风格**（cyber/n
 - **Three.js 游离于 Vue 响应式之外**：场景实例用 `let` 而非 `ref`/`shallowRef`，否则 modelViewMatrix 代理错致黑屏。
 - **独立最小工程脚手架（v2.18 指引）**：生成到空白工程时 `package.json` 必须含 `three` + **`@types/three`（与 three 同版本）** + `vue` + `vite` + `@vitejs/plugin-vue` + `vue-tsc` + `typescript`（three 0.169 起不自带类型，缺 `@types/three` 会 TS7016）。`tsconfig.json` 用**单文件无 project references**：`{ compilerOptions: { resolveJsonModule: true, noEmit: true, paths: {"@/*": ["src/*"]} }, include: ["src/**/*"] }`——**不要**用 `references` + composite 子项目，否则 `vue-tsc --noEmit` 报 TS6310（referenced project may not disable emit）；`vite.config.ts` 由 esbuild 运行、不入 typecheck 即可。
 - **自定义类别色（v2.18）**：`spec.tokens.category.<cat>`（如 `residential`/`factory`）现真正进 3D 楼幢上色（`categoryToken` 兜底读 `scaffold.tokens`），无需再手改 6 个 theme 文件；legend 用 `spec.legend[].color` 同色即一致。
+- **楼栋类型化外观（v2.30）**：`spec.buildings[].type`（`office`/`residential`/`commercial`，缺省=通用楼）驱动三维度**构造**差异——① 窗户/灯光（写字楼横带幕墙密集冷光 / 居民楼单元小窗稀疏暖光 / 商业底层贯通橱窗恒亮；`windows.types.<type>` 可覆盖）；② 立面纹理构造（日景窗框占比/窗台线）；③ 体块（写字楼无裙楼 / 居民楼阳台挑板 / 商业 2 层大裙楼+底盘灯带）。**类型只分构造、不分颜色**——全类型统一走 category 配色链（默认色或用户 `spec.tokens.category.*` 指定色）；`tokens.buildingType` 仅为显式按类型分色的可选覆盖通道（默认不配）。与 category 正交：category 管图例/配色/车库入口，type 管类型化构造。类型语义与参数表见 `references/park-spec.md`「楼栋类型语义」。
 - **夜间可见性（v2.18）**：night-realistic `ambientFloor` 兜底光改白色、`bgTop/bgBottom` 抬亮一档、`windows.emissiveIntensity=1.6`——首屏即「看得清 + 发光窗可辨」；围合式园区中央地面元素（水池/地下坑底）仍会被四周楼栋从斜视角遮挡，`minPolarAngle=0.08` 让用户可拖到近顶视查看。v2.19 起曝光改由 `realism.exposure` 驱动（night=3.0），`PROFILES.toneExposure` 仅兜底。
 - **HDRI 资产（v2.19）**：写实两风格环境反射用 `assets/sky.hdr`（CC0，来源 three.js examples `quarry_01_1k.hdr`，~1.5MB）。生成项目时**必须把 `sky.hdr` 拷到目标工程 `public/sky.hdr`**——`ParkScene` 运行时 `RGBELoader.load('sky.hdr')` 从 public 根加载；缺失则 console.warn 并回退 `RoomEnvironment`（反射不匹配但不阻断渲染）。换 HDRI 直接替换该文件（同文件名即可）。
 
@@ -162,6 +164,7 @@ v2.17 起**程序化发光窗流水线覆盖全部 2 个深色风格**（cyber/n
 - [ ] 动态数据契约层齐全（四方法含 `getPoiDetail`）；脚手架先行再水合；正式环境走真实 API（404 属预期）；三态兜底。
 - [ ] **2 个深色风格发光窗**（v2.17，cyber/night-realistic）：分层点亮（底层 0/中层密/顶层稀）+ 暖冷双辉光 + 开关灯动画（reduced-motion 关闭）；bloom 下窗光溢出。realistic 亮色风格立面像素不变。
 - [ ] **夜景楼幢轮廓可辨**（v2.17）：night-realistic 立体轮廓走淡色 `building.edgeColor`，暗天空下 silhouette 清晰（旧版用极暗 dividerColor 融入背景）。
+- [ ] **楼栋类型可辨**（v2.30，spec 含 `buildings[].type` 时）：写字楼=横带幕墙+密集冷光+无裙楼；居民楼=单元小窗+稀疏暖光+逐层阳台挑板；商业=2 层大裙楼+底盘贯通灯带；3 种风格下均可辨；**颜色全类型一致**（统一 category 色，除非显式配了 buildingType 覆盖）；图例含「写字楼/居民楼/商业」条目；未标 type 的楼渲染与 v2.29 一致。
 - [ ] **地面内外透明**（v2.17）：园区边界内地面不透明（含 `garages[]` 时从楼上俯瞰坑体被地面遮挡）、边界外透明（透出页面背景、呈漂浮园区岛）；市政道路/人行道/闸机仍保留。
 - [ ] **地面车位二维网格**（v2.17）：`environment.surfaceParking.stalls` 较大时呈规整多排网格、全部落在边界内（旧版是一条直线且溢出边界）；`validate_spec.py` 对超容车位出 WARN。
 - [ ] **360° 旋转**：左键拖动可水平全方位环绕（范式代码本就支持，无方位角夹紧）；滚轮缩放、右键平移正常。

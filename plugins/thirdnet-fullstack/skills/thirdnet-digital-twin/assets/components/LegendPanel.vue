@@ -7,8 +7,8 @@
 -->
 <template>
   <div class="legend" role="list" aria-label="图例">
-    <span v-for="e in parkScaffold.legend" :key="e.category" class="legend__item" role="listitem">
-      <i class="legend__swatch" :style="swatchStyle(e.color, e.category)" />
+    <span v-for="e in parkScaffold.legend" :key="e.category + (e.type ?? '')" class="legend__item" role="listitem">
+      <i class="legend__swatch" :style="swatchStyle(e.color, e.category, e.type)" />
       {{ e.label }}
     </span>
   </div>
@@ -17,9 +17,13 @@
 <script setup lang="ts">
 import { parkScaffold } from '@/data/park'
 
-// 色块颜色：优先 legend 自带色（与 token category 一致）；缺色时回退该类别 CSS 变量，再回退楼幢色（v2.7 自定义类别）
-function swatchStyle(color: string, category: string) {
-  const c = color || `var(--twin-category-${category}, var(--twin-category-building))`
+// 色块颜色：优先 legend 自带色（与 token category 一致）；缺色时 v2.30 起条目带 type 先回退
+// 楼栋类型 CSS 变量（--twin-building-type-<type>，token buildingType 块展平派生），
+// 再回退该类别 CSS 变量，再回退楼幢色（v2.7 自定义类别）
+function swatchStyle(color: string, category: string, type?: string) {
+  const c = color || (type
+    ? `var(--twin-building-type-${type}, var(--twin-category-${category}, var(--twin-category-building)))`
+    : `var(--twin-category-${category}, var(--twin-category-building))`)
   return { background: c, boxShadow: `0 0 calc(6px * var(--twin-ui-glow-strength, 0.5)) ${c}` }
 }
 </script>

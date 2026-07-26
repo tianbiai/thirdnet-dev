@@ -149,6 +149,7 @@
         "id": { "type": "string", "minLength": 1 },
         "name": { "type": "string", "minLength": 1 },
         "category": { "$ref": "#/$defs/category" },
+        "type": { "type": "string", "enum": ["office", "residential", "commercial"], "description": "v2.30 楼栋类型（可选，缺省=通用楼）。只区分构造外观、不改变颜色（全类型颜色一致，统一走 category 配色链）：① 窗户/灯光图案（写字楼横带幕墙密集冷光 / 居民楼单元小窗稀疏暖光 / 商业底层贯通橱窗恒亮）；② 立面纹理构造（日景窗框占比/窗台线）；③ 体块形态（写字楼无裙楼直落 / 居民楼逐层阳台挑板 / 商业 2 层大裙楼+底盘灯带）。与 category 正交：category 管图例/配色语义，type 管类型化构造；category='garage' 时 type 无意义。显式按类型分色用 tokens.buildingType.<type>（可选覆盖，默认不配）。" },
         "w": { "type": "number", "exclusiveMinimum": 0 },
         "d": { "type": "number", "exclusiveMinimum": 0 },
         "floors": { "type": "integer", "exclusiveMinimum": 0 },
@@ -170,7 +171,8 @@
       "properties": {
         "label": { "type": "string", "minLength": 1 },
         "category": { "$ref": "#/$defs/category" },
-        "color": { "type": "string" }
+        "color": { "type": "string" },
+        "type": { "type": "string", "enum": ["office", "residential", "commercial"], "description": "v2.30 可选。条目对应楼栋类型时给出——color 留空则色块回退 var(--twin-buildingtype-<type>)（再回退 category 链）。generate_data.py 缺省 legend 会为 spec 中实际用到的 type 自动补条目。" }
       }
     },
     "poi": {

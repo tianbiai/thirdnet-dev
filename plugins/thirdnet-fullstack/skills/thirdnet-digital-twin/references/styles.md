@@ -55,6 +55,22 @@
 
 ---
 
+## 楼栋类型化外观（v2.30）
+
+`spec.buildings[].type`（`office`/`residential`/`commercial`，缺省=通用楼）让写字楼/居民楼/商业在**全部 3 种风格**下可辨。**类型只区分构造外观、不改变颜色**——所有类型楼栋统一走 `category` 配色（该风格的默认楼色，或用户 `spec.tokens.category.*` / `--brand` 指定色）；差异落在三个构造维度：窗户/灯光图案、立面纹理构造、体块形态（顶部构造三类一致）。显式按类型分色才配可选的 `buildingType` 块（默认主题不配）。
+
+**三风格可辨性矩阵**（验收标尺；窗参数值见 `park-spec.md`「楼栋类型语义」）：
+
+| | cyber | realistic | night-realistic |
+|---|---|---|---|
+| office | 密集冷光横带窗阵 + 无裙楼 | 细框满玻幕墙 + 无裙楼 | 冷光均匀点亮 + 无裙楼 |
+| residential | 单元小窗稀疏暖光 + 阳台棱线 | 实墙窗洞 + 窗台线 + 阳台投影 | 暖光零散慢闪 + 阳台剪影 |
+| commercial | 底层贯通亮带 + 2 层大裙楼 | 2 层大裙楼 + 玻璃灯带 | 底盘一圈亮带 + 塔身零星 |
+
+调类型构造差异只改 token 的 `windows.types.<type>` 块（窗光参数四级合并最末级，如 `types.residential.warmRatio=0.95`）；**不要**改 `KIND_WINDOWS`/`KIND_FACADE_DAY`/`KIND_MASSING` 内置预设表（那是所有园区的类型签名共识）。
+
+---
+
 ## 动效层（v2.28+）
 
 让首屏有「指挥中心」级视觉冲击。每效果走**双重门**：`PROFILES.<flag>===true && tokens.effects.<key>.enabled===true`——关闭某效果改 token 即可，无需改代码。`reduced-motion` 下构造期仍建 mesh（静态可视图），`updateFx()` 不驱动。
@@ -99,5 +115,5 @@
 
 - **首次生成**：步骤 3 用 `AskUserQuestion` 让用户在 3 个风格里选，写入 `spec.style`。
 - **换肤已有产物**：改 `spec.style`（与/或 `spec.tokens` 部分覆盖），重新派生 `tokens.css`/`theme.ts`/Three.js 材质。`cyber` 消费 grid 着色器、其余 2 种不消费——换到/换自 `cyber` 时记得接入或移除 grid pass。
-- **类别颜色一致性**：所有风格的 Legend 与楼栋颜色都来自**该风格** token 的 `category` 映射；图例色块和 3D 上色天然一致。
+- **类别颜色一致性**：所有风格的 Legend 与楼栋颜色都来自**该风格** token 的 `category` 映射；图例色块和 3D 上色天然一致。v2.30 起带 `type` 的楼栋**默认同色**（类型只分构造不分色）；显式配 `buildingType` 块时图例回退 `--twin-building-type-*` CSS 变量，同样一致。
 - **地下场景**：每个风格 token 都有 `underground` 块（deck/wall/edge/room/spot/ramp + deckOpacity/wallOpacity）。地下坑体材质由 `ParkScene.undergroundMaterials()` 按 `profile.building` 分支——cyber/night-realistic 走自发光 `MeshStandardMaterial`（地下无独立光照，靠 emissive 才可见）；realistic 走 PBR 受光。换肤时改 `underground` 值即可统一改地下配色（单一事实来源，禁手写 hex）。详见 `scene-recipe.md §14`。

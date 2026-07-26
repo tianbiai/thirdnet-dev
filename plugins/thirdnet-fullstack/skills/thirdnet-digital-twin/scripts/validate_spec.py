@@ -46,6 +46,8 @@ except ImportError:
     _HAVE_JSONSCHEMA = False
 
 KNOWN_CATEGORIES = {"building", "garage"}
+# v2.30：楼栋类型（building.type）——驱动类型化外观（窗光模式/立面基色/体块形态）。
+VALID_BUILDING_TYPES = {"office", "residential", "commercial"}
 # v2.5：恢复 realistic / night-realistic 两写实风格（激活 envMap/GTAO/反射/软阴影/雾）。
 VALID_STYLES = {"cyber", "realistic", "night-realistic"}
 VALID_ROAD_SHAPES = {"loop", "cross", "grid", "none"}
@@ -62,7 +64,9 @@ ALLOWED_TOKEN_OVERRIDE_PATHS = {
     "scene.bgTop", "scene.bgBottom",
 }
 # v2.7：开放类别枚举后，任意 category.<cat> 覆盖都允许（自定义类别 factory/warehouse… 靠此定色）。
-ALLOWED_TOKEN_PREFIXES = ("category.",)
+# v2.30：开放 buildingType.（楼栋类型基色）与 windows.（类型化窗参 types.<type> 覆盖）——
+# 集成方按类型调外观最自然的通道；运行时四级合并对未知键容忍，写错形状不 FAIL。
+ALLOWED_TOKEN_PREFIXES = ("category.", "buildingType.", "windows.")
 VALID_POI_TYPES = {
     "entrance", "exit", "camera", "gate", "service", "landmark", "parking", "custom"
 }
@@ -226,6 +230,10 @@ def validate(spec):
                 f"{ctx}.category: '{cat}' 为自定义类别——按挤出楼栋渲染，配色取 tokens.category.{cat}"
                 f"（缺省回退 category.building，可用 spec.tokens 的 category.{cat} 或 legend.color 定色）"
             )
+        # v2.30：building.type 枚举校验（缺省=通用楼；jsonschema 缺失时的手工兜底）
+        btype = b.get("type")
+        if btype is not None and btype not in VALID_BUILDING_TYPES:
+            errors.append(f"{ctx}.type: '{btype}' not in {sorted(VALID_BUILDING_TYPES)}")
         # v1.8 (B1): `floors` is REQUIRED for non-garage buildings (positive number).
         # The legacy comment claimed this was enforced, but REQUIRED_BUILDING omitted it,
         # so a building-category entry without `floors` validated clean. Garage is exempt

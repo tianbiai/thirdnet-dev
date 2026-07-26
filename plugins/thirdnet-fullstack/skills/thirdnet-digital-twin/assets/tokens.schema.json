@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://thirdnet/skills/thirdnet-digital-twin/tokens.schema.json",
   "title": "Theme Tokens v2.1",
-  "description": "结构契约：assets/themes/*.tokens.json 的形状校验。validate_spec.py 加载本文件对所选风格 token 做结构校验——缺关键块或类型错 → FAIL。允许 key 带下划线前缀的注释字段（_comment 等），不参与校验。v2.0 新增 realism 块（写实增强旋钮：material/bloom/ao/reflection/fog/sun）。v2.1 新增 scene.sky（程序化天空开关）、environment.roadMarking/water/rooftop（标线/水景/楼顶设备色）、ui 块（2D 组件观感旋钮，assets/components/ 消费）。v2.5 新增可选 realism.shadow（软阴影 radius/bias），并恢复 realistic/night-realistic 两风格（写实引擎 envMap/GTAO/反射/软阴影/雾 全部激活）。v2.6 新增可选 underground 块（地下场景配色：deck/wall/edge/room/spot/ramp + deckOpacity/wallOpacity）。v2.15 新增可选 windows 块（夜间发光窗流水线：逐层窗列数/分层点亮率/暖冷双辉光/dirty-gated 翻转动画，仅 night-realistic 消费；缺省走 park-scene.impl.ts 内置 DEFAULT_WINDOWS；animRatio=0 退化为静态烘焙=与 v2.14 行为一致）。",
+  "description": "结构契约：assets/themes/*.tokens.json 的形状校验。validate_spec.py 加载本文件对所选风格 token 做结构校验——缺关键块或类型错 → FAIL。允许 key 带下划线前缀的注释字段（_comment 等），不参与校验。v2.0 新增 realism 块（写实增强旋钮：material/bloom/ao/reflection/fog/sun）。v2.1 新增 scene.sky（程序化天空开关）、environment.roadMarking/water/rooftop（标线/水景/楼顶设备色）、ui 块（2D 组件观感旋钮，assets/components/ 消费）。v2.5 新增可选 realism.shadow（软阴影 radius/bias），并恢复 realistic/night-realistic 两风格（写实引擎 envMap/GTAO/反射/软阴影/雾 全部激活）。v2.6 新增可选 underground 块（地下场景配色：deck/wall/edge/room/spot/ramp + deckOpacity/wallOpacity）。v2.15 新增可选 windows 块（夜间发光窗流水线：逐层窗列数/分层点亮率/暖冷双辉光/dirty-gated 翻转动画，仅 night-realistic 消费；缺省走 park-scene.impl.ts 内置 DEFAULT_WINDOWS；animRatio=0 退化为静态烘焙=与 v2.14 行为一致）。v2.30 新增可选 buildingType 块（楼栋类型基色：office/residential/commercial）与 windows.types.<type> 类型化窗参覆盖（含新旋钮 winWRatio/storefront）。",
   "type": "object",
   "additionalProperties": true,
   "required": ["scene", "palette", "category", "building", "lights", "environment", "realism", "ui"],
@@ -41,6 +41,15 @@
       "properties": {
         "building": { "type": "string" },
         "garage": { "type": "string" }
+      }
+    },
+    "buildingType": {
+      "type": "object",
+      "description": "v2.30 可选【覆盖通道，默认不配】。楼栋类型（spec building.type）只区分构造外观（窗形/灯光图案/体块），**颜色默认全类型一致**（统一走 category 链）。仅当用户显式要求按类型区分颜色时才在本块逐类型定色（优先级高于 category 链）。generate_theme.py 展平派生 --twin-building-type-<type> CSS 变量（LegendPanel 图例色块回退消费；缺省回退 category 色）。",
+      "properties": {
+        "office": { "type": "string", "description": "写字楼基色覆盖（可选）" },
+        "residential": { "type": "string", "description": "居民楼基色覆盖（可选）" },
+        "commercial": { "type": "string", "description": "商业基色覆盖（可选）" }
       }
     },
     "building": {
@@ -261,7 +270,18 @@
         "flipMinMs": { "type": "integer", "minimum": 0, "description": "同一窗两次翻转最小间隔 ms。" },
         "flipVarMs": { "type": "integer", "minimum": 0, "description": "翻转间隔随机附加范围 ms（错峰）。" },
         "emissiveIntensity": { "type": "number", "minimum": 0, "maximum": 4, "description": "覆盖默认 1.3。" },
-        "seedSalt": { "type": "string", "description": "可选；混入 hashStr 种子让多园区发光图案各异。" }
+        "seedSalt": { "type": "string", "description": "可选；混入 hashStr 种子让多园区发光图案各异。" },
+        "winWRatio": { "type": "number", "minimum": 0.1, "maximum": 1, "description": "v2.30 可选。窗宽占 cell 宽比例（默认 0.5）。写字楼 0.82 横带幕墙感、居民楼 0.34 单元小窗。" },
+        "storefront": { "type": "boolean", "description": "v2.30 可选。true=底层行替换为贯通整面宽的恒亮大橱窗（商业底商；不参与翻转动画）。" },
+        "types": {
+          "type": "object",
+          "description": "v2.30 可选。按楼栋类型（spec building.type）覆盖上述任一窗参——四级合并：内置 DEFAULT → 内置 KIND 预设 → 本块外层 → types.<type>。例：types.residential.warmRatio=0.95。",
+          "properties": {
+            "office": { "type": "object" },
+            "residential": { "type": "object" },
+            "commercial": { "type": "object" }
+          }
+        }
       }
     },
     "poi": {

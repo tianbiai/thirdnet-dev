@@ -58,12 +58,15 @@ import { buildBuilding } from './building-geometry'
 const { slabs } = buildBuilding({
   group, id, name, w, d, h, floors, fh,
   sideMaterials: [sideMat, sideMat, topMat, topMat, sideMat, sideMat],
-  podiumMaterial: podiumMat,   // null = 不画裙座
+  podiumMaterial: podiumMat,   // null = 不画裙座（v2.30 写字楼 office 即走此路）
   capMaterial: capMat,         // null = 不画女儿墙
   dividerColor, edgeColor, edgeOpacity,
   labelTexture: labelTex,
   castShadow: profile.shadows,
   slabSink: meta.slabs,
+  kind,                        // v2.30 楼栋类型（缺省 'default' 体块不变）
+  balconyMaterial: balconyMat,       // v2.30 residential 阳台挑板（null 不画）
+  storefrontMaterial: storefrontMat, // v2.30 commercial 底盘灯带（null 不画）
 })
 for (const s of slabs) this.pickables.push(s)
 ```
@@ -71,6 +74,17 @@ for (const s of slabs) this.pickables.push(s)
 **铁律**：不要在 ParkScene 里重新手写 podium/body/edges/cap/dividers/label/slab 的 `position.y`——任何一处手写都可能重新引入错位。`setSelection()` 的金色高亮中心 y 必须用 `(fin+0.5)*fh`（与 `buildBuilding` 内 slab 同式）；楼名标签 y 必须是 `h + 22`（v2.1 修复，旧式 `h/2 + 22` 会把标签埋进塔体）。
 
 > 范式实现不依赖范例项目的外部 `DigitalTwin.ts`。旧的「拷贝外部范例」指示在 v2.0 已改为「以本实现为基线」。
+
+## v2.30 楼栋类型化外观（office / residential / commercial）
+
+`spec.buildings[].type` 驱动**构造外观**的类型差异（解决「写字楼和居民楼长得一样」）。**类型只分构造、不分颜色**——所有类型楼栋统一走 category 配色链（`typeColorToken` 仅在用户显式配了 `buildingType` 块时才按类型分色，默认主题不配 → 全类型同色）。核心机制与纪律：
+
+- **`BuildingKind` + `kindOf()`**（`building-geometry.ts` 导出）：spec 字符串 → `'office'|'residential'|'commercial'|'default'`。引擎只认 `BuildingKind`，未知/缺省落 `'default'`——**default 路径每个参数合并结果与 v2.29 逐项相等**（向后兼容锚点）。
+- **kind 单点派生 + 显式下传**：`extrudeBuildings` 循环内 `const kind = kindOf(scBld?.type)` 取一次，以**入参**传给 `makeFacadeTexture` / `buildWindowEmissive` / `computeWindowLayout` / `windowMetricsTower` / `windowsTokens` / `buildBuilding`。禁止下游各自回查 spec——保证 albedo 与 emissiveMap 两条路径的 kind 必然一致（防贴图错位第一纪律）。**种子串不含 kind**（`lit:`/`flip:` 种子不变、参数变，两次调用布局仍一致）。
+- **维度① 窗户/灯光**（深色两风格）：`windowsTokens(kind)` 四级合并 `DEFAULT_WINDOWS → tokens.windows（风格通用）→ KIND_WINDOWS[kind]（类型签名，压过风格通用值——3 个内置主题都配了完整 windows 块，否则类型差异被抹平）→ tokens.windows.types.<kind>`；新旋钮 `winWRatio`（窗宽占 cell 比，默认 0.5；写字楼 0.82 横带幕墙 / 居民楼 0.34 单元小窗）与 `storefront`（商业底层行替换为贯通恒亮橱窗 cell，不进动画子集）。`emissiveIntensity` 不进 KIND——亮度由风格 token 统一控制（夜景 1.6 是 v2.18 调好的可见性基线），类型只管图案。
+- **维度② 立面纹理构造**：日景 pbr 分支走内置 `KIND_FACADE_DAY`（窗框 inset 占比 / 玻璃 HSL / 居民楼窗台线；不进 token 免 schema 膨胀）。颜色不从类型取——`typeColorToken` 解析链 = `tokens.buildingType.<kind>` → `spec.tokens.buildingType.<kind>` → `categoryToken(category)`，前两级默认不存在 → 统一 category 色。
+- **维度③ 体块形态**：`building-geometry.ts` 内置 `KIND_MASSING`（保持「纯几何不管材质」纪律——形状在几何层、材质仍由 extrudeBuildings 注入）：office=`podiumMaterial:null` 无裙楼直落；residential=逐层阳台挑板（共享 geometry，`y=i·fh`）；commercial=裙楼 `fh*2.0` 高 ×1.18 平面 + 半高贯通灯带薄盒（裙楼无立面贴图，底层橱窗只能靠几何件表达；深色风格注入暖白 emissive 2.2——折角处被 GTAO 乘弱需补偿，日景注入高亮玻璃色）。
+- **预设表是共识不是调参处**：`KIND_WINDOWS`/`KIND_FACADE_DAY`/`KIND_MASSING` 的值是所有园区的类型签名——园区级微调走 token（`windows.types.<kind>` 块；要按类型分色才配 `buildingType` 块），不要改这三张表。
 
 ## 渲染管线一览（按风格分支开关）
 

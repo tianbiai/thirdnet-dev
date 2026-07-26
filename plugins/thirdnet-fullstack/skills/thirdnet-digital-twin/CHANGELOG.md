@@ -4,6 +4,26 @@
 
 ---
 
+## v2.30.0（2026-07-26）
+
+**楼栋类型化外观：写字楼 / 居民楼 / 商业不再「千楼一面」**。此前所有楼栋共用同一条渲染流水线（同一 `buildBuilding` 几何 + 同一立面/发光窗贴图 + 全局窗参），`category` 只能改颜色——写字楼和居民楼长得完全一样。新增 `spec.buildings[].type` 可选字段（`office`/`residential`/`commercial`，缺省=通用楼），**类型只区分构造外观、不改变颜色**（全类型统一走 category 配色链：风格默认色或用户 `spec.tokens.category.*`/`--brand` 指定色），**3 种风格全覆盖**：
+
+1. **窗户/灯光图案**（深色两风格主战场）：`windowsTokens()` 改 `windowsTokens(kind)` **四级合并**（内置 `DEFAULT_WINDOWS` → `tokens.windows`（风格通用）→ 内置 `KIND_WINDOWS[kind]` 预设（**类型签名，压过风格通用值**——3 个内置主题都配了完整 windows 块，反序会把类型差异抹平）→ `tokens.windows.types.<kind>`）；新增 2 个 per-kind 旋钮 `winWRatio`（窗宽占 cell 比：写字楼 0.82 横带幕墙 / 居民楼 0.34 单元小窗 / 默认 0.5）与 `storefront`（商业底层行替换为贯通整面宽恒亮橱窗 cell，不进动画子集）。预设签名：写字楼=6 列+密集冷光均匀点亮（warmRatio 0.2）；居民楼=4 列+稀疏暖光慢闪（warmRatio 0.88）；商业=底盘通亮+塔身零星。`emissiveIntensity` 不进 KIND——亮度由风格 token 统一控制，类型只管图案。
+2. **立面纹理构造**：写实日景 pbr 分支走内置 `KIND_FACADE_DAY`（写字楼细框满玻幕墙 / 居民楼实墙窗洞+每窗窗台线）。
+3. **体块形态**：`building-geometry.ts` 内置 `KIND_MASSING`（保持「纯几何不管材质」纪律）——写字楼 `podiumMaterial:null` 无裙楼直落；居民楼逐层阳台挑板（共享 geometry，`y=i·fh`）；商业 2 层大裙楼（`fh*2.0`×1.18）+ 半高贯通灯带薄盒（裙楼无立面贴图，底层橱窗只能靠几何件；深色风格暖白 emissive 2.2——折角处被 GTAO 乘弱需补偿，日景高亮玻璃色；几何外挑 ≥2 单位/侧，否则融进裙楼立面不可辨）。
+
+**颜色策略（v2.30 定稿）**：楼栋颜色与类型**解耦**——所有类型统一 `categoryToken` 链（`tokens.category.<cat>` → `spec.tokens.category.<cat>` → `category.building`）；`tokens.buildingType.<type>` 仅作**可选覆盖通道**保留（`typeColorToken` 解析链优先读之），供用户显式按类型分色，默认主题不配。
+
+**核心纪律**：`kindOf()` 单点派生（`extrudeBuildings` 循环内一次）+ **显式入参下传**全下游（albedo 与 emissiveMap 两路径必然同 kind，防 v2.5 类贴图错位）；种子串不含 kind（种子不变、参数变，两次调用布局一致）。**向后兼容**：`type` 缺省/未知 → `'default'`，每个参数合并结果与 v2.29 逐项相等，渲染逐像素不变；schema 新块全 optional。
+
+契约与工具链同步：`spec.schema.json` building 加 `type`（enum）+ legendEntry 加可选 `type`；`tokens.schema.json` 加 optional `buildingType` 块与 `windows.types.<type>` 覆盖块；`validate_spec.py` 加 `VALID_BUILDING_TYPES` 手工校验 + `ALLOWED_TOKEN_PREFIXES` 开放 `buildingType.`/`windows.`；`generate_data.py` 透传 type + 缺省 legend 自动补「写字楼/居民楼/商业」条目（稳定顺序，color 留空——回退 `--twin-building-type-*`，未配 buildingType 时再回退 category 色，默认与楼色一致）；`LegendPanel.vue` 色块回退链加 `var(--twin-building-type-<type>)` 一档；`theme.ts` `ThemeTokens` 加 `buildingType?`。
+
+文档：`park-spec.md`（新增「楼栋类型语义」）、`styles.md`（新增「楼栋类型化外观」+ 3 风格可辨性矩阵）、`scene-recipe.md`（§4 类型化外观总述、§15.2 四级合并与 storefront）、`park-scene-impl.md`（v2.30 机制与纪律）、`SKILL.md`（description + 约定 + 验证清单）。
+
+版本：技能 `2.29.1→2.30.0`；插件三处 `2.29.1→2.30.0`；marketplace 顶层 `metadata.version` `0.61.0→0.62.0`。
+
+---
+
 ## v2.29.0（2026-07-26）
 
 **精简风格集：删除 isometric（等距插画）风格**。v2.28.1 落地 toon outline 后用户反馈「等距 vs 写实差异感太弱」——技术上仍完全不同（Lambert+flatShading+ortho vs PBR+HDRI+GTAO+perspective），但视觉区分度低于维护成本：等距与 cyber/写实之间「轴测 vs 透视」一个维度的差异已足够，**3 种区分度更高的风格**（cyber / realistic / night-realistic）保留。**破坏性变更**：含 `isometric` 的 spec 经 `validate_spec.py` 将 FAIL，需改 `spec.style`/`previewStyles`（同时 `assets/themes/isometric.tokens.json` 已删除、对应风格 token 文件不再随包发布）。

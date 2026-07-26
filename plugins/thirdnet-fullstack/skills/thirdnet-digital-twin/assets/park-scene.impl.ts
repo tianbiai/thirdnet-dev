@@ -26,8 +26,8 @@ import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js'
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js'
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
 import gridFrag from './shaders/gridGround.glsl?raw'
-import { buildBuilding, buildRooftopKit, buildUndergroundGarage } from './building-geometry'
-import type { GarageRoomSpec, UndergroundMaterials } from './building-geometry'
+import { buildBuilding, buildRooftopKit, buildUndergroundGarage, kindOf } from './building-geometry'
+import type { GarageRoomSpec, UndergroundMaterials, BuildingKind } from './building-geometry'
 import { applyTheme, type StyleKey, type ThemeTokens } from '@/utils/theme'
 import type { BuildingRuntimeItem, PoiRuntimeItem } from '@/api/types/digital-twin'
 import { PoiStatusEnum, PoiTypeEnum } from '@/api/types/digital-twin'
@@ -93,6 +93,10 @@ interface WindowsTokens {
   flipVarMs: number
   emissiveIntensity: number
   seedSalt?: string
+  /** v2.30 窗宽占 cell 宽比例（0.5=现状方窗；0.82 横带幕墙 / 0.34 单元小窗）。 */
+  winWRatio: number
+  /** v2.30 底层贯通橱窗（商业底商）：底层行替换为恒亮通长窗带，不参与翻转动画。 */
+  storefront: boolean
 }
 /** 缺省（token 无 windows 块时兜底；animRatio>0 默认开启动画）。 */
 const DEFAULT_WINDOWS: WindowsTokens = {
@@ -109,6 +113,56 @@ const DEFAULT_WINDOWS: WindowsTokens = {
   flipMinMs: 3000,
   flipVarMs: 8000,
   emissiveIntensity: 1.3,
+  winWRatio: 0.5,
+  storefront: false,
+}
+
+/**
+ * v2.30 按楼栋类型的内置窗参预设——四级合并第 3 级（类型签名，压过风格通用值）：
+ * DEFAULT_WINDOWS → tokens.windows（风格通用）→ 本表（类型签名）→ tokens.windows.types.<kind>（换肤微调）。
+ * default 为空表：未指定类型的楼每个参数合并结果与 v2.29 逐项相等（向后兼容锚点）。
+ * 夜景可辨签名：office=横带幕墙 + 密集冷光均匀点亮；residential=单元小窗 + 稀疏暖光慢闪；
+ * commercial=底层贯通橱窗恒亮（storefront 取代 ground 点亮率）+ 塔身零星。
+ * 注意：不设 emissiveIntensity——亮度由风格 token 统一控制（夜景 1.6 是 v2.18 调好的可见性基线），类型只管图案。
+ */
+const KIND_WINDOWS: Record<BuildingKind, Partial<WindowsTokens>> = {
+  office: {
+    roomsAxisTower: 6, winWRatio: 0.82,
+    litRatio: { ground: 0.85, middle: 0.72, top: 0.55 },
+    warmRatio: 0.2, animRatio: 0.06, flipMinMs: 5000,
+  },
+  residential: {
+    roomsAxisTower: 4, winWRatio: 0.34,
+    litRatio: { ground: 0.3, middle: 0.55, top: 0.42 },
+    warmRatio: 0.88, animRatio: 0.18, flipMinMs: 6000,
+  },
+  commercial: {
+    roomsAxisTower: 3, storefront: true,
+    litRatio: { ground: 1, middle: 0.22, top: 0.12 },
+    warmRatio: 0.5, animRatio: 0.12, flipMinMs: 2500,
+  },
+  default: {},
+}
+
+/**
+ * v2.30 写实日景（pbr 分支）按类型的立面旋钮（内置表，不进 token——日景配色已由
+ * 类型/类别色 HSL 推导，这里只调窗框占比与玻璃质感，免 schema 膨胀）。
+ * inX/inY=窗框横/纵 inset 占 cell 比例（现状 0.10/0.12）；glassSat/glassLightK=玻璃 HSL 饱和度
+ * 与明度倍率（现状 0.28/1.2）；sillLine=每窗下画 2px 深色窗台线（居民楼窗台/空调位暗示）。
+ * default = 现状参数（逐像素不变）。commercial 的底商表达在体块层（大裙楼+灯带盒），日景网格保持现状。
+ */
+interface KindFacadeDay {
+  inX: number
+  inY: number
+  glassSat: number
+  glassLightK: number
+  sillLine: boolean
+}
+const KIND_FACADE_DAY: Record<BuildingKind, KindFacadeDay> = {
+  office:      { inX: 0.04, inY: 0.05, glassSat: 0.35, glassLightK: 1.35, sillLine: false },
+  residential: { inX: 0.18, inY: 0.20, glassSat: 0.28, glassLightK: 1.2, sillLine: true },
+  commercial:  { inX: 0.10, inY: 0.12, glassSat: 0.28, glassLightK: 1.2, sillLine: false },
+  default:     { inX: 0.10, inY: 0.12, glassSat: 0.28, glassLightK: 1.2, sillLine: false },
 }
 
 interface StyleProfile {
@@ -195,6 +249,7 @@ export class ParkScene {
   private raycaster = new THREE.Raycaster()
   private pointer = new THREE.Vector2()
   private pointerDownPos = { x: 0, y: 0 }
+  private lastUserInteractMs = 0
 
   /** v2.0 后处理：composer / bloom / AO。仅写实与发光风格启用。 */
   private composer: EffectComposer | null = null
@@ -2024,8 +2079,23 @@ export class ParkScene {
     return cat.building
   }
 
+  /**
+   * v2.30 楼栋基色解析链：tokens.buildingType.<kind> → spec.tokens.buildingType.<kind> → category 链。
+   * 类型默认不分色（内置主题不配 buildingType 块——全类型颜色一致，只区分构造外观）；
+   * buildingType 仅是用户显式按类型分色的可选覆盖通道。kind='default' 直接走 category 链。
+   */
+  private typeColorToken(kind: BuildingKind, category: string): string {
+    if (kind !== 'default') {
+      const bt = this.tokens.buildingType
+      if (bt?.[kind]) return bt[kind]
+      const specBt = (this.scaffold.tokens as Record<string, unknown> | undefined)?.buildingType as Record<string, string> | undefined
+      if (specBt?.[kind]) return specBt[kind]
+    }
+    return this.categoryToken(category)
+  }
+
   private buildFootprintPad(b: ScaffoldBuilding) {
-    const color = new THREE.Color(this.categoryToken(b.category))
+    const color = new THREE.Color(this.typeColorToken(kindOf(b.type), b.category))
     const mat = this.padMaterial(color)
     const pad = new THREE.Mesh(new THREE.BoxGeometry(b.w, 2, b.d), mat)
     pad.position.set(b.x, 1, b.z)
@@ -2095,11 +2165,14 @@ export class ParkScene {
       const d = meta.d
       const h = item.floors * fh
       const scBld = scaffoldById.get(item.building_id)
-      const color = new THREE.Color(this.categoryToken(scBld?.category ?? 'building'))
+      // v2.30 楼栋类型：在此派生一次，向下游所有函数显式传递（禁止各处回查 spec——
+      // 保证 albedo 与 emissiveMap 两条路径的 kind 必然一致，防贴图错位第一纪律）。
+      const kind = kindOf(scBld?.type)
+      const color = new THREE.Color(this.typeColorToken(kind, scBld?.category ?? 'building'))
       const b = this.profile.building
 
       // 风格相关：材质、facade 纹理、标签配色（在本类里构造，受 token/style 驱动）。
-      const facade = this.makeFacadeTexture(item.building_id, item.floors, w, d, color, roomShade, dividerColor)
+      const facade = this.makeFacadeTexture(item.building_id, item.floors, w, d, color, roomShade, dividerColor, kind)
       const sideMat = this.buildingMaterial(color, true)
       if (facade) {
         if (sideMat instanceof THREE.MeshStandardMaterial || sideMat instanceof THREE.MeshLambertMaterial || sideMat instanceof THREE.MeshBasicMaterial) {
@@ -2110,8 +2183,8 @@ export class ParkScene {
       // v2.17 扩到 cyber（emissive）：emissive:white 让 emissiveMap 直接驱动色（窗光取代旧的整栋均匀自发光），
       // 暖/冷由贴图决定；动画子集入 facadeAnims。
       if ((b === 'pbr-night' || b === 'emissive') && sideMat instanceof THREE.MeshStandardMaterial) {
-        const wtk = this.windowsTokens()
-        const built = this.buildWindowEmissive(item.building_id, item.floors, w)
+        const wtk = this.windowsTokens(kind)
+        const built = this.buildWindowEmissive(item.building_id, item.floors, w, kind)
         if (built) {
           sideMat.emissive = new THREE.Color('#ffffff')
           sideMat.emissiveMap = built.tex
@@ -2123,8 +2196,29 @@ export class ParkScene {
         // v2.5 写实屋顶：哑光混凝土（高 roughness、无金属、无自发光），不再恒发 0.05 自发光。
         ? new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.8), roughness: 0.9, metalness: 0.0 })
         : new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.05, metalness: 0.2, roughness: 0.6 })
-      const podiumMat = new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.55), roughness: 0.85, metalness: 0.05 })
+      // v2.30 写字楼无裙楼（点式玻璃塔直落地面，拉开与商业大裙楼的体块差异）
+      const podiumMat: THREE.Material | null = kind === 'office'
+        ? null
+        : new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.55), roughness: 0.85, metalness: 0.05 })
       const capMat = new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.7), roughness: 0.7, metalness: 0.2 })
+      // v2.30 类型附加件材质：居民楼阳台挑板（裙楼同款 0.55 倍色）；商业底盘灯带——
+      // 深色两风格=暖白 emissive（走 bloom 成底商辉光），日景=高亮玻璃色受光。
+      const balconyMat = kind === 'residential'
+        ? new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.55), roughness: 0.85, metalness: 0.05 })
+        : null
+      let storefrontMat: THREE.Material | null = null
+      if (kind === 'commercial') {
+        if (b === 'pbr') {
+          const glassCol = color.clone().lerp(new THREE.Color('#e8f2fa'), 0.65)
+          const sm = new THREE.MeshStandardMaterial({ color: glassCol, roughness: 0.12, metalness: 0.1, envMapIntensity: 1.3 })
+          if (this.sceneObj.environment) sm.envMap = this.sceneObj.environment
+          storefrontMat = sm
+        } else {
+          // v2.30 深色两风格：暖白 emissive 2.2——高于发光窗 1.6（带体在裙楼折角处被 GTAO 乘弱，
+          // 需补偿才读得出「底盘一圈亮带」签名），但不刺眼。
+          storefrontMat = new THREE.MeshStandardMaterial({ color: '#ffdf9e', emissive: '#ffdf9e', emissiveIntensity: 2.2, metalness: 0.2, roughness: 0.4 })
+        }
+      }
       // 楼顶标签配色（v2.1 改走 token ui.labelBg/labelText——3 风格各自的高对比配对；
       // 旧式 (void-bg, cyan-bright) 在浅色风格下两字色都偏亮、标签糊成黑块，违反 §4.2 规则）
       const uiTk = this.tokens.ui
@@ -2132,7 +2226,7 @@ export class ParkScene {
         item.name,
         uiTk?.labelBg ?? (this.tokens.palette['void-bg'] as string),
         uiTk?.labelText ?? ((this.tokens.palette['cyan-bright'] as string) ?? '#7ff5ff'),
-        this.categoryToken(scBld?.category ?? 'building'),
+        `#${color.getHexString()}`,
         500,
       )
 
@@ -2155,6 +2249,9 @@ export class ParkScene {
         labelTexture: labelTex,
         castShadow: this.profile.shadows,
         slabSink: meta.slabs,
+        kind,
+        balconyMaterial: balconyMat,
+        storefrontMaterial: storefrontMat,
       })
       for (const slab of slabs) this.pickables.push(slab)
 
@@ -2198,35 +2295,40 @@ export class ParkScene {
 
 
   /**
-   * 读取 tokens.windows（缺省合并 DEFAULT_WINDOWS）。仅 pbr-night 消费；其余风格不读。
-   * 为什么兜底：schema 把 windows 标为可选，用户自定义 night-realistic token 缺该块时仍可工作。
+   * 读取 tokens.windows（v2.30 四级合并：DEFAULT_WINDOWS → tokens.windows（风格通用）→
+   * KIND_WINDOWS[kind]（类型签名）→ tokens.windows.types.<kind>（换肤微调））。
+   * 仅 pbr-night/emissive 消费；其余风格不读。
+   * 为什么 KIND 压过 tokens.windows：3 个内置主题都配了完整 windows 块，若风格通用值压过类型预设，
+   * 类型差异会被全部抹平（功能失效）；类型签名必须生效，风格微调走 types.<kind> 最末级。
+   * 为什么兜底：schema 把 windows 标为可选，用户自定义 token 缺该块时仍可工作；
+   * kind='default' 且 token 无 types 块时合并结果与 v2.29 逐项相等。
    */
-  private windowsTokens(): WindowsTokens {
-    const raw = (this.tokens as ThemeTokens & { windows?: Partial<WindowsTokens> }).windows
-    if (!raw) return DEFAULT_WINDOWS
-    return {
-      roomsAxisTower: raw.roomsAxisTower ?? DEFAULT_WINDOWS.roomsAxisTower,
-      roomsAxisPodium: raw.roomsAxisPodium ?? DEFAULT_WINDOWS.roomsAxisPodium,
-      litRatio: {
-        ground: raw.litRatio?.ground ?? DEFAULT_WINDOWS.litRatio.ground,
-        middle: raw.litRatio?.middle ?? DEFAULT_WINDOWS.litRatio.middle,
-        top: raw.litRatio?.top ?? DEFAULT_WINDOWS.litRatio.top,
-      },
-      warmColor: raw.warmColor ?? DEFAULT_WINDOWS.warmColor,
-      coolColor: raw.coolColor ?? DEFAULT_WINDOWS.coolColor,
-      warmRatio: raw.warmRatio ?? DEFAULT_WINDOWS.warmRatio,
-      glassOff: raw.glassOff ?? DEFAULT_WINDOWS.glassOff,
-      gradient: {
-        top: raw.gradient?.top ?? DEFAULT_WINDOWS.gradient.top,
-        bottom: raw.gradient?.bottom ?? DEFAULT_WINDOWS.gradient.bottom,
-      },
-      animRatio: raw.animRatio ?? DEFAULT_WINDOWS.animRatio,
-      fadeMs: raw.fadeMs ?? DEFAULT_WINDOWS.fadeMs,
-      flipMinMs: raw.flipMinMs ?? DEFAULT_WINDOWS.flipMinMs,
-      flipVarMs: raw.flipVarMs ?? DEFAULT_WINDOWS.flipVarMs,
-      emissiveIntensity: raw.emissiveIntensity ?? DEFAULT_WINDOWS.emissiveIntensity,
-      seedSalt: raw.seedSalt,
+  private windowsTokens(kind: BuildingKind = 'default'): WindowsTokens {
+    type WindowsOverride = Partial<WindowsTokens> & { types?: Partial<Record<BuildingKind, Partial<WindowsTokens>>> }
+    const raw = (this.tokens as ThemeTokens & { windows?: WindowsOverride }).windows
+    const layers: Partial<WindowsTokens>[] = []
+    if (raw) {
+      const { types, ...flat } = raw
+      layers.push(flat)
+      layers.push(KIND_WINDOWS[kind])
+      const typed = kind !== 'default' ? types?.[kind] : undefined
+      if (typed) layers.push(typed)
+    } else {
+      layers.push(KIND_WINDOWS[kind])
     }
+    const merged: WindowsTokens = {
+      ...DEFAULT_WINDOWS,
+      litRatio: { ...DEFAULT_WINDOWS.litRatio },
+      gradient: { ...DEFAULT_WINDOWS.gradient },
+    }
+    for (const layer of layers) {
+      for (const [k, v] of Object.entries(layer)) {
+        if (v === undefined) continue
+        if (k === 'litRatio' || k === 'gradient') Object.assign(merged[k], v)
+        else (merged as unknown as Record<string, unknown>)[k] = v
+      }
+    }
+    return merged
   }
 
   /**
@@ -2246,21 +2348,23 @@ export class ParkScene {
 
   /**
    * v2.15 夜间塔体窗度量（Park 流水线）：画布随立面尺寸缩放，rows=楼层数，
-   * rooms=塔体窗列数，winW=cellW*0.5 统一窗宽，insetY=rowH*0.22 留出窗框/楼板暗带。
+   * rooms=塔体窗列数，winW=cellW*winWRatio（v2.30 类型化：写字楼 0.82 横带 / 居民楼 0.34 小窗），
+   * insetY=rowH*0.22 留出窗框/楼板暗带。
    * albedo facade 与 emissiveMap 共用此度量——同网格杜绝错位（v2.5 bug 教训）。
    */
-  private windowMetricsTower(w: number, floors: number): {
+  private windowMetricsTower(w: number, floors: number, kind: BuildingKind): {
     padW: number; padH: number; rooms: number; rows: number; cellW: number; rowH: number; winW: number; insetY: number
   } {
     const fh = this.scaffold.floorHeight
+    const tk = this.windowsTokens(kind)
     const faceH = Math.max(floors * fh, 10)
     const padW = Math.min(720, Math.max(256, Math.round(w * 3)))
     const padH = Math.max(64, Math.round(padW * (faceH / w)))
-    const rooms = Math.max(2, this.windowsTokens().roomsAxisTower)
+    const rooms = Math.max(2, tk.roomsAxisTower)
     const rows = Math.max(1, floors)
     const cellW = padW / rooms
     const rowH = padH / rows
-    return { padW, padH, rooms, rows, cellW, rowH, winW: cellW * 0.5, insetY: rowH * 0.22 }
+    return { padW, padH, rooms, rows, cellW, rowH, winW: cellW * tk.winWRatio, insetY: rowH * 0.22 }
   }
 
   /**
@@ -2268,13 +2372,16 @@ export class ParkScene {
    * 每层用 floorRoomDividerFracs 砖错位切片面板，Fisher-Yates 洗牌取 2..5 窗，面板过窄过滤；
    * 分层点亮率（底层 0 / 中层 / 顶层）+ 暖冷双辉光（warmRatio）+ 动画子集（独立 flip 种子流）。
    * 注意 BoxGeometry flipY：canvas 行 0=顶层、行 rows-1=底层——与 litRatio.top/ground 对应。
+   * v2.30：kind 由调用方（extrudeBuildings）显式传入——albedo 与 emissive 两条路径必然同 kind；
+   * 种子串不含 kind（种子不变、参数变，两次调用仍一致）。commercial storefront=true 时底层行
+   * 替换为贯通整面宽的恒亮橱窗带（不进动画子集）。
    */
-  private computeWindowLayout(buildingId: string, floors: number, w: number): {
+  private computeWindowLayout(buildingId: string, floors: number, w: number, kind: BuildingKind): {
     m: { padW: number; padH: number; rooms: number; rows: number; cellW: number; rowH: number; winW: number; insetY: number }
     cells: WindowCell[]
   } {
-    const tk = this.windowsTokens()
-    const m = this.windowMetricsTower(w, floors)
+    const tk = this.windowsTokens(kind)
+    const m = this.windowMetricsTower(w, floors, kind)
     const salt = tk.seedSalt ? tk.seedSalt + ':' : ''
     const rngLit = mulberry32(hashStr('lit:' + salt + buildingId))
     const rngFlip = mulberry32(hashStr('flip:' + salt + buildingId))
@@ -2286,6 +2393,11 @@ export class ParkScene {
       const yTop = r * m.rowH
       const winH = m.rowH - 2 * m.insetY
       const y = yTop + m.insetY
+      // v2.30 商业底商：底层替换为贯通整面宽的恒亮橱窗带（暖色、不参与翻转动画）
+      if (tk.storefront && r === rows - 1) {
+        cells.push({ x: 2, y, w: m.padW - 4, h: winH, color: 'warm', lit: true, animatable: false })
+        continue
+      }
       // 面板切片（砖错位）→ 像素段
       const fracs = floorRoomDividerFracs(r, m.rooms)
       const panels: { x0: number; x1: number }[] = []
@@ -2328,7 +2440,7 @@ export class ParkScene {
    * pbr 日景：真实窗户网格——玻璃 + 窗框 + 楼板暗带（受 envMap/AO/阴影影响，远观像真楼）。
    * 发光窗由 buildWindowEmissive 单独产 emissiveMap（与 albedo 同布局），v2.17 起同样覆盖 2 个深色风格。
    */
-  private makeFacadeTexture(buildingId: string, floors: number, w: number, d: number, color: THREE.Color, roomShade: number, dividerColor: THREE.Color): THREE.CanvasTexture | null {
+  private makeFacadeTexture(buildingId: string, floors: number, w: number, d: number, color: THREE.Color, roomShade: number, dividerColor: THREE.Color, kind: BuildingKind): THREE.CanvasTexture | null {
     const b = this.profile.building
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')
@@ -2340,8 +2452,9 @@ export class ParkScene {
       // v2.15 Park 流水线 albedo：渐变墙 + 分层面板窗户。v2.17 起扩到全部深色风格（pbr-night/emissive，
       // 即 night-realistic/cyber）——窗光成为夜间楼幢主辉光；各风格 token 的
       // windows.gradient 决定墙面色、windows.glassOff 决定熄窗色，使每风格在自己配色上画窗。
-      const tk = this.windowsTokens()
-      const { m, cells } = this.computeWindowLayout(buildingId, floors, w)
+      // v2.30：窗形/点亮按 kind 类型化（windowsTokens 四级合并；商业底层 storefront 亮带）。
+      const tk = this.windowsTokens(kind)
+      const { m, cells } = this.computeWindowLayout(buildingId, floors, w, kind)
       canvas.width = m.padW; canvas.height = m.padH
       const grad = ctx.createLinearGradient(0, 0, 0, m.padH)
       grad.addColorStop(0, tk.gradient.top)
@@ -2377,25 +2490,37 @@ export class ParkScene {
 
     if (b === 'pbr') {
       // v2.5 写实日景窗户网格：墙面底 → 玻璃单元 → 窗框/楼板线（原样保留）。
+      // v2.30：网格占比/玻璃质感按 kind 走 KIND_FACADE_DAY——写字楼细框满玻幕墙、
+      // 居民楼实墙窗洞+窗台线；default 参数与现状逐项相等。
+      const fd = KIND_FACADE_DAY[kind]
       const m = this.windowMetrics(w, floors)
       const padW = m.padW
       const padH = m.padH
       canvas.width = padW; canvas.height = padH
       const wall = new THREE.Color().setHSL(baseHsl.h, baseHsl.s * 0.8, Math.max(0.1, baseHsl.l * 0.85))
       const frame = new THREE.Color().setHSL(baseHsl.h, baseHsl.s * 0.5, Math.max(0.05, baseHsl.l * 0.4))
-      const glass = new THREE.Color().setHSL(baseHsl.h, 0.28, Math.min(0.85, baseHsl.l * 1.2))
+      const glass = new THREE.Color().setHSL(baseHsl.h, fd.glassSat, Math.min(0.85, baseHsl.l * fd.glassLightK))
       ctx.fillStyle = `#${wall.getHexString()}`
       ctx.fillRect(0, 0, padW, padH)
       const cols = m.cols
       const rows = m.rows
       const cellW = m.cellW
       const cellH = m.cellH
-      const inX = Math.max(1, cellW * 0.1)
-      const inY = Math.max(1, cellH * 0.12)
+      const inX = Math.max(1, cellW * fd.inX)
+      const inY = Math.max(1, cellH * fd.inY)
       ctx.fillStyle = `#${glass.getHexString()}`
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           ctx.fillRect(c * cellW + inX, r * cellH + inY, cellW - 2 * inX, cellH - 2 * inY)
+        }
+      }
+      // v2.30 居民楼窗台线：每窗下 2px 深色横线（窗台/空调机位暗示）
+      if (fd.sillLine) {
+        ctx.fillStyle = `#${frame.getHexString()}`
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            ctx.fillRect(c * cellW + inX, r * cellH + cellH - inY - 2, cellW - 2 * inX, 2)
+          }
         }
       }
       const frameW = Math.max(1, Math.round(cellW * 0.1))
@@ -2455,9 +2580,9 @@ export class ParkScene {
    * 亮窗画满色（emissive:white 驱动 + bloom 发光），未亮黑（不发光）；动画子集收入 FacadeAnim 供
    * animate 逐帧 dirty-gated 局部重绘。返回 null 时调用方跳过 emissive 接线。
    */
-  private buildWindowEmissive(buildingId: string, floors: number, w: number): { tex: THREE.CanvasTexture; anim: FacadeAnim } | null {
-    const tk = this.windowsTokens()
-    const { m, cells } = this.computeWindowLayout(buildingId, floors, w)
+  private buildWindowEmissive(buildingId: string, floors: number, w: number, kind: BuildingKind): { tex: THREE.CanvasTexture; anim: FacadeAnim } | null {
+    const tk = this.windowsTokens(kind)
+    const { m, cells } = this.computeWindowLayout(buildingId, floors, w, kind)
     const canvas = document.createElement('canvas')
     canvas.width = m.padW; canvas.height = m.padH
     const ctx = canvas.getContext('2d')

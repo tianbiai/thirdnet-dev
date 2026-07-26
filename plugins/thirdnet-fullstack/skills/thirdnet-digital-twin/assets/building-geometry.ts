@@ -34,6 +34,44 @@
 import * as THREE from 'three'
 
 // ---------------------------------------------------------------------------
+// v2.30 楼栋类型（spec building.type）——类型化外观的「体块形态」维度
+// ---------------------------------------------------------------------------
+
+/**
+ * 楼栋类型：office=写字楼 / residential=居民楼 / commercial=商业 / default=未指定或未知。
+ * 驱动三个外观维度：① 窗户/灯光模式、② 立面材质/基色（均在 park-scene.impl.ts）、
+ * ③ 体块形态（本文件 KIND_MASSING）。'default' 行为与 v2.29 完全一致（向后兼容锚点）。
+ */
+export type BuildingKind = 'office' | 'residential' | 'commercial' | 'default'
+
+/** spec building.type 字符串 → BuildingKind（缺省/未知落 'default'）。引擎只认本映射，不直接消费 type 字符串。 */
+export function kindOf(type: string | undefined | null): BuildingKind {
+  return type === 'office' || type === 'residential' || type === 'commercial' ? type : 'default'
+}
+
+/**
+ * 类型 → 体块旋钮（本文件保持「纯几何不管材质」纪律——下表只定形状尺寸，
+ * 阳台挑板/底盘灯带的材质由调用方注入，null=不画该附加件）。
+ * default = 现状（裙座 fh*0.5、平面 ×1.06、无附加件）。
+ */
+interface KindMassing {
+  /** 裙座高（fh 倍数；现状 0.5）。office 的无裙楼由调用方 podiumMaterial=null 表达，不在此表。 */
+  podiumH: number
+  /** 裙座平面放大系数（现状 1.06）。 */
+  podiumScale: number
+  /** 逐层阳台挑板（居民楼签名）。 */
+  balconies: boolean
+  /** 裙楼半高贯通灯带薄盒（商业底商签名；全风格可辨——裙楼无立面贴图，底层橱窗只能靠几何件表达）。 */
+  storefrontBand: boolean
+}
+const KIND_MASSING: Record<BuildingKind, KindMassing> = {
+  office:      { podiumH: 0.5, podiumScale: 1.06, balconies: false, storefrontBand: false },
+  residential: { podiumH: 0.5, podiumScale: 1.06, balconies: true,  storefrontBand: false },
+  commercial:  { podiumH: 2.0, podiumScale: 1.18, balconies: false, storefrontBand: true },
+  default:     { podiumH: 0.5, podiumScale: 1.06, balconies: false, storefrontBand: false },
+}
+
+// ---------------------------------------------------------------------------
 // 确定性伪随机（v2.1 楼顶设备定位用；与 park-scene.impl.ts / generate_data.py 同款）
 // ---------------------------------------------------------------------------
 function hashStr(s: string): number {
@@ -82,6 +120,12 @@ export interface BuildBuildingOptions {
   castShadow: boolean
   /** 画完的拾取盒会 push 进此数组（调用方再注入 pickables / meta.slabs）。 */
   slabSink: THREE.Mesh[]
+  /** v2.30 楼栋类型（缺省 'default' = 与 v2.29 相同体块）。驱动 KIND_MASSING：裙座尺寸/阳台/灯带。 */
+  kind?: BuildingKind
+  /** v2.30 阳台挑板材质（kind=residential 时调用方注入；null/缺省=不画）。 */
+  balconyMaterial?: THREE.Material | null
+  /** v2.30 商业裙楼底盘灯带材质（kind=commercial 时调用方注入；null/缺省=不画）。 */
+  storefrontMaterial?: THREE.Material | null
 }
 
 export interface BuiltBuilding {
@@ -103,14 +147,27 @@ export interface BuiltBuilding {
 export function buildBuilding(opts: BuildBuildingOptions): BuiltBuilding {
   const { group, id, w, d, h, floors, fh } = opts
   const slabs: THREE.Mesh[] = []
+  const massing = KIND_MASSING[opts.kind ?? 'default']
 
-  // 裙座（包在塔底，塔体不抬升）
+  // 裙座（包在塔底，塔体不抬升）；v2.30 高/平面按类型 massing（commercial=2 层大裙楼）
   if (opts.podiumMaterial) {
-    const podiumH = fh * 0.5
-    const podium = new THREE.Mesh(new THREE.BoxGeometry(w * 1.06, podiumH, d * 1.06), opts.podiumMaterial)
+    const podiumH = fh * massing.podiumH
+    const podium = new THREE.Mesh(new THREE.BoxGeometry(w * massing.podiumScale, podiumH, d * massing.podiumScale), opts.podiumMaterial)
     podium.position.y = podiumH / 2
     if (opts.castShadow) { podium.castShadow = true; podium.receiveShadow = true }
     group.add(podium)
+
+    // v2.30 商业底盘灯带：裙楼半高贯通薄盒（底商橱窗的几何表达——裙楼无立面贴图，
+    // 底层橱窗画在塔体 albedo 上会被裙楼挡住，只能靠独立几何件；全风格可辨）。
+    // 四周比裙楼外挑 2 单位（+4）——只挑 0.5 会在斜俯视下与裙楼立面融成一条细线不可辨。
+    if (massing.storefrontBand && opts.storefrontMaterial) {
+      const band = new THREE.Mesh(
+        new THREE.BoxGeometry(w * massing.podiumScale + 4, fh * 0.9, d * massing.podiumScale + 4),
+        opts.storefrontMaterial,
+      )
+      band.position.y = podiumH * 0.55
+      group.add(band)
+    }
   }
 
   // 塔体（BoxGeometry 居中，抬到地面之上：position.y = h/2 → 底面贴 y=0）
@@ -150,6 +207,19 @@ export function buildBuilding(opts: BuildBuildingOptions): BuiltBuilding {
     const line = new THREE.LineSegments(geo, new THREE.LineDashedMaterial({ color: opts.dividerColor, dashSize: 4, gapSize: 3, transparent: true, opacity: 0.5 }))
     line.computeLineDistances()
     group.add(line)
+  }
+
+  // v2.30 居民楼逐层阳台挑板（住宅签名）。共享一份 geometry + 调用方注入的单一材质；
+  // 板心在楼板线 y=i·fh（厚度 fh*0.07，塔体周圈外挑 4%）——挑板前沿恰好替代该层虚线分隔的观感。
+  // 超高层（>40 层）可改隔层挑板（i%2===0）控制 mesh 数。
+  if (massing.balconies && opts.balconyMaterial) {
+    const balGeo = new THREE.BoxGeometry(w * 1.04, fh * 0.07, d * 1.04)
+    for (let i = 1; i < floors; i++) {
+      const bal = new THREE.Mesh(balGeo, opts.balconyMaterial)
+      bal.position.y = i * fh
+      if (opts.castShadow) { bal.castShadow = true; bal.receiveShadow = true }
+      group.add(bal)
+    }
   }
 
   // 楼顶常驻名称标签（须在屋顶上方——旧式 h/2+22 会把标签埋进塔体内部，高楼不可见）。

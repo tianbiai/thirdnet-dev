@@ -10,7 +10,7 @@
 
 spec 仍是**创作唯一事实来源**（生成时读取），但生成器把内容**分区输出**为两层（详见 `dynamic-data-api.md`）：
 
-- **基础信息**（静态内联）：风格/tokens/shaders/字体/舞台/boundary/floorHeight；楼栋**位置与占地**（`buildings[].id/w/d/x/z/category/facing`）；园区环境（`environment`）；航拍（`cameraTour`）；连廊（`corridor`）；地下坑体（`garages`）；Legend/switcher 骨架。
+- **基础信息**（静态内联）：风格/tokens/shaders/字体/舞台/boundary/floorHeight；楼栋**位置与占地**（`buildings[].id/w/d/x/z/category/type/facing`）；园区环境（`environment`）；航拍（`cameraTour`）；连廊（`corridor`）；地下坑体（`garages`）；Legend/switcher 骨架。
 - **动态数据**（运行期走 `IDigitalTwinApi`，开发期由 spec 派生为 Mock、正式环境调真实后端）：楼幢**业务数据**（`buildings[].name/floors/floor_ids/header`、`floors_detail`）与 **POI 点位**（`pois[]`，含停车场 `occupancy`）。
 
 下文 schema 里 `buildings[].name/floors/floors_detail` 与 `pois[]` 在生成时**用于派生 Mock 数据**（动态），而非静态内联——静态脚手架只保留楼栋占地几何。schema 本身不变；变的是生成器如何分区输出。
@@ -37,7 +37,7 @@ interface ParkSpec {
   floorHeight?: number                // 默认 40
   boundary?: { x: number; z: number } // 默认 {360, 220}
   buildings: BuildingSpec[]
-  legend?: LegendEntry[]              // 默认 = 楼幢 + 地下车库 两个类别
+  legend?: LegendEntry[]              // 默认 = 楼幢 + 实际用到的楼栋类型（v2.30）+ 地下车库
   switcher?: (string | { id: string; label?: string })[]  // 标签页骨架（推荐对象形式，id 对齐 buildings[].id）
   environment?: ParkEnvironment       // 园区环境；缺省 = 智能默认
   pois?: PoiSpec[]                    // 兴趣点；缺省 = []（不生成 POI）
@@ -52,6 +52,7 @@ interface BuildingSpec {
   id: string                          // slug，唯一 —— 切换器/选中/详情
   name: string                        // "主楼" —— 楼顶常驻标签 + 切换器 + 详情标题
   category: Category                  // building/garage/自定义；驱动 3D 颜色 + 图例 + 是否按车库入口渲染
+  type?: BuildingType                 // v2.30 楼栋类型：office=写字楼 / residential=居民楼 / commercial=商业（缺省=通用楼）。驱动类型化外观三维度，详「楼栋类型语义」
   w: number                           // 占地 X 尺寸
   d: number                           // 占地 Z 尺寸
   floors: number                      // 楼层数（高度 = floors * floorHeight）；车库条目可选/忽略
@@ -62,6 +63,8 @@ interface BuildingSpec {
   connects?: string[]                 // 声明物理连通的其它楼栋 id（裙楼/连体楼）；豁免 validate_spec 的 AABB 间距/重叠 FAIL
   floors_detail?: FloorSpec[]         // 详情面板的每层租户（可选）
 }
+
+type BuildingType = 'office' | 'residential' | 'commercial'  // v2.30；缺省/未知 = 通用楼（行为与 v2.29 一致）
 
 // category:'garage' 楼栋 = 地面入口标记（半金字塔三角门 + P 牌，Y=0 之上、无几何体积）。
 // garages[] = 真正的地下剖面坑体（Y=0 之下透明玻璃柱，可整园范围）。两者可共存也可只用其一。
@@ -95,7 +98,8 @@ interface PoiSpec {
 
 type PoiType = string  // 已知 entrance/exit/camera/gate/service/landmark/parking/custom；任意自定义串以通用圆点标记渲染
 
-interface LegendEntry { label: string; category: Category; color: string }
+interface LegendEntry { label: string; category: Category; color: string; type?: BuildingType }
+// v2.30：条目对应楼栋类型时给 type——color 留空则色块回退 var(--twin-building-type-<type>)（再回退 category 链）。
 
 interface FloorSpec { index: number; label: string; tenant: string; units?: UnitDetail[] }
 ```
@@ -208,6 +212,22 @@ interface CameraTourSpec {
 
 `garage` 不限制栋数——多个 `category:'garage'` 楼栋即多个地面入口标记（多入口物流园场景）。地下剖面坑体用 `garages[]`，二者可共存。
 
+## 楼栋类型语义（v2.30）
+
+`buildings[].type` 可选（枚举 `office`/`residential`/`commercial`，缺省 = 通用楼）。与 `category` **正交**：category 管图例/配色/车库入口语义，type 管**类型化构造外观**——解决「写字楼和居民楼长得一样」。**类型只区分构造、不改变颜色**：全类型楼栋颜色一致（统一走 category 配色链，默认色或用户 `spec.tokens.category.*`/`--brand` 指定色）；类型差异落在三个构造维度：
+
+| 维度 | `office` 写字楼 | `residential` 居民楼 | `commercial` 商业 |
+|---|---|---|---|
+| ① 窗户/灯光（深色两风格发光窗） | 横带幕墙（winWRatio 0.82）、6 列、密集冷光均匀点亮（warmRatio 0.2） | 单元小窗（winWRatio 0.34）、4 列、稀疏暖光慢闪（warmRatio 0.88） | 底层贯通橱窗恒亮（storefront）+ 塔身零星 |
+| ② 立面纹理构造（写实日景） | 细框满玻幕墙（玻璃占比 ~90%） | 实墙窗洞（~60%）+ 每窗窗台线 | 标准网格（底商表达在体块层） |
+| ③ 体块形态 | **无裙楼**、点式塔直落地面 | 逐层**阳台挑板** | **2 层大裙楼**（×1.18）+ 底盘贯通灯带 |
+
+- **颜色一致原则**：楼栋颜色 = `tokens.category.<cat>`（或 `spec.tokens.category.<cat>` 覆盖、`generate_theme.py --brand` 派生），与 type 无关。`tokens.buildingType.<type>` 是**可选覆盖通道**——仅当用户显式要求按类型区分颜色时才配置（优先级高于 category 链；默认主题不配）。
+- **窗参四级合并**：内置 `DEFAULT_WINDOWS` → `tokens.windows`（风格通用）→ 内置 `KIND_WINDOWS[type]` 预设（**类型签名，压过风格通用值**——3 个内置主题都配了完整 windows 块，否则类型差异会被抹平）→ `tokens.windows.types.<type>`（换肤微调最末级）。换肤微调（如把居民楼 warmRatio 调到 0.95）改 `windows.types.<type>` 即可；新旋钮 `winWRatio`（窗宽占比）与 `storefront`（底层橱窗）同样可覆盖。
+- **缺省 = 通用楼**：不给 `type` 的楼渲染与 v2.29 完全一致；`category:'garage'` 时 type 无意义。
+- **图例**：`generate_data.py` 缺省 legend 会扫描 spec 实际用到的 type 自动补「写字楼/居民楼/商业」条目（color 留空——色块回退 `var(--twin-building-type-*)`，未配 buildingType 时再回退 category 色，故默认与楼色一致）。
+- 校验：`validate_spec.py` 对未知 type FAIL（schema enum + 手工兜底）；`spec.tokens` 覆盖白名单开放 `buildingType.` 与 `windows.` 前缀。
+
 ## 阶梯裙楼建模
 
 `BuildingSpec.floors` 是**统一整数**——无法把一栋楼渲染成「主体 N 层、局部 M 层」的阶梯造型。**推荐方案**：拆多栋 + `connects`——将阶梯裙楼拆为多个 `BuildingSpec`，每段一层用一栋楼 + `connects` 字段豁免 AABB 间距校验：
@@ -249,6 +269,7 @@ interface UnitTemplate {
 | `style` | 选取 `assets/themes/<style>.tokens.json` + 渲染器/灯光/材质/地面分支（见 `styles.md`） |
 | `tokens` / `shaders` | CSS 变量、`theme.ts`、Three.js `Color`、着色器 uniform（唯一事实来源；`shaders` 仅 `cyber` 消费） |
 | `buildings[].category` | 3D 材质/边线颜色 + 图例色块 + 车库入口渲染分支（**静态**） |
+| `buildings[].type` | v2.30 类型化外观：窗户/灯光模式 + 立面基色 + 体块形态（**静态**） |
 | `buildings[].name` | 楼顶常驻标签 + 切换器标签 + 详情标题（**动态：`getBuildings()`**） |
 | `buildings[]` 几何 | 占地底板（**静态**）；挤出高度/楼层拾取板/楼层虚线分隔由动态 `floors`/`floor_ids` 驱动（**`getBuildings()`**） |
 | `garage` 类别楼栋 + `facing` | 半金字塔三角门入口 + P 牌（**静态**；占用走 `getPois()` 停车场 POI 的 `occupancy`） |

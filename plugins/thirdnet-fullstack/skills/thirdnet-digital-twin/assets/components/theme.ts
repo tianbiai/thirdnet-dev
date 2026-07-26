@@ -51,6 +51,8 @@ export interface ThemeTokens {
   palette: Record<string, string>
   accents: Record<string, string>
   category: Record<string, string>
+  /** v2.30 楼栋类型基色【可选覆盖，默认不配】——类型只区分构造外观、颜色默认全类型一致；仅用户显式按类型分色时定义。 */
+  buildingType?: Record<string, string>
   building: {
     roomShade: number
     dividerColor: string

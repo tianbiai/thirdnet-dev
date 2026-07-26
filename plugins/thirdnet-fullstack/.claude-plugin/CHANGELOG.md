@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.30.0 - 2026-07-26
+
+### Added
+- **thirdnet-digital-twin v2.30.0「楼栋类型化外观」**：新增 `spec.buildings[].type`（office 写字楼 / residential 居民楼 / commercial 商业，缺省=通用楼），解决「写字楼和居民楼长得一样」——三维度**构造**差异且 3 种风格全覆盖：① 窗户/灯光图案（写字楼横带幕墙密集冷光 / 居民楼单元小窗稀疏暖光 / 商业底层贯通橱窗恒亮，`windows.types.<type>` 四级合并可换肤覆盖）；② 立面纹理构造（日景窗框占比/窗台线）；③ 体块形态（写字楼无裙楼 / 居民楼逐层阳台挑板 / 商业 2 层大裙楼+底盘灯带）。**类型只分构造、不分颜色**：全类型统一 category 配色链（默认色或用户指定色），`tokens.buildingType` 仅为显式按类型分色的可选覆盖。type 缺省时渲染与 v2.29 逐项相等（向后兼容）。契约链同步：spec/tokens schema、validate_spec（type 枚举 FAIL + 覆盖白名单开放 `buildingType.`/`windows.`）、generate_data（缺省 legend 自动补类型条目）、LegendPanel 色块回退 `--twin-building-type-*`。
+
+## 2.29.1 - 2026-07-26
+
+### Fixed
+- **thirdnet-digital-twin v2.29.1**：修复 `park-scene.impl.ts` 少声明 `private lastUserInteractMs` 字段（`onPointerMove` 拖拽中赋值但类中无声明），独立工程 `vue-tsc --noEmit` 报 TS2339。已补声明，typecheck 干净通过。
+
 ## 2.28.1 - 2026-07-26
 
 ### Changed

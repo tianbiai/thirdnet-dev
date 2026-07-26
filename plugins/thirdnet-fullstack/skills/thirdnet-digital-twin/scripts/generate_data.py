@@ -225,6 +225,8 @@ def render_scaffold(spec: dict) -> str:
         "export interface ScaffoldBuilding {",
         "  id: string",
         "  category: string           // 楼栋类别：garage=地面入口三角门标记；其余（building/factory/warehouse/residential…）=挤出楼栋",
+        "  /** v2.30 楼栋类型（可选）：office=写字楼 / residential=居民楼 / commercial=商业——驱动类型化外观（窗光模式/立面基色/体块形态）；缺省=通用楼 */",
+        "  type?: 'office' | 'residential' | 'commercial'",
         "  w: number              // 占地宽（世界单位）",
         "  d: number              // 占地深",
         "  x: number              // 中心坐标 X",
@@ -295,7 +297,7 @@ def render_scaffold(spec: dict) -> str:
         "  buildings: ScaffoldBuilding[]",
         "  garages?: ScaffoldGarage[]   // v2.6 地下车库负层（缺省 = 无地下层）",
         "  environment: ParkEnvironment",
-        "  legend: { label: string; category: string; color: string }[]",
+        "  legend: { label: string; category: string; color: string; type?: string }[]",
         "  corridor?: CorridorSpec",
         "  cameraTour?: CameraTourSpec",
         "  tokens?: Record<string, unknown>   // spec.tokens per-park 覆盖 → GlobalTwin onMounted applyCssVars 注入 --twin-*",
@@ -313,9 +315,10 @@ def render_scaffold(spec: dict) -> str:
         facing = f", facing: '{b['facing']}'" if b.get("facing") else ""
         connects = b.get("connects")
         connects_str = f", connects: {connects}" if connects else ""
+        type_str = f", type: '{b['type']}'" if b.get("type") else ""
         lines.append(
             f"    {{ id: '{b['id']}', category: '{b['category']}', w: {b['w']}, d: {b['d']}, "
-            f"x: {b['x']}, z: {b['z']}{facing}{connects_str} }},"
+            f"x: {b['x']}, z: {b['z']}{facing}{connects_str}{type_str} }},"
         )
     lines.append("  ],")
 
@@ -376,13 +379,21 @@ def render_scaffold(spec: dict) -> str:
     else:
         lines.append("  environment: {},")
 
-    # legend —— spec.legend 缺省时按类别给默认（颜色与 token category 一致由 validate_spec 复核）
-    legend = spec.get("legend") or [
-        {"label": "楼幢", "category": "building", "color": ""},
-        {"label": "地下车库", "category": "garage", "color": ""},
-    ]
+    # legend —— spec.legend 缺省时按类别给默认（颜色与 token category 一致由 validate_spec 复核）；
+    # v2.30：扫描 buildings 实际用到的 type，按稳定顺序（building→office→residential→commercial→garage）
+    # 补「写字楼/居民楼/商业」条目（color 留空走 token 的 buildingType 块，CSS 变量 --twin-building-type-*）。
+    legend = spec.get("legend")
+    if not legend:
+        legend = [{"label": "楼幢", "category": "building", "color": ""}]
+        used_types = {b.get("type") for b in buildings if b.get("type")}
+        for t, lbl in (("office", "写字楼"), ("residential", "居民楼"), ("commercial", "商业")):
+            if t in used_types:
+                legend.append({"label": lbl, "category": "building", "color": "", "type": t})
+        legend.append({"label": "地下车库", "category": "garage", "color": ""})
     legend_items = ", ".join(
-        f"{{ label: '{e.get('label', e.get('category'))}', category: '{e.get('category', 'building')}', color: '{e.get('color', '')}' }}"
+        f"{{ label: '{e.get('label', e.get('category'))}', category: '{e.get('category', 'building')}', color: '{e.get('color', '')}'"
+        + (f", type: '{e['type']}'" if e.get("type") else "")
+        + " }"
         for e in legend
     )
     lines.append(f"  legend: [{legend_items}],")

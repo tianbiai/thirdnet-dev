@@ -208,6 +208,21 @@
         "validate_spec.py returns exit 1 with specific FAIL lines for a bad cameraTour (speed=0, framingK=1.5, elevation=2, unknown key) and exit 0 for a valid/omitted one",
         "The tour works across all 3 styles without breaking the existing framing / engine realism enhancements (env map, bloom, AO — enabled in realistic/night-realistic, retained-but-off in cyber) — tour only changes framing + autoRotate, not materials/lights"
       ]
+    },
+    {
+      "id": 19,
+      "name": "building-type-differentiation",
+      "prompt": "我们的园区数字孪生里写字楼和居民楼长得一模一样，业主方吐槽分不清。帮我让不同类型楼栋外观区分开：园区里有写字楼A座（22层点式塔楼）、居民楼B栋（15层板式）、商业中心（12层带底商）。希望一眼能看出哪个是办公楼、哪个是住宅、哪个是商业。",
+      "expected_output": "Spec 中 3 栋楼使用 buildings[].type（office/residential/commercial，v2.30）并通过 validate_spec.py；生成场景在 3 种风格下类型可辨——写字楼=横带幕墙+密集冷光窗阵+无裙楼，居民楼=单元小窗+稀疏暖光+逐层阳台挑板，商业=2 层大裙楼+底盘贯通灯带橱窗；**颜色全类型一致**（统一 category 配色链，默认色或用户指定色；buildingType 仅为显式按类型分色的可选覆盖）；图例含写字楼/居民楼/商业条目且色块与楼色一致；未标 type 的楼渲染与旧版一致。",
+      "files": [],
+      "expectations": [
+        "Spec buildings 使用 type: office/residential/commercial 字段（v2.30），且 validate_spec.py 通过（exit 0）",
+        "不同类型楼栋基色一致（统一 category 配色链；不在主题/ spec 里按类型散落 hex，除非用户显式要求按类型分色才用 buildingType 块）",
+        "ParkScene 按 type 区分窗户图案：写字楼 winWRatio≈0.82 横带窗+冷光为主（warmRatio 低），居民楼 winWRatio≈0.34 小窗+暖光为主，商业底层 storefront 恒亮橱窗",
+        "写字楼无裙楼（podiumMaterial=null）、居民楼有逐层阳台挑板、商业有 2 层大裙楼+底盘灯带（buildBuilding kind/KIND_MASSING 驱动）",
+        "缺省 legend 自动补「写字楼/居民楼/商业」条目，LegendPanel 色块回退 var(--twin-building-type-*)（未配 buildingType 时与楼色一致）",
+        "未指定 type 的楼栋渲染参数与 default 合并结果一致（向后兼容）"
+      ]
     }
   ]
 }

@@ -117,6 +117,8 @@ ground.rotation.x = -Math.PI / 2
 
 对每个 `BuildingSpec`，挤出一个盒体并按类别上色。**颜色所有风格一致**（token `category` 映射）；**材质按风格替换**（cyber 自发光 `MeshStandardMaterial`；realistic/night-realistic PBR）。幕墙纹理 + 楼层环线 + 屋顶轮廓已固化在 `park-scene.impl.ts` + `building-geometry.ts`，直接复用。
 
+**v2.30 楼栋类型化外观**：`BuildingSpec.type`（`office`/`residential`/`commercial`，缺省=通用楼）让类型取代「千楼一面」。**类型只区分构造、不改变颜色**（全类型统一走 category 配色链，默认色或用户指定色；`buildingType` 块仅为显式按类型分色的可选覆盖，默认不配）。三个构造维度：① 窗户/灯光图案（`windowsTokens(kind)` 四级合并 + `KIND_WINDOWS` 预设，见 §15）；② 立面纹理构造（日景 `KIND_FACADE_DAY` 窗框占比/窗台线）；③ 体块形态（`building-geometry.ts` 的 `KIND_MASSING`：office 无裙楼 / residential 逐层阳台挑板 / commercial 2 层大裙楼+底盘灯带）。kind 在 `extrudeBuildings` 派生一次**显式下传**所有下游函数（禁止各处回查 spec——albedo 与 emissiveMap 两条路径必然同 kind，防贴图错位）；`type` 缺省的楼渲染与 v2.29 逐项相等。类型语义与参数表见 `park-spec.md`「楼栋类型语义」。
+
 ```ts
 const CATEGORY_COLOR: Record<Category, number> = { building: 0x27a8ff, garage: 0x3df0c8 }  // 从 token 派生，绝不硬编码
 
@@ -430,11 +432,12 @@ class ParkScene {
 
 ### §15.2 逐层窗户布局（`computeWindowLayout`，确定性——albedo 与 emissive 各调一次结果一致）
 
-- **度量** `windowMetricsTower(w, floors)`：画布 `min(720,max(256, w*3))` × 按立面比的高；`rooms = windows.roomsAxisTower`（默认 3）、`cellW=padW/rooms`、`winW=cellW*0.5`、`rowH=padH/floors`、`insetY=rowH*0.22`。
+- **度量** `windowMetricsTower(w, floors, kind)`：画布 `min(720,max(256, w*3))` × 按立面比的高；`rooms = windows.roomsAxisTower`（默认 3）、`cellW=padW/rooms`、`winW=cellW*winWRatio`（v2.30 前恒 0.5；写字楼 0.82 横带幕墙、居民楼 0.34 单元小窗）、`rowH=padH/floors`、`insetY=rowH*0.22`。
+- **v2.30 类型化窗参（四级合并）**：`windowsTokens(kind)` = 内置 `DEFAULT_WINDOWS` → `tokens.windows`（风格通用）→ 内置 `KIND_WINDOWS[kind]` 预设（**类型签名，压过风格通用值**：office 6 列冷光密集 / residential 4 列暖光稀疏 / commercial 底层 storefront）→ `tokens.windows.types.<kind>`（换肤微调最末级）。`storefront=true`（商业）时底层行替换为贯通整面宽的恒亮橱窗 cell（暖色、不进动画子集）。
 - **砖错位面板** `floorRoomDividerFracs(floorIndex, rooms)`：偶数层相位 0、奇数层相位 `0.5/rooms`（半面板偏移），相邻层窗户不连成长条。面板像素宽 < `winW*1.1` 自动过滤；Fisher-Yates 洗牌（确定性）后取 `want = 2..5` 窗；窗在面板内中心抖动。
 - **分层点亮率**（注意 BoxGeometry `flipY`：canvas 行 0=顶层、行 `rows-1`=底层）：底层 `litRatio.ground`（默认 0，商业/大堂夜间暗）、顶层 `litRatio.top`（默认 0.22，住宅较稀）、中层 `litRatio.middle`（默认 0.38，最密）。
 - **暖冷双辉光**：亮窗按 `warmRatio`（默认 0.7）选 `warmColor`（`#ffd989`）/ `coolColor`（`#bfe2ff`）。
-- **确定性**：点亮种子 `mulberry32(hashStr('lit:'+seedSalt+':'+buildingId))`；动画子集选择 `mulberry32(hashStr('flip:'+seedSalt+':'+buildingId))`（独立流，与点亮无关——亮可灭、灭可亮）。禁用 `Math.random`。
+- **确定性**：点亮种子 `mulberry32(hashStr('lit:'+seedSalt+':'+buildingId))`；动画子集选择 `mulberry32(hashStr('flip:'+seedSalt+':'+buildingId))`（独立流，与点亮无关——亮可灭、灭可亮）。禁用 `Math.random`。**种子串不含 kind**（v2.30 纪律：种子不变、参数变，albedo/emissive 两次调用仍逐像素一致）。
 
 ### §15.3 开关灯动画（dirty-gated 局部重绘，reduced-motion 关闭）
 
