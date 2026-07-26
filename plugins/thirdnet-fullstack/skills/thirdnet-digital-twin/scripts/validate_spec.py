@@ -47,7 +47,7 @@ except ImportError:
 
 KNOWN_CATEGORIES = {"building", "garage"}
 # v2.5：恢复 realistic / night-realistic 两写实风格（激活 envMap/GTAO/反射/软阴影/雾）。
-VALID_STYLES = {"cyber", "holographic", "isometric", "nebula", "realistic", "night-realistic"}
+VALID_STYLES = {"cyber", "isometric", "realistic", "night-realistic"}
 VALID_ROAD_SHAPES = {"loop", "cross", "grid", "none"}
 VALID_TREE_DENSITY = {"sparse", "normal", "lush"}
 VALID_FACING = {"N", "S", "E", "W"}
@@ -594,6 +594,23 @@ def validate(spec):
                             warnings.append(
                                 f"environment.surfaceParking: 车位密度 {density*100:.1f}% "
                                 f"> 20% (boundary {bx}×{bz} 较紧)；考虑扩 boundary 或拆 multi-lot"
+                            )
+
+                # v2.17：车位越界提示。引擎 buildSurfaceParking 用二维网格（stallW14×stallD26、
+                # rowStep22、margin70）由边界反推容量；超出部分会被自动截断。这里按同公式估 maxStalls，
+                # stalls 超出时 WARN，建议调小或扩 boundary。
+                if is_number(sp.get("stalls")) and _bnd is not None:
+                    bx = _bnd.get("x", 360); bz = _bnd.get("z", 220)
+                    if bx > 140 and bz > 140:
+                        stall_w, stall_d, row_step, margin = 14, 26, 22, 70
+                        max_cols = max(1, (2 * (bz - margin)) // stall_d)
+                        max_rows = max(1, (2 * (bx - margin)) // row_step)
+                        max_stalls = max_cols * max_rows
+                        if sp["stalls"] > max_stalls:
+                            warnings.append(
+                                f"environment.surfaceParking.stalls={sp['stalls']} 超出 boundary "
+                                f"{bx}×{bz} 可容纳车位网格 ≈{max_stalls}（{max_rows}排×{max_cols}列）；"
+                                f"引擎将自动截断到 {max_stalls}，建议调小 stalls 或扩 boundary"
                             )
 
         gr = env.get("greenery")

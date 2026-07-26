@@ -10,7 +10,7 @@
     "title": { "type": "string", "minLength": 1 },
     "style": {
       "type": "string",
-      "enum": ["cyber", "holographic", "isometric", "nebula", "realistic", "night-realistic"]
+      "enum": ["cyber", "isometric", "realistic", "night-realistic"]
     },
     "stage": {
       "type": "object",
@@ -98,7 +98,7 @@
     "previewStyles": {
       "type": "array",
       "description": "v2.12 多风格预览清单。提供则 UI 端可实时切换风格（无需重新加载）；风格取自 Style 枚举。缺省 = 仅 spec.style 一套。配合 useStyle 单例与 StyleSwitcher.vue 使用。",
-      "items": { "type": "string", "enum": ["cyber", "holographic", "isometric", "nebula", "realistic", "night-realistic"] }
+      "items": { "type": "string", "enum": ["cyber", "isometric", "realistic", "night-realistic"] }
     }
   },
   "$defs": {

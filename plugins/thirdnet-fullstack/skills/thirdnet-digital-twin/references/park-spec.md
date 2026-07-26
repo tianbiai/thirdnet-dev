@@ -46,7 +46,7 @@ interface ParkSpec {
   corridor?: CorridorSpec            // 空中连廊；缺省 = 不画连廊
 }
 
-type Style = 'cyber' | 'holographic' | 'isometric' | 'nebula' | 'realistic' | 'night-realistic'
+type Style = 'cyber' | 'isometric' | 'realistic' | 'night-realistic'
 
 interface BuildingSpec {
   id: string                          // slug，唯一 —— 切换器/选中/详情
@@ -166,7 +166,7 @@ interface ParkEnvironment {
 interface CameraTourSpec {
   enabled?: boolean                   // 首屏自动开启；默认 false
   speed?: number                      // autoRotateSpeed（度/帧）；默认 0.6
-  elevation?: number                  // 巡航俯角 rad；默认 1.0 鸟瞰；钳到 polar[0.5,π-0.1]
+  elevation?: number                  // 巡航俯角 rad；默认 1.0 鸟瞰；钳到 polar[0.08,π-0.1]（v2.18 起 minPolarAngle 0.5→0.08）
   framingK?: number                   // 巡航取景内容占比；默认 0.55
   pauseOnInteract?: boolean           // 用户拖拽自动退出；默认 true
 }

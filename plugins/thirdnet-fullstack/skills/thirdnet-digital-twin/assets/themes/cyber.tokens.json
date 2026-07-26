@@ -63,9 +63,25 @@
     "ramp": "#10283a"
   },
   "building": {
-    "_comment": "v1.4/v1.7 楼栋楼层/贴砖层次（§4.1）。roomShade = 每层 1–5 块贴砖相对类别色的明度偏移幅度（HSL lightness ±），v1.7 起派生 light/dark 两色让相邻贴砖强对比交替；dividerColor = 贴砖之间竖实线 + 楼层之间横向虚线分隔的颜色（自发光青）。",
+    "_comment": "v1.4/v1.7 楼栋楼层/贴砖层次（§4.1）。roomShade = 每层 1–5 块贴砖相对类别色的明度偏移幅度（HSL lightness ±），v1.7 起派生 light/dark 两色让相邻贴砖强对比交替；dividerColor = 贴砖之间竖实线 + 楼层之间横向虚线分隔的颜色（自发光青）；edgeColor 缺省回退 dividerColor（cyber 轮廓本就亮青、暗天空下可辨，无需单独配）。",
     "roomShade": 0.16,
     "dividerColor": "#7ff5ff"
+  },
+  "windows": {
+    "_comment": "v2.17 深色风格发光窗流水线（扩自 night-realistic）：cyber 楼幢由「整栋均匀霓虹蓝自发光」转为「深青蓝 albedo 墙 + 点亮窗户辉光」。墙面 gradient 取深青蓝（仍读作 cyber 蓝），熄窗 glassOff 深蓝黑，亮窗暖/冷辉光 + bloom 溢出；开关灯动画同 night-realistic。",
+    "roomsAxisTower": 3,
+    "roomsAxisPodium": 5,
+    "litRatio": { "ground": 0.0, "middle": 0.38, "top": 0.22 },
+    "warmColor": "#ffd989",
+    "coolColor": "#bfe2ff",
+    "warmRatio": 0.7,
+    "glassOff": "#0a1a2e",
+    "gradient": { "top": "#1a3358", "bottom": "#0c1c34" },
+    "animRatio": 0.2,
+    "fadeMs": 800,
+    "flipMinMs": 3000,
+    "flipVarMs": 8000,
+    "emissiveIntensity": 1.2
   },
   "lights": {
     "_comment": "v1.8 灯光配色（单一事实来源，styles.md 引用、不再散落 hex）。cyber 刻意平——一个 HemisphereLight + 一盏柔和 DirectionalLight；不投 VSM 阴影、不挂 PointLight（靠自发光 + 可选 bloom 表现灯光）。sun/hemiSky/hemiGround 为 hex 字符串；ambient/point 为 null 表示该风格不用此光源。v1.9：sunIntensity/hemiIntensity 微调上调 + 新增 ambientFloor（一道极弱环境光兜底），消除未受光面纯黑；仍保持赛博平光气质。",
@@ -76,32 +92,32 @@
     "hemiIntensity": 0.7,
     "ambient": null,
     "ambientIntensity": 0.0,
-    "ambientFloor": 0.2,
+    "ambientFloor": 1.2,
     "point": null,
     "pointIntensity": 0.0,
     "pointDistance": 0.0
   },
   "ground": {
     "_comment": "v1.9 园区地面纹理（§3）。cyber 主用 gridGround.glsl 着色器地面；本块仅作 shader 编译/uniform 绑定失败时的降级（environment.city-ground 纯色 + 程序化青网格 CanvasTexture），保证地面永不消失/不发黑。",
-    "texture": { "type": "grid", "base": "#080418", "line": "#1de9ff", "cell": 46 }
+    "texture": { "type": "grid", "base": "#130b30", "line": "#1de9ff", "cell": 46 }
   },
   "shaders": {
     "_comment": "v1.8 Default uniform values carried by the .pen's shader fills (override per-park). gridGround.glsl 还需要一个 vec2 u_scale uniform = 平面像素范围；它由几何派生而非配色，默认 u_scale = vec2(boundary.x*2, boundary.z*2)（见 scene-recipe.md §3 顶点着色器接线），不在此处给固定值。",
-    "grid": { "u_gridColor": "#2a7fff", "u_cell": 46, "u_strength": 0.85 }
+    "grid": { "u_gridColor": "#2a7fff", "u_cell": 46, "u_strength": 1.3 }
   },
   "environment": {
     "_comment": "v1.2 园区环境配色（道路/车位/绿化/路灯等，§10）。赛博气质：深蓝灰沥青 + 发光青色标线 + 暗紫青草地 + 霓虹树冠边光。所有颜色经此派生，不散落 hex。v1.8 groundGlow 默认 true（赛博地面发光标线，§10 buildAmbiance）。",
-    "city-ground": "#080418",
+    "city-ground": "#382a60",
     "groundGlow": true,
-    "road": "#0c1430",
-    "roadLine": "#2bd4ff",
-    "sidewalk": "#13204a",
-    "grass": "#13304a",
-    "treeTrunk": "#1a1028",
-    "treeCanopy": "#1c4a5a",
+    "road": "#2e4a78",
+    "roadLine": "#3de4ff",
+    "sidewalk": "#2e4070",
+    "grass": "#5a7888",
+    "treeTrunk": "#3a2858",
+    "treeCanopy": "#607888",
     "lampGlow": "#7ff5ff",
     "vehicle": "#1e6fff",
-    "roadMarking": "#2bd4ff",
+    "roadMarking": "#3de4ff",
     "water": "#0a4a6e",
     "rooftop": "#160a30",
     "_v21_comment": "v2.1 新增：roadMarking=内部道路中央虚线/斑马线/箭头色（赛博发光青）；water=水景水面色；rooftop=楼顶电梯机房/天线设备色。"

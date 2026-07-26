@@ -24,7 +24,7 @@ v1.x 的生成路径是「读 scene-recipe.md 散文 + 指向未随技能发布�
 **四个 v2.0 实测 bug 修复**（都在范式实现里，拷贝即修复）：
 
 1. **楼名标签埋进塔体**：`building-geometry.ts` 旧式 `label.y = h/2 + 22`——高楼（h > 44）标签被埋进塔体内部不可见。修复为 `y = h + 22`（屋顶上方）。
-2. **浅色风格标签黑块**：旧式标签配对 `(void-bg, cyan-bright)` 在 isometric 等亮底风格两字色都偏亮，违反 §4.2「亮底深字 / 暗底亮字」。修复为走 token `ui.labelBg/labelText`（6 风格各自的高对比配对）。
+2. **浅色风格标签黑块**：旧式标签配对 `(void-bg, cyan-bright)` 在 isometric 等亮底风格两字色都偏亮，违反 §4.2「亮底深字 / 暗底亮字」。修复为走 token `ui.labelBg/labelText`（4 风格各自的高对比配对）。
 3. **取景偏小**：`frameCamera()` 旧式用默认 18 层估算 Hmax——实际楼层更少时园区只占画面 ~1/3。修复为水合后用真实最高楼层（`maxBuildingHeight()`），`hydrateBuildings()` 末尾重新 `frameCamera()`。
 4. **`buildCorridor` 空指针**：未配置 `scaffold.corridor` 的园区 `c.floor` 直接抛 TypeError。修复为 `if (!c) return`。
 
@@ -77,13 +77,11 @@ for (const s of slabs) this.pickables.push(s)
 | 风格 | toneMapping | 阴影 | 环境贴图 (RoomEnvironment PMREM) | Bloom (UnrealBloomPass) | GTAO | 地面反射 (Reflector) | 渐变背景 | 环境光下限 | 程序化地面纹理 |
 |---|---|---|---|---|---|---|---|---|---|
 | cyber | ACES 1.0 | ✗ | ✗ | ✅ 0.25 | ✗ | ✗ | ✅+暗星 | ✅ | grid shader |
-| holographic | ACES 1.0 | ✗ | ✗ | ✅ 0.3 | ✗ | ✗ | ✅+暗星 | ✅ | dots |
-| nebula | ACES 1.0 | ✗ | ✗ | ✅ 0.5 | ✗ | ✗ | ✅+星月 | ✅ | dots |
 | isometric | None | ✗ | ✗ | ✗ | ✗ | ✗ | ✅ | ✅ | grid |
 | realistic | ACES 1.0 | ✅ | ✅ | ✅（弱） | ✅ | ✗ | ✅+白云日空 | ✅ | pbr 地面（真实窗户立面） |
 | night-realistic | ACES 1.0 | ✅ | ✅ | ✅（强） | ✅ | ✅ Reflector | ✅+星空月色 | ✅ | 湿润反射地面（夜间发光窗） |
 
-环境贴图 / GTAO / 地面反射是 **v2.0 写实增强层保留的引擎能力**（接受 ~15–25% 帧率成本）。**v2.5 起 `realistic`/`night-realistic` 两风格已激活**（RoomEnvironment 环境贴图 + GTAO + 2048² 软阴影；night-realistic 额外开 Reflector 湿润反射 + 雾 + 强 bloom + 夜间发光窗）——以提交的 `assets/themes/realistic|night-realistic.tokens.json` 驱动。**cyber/holographic/nebula/isometric 4 风格仍守纪律**：无环境贴图、无 AO、PointLight≤8、transmission 禁用、DPR≤2。天空元素开关在各风格 token 的 `scene.sky`（v2.1）。
+环境贴图 / GTAO / 地面反射是 **v2.0 写实增强层保留的引擎能力**（接受 ~15–25% 帧率成本）。**v2.5 起 `realistic`/`night-realistic` 两风格已激活**（RoomEnvironment 环境贴图 + GTAO + 2048² 软阴影；night-realistic 额外开 Reflector 湿润反射 + 雾 + 强 bloom + 夜间发光窗）——以提交的 `assets/themes/realistic|night-realistic.tokens.json` 驱动。**cyber/isometric 2 风格仍守纪律**：无环境贴图、无 AO、PointLight≤8、transmission 禁用、DPR≤2。天空元素开关在各风格 token 的 `scene.sky`（v2.1）。
 
 ## token.realism 旋钮（调参表面）
 
@@ -101,10 +99,10 @@ for (const s of slabs) this.pickables.push(s)
 ```
 
 调参建议：
-- **玻璃太像镜子/发白**：降 `material.metalness`（0.9→0.8）、提 `roughness`（0.1→0.2）、降 `material.envMapIntensity`。
-- **整体过曝**：降该风格 `profile.toneExposure`（在 ParkScene.ts 的 PROFILES）或 token 调不动时改这里；或提 `bloom.threshold`。
-- **夜景太暗看不清楼**：提 `lights.ambientFloor`（0.18→0.22）或 `sunIntensity`。
-- **夜景 bloom 太冲**：降 `bloom.strength`（0.45→0.3）、提 `bloom.threshold`（0.5→0.7）。
+- **玻璃太像镜子/发白**：降 `material.metalness`、提 `roughness`、降 `material.envMapIntensity`。v2.20 night-realistic 实测基线：`envMapIntensity 2.0→0.3` + `roughness 0.3→0.65` + `metalness 0.15→0.05`（偏哑光混凝土，用户反馈「玻璃反光太强」的解）。
+- **整体过曝**：v2.19 起曝光优先走 `realism.exposure` token（`applyProfile` 优先读、缺省回退 `PROFILES.toneExposure`）——降该 token，或提 `bloom.threshold`。**不要直接改 `PROFILES.toneExposure`**（已被 token 覆盖、是死值）。
+- **夜景太暗看不清楼/地面**：v2.20 实测 `ambientFloor` 须到 ~1.2（cyber/night-realistic；旧值 ~0.2 在 ACES + 弱光下把受光物体压成近黑）；地面暗另查路灯 PointLight（提 `pointIntensity`/`pointDistance` 扩亮斑）+ reflBack `emissive`（俯视中央不黑）。
+- **夜景 bloom 太冲**：v2.20 night-realistic 基线 `bloom.strength 0.18` / `threshold 0.8`（旧 0.45/0.6 已大幅调低）；仍冲就继续降 strength 或提 threshold。
 - **星星被 bloom 晕成雪片**（v2.1）：星星 alpha 必须低于 bloom 阈值——已经写死在 `makeBackgroundTexture`（≤0.45），不要调高。
 - **地面反射掉帧**：关 `reflection.enabled`（降级为普通深色地面，视觉等价于预烘焙反射纹理）。
 
@@ -118,7 +116,10 @@ for (const s of slabs) this.pickables.push(s)
 ## 不要做什么
 
 - ❌ 不要把 `realism` 数值硬编码进 ParkScene.ts 的材质构造——一律读 token（v2.5：`ao.radius`/`reflection.mixStrength`/`shadow.radius` 都已接通 token，勿改回硬编码）。
-- ❌ 不要为追求「更真实」给 cyber/holographic/nebula/isometric 4 风格开环境贴图/AO/反射——破坏既有纪律（cyber/holo/nebula 靠自发光+bloom、isometric 靠哑光）；写实效果只走 `realistic`/`night-realistic` 两风格（其 token 已配好）。
+- ❌ 不要为追求「更真实」给 cyber/isometric 2 风格开环境贴图/AO/反射——破坏既有纪律（cyber 靠自发光+bloom、isometric 靠哑光）；写实效果只走 `realistic`/`night-realistic` 两风格（其 token 已配好）。
+- ℹ️ **发光窗 ≠ 写实引擎**（v2.17）：cyber 现在也走程序化发光窗流水线（emissive+emissiveMap+bloom），这是 emissive 自发光、不属于上面禁开的 envMap/AO/反射，故不破坏纪律。改窗光气质只改对应 `assets/themes/<style>.tokens.json` 的 `windows` 块（2 个深色风格各一块）。
+- ℹ️ **夜景楼幢轮廓**（v2.17）：立体轮廓 `EdgesGeometry` 色单独走可选 token `building.edgeColor`（缺省回退 `dividerColor`）。night-realistic 配淡色 `edgeColor`（如 `#a8c0d8`）让楼幢 silhouette 在暗天空下可辨——旧版用极暗 `dividerColor` 轮廓融入背景看不清。逐层虚线分隔仍用 `dividerColor`。
+- ℹ️ **地面内外透明**（v2.17）：外圈城市地面全透明（`opacity:0`）、园区内地面保证不透明（cyber 网格 / night Reflector 半透，其下 `y=-0.05` 加不透明衬底）。改外圈透明度/衬底色直接改 `buildGround()`，勿在它处重建地面。
 - ❌ 不要在生成时手写 5 文件契约层——4 个静态样板从 `assets/api/` 拷贝（mock 数据由 `generate_data.py` 生成）。
 - ❌ 不要在真实 canvas 上 `getContext('webgl2')` 探测——用范式实现的 `detectWebGL2`。
 - ❌ 不要每帧重算环境贴图——它是 `buildEnvironmentMap` 一次性烘焙。亮窗 emissiveMap **静态亮窗也是一次性烘焙**（`buildWindowEmissive`），但 v2.15 起夜景开关灯动画允许 **dirty-gated 局部重绘**：仅对动画子集（≤ `windows.animRatio`·窗数、`prefers-reduced-motion` 门控）在翻转/渐变帧 `clearRect`+重绘其小矩形、仅脏帧 `tex.needsUpdate=true`（`updateFacade`）。**禁止整图全量重烘焙** emissiveMap（重现 v2.5 错位 + 性能崩）。

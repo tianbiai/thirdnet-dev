@@ -21,7 +21,7 @@
     "magenta-bright": "#f6b4a8",
     "magenta-dim": "#c46a5a",
     "mint": "#48c78a",
-    "_magenta_note": "v1.8 此风格 magenta 实为鲑鱼粉/珊瑚色（插画友好色），并非品红；生成器若需品红语义请改用 cyber/holographic。"
+    "_magenta_note": "v1.8 此风格 magenta 实为鲑鱼粉/珊瑚色（插画友好色），并非品红；生成器若需品红语义请改用 cyber。"
   },
   "accents": {
     "blue": "#5b8def",

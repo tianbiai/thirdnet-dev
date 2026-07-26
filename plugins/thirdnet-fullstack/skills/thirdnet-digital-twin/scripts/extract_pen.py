@@ -261,7 +261,7 @@ def build_draft(pen):
             "If a building's floors/units header was missing (no recognized pattern), add floors manually "
             "— validate_spec.py now FAILS on a category:'building' entry without floors (v1.8).",
             "style defaults to 'cyber'. If the .pen clearly implies a different look, change style "
-            "to one of: cyber | holographic | isometric | nebula | realistic | night-realistic (see "
+            "to one of: cyber | isometric | realistic | night-realistic (see "
             "references/styles.md) and confirm with the user.",
             "v2.0 写实旋钮（material/bloom/ao/reflection/fog/sun）随风格在 assets/themes/<style>.tokens.json "
             "的 realism 块给出默认值，一般无需改。如需微调写实观感（玻璃镜面感、夜景辉光强度、雾、太阳角度），"

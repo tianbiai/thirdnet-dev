@@ -673,7 +673,7 @@ def render_mock(spec: dict, rnd) -> str:
             f"fields: [{flds_str}], live: [{live_str}] "
             f"}},"
         )
-    lines.append("]")
+    lines.append("}")  # v2.18：mockPoiDetails 是 Record（对象）须用 } 闭合（旧版误用 ] 致 TS1136）
     lines.append("")
     return "\n".join(lines)
 

@@ -2,8 +2,8 @@
   "_comment": "Night-Realistic theme — v2.5 恢复的夜间写实风格（PBR + 夜景辉光）。配色单一事实来源。与 cyber 键集对齐保证 2D chrome 完整着色；区别在于深空夜色 + 激活全套写实引擎（envMap/GTAO/软阴影 + 地面湿润反射 + 雾 + 强 bloom + 暖色 PointLight 路灯 + 夜间发光窗）。换肤改本文件。",
   "scene": {
     "_comment": "夜间天空：顶→底深蓝渐变 + 星空 + 月亮（写进背景纹理，零运行时成本；种子确定性）。不开云。",
-    "bgTop": "#0a1428",
-    "bgBottom": "#050a14",
+    "bgTop": "#14264a",
+    "bgBottom": "#0a1428",
     "sky": { "clouds": false, "stars": true, "moon": true }
   },
   "palette": {
@@ -47,7 +47,7 @@
   },
   "category": {
     "_comment": "夜间楼栋：深钢色建筑（夜间发光窗叠在其上）+ 深绿车库。",
-    "building": "#5a6878",
+    "building": "#7a8898",
     "garage": "#3a8a6a"
   },
   "underground": {
@@ -63,9 +63,10 @@
     "ramp": "#10283a"
   },
   "building": {
-    "_comment": "夜间立面：roomShade 略大让发光窗对比明显；dividerColor=深窗框（夜间立面 emissiveMap 分层点亮窗户）。",
+    "_comment": "夜间立面：roomShade 略大让发光窗对比明显；dividerColor=深窗框（逐层虚线分隔，夜间立面 emissiveMap 分层点亮窗户）；edgeColor=淡冷月光色立体轮廓（v2.17——暗天空下让楼幢 silhouette 可辨，替代旧深色轮廓）。",
     "roomShade": 0.14,
-    "dividerColor": "#2a3a50"
+    "dividerColor": "#2a3a50",
+    "edgeColor": "#d8e6f8"
   },
   "windows": {
     "_comment": "v2.15 Park 流水线：3 列塔体窗、底层 0% 亮、顶层 22%、中层 38%；70/30 暖冷双辉光；20% 窗 3–11s 翻转、800ms smoothstep 渐隐。逐层砖错位面板切片 + dirty-gated 局部重绘 emissiveMap（reduced-motion 关闭）。换肤改本块即可调夜间窗光气质。",
@@ -81,21 +82,21 @@
     "fadeMs": 800,
     "flipMinMs": 3000,
     "flipVarMs": 8000,
-    "emissiveIntensity": 1.3
+    "emissiveIntensity": 1.6
   },
   "lights": {
     "_comment": "夜间自然光：冷月光 DirectionalLight（弱、高角度）+ 极弱 HemisphereLight；ambientFloor 兜底；暖色 PointLight 路灯（≤8、castShadow=false）点亮路面与建筑底部。",
     "sun": "#9fb4d0",
-    "sunIntensity": 0.5,
+    "sunIntensity": 1.0,
     "hemiSky": "#1a2638",
-    "hemiGround": "#0a1018",
-    "hemiIntensity": 0.35,
+    "hemiGround": "#4a5a70",
+    "hemiIntensity": 0.9,
     "ambient": null,
     "ambientIntensity": 0.0,
-    "ambientFloor": 0.18,
+    "ambientFloor": 1.2,
     "point": "#ffd09a",
-    "pointIntensity": 0.6,
-    "pointDistance": 200.0
+    "pointIntensity": 1530.0,
+    "pointDistance": 2800.0
   },
   "ground": {
     "_comment": "夜间湿润沥青：深色 tiles + 微反射标线（Reflector 地面反射叠加其上）。",
@@ -107,19 +108,19 @@
   },
   "environment": {
     "_comment": "夜间园区环境：深去饱和色——湿润深沥青道路、深混凝土、暗夜绿植被、暖橙路灯、深水面（反射夜空与发光窗）。groundGlow 关。",
-    "city-ground": "#0e1420",
+    "city-ground": "#98a6bd",
     "groundGlow": false,
-    "road": "#0e1420",
-    "roadLine": "#3a5070",
-    "sidewalk": "#2a3444",
-    "grass": "#243a2a",
-    "treeTrunk": "#1a1208",
-    "treeCanopy": "#1e3024",
+    "road": "#8090ae",
+    "roadLine": "#7a98c0",
+    "sidewalk": "#586478",
+    "grass": "#728672",
+    "treeTrunk": "#4a3828",
+    "treeCanopy": "#5e7262",
     "lampGlow": "#ffd09a",
-    "vehicle": "#2a3a5a",
-    "roadMarking": "#5a7090",
-    "water": "#1a3a5a",
-    "rooftop": "#2a3038"
+    "vehicle": "#3a4a6a",
+    "roadMarking": "#7890b0",
+    "water": "#2a5078",
+    "rooftop": "#3a4450"
   },
   "garageEntrance": {
     "_comment": "夜间车库入口：深底 + 冷光高对比 P 牌。",
@@ -157,14 +158,15 @@
     }
   },
   "realism": {
-    "_comment": "v2.5 夜间写实激活全套：RoomEnvironment 环境贴图 + GTAO + 2048² 软阴影 + Reflector 湿润地面反射（opacity/mixStrength 控制反射强度）+ 线性雾（深蓝远景空气感）+ 强 bloom（夜间发光窗/路灯/警示灯辉光）。material 更光滑让反射可见。",
-    "material": { "roughness": 0.3, "metalness": 0.15, "envMapIntensity": 1.2 },
-    "bloom": { "threshold": 0.6, "strength": 0.5, "radius": 0.5 },
-    "ao": { "enabled": true, "intensity": 1.1, "radius": 0.5 },
-    "reflection": { "enabled": true, "opacity": 0.85, "mixStrength": 0.6 },
-    "fog": { "color": "#0a1428", "near": 600, "far": 1800 },
+    "_comment": "v2.19 夜间写实全套：真实 HDRI 天空 IBL（月光玻璃反射）+ GTAO + 2048² 软阴影 + Reflector 湿润地面反射（opacity/mixStrength 控制）+ 线性雾（深蓝远景空气感）+ bloom（发光窗/路灯辉光）。曝光数据化（realism.exposure，湿润反射会补光，故较 v2.18 的 4.0 下调）。",
+    "exposure": 3.0,
+    "material": { "roughness": 0.65, "metalness": 0.05, "envMapIntensity": 0.3 },
+    "bloom": { "threshold": 0.8, "strength": 0.18, "radius": 0.5 },
+    "ao": { "enabled": true, "intensity": 0.55, "radius": 0.5 },
+    "reflection": { "enabled": true, "opacity": 0.2, "mixStrength": 0.35 },
+    "fog": { "color": "#0a1428", "near": 1500, "far": 3200 },
     "sun": { "azimuth": 200, "elevation": 60 },
-    "shadow": { "radius": 4, "bias": -0.0004 }
+    "shadow": { "radius": 5, "bias": -0.0004 }
   },
   "ui": {
     "_comment": "夜间 2D chrome：半透深底 + 冷光描边 + 中等发光（与夜景辉光气质一致）+ neon 切换器。",

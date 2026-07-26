@@ -3,20 +3,23 @@
  *
  * 与 useSelection/useTour 同样的「模块级 ref 单例」模式：避免每个组件都开独立状态。
  * setStyle() 同时调 applyTheme（ParkScene 3D 侧）+ applyCssVars（CSS 变量注入），
- * 让 6 风格切换零成本（无需重新加载页面）。
+ * 让 4 风格切换零成本（无需重新加载页面）。
  *
  * 用法：
  *   const style = useStyle()
- *   style.setStyle('holographic')   // 切到全息
+ *   style.setStyle('isometric')   // 切到等距
  *   style.current.value             // 读当前风格
  *   style.available.value           // 读可切换列表（来自 spec.previewStyles）
  */
 import { ref } from 'vue'
 import { applyCssVars, applyTheme, type StyleKey } from '@/utils/theme'
 
+// v2.18：StyleSwitcher.vue 从本模块取 StyleKey——显式再导出保持单一来源（@/utils/theme），避免 TS2459。
+export type { StyleKey } from '@/utils/theme'
+
 const DEFAULT_STYLE: StyleKey = 'cyber'
 
-// 模块级单例：所有组件共享同一份状态（避免 6 风格切换器多个实例各说各话）
+// 模块级单例：所有组件共享同一份状态（避免 4 风格切换器多个实例各说各话）
 const current = ref<StyleKey>(DEFAULT_STYLE)
 const available = ref<StyleKey[]>([DEFAULT_STYLE])
 

@@ -2,7 +2,7 @@
 
 数字孪生是中央面板。本技能**只**生成「固定舞台 + 楼栋切换器 + 中央 CenterStage（含 3D canvas 与聚焦时的 UnitDetail）」；**不**生成 TopBar、CornerBrackets，也**不**生成任何外围 2D 数据面板。舞台左右两侧与底部**留空**，由调用方自行填充业务面板。
 
-> **2D 层全部从 `assets/components/` 拷贝范式文件**（见下表）。v1.x/v2.0 的「从散文重建」路径已废弃。拷贝后只对齐 import 路径，不改 CSS/逻辑；6 种风格观感差异由 token `ui` 块驱动（组件 CSS 全走 `var(--twin-*)`）。
+> **2D 层全部从 `assets/components/` 拷贝范式文件**（见下表）。v1.x/v2.0 的「从散文重建」路径已废弃。拷贝后只对齐 import 路径，不改 CSS/逻辑；4 种风格观感差异由 token `ui` 块驱动（组件 CSS 全走 `var(--twin-*)`）。
 
 ## 舞台布局
 

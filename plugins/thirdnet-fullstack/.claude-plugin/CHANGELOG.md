@@ -1,5 +1,58 @@
 # Changelog
 
+## 2.27.0 - 2026-07-26
+
+### Changed
+- **thirdnet-digital-twin v2.21.0「精简风格集：删除 holographic/nebula」**：全息/星云两风格渲染管线与 cyber 高度重叠，删除以保留 4 种高区分度风格（cyber/isometric/realistic/night-realistic）。破坏性变更：含 holographic/nebula 的 spec 将被 `validate_spec.py` 拒绝。
+  1. 删资产：`holographic.tokens.json`、`nebula.tokens.json`、`fresnelRim.glsl`；`StyleKey`/`THEMES`/`STYLE_LABELS`/`PROFILES` 去两风格，`building` 去 `'holo'`、删 `useRim`/`injectRim` 死代码；schema 枚举 + `VALID_STYLES` + 脚本提示串同步。
+  2. 文档计数全量更新（6→4 / 4 深色→2 深色）；evals 删全息专属 eval 9、eval 17 改写 night-realistic。
+- **版本同步**：`plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处 `2.26.0 → 2.27.0`；`marketplace.json` 顶层 `metadata.version` `0.57.0 → 0.58.0`；digital-twin 技能 `metadata.version` `2.20.0 → 2.21.0`。
+
+## 2.26.0 - 2026-07-26
+
+### Changed
+- **thirdnet-digital-twin v2.20.0「夜景地面/楼墙可辨性调色」**：v2.19 HDRI 升级后用户反馈「夜景地面暗 / 楼墙玻璃反光太强 / 俯视看不清」，在 token + 范式代码层逐项根治（调色值已落 token/代码，本次补 references 文档 + 版本号）：
+  1. **路灯 PointLight 真照明**：`buildAmbiance` 给路灯 head 挂 `PointLight`（≤8 盏 `decay=1`，v2.18 前路灯仅自发光球）；night-realistic `pointIntensity 0.6→1530` / `pointDistance 200→2800`（亮斑有效半径 ∝ intensity，面积大幅扩）；仅 night-realistic 启用。
+  2. **reflBack 衬底 `MeshLambertMaterial + emissive 0.9`**：俯视/离路灯远的中央不黑（`Reflector` 是自定义反射 shader、`opacity` 不标准透出下层，reflBack 须自发光才有底亮度）；`environment.city-ground/road` 提亮（`#98a6bd`/`#8090ae`）。
+  3. **ambientFloor 大幅抬升** cyber/night-realistic `0.28→1.2`（ACES + 弱光下旧值 ~0.2 压成近黑）。
+  4. **楼墙降玻璃反光**：`material.envMapIntensity 2.0→0.3` / `roughness 0.3→0.65` / `metalness 0.15→0.05`（偏哑光混凝土）。
+  5. **楼幢轮廓**：`building.edgeColor #a8c0d8→#d8e6f8` + `edgeOpacity 0.6→0.85`（暗天空下多角度 silhouette 可见）；`fog.near 600→1500`（园区内不被暗雾染）。
+  6. **cyber 同步**：`ambientFloor 0.4→1.2` / `shaders.grid.u_strength 0.85→1.3` / `city-ground` 提亮 / 绿化带降饱和。
+  - 文档：`references/styles.md`（L21 ambientFloor + 新增 `## night-realistic` 专属段）、`references/scene-recipe.md`（§2/§3/§10）；`SKILL.md` metadata.version 同步。
+- **技能自身 CHANGELOG 补齐**：digital-twin 技能 `CHANGELOG.md` 此前滞后停在 v2.17.0，本次补 v2.18 / v2.19 / v2.20 三条（v2.18/v2.19 从插件 CHANGELOG `2.24.0`/`2.25.0` 浓缩）。
+- **版本同步**：`plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处 `2.25.0 → 2.26.0`；digital-twin 技能 `metadata.version` `2.19.0 → 2.20.0`。
+
+## 2.25.0 - 2026-07-26
+
+### Changed
+- **thirdnet-digital-twin v2.19.0「6 风格视觉真实感提升」**：写实两风格真实化 + 风格化 4 风格精品化润色，全部经 PIL 量化 + 视觉分析验收。
+  1. **真实 HDRI 天空 IBL（写实最大收益）**：realistic/night-realistic 的 `scene.environment` 由 `RoomEnvironment`（室内工作室烘焙）改用 `public/sky.hdr`（CC0 户外 HDRI，来源 three.js examples `quarry_01_1k.hdr`，~1.5MB）。`RGBELoader`+`PMREM` 异步加载、首帧 `RoomEnvironment` 兜底不黑屏、加载完成后触发一次性 `setStyle` 重建让材质拾取真实天水 IBL——玻璃反射与天空方向/色温一致，消除最大「CG 感」来源。HDRI 资产随包发布到 `assets/sky.hdr`，生成器须拷到目标工程 `public/sky.hdr`。
+  2. **玻璃幕墙材质**：`pbr` 楼体由 `MeshStandardMaterial` 升级 `MeshPhysicalMaterial`，消费新增 `realism.material.clearcoat`/`clearcoatRoughness`（realistic 默认 0.9/0.3）——配合 HDRI 给玻璃幕墙漆面反射；屋顶/裙楼仍走哑光混凝土拉开质感对比。
+  3. **SMAA 抗锯齿（全 composer 风格）**：`buildPostFX` 在 bloom 之后、`OutputPass` 之前挂 `SMAAPass`。composer 渲染到 WebGLRenderTarget 绕过渲染器 MSAA，致 cyber 网格线/全息星云边缘/写实玻璃边锯齿——视觉分析确认 SMAA 后「premium、无 stair-step」。isometric 无 composer、仍走 MSAA。
+  4. **夜景湿润反射恢复 + 曝光重测**：`PROFILES['night-realistic'].reflect` 恢复 `true`（v2.18 误关，签名特性死代码）；`exposure=3.0`（湿润反射补光，较 v2.18 的 4.0 下调，PIL avgL≈38 平衡）。视觉分析确认：湿润镜面反射可见、发光窗冷暖分层、路灯光晕、无 bloom 过曝、楼幢 silhouette 可辨。
+  5. **等距伪接触阴影**：等距风格按纪律不开真阴影致楼底「飘」；`extrudeBuildings` 给每栋楼底铺 `CircleGeometry` 半透黑贴片（实色半透，renderOrder=1 在地面后绘制）接地。实测 alpha 贴图在本场景透明路径不稳定，故用实色半透。
+  6. **曝光数据化**：`applyProfile` 优先读 `realism.exposure`、缺省回退 `PROFILES.toneExposure`；schema 加可选 `realism.exposure`（0–8）+ `realism.material.clearcoat`/`clearcoatRoughness`（不改 required，不破坏存量 spec）。
+  7. **realistic 调参**：`material` 偏玻璃（roughness 0.35→0.18 / metalness 0.1→0.05 / envMapIntensity 1.0→2.0 + clearcoat 0.9）；`shadow.radius` 4→7（更柔）；`sun.elevation` 55→38（更长投影）；fog 维持 null（compact 园区加大气透视 washout 风险大于收益）。
+- **版本同步**：`plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处 `2.24.0 → 2.25.0`；digital-twin 技能 `metadata.version` `2.18.0 → 2.19.0`；`tokens.schema.json` / `SKILL.md` / `references/styles.md` / `references/scene-recipe.md` 文档同步。
+
+## 2.24.0 - 2026-07-25
+
+### Changed
+- **thirdnet-digital-twin v2.18.0「第一次生成零踩坑」修复**：针对首次生成「红梅社区」暴露的问题逐项修在技能源，下次生成不再踩。
+  1. **`scripts/generate_data.py` mock 闭合括号 bug**：`mockPoiDetails: Record<...> = {}` 末尾误用 `]` 闭合（致 `vue-tsc` TS1136，含 POI 的 spec 必触发，每次重跑都要手改）→ 改 `}`。
+  2. **自定义类别色进 3D**：`ParkScene.categoryToken()` 只读 `applyTheme(style)` 静态主题、不读 `scaffold.tokens`，致 `spec.tokens.category.<cat>`（如 residential/factory）仅进 CSS 变量、不进 3D 楼幢上色——与 `park-spec.md`/`intake.md` 文档宣称不符。加 `scaffold.tokens.category` 兜底，per-park 自定义类别色真正上色，无需再手改 6 个 theme 文件。
+  3. **类型补丁**：`assets/components/theme.ts` `ThemeTokens.building` 加 `edgeColor?: string`（ParkScene 读 `building.edgeColor` 致 TS2339）；`assets/components/useStyle.ts` 再导出 `type StyleKey`（StyleSwitcher 从本模块导入致 TS2459）。
+  4. **夜间可见性**：night-realistic 实测首屏 avgL≈16（用户反馈「看不清」）。根因：`PROFILES` 全风格 `toneExposure=1.0`（夜间无提亮）+ 兜底环境光复用近黑 `hemiSky` 作颜色 + `bgTop/bgBottom` 近黑。修复：`PROFILES` night-realistic `toneExposure 1.0→1.3`（主杠杆）；`buildLights` 兜底环境光光色由 `hemiSky` 改白色（旧版让 ambientFloor 强度形同虚设，全风格生效）；`night-realistic.tokens.json` `ambientFloor 0.22→0.28`、`bgTop/bgBottom` 抬亮（`#0a1428`/`#050a14` → `#14264a`/`#0a1428`）、`windows.emissiveIntensity 1.3→1.6`（发光窗在提亮场景里依然可辨——根因是流水线本就在跑、被过暗场景淹没）。
+  5. **围合式园区中央可见性**：`OrbitControls.minPolarAngle 0.5→0.08`，让用户可拖到近顶视查看被四周楼栋从斜视角遮挡的中央地面元素（水池/地下坑底）；默认斜视不变。
+  6. **脚手架指引**：`SKILL.md`「约定」补三条——独立最小工程 `package.json` 须含 `@types/three`（three 0.169 不自带类型，缺则 TS7016）；`tsconfig.json` 用单文件无 project references（composite+noEmit 致 TS6310）；自定义类别色走 `spec.tokens.category`（v2.18 起进 3D）。
+- **版本同步**：`plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处 `2.23.2 → 2.24.0`；digital-twin 技能 `metadata.version` `2.17.0 → 2.18.0`；`CLAUDE.md` 版本引用同步。
+
+## 2.23.2 - 2026-07-25
+
+### Changed
+- **thirdnet-digital-twin v2.17.0 渲染问题修复**：1) 夜景楼幢立体轮廓走新增可选 token `building.edgeColor`（night-realistic 配淡冷色 `#a8c0d8`，暗天空下可辨）+ 抬升夜景立面（ambientFloor 0.18→0.22、sunIntensity 0.5→0.7）；2) 发光窗流水线由 night-realistic 扩到全部 4 个深色风格（cyber/holographic/nebula/night-realistic），三风格各加 `windows` token 块（cyber 由整栋均匀发光转为窗光发光）；3) `buildGround()` 外圈城市地面改透明（漂浮园区岛、市政道路保留），cyber 网格与 night Reflector 半透地面下加不透明衬底保证「内不透」+ 维持地下坑体遮挡；4) `buildSurfaceParking` 由单轴直线重写为边界反推的二维网格（必不溢出）+ `validate_spec.py` 加车位越界 WARN；5) 360° 旋转经核验范式代码本就支持、零改动。文档同步 SKILL.md / styles.md / scene-recipe.md(§3/§10/§15) / park-scene-impl.md。
+- **版本同步**：`plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处 `2.23.1 → 2.23.2`；digital-twin 技能 `metadata.version` `2.16.0 → 2.17.0`。
+
 ## 2.23.1 - 2026-07-24
 
 ### Changed

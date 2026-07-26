@@ -15,7 +15,7 @@ token JSON 是唯一事实来源，CSS 变量是它的机械投影，生成器�
 
 Usage:
   python generate_theme.py cyber                          # 读 assets/themes/cyber.tokens.json
-  python generate_theme.py holographic --out src/styles/tokens.css
+  python generate_theme.py isometric --out src/styles/tokens.css
   python generate_theme.py --tokens path/to/tokens.json --out tokens.css
   python generate_theme.py cyber --check src/styles/tokens.css   # 校验现有文件是否最新（CI 用）
 
@@ -146,7 +146,7 @@ def render(tokens: dict, style: str) -> str:
 
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description="从主题 token JSON 确定性生成 tokens.css（--twin-* CSS 变量）。")
-    p.add_argument("style", nargs="?", help="风格名（cyber/holographic/isometric/nebula/realistic/night-realistic）")
+    p.add_argument("style", nargs="?", help="风格名（cyber/isometric/realistic/night-realistic）")
     p.add_argument("--tokens", help="直接指定 token JSON 路径（优先于 style）")
     p.add_argument("--out", default="src/styles/tokens.css", help="输出路径（默认 src/styles/tokens.css；Windows 上务必写文件不要 --stdout）")
     p.add_argument("--check", metavar="EXISTING", help="校验已有 tokens.css 是否与当前 token 一致（不一致退出码 1）")

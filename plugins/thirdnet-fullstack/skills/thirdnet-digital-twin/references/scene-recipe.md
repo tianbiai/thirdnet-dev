@@ -4,7 +4,7 @@
 
 > **落地代码以 `assets/park-scene.impl.ts` 为基线**（导读见 `references/park-scene-impl.md`）。生成器「拷贝-改」范式实现产出 `src/scene/ParkScene.ts`，不再从下文散文合成渲染管线。本文件讲「为什么这么设计」；冲突时以范式实现代码为准。下文偶尔出现的 `DigitalTwin.ts` 是一个不随技能发布的历史范例文件，其模式（正交相机、射线拾取、聚焦补间、程序化幕墙纹理、完整 dispose）已全部并入 `park-scene.impl.ts`，生成器无需查阅它。
 
-下文 §2–§3 是**赛博风格**的详细配方，§4–§9（按类别上色、车库标牌、Legend、交互/选中、生命周期、园区环境）是**所有风格共用**的部分。**渲染器/灯光/材质/地面若选用其它风格**（全息 / 等距插画 / 星云 / 写实），见 `references/styles.md`——除 `cyber` 外的风格跳过 §3（网格着色器地面），按 `styles.md` 的半透/flatShading/星空/PBR 材质构建，但 §4–§9 照常适用。
+下文 §2–§3 是**赛博风格**的详细配方，§4–§9（按类别上色、车库标牌、Legend、交互/选中、生命周期、园区环境）是**所有风格共用**的部分。**渲染器/灯光/材质/地面若选用其它风格**（等距插画 / 写实），见 `references/styles.md`——除 `cyber` 外的风格跳过 §3（网格着色器地面），按 `styles.md` 的 flatShading/PBR 材质构建，但 §4–§9 照常适用。
 
 ## 目录—— 为 X 读 §Y
 
@@ -35,7 +35,7 @@ src/
   scene/
     ParkScene.ts          ← 从 assets/park-scene.impl.ts「拷贝-改」（单例；见 §9、§12 水合 API）
     building-geometry.ts  ← 从 assets/building-geometry.ts 原样拷贝（楼栋几何装配单一事实来源）
-    shaders/{gridGround,fresnelRim}.glsl   ← 从 assets/ 拷贝
+    shaders/gridGround.glsl   ← 从 assets/ 拷贝
     themes/*.tokens.json  ← 从 assets/themes/ 拷贝 6 个（theme.ts 静态 import；tsconfig 需 resolveJsonModule）
   data/<park>.ts          ← generate_data.py 生成（静态脚手架：占地几何 + 环境驱动 + tokens）
   composables/{useSelection,useScaleBoard,useTwinData,useTour,useStyle}.ts   ← 从 assets/components/ 拷贝
@@ -54,7 +54,7 @@ src/
 
 以 `assets/park-scene.impl.ts` 为基线「拷贝-改」，渲染器/相机/灯光骨架直接复用：
 
-- **渲染器**：`WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true })`，`setPixelRatio(Math.min(dpr, 2))`（硬性上限 2），`outputColorSpace = SRGBColorSpace`（防换肤色调漂移），`ACESFilmicToneMapping`（曝光约 1.0）。`EffectComposer` 可选（仅当要用 bloom 时）。
+- **渲染器**：`WebGLRenderer({ canvas, alpha: true, antialias: true, preserveDrawingBuffer: true })`，`setPixelRatio(Math.min(dpr, 2))`（硬性上限 2），`outputColorSpace = SRGBColorSpace`（防换肤色调漂移），`ACESFilmicToneMapping`（**v2.19：曝光优先走 `realism.exposure`，缺省回退 `PROFILES.toneExposure`**）。`EffectComposer` 可选（仅当要用 bloom 时）。**v2.19：一旦启用 composer，必须挂 `SMAAPass`（bloom 之后、`OutputPass` 之前）——composer 渲染到 WebGLRenderTarget 绕过了渲染器 MSAA，否则边缘锯齿；写实两风格的 `scene.environment` 用 `public/sky.hdr`（CC0 HDRI，`RGBELoader`+`PMREM`，首帧 `RoomEnvironment` 兜底）。**
 - **场景背景（防黑屏关键）**：渲染器虽 `alpha:true`，但**必须显式设 `scene.background`**——否则画布透明、透出深色页面底、整屏发黑。背景取 token 的 `scene` 块，画成**顶→底纵向渐变** `CanvasTexture`（`bgTop → bgBottom`）。why 渐变而非纯色：暗色风格给地平线上方空气感、纵深，远比纯黑读起来像「数字孪生空腔」。
 - **相机（取景必须从 spec 几何推导，不能写死）**：`OrthographicCamera`（写实两风格用 `PerspectiveCamera`，见 `park-scene-impl.md`），等轴姿态（`elevation = atan(1/√2)`、方位角 π/4）。采用「**测量后取景**」：算出内容包围盒在相机视图空间的范围，据此设**非对称视锥**，把地面最近端钉到距舞台底边 ~6%。算法封装在范式实现 `frameCamera()`：
 
@@ -78,10 +78,10 @@ this.camera.bottom = ymin - M*frustumH                        // 地面最近端
   - **留周边环境余量（默认 K=0.66）**：四周各留 ~17% 显示周边市政道路/行道树——默认就是一张能看全园区轮廓和紧邻环境的「全景图」。特写主体可调 K→0.8；航拍俯瞰 K→0.55（§13 巡航落地）。
   - **取景高度用真实楼层**：`frameCamera()` 的 `Hmax` 水合前用默认 18 层估算（保证首屏不白屏），`hydrateBuildings()` 末尾必须用真实最高楼层重新 `frameCamera()`（范式实现已内置 `maxBuildingHeight()`）。
   - **程序化天空（token `scene.sky` 开关）**：背景纹理 canvas 加宽到 512，按风格画入白云（写实）/ 星空（夜景，130 颗）/ 月亮（夜景）。**星星必须暗淡（alpha ≤ 0.45）**——亮星会被 bloom 晕成「雪片」。
-  - **`OrbitControls`**：带阻尼，极角夹紧 [0.5, π-0.1]（允许拖到地面之下仰视坑体），缩放夹紧 [0.45, 2.6]。
+  - **`OrbitControls`**：带阻尼，极角夹紧 [0.08, π-0.1]（v2.18 起下限 0.5→0.08 允许拖到近顶视查看围合式园区中央元素；上限 π-0.1 允许拖到地面之下仰视坑体），缩放夹紧 [0.45, 2.6]。
   - **resize 重算**：宽高比 A 变了要重跑 (d)(e)——封装成 `frameCamera()`，`setupCamera` 末尾和 `onResize` 里都调，**防抖 150ms**。
 - **灯光**：刻意保持平，让着色器地面 + 自发光边线读起来像「数字孪生」而非「建筑可视化」。一个 `HemisphereLight` + 一盏柔和 `DirectionalLight`。丢掉 VSM 阴影贴图和 PMREM 环境（会与赛博地面打架）。
-- **环境光下限（所有风格强制）**：无论风格 `lights.ambient` 是否为 `null`，都额外补一盏低强度 `AmbientLight`，强度取 token `lights.ambientFloor`（暗色风格 ~0.18–0.20、亮色风格 ~0.08）。why：cyber 等风格原本刻意无环境光，实测导致未受光面纯黑、被判定为「黑屏」；一道极弱环境光只抬起阴影、不破坏氛围。
+- **环境光下限（所有风格强制）**：无论风格 `lights.ambient` 是否为 `null`，都额外补一盏 `AmbientLight`，强度取 token `lights.ambientFloor`（**v2.20 起 cyber/night-realistic ~1.2** 根治夜景立面/地面黑屏；realistic/isometric ~0.08–0.2）。why：cyber 等风格原本刻意无环境光，实测导致未受光面纯黑、被判定为「黑屏」；一道环境光抬起阴影。v2.20 大幅抬升（旧值 ~0.2）是因为 ACES toneMapping + 弱光下旧值仍把受光物体压成近黑，cyber/night-realistic 须到 ~1.2 楼墙/草地才可辨。
 
 ## 3. 网格着色器地面 ← cyber 风格的关键地面（其余风格跳过，按 `styles.md`）
 
@@ -99,21 +99,23 @@ const ground = new THREE.Mesh(new THREE.PlaneGeometry(boundary.x * 2, boundary.z
 ground.rotation.x = -Math.PI / 2
 ```
 
-**外圈城市地面（所有风格）**：园区的周边道路、行道树落在 `boundary` 之外，所以地面分两层——园区地面（cyber 用 shader，其它风格按 `styles.md`）+ 外圈城市地面（比园区大一圈的更深/冷纯色 `MeshBasicMaterial`，铺在园区地面之下作周边道路画布）。两层 `rotation.x = -π/2`，Y 略低避免 z-fight。
+**外圈城市地面（所有风格）**：园区的周边道路、行道树落在 `boundary` 之外，所以地面分两层——园区地面（cyber 用 shader，其它风格按 `styles.md`）+ 外圈城市地面（比园区大一圈的 `MeshBasicMaterial`，铺在园区地面之下）。两层 `rotation.x = -π/2`，Y 略低避免 z-fight。
+
+**v2.17 地面内外透明**：外圈城市地面改**全透明**（`transparent:true, opacity:0, depthWrite:false`）——边界外透出页面背景，呈「漂浮园区岛」；市政道路/人行道/闸机是 `buildSurrounding` 独立 mesh、仍保留（浮在透明背景上）。园区内地面**保证不透明**：flat/pbr/dark 分支本就不透明；cyber 网格 shader 地面（半透）与 night-realistic `Reflector`（半透）在其下 `y=-0.05` 各加一块 `bx*2×bz*2` 不透明衬底（色取 `environment.city-ground` / `environment.road`）——既满足「内不透」、又维持 §14 地下车库坑体被地面遮挡（楼上俯瞰不见坑、坑内可从下方仰视）。**v2.20：night-realistic 的 reflBack 衬底改 `MeshLambertMaterial + emissive`（road 色，`emissiveIntensity=0.9`）**——Lambert 部分受 PointLight 在路灯附近叠加加亮、emissive 底光让俯视/离路灯远的画面中央不黑（`Reflector` 是自定义反射 shader，其 `opacity` 不按标准透明透出下层，reflBack 必须自发光才有底亮度）；`environment.city-ground #98a6bd` / `road #8090ae` 故意调亮（远亮于 cyber 紫蓝）以匹配夜景整体提亮。
 
 ### §3.1 程序化地面纹理 `makeGroundTexture`（非 cyber 风格主地面 + cyber 降级）
 
-非 cyber 风格的园区地面叠一层**程序化 `CanvasTexture`**（与 `makeFacadeTexture` 同套画布思路，不引入外部图片），形态由 token `ground.texture.type` 决定：`grid`（isometric 细网格）、`dots`（holographic/nebula 点阵）、`tiles`（引擎保留分支）、`none`（纯色回退）。`wrapS/wrapT = RepeatWrapping`、`repeat.set(8,8)` 平铺。
+非 cyber 风格的园区地面叠一层**程序化 `CanvasTexture`**（与 `makeFacadeTexture` 同套画布思路，不引入外部图片），形态由 token `ground.texture.type` 决定：`grid`（isometric 细网格）、`tiles`（引擎保留分支）、`none`（纯色回退）。`wrapS/wrapT = RepeatWrapping`、`repeat.set(8,8)` 平铺。
 
 接线规则：
-- **非 cyber**：`makeGroundTexture(token)` 作为园区地面材质的 `map`（holographic 等自发光风格可同时作 `emissiveMap` + 低强度）。不替换两层地面结构，只给园区地面加纹理。
+- **非 cyber**：`makeGroundTexture(token)` 作为园区地面材质的 `map`。不替换两层地面结构，只给园区地面加纹理。
 - **cyber（shader 失败降级）**：shader 编译失败 / uniform 绑定异常时（`transparent:true` + 失败 = 地面凭空消失、整屏黑），**必须降级**为不透明纯色 + 网格 `CanvasTexture`。包一层 try/catch 检测 `material.userData.shaderFailed`。why：地面是数字孪生的「地基」，宁可丢霓虹辉光也不能丢地面。
 
 ## 4. 按类别上色的楼栋（所有风格共用——颜色来自 token；材质按风格替换）
 
 **两阶段构建**（见 §12）：① 静态脚手架阶段（同步）按 `spec.buildings[]` 的**占地几何**画低**占地底板**占位（高 ~2 单位），类别色已定，**不读 name/floors**（动态数据）；② 水合阶段（`getBuildings()` 返回后 `scene.hydrateBuildings(items)`）按返回的 `floors × floorHeight` 挤出为完整盒体、楼顶标签用返回的 `name`、楼层拾取板按返回的 `floor_ids` 注册。
 
-对每个 `BuildingSpec`，挤出一个盒体并按类别上色。**颜色所有风格一致**（token `category` 映射）；**材质按风格替换**（cyber 自发光 `MeshStandardMaterial`；holographic 半透体 + 自发光边；nebula 深空星空 + 虹彩辉光；isometric `flatShading` cel；realistic/night-realistic PBR）。幕墙纹理 + 楼层环线 + 屋顶轮廓已固化在 `park-scene.impl.ts` + `building-geometry.ts`，直接复用。
+对每个 `BuildingSpec`，挤出一个盒体并按类别上色。**颜色所有风格一致**（token `category` 映射）；**材质按风格替换**（cyber 自发光 `MeshStandardMaterial`；isometric `flatShading` cel；realistic/night-realistic PBR）。幕墙纹理 + 楼层环线 + 屋顶轮廓已固化在 `park-scene.impl.ts` + `building-geometry.ts`，直接复用。
 
 ```ts
 const CATEGORY_COLOR: Record<Category, number> = { building: 0x27a8ff, garage: 0x3df0c8 }  // 从 token 派生，绝不硬编码
@@ -139,7 +141,7 @@ for (const b of spec.buildings) {
 楼栋可读性 = 能数出层数 + 能看出每层贴砖拼花。两件事都在立面层面解决，不增加 spec 字段：
 
 - **`addFloorDividers(mesh, b)`**：在每个楼层边界（`y = i * floorHeight`）画**贯穿四立面的横向虚线**（`LineSegments` + `LineDashedMaterial`，`computeLineDistances()`）。颜色取 token `building.dividerColor`。why：仅靠盒体边缘环线远看融成一片实心体；显式横向虚线在等轴视角下被楼面挂住，立刻读出层级。虚线（而非实线）与 `addRoofOutline` 的实线轮廓区分层级。
-- **`makeFacadeTexture` 内的贴砖划分**：对每一层：① `roomCount = 1 + floor(seededRand(hash(b.id, floorIndex)) * 5)`（1–5 块，确定性伪随机）；② 把该层水平条带按 `roomCount` 等分，**相邻贴砖按序号 `i%2` 在 light/dark 两色间交替取色**（`category.building` 色 HSL 派生 `light = L + roomShade`、`dark = L − roomShade`，token `building.roomShade` cyber ~0.16）。why 两色交替而非线性梯度：线性梯度让相邻两块只差一个步长，远观糊成一片；**相邻两块永远一明一暗**才是「贴砖」应有的强对比拼花。③ 每两块贴砖之间画**高对比深色竖实线**分隔（token `building.dividerColor`，1–2px 实线，非虚线）。楼层边界留出与 `addFloorDividers` 重合的横向虚线带。why 用纹理而非 3D 子盒体：跨 6 风格统一、一栋楼一个材质性能可控、与既有幕墙画布天然吻合。
+- **`makeFacadeTexture` 内的贴砖划分**：对每一层：① `roomCount = 1 + floor(seededRand(hash(b.id, floorIndex)) * 5)`（1–5 块，确定性伪随机）；② 把该层水平条带按 `roomCount` 等分，**相邻贴砖按序号 `i%2` 在 light/dark 两色间交替取色**（`category.building` 色 HSL 派生 `light = L + roomShade`、`dark = L − roomShade`，token `building.roomShade` cyber ~0.16）。why 两色交替而非线性梯度：线性梯度让相邻两块只差一个步长，远观糊成一片；**相邻两块永远一明一暗**才是「贴砖」应有的强对比拼花。③ 每两块贴砖之间画**高对比深色竖实线**分隔（token `building.dividerColor`，1–2px 实线，非虚线）。楼层边界留出与 `addFloorDividers` 重合的横向虚线带。why 用纹理而非 3D 子盒体：跨 4 风格统一、一栋楼一个材质性能可控、与既有幕墙画布天然吻合。
 
 ### 楼顶常驻名称标签
 
@@ -148,7 +150,7 @@ for (const b of spec.buildings) {
 要点：
 - **Sprite 而非 HTML**：楼名要随相机旋转/缩放保持在楼顶——Sprite 天然面向相机且跟随楼栋，比每帧 `project()` 的 HTML 叠加层便宜得多（几十栋楼每帧投影会卡）。
 - **始终可见、不受选中影响**：选中高亮由**独立的选中层**（描边 + 4 立面半透明填充，配色按风格 token，按 buildingId + 楼层定位，见 §8.2 `setSelection`）表达，楼名标签独立。
-- **对比度（§4.2）**：楼名标签配色固化为 token `ui.labelBg`/`ui.labelText`（6 风格各自校验过的高对比对）。旧式 `(void-bg, cyan-bright)` 在浅色风格两字色都偏亮、标签糊成黑块。
+- **对比度（§4.2）**：楼名标签配色固化为 token `ui.labelBg`/`ui.labelText`（4 风格各自校验过的高对比对）。旧式 `(void-bg, cyan-bright)` 在浅色风格两字色都偏亮、标签糊成黑块。
 - **位置**：楼名标签 Sprite 的 y 必须是 **`h + 22`（屋顶上方）**——旧式 `h/2 + 22` 会把标签埋进塔体内部，高楼（h > 44）完全不可见。该 y 坐标只在 `building-geometry.ts` 定义（铁律）。
 - **标签可见性总表**：
 
@@ -287,8 +289,9 @@ watch(() => [sel.effBuildingId.value, sel.effFloorIndex.value] as const,
 在 `boundary` 内、楼栋间隙画园区内部道路。形状由 `env.internalRoads` 决定（默认 `'loop'` 环形）：`loop`（沿 boundary 内侧绕一圈）、`cross`（十字主干）、`grid`（井字网格）、`none`（跳过）。材质：沥青色 `MeshBasicMaterial`（isometric 用哑光 `MeshStandardMaterial`），`rotation.x=-π/2`、Y 略高于地面。车道虚线用 `Line2`/`LineSegments`。**不进 `pickables[]`**。
 
 ### buildSurfaceParking(env)
-若 `env.surfaceParking` 非 null，在内部道路某一侧铺一排**长方形地面车位**（真实车位语义）。`stalls` 缺省时按楼栋规模推算（如 `sum(floors) * 6`）。每个车位表达为「**长方形铺装 + 描边 + 中央印 P**」：
-- **车位几何**：贴地长方形（~12×24 世界单位），底=扁平 `PlaneGeometry`（`surfaceParking.stallFill`），外框=`EdgesGeometry`（`stallLine`）。
+若 `env.surfaceParking` 非 null，在内部道路某一侧铺一片**长方形地面车位**（真实车位语义）。`stalls` 缺省时按楼栋规模推算（如 `sum(floors) * 6`）。每个车位表达为「**长方形铺装 + 描边 + 中央印 P**」：
+- **车位几何**：贴地长方形（~14×26 世界单位），底=扁平 `PlaneGeometry`（`surfaceParking.stallFill`），外框=`EdgesGeometry`（`stallLine`）。
+- **二维网格布局（v2.17，修复旧版「一条直线 + 溢出边界」）**：由 `boundary` 反推容量——`cols=floor(2*(bz−70)/stallD)`、`rows=floor(2*(bx−70)/(stallW+laneGap))`（`stallW14/stallD26/laneGap8/margin70`），`cols` 先取 `ceil(sqrt(stalls))` 尽量方阵、再被容量封顶；`actualStalls=min(stalls, rows*cols)`（超出自动截断）。X 排锚在边界 +X 内侧向内延展、Z 关于中心对称——**必不溢出边界**（思路同 `building-geometry.ts` 地下车位 `w/cols、d/rows`）。`validate_spec.py` 对超容车位出 WARN。
 - **逐位印 P**：每个车位中心放小 `Sprite`，走 §4.2 的 `makeContrastLabelTexture('P', { bg: pMarkBg ?? stallFill, fg: pMark })`。
 - **示意停放车辆**：默认 `round(stalls * 0.3)` 个车位放低多边形汽车代理体（车身 `BoxGeometry` + 车顶 + 4 轮），车身色取 `surfaceParking.car`。哪些车位放车由 `occupied` 决定（给了放前 occupied 个，没给按 30% 默认）。
 - **不进 `pickables[]`**。
@@ -307,7 +310,7 @@ watch(() => [sel.effBuildingId.value, sel.effFloorIndex.value] as const,
 把园区嵌进城市路网（默认 `roads/sidewalk/gate` 全 true）：市政道路（boundary 外侧四面双向道路，中央黄线 `Line2`）、人行道（园区边沿窄铺装带）、主出入口闸机（朝南正中开口 + 两侧闸机柱）。**不进 `pickables[]`**。
 
 ### buildAmbiance(env)
-氛围细节（默认 `streetLamps/vehicles` true；`groundGlow` 仅 cyber 默认 true）：街灯（杆 `CylinderGeometry` + 灯头 `SphereGeometry`，`night-realistic` 挂暖琥珀 `PointLight`、其余风格仅自发光灯头）、地面发光标线（仅 cyber，`Line2` 自发光勾边）、车辆/行人代理体（周边道路与地面车位零星几辆低多边形车）。**不进 `pickables[]`**。
+氛围细节（默认 `streetLamps/vehicles` true；`groundGlow` 仅 cyber 默认 true）：街灯（杆 `CylinderGeometry` + 灯头 `SphereGeometry`，**`night-realistic` 挂暖琥珀 `PointLight`（`pointIntensity≈1530` candela、`pointDistance≈2800`、≤8 盏 `decay=1`，v2.18 预览→v2.20 固化；亮斑有效半径 ∝ intensity，调面积只动这两个 token）、其余风格仅自发光灯头**）、地面发光标线（仅 cyber，`Line2` 自发光勾边）、车辆/行人代理体（周边道路与地面车位零星几辆低多边形车）。**不进 `pickables[]`**。
 
 ### 性能预算（硬约束）
 环境网格（树/车/灯/草块）**总数建议 ≤ 460**，超出时优先降密度，其次把同类元素改用 `THREE.InstancedMesh` 合批。**InstancedMesh 为强制**（同类几何 ≥ ~10 个时）：行道树（树干 + 球形/锥形树冠三个 InstancedMesh 承载数百棵）、灌木球丛、地面标线虚线、楼顶设备（每园 ≤5 栋 ≈ +20）、车辆代理体（所有车共用一个车身 InstancedMesh）。所有环境元素**不参与 floor raycast pick**（不要 push 进 `pickables[]`）。
@@ -401,7 +404,7 @@ class ParkScene {
 - **层标牌** `Sprite`，`y = deckY + 28`，`depthTest:true`（地上视角被地面遮挡不穿地乱显，地下坑内可读）。
 - **不可见拾取盒** `BoxGeometry(w, ceilY-deckY, d)` `visible:false`，`userData={kind:'garage',garageId}`，push 进 `garagePickables`。
 
-材质由 `ParkScene.undergroundMaterials()` 按 `profile.building` 分支构造（flat / pbr / emissive，pbr-night 与 holo 经 emissiveIntensity 区分）。颜色全走 `underground` token 块（6 风格各配），禁手写 hex。
+材质由 `ParkScene.undergroundMaterials()` 按 `profile.building` 分支构造（flat / pbr / emissive）。颜色全走 `underground` token 块（4 风格各配），禁手写 hex。
 
 ### §14.2 地下视角相机（`ParkScene.setBelowView`）
 
@@ -415,9 +418,9 @@ class ParkScene {
 
 `useSelection.ts`：新增 `belowView`（驱动相机）+ `selectedGarageId`（驱动卡片）+ `enterBelowView/selectGarage`（退出地下由 `clearFocus` 的退地下分支承担、`selectGarage(null)` 仅清卡片留地下视角）；与楼上楼栋/楼层/POI 互斥。`BuildingSwitcher.vue`：有 `garages[]` 时追加「地下车库」标签 → `enterBelowView`。`GarageCard.vue`：地下选中时浮出（右下），展示容量/已占用/空余/占用率；Esc/× → `selectGarage(null)`。`GlobalTwin.vue`：`onGarageSelect → selectGarage` + `watch(belowView → setBelowView)`。
 
-## 15. 夜间发光窗流水线（v2.15，仅 `night-realistic`）—— 移植自 Park 驾驶舱
+## 15. 夜间发光窗流水线（v2.15 + v2.17，2 个深色风格）—— 移植自 Park 驾驶舱
 
-写实夜景的窗户不再「整楼统一 ~42% 静态点亮」，改走 Park 驾驶舱 `DigitalTwin.ts` 同款程序化流水线（**仅 `profile.building === 'pbr-night'` 消费；其余 5 风格立面像素级不变**）。旋钮全走可选 `tokens.windows` 块（缺省 `DEFAULT_WINDOWS`；`animRatio=0` 退化为静态烘焙=与 v2.14 一致）。
+深色风格的窗户不再「整楼统一 ~42% 静态点亮」或「贴砖无窗」，改走 Park 驾驶舱 `DigitalTwin.ts` 同款程序化流水线（**v2.15 起 `profile.building === 'pbr-night'` 消费；v2.17 扩到 `'emissive'`(cyber)——共 2 个深色风格**；realistic 日景仍画静态窗户网格、isometric 仍贴砖，立面像素不变）。旋钮全走可选 `tokens.windows` 块（2 个深色风格 token 各配一块；缺省 `DEFAULT_WINDOWS`；`animRatio=0` 退化为静态烘焙）。**后果（cyber）**：`emissive:white`+emissiveMap 让窗光取代旧「整栋均匀霓虹蓝自发光」，立面 albedo 仍保留蓝色底色（深青蓝渐变墙）。
 
 ### §15.1 双纹理接线（`map` + `emissiveMap`）
 
@@ -451,11 +454,11 @@ class ParkScene {
 
 生成后，`npm run dev`（端口 3000）并确认（条件子清单见 SKILL.md「验证」段 + `shell.md`）：
 
-- [ ] **场景不死黑**：6 种风格首屏都有可辨识的 `scene.background`（暗色风格为顶→底渐变、非纯黑）；未受光区域不再是纯黑（`ambientFloor` 生效）。
-- [ ] **写实增强层**：`realistic`/`night-realistic` 启用 env/AO（night-realistic 另开反射/雾），其余 4 风格守纪律不启用；`EffectComposer`+`UnrealBloomPass` 已实例化（cyber/holographic/nebula 亮部有溢光）；isometric 不挂 bloom。
+- [ ] **场景不死黑**：4 种风格首屏都有可辨识的 `scene.background`（暗色风格为顶→底渐变、非纯黑）；未受光区域不再是纯黑（`ambientFloor` 生效）。
+- [ ] **写实增强层**：`realistic`/`night-realistic` 启用 env/AO（night-realistic 另开反射/雾），其余 2 风格守纪律不启用；`EffectComposer`+`UnrealBloomPass` 已实例化（cyber 亮部有溢光）；isometric 不挂 bloom。
 - [ ] **夜间发光窗流水线（v2.15，night-realistic）**：立面纵向渐变墙；顶层比中层少亮窗、**底层零亮窗**；亮窗两色（暖黄/冷蓝）≈70/30；等 5–15s 约 20% 窗 800ms 渐隐渐显、无全屏闪烁；切后台回来不爆发；开 OS reduced-motion 重载→零动画、静态点亮图仍在；cyber→night-realistic→cyber 切换无报错、切走后 `facadeAnims` 清空。其余 5 风格立面与改动前像素一致。
 - [ ] **轮廓对齐**：楼栋几何装配走 `building-geometry.ts` 的 `buildBuilding()`（不在 ParkScene 里手写 `position.y`）；金色楼层高亮对齐楼层 slab、不偏移。
-- [ ] **地面有纹理**：cyber 显示着色器网格；holographic/nebula 显示点阵；isometric 显示细网格——没有一种风格是「纯色色片」。破坏 cyber shader 引用后地面降级为带网格纹理的纯色平面（不消失）。
+- [ ] **地面有纹理**：cyber 显示着色器网格；isometric 显示细网格——没有一种风格是「纯色色片」。破坏 cyber shader 引用后地面降级为带网格纹理的纯色平面（不消失）。
 - [ ] 楼栋按类别上色，与 Legend 一致；每栋楼顶常驻名称标签；立面有楼层虚线分隔 + 贴砖（相邻两块深浅交替）；同一 spec 重复生成一致。
 - [ ] 所有标签（楼名/车库 P/车位 P/POI 图标）高对比可读。
 - [ ] 车库渲染为半金字塔三角门入口 + P 牌，**无**占用标牌/进度条/车位数。

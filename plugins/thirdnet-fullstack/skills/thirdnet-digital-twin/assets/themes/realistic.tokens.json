@@ -141,14 +141,15 @@
     }
   },
   "realism": {
-    "_comment": "v2.5 日间写实激活：RoomEnvironment 环境贴图（玻璃/金属有反射、不发黑）+ GTAO 接触阴影 + 2048² PCFSoft 软阴影；bloom 极弱（仅高光微溢）；不开地面反射/雾。material 偏光滑（低 roughness）让环境贴图可见。",
-    "material": { "roughness": 0.35, "metalness": 0.1, "envMapIntensity": 1.0 },
+    "_comment": "v2.19 日间写实：真实 HDRI 天空 IBL（户外反射与天空方向/色温一致，替代 RoomEnvironment）+ 玻璃幕墙 clearcoat + GTAO 接触阴影 + 更柔更长软阴影 + 轻雾做大气透视；bloom 极弱。曝光数据化（realism.exposure）。",
+    "exposure": 1.0,
+    "material": { "roughness": 0.18, "metalness": 0.05, "envMapIntensity": 2.0, "clearcoat": 0.9, "clearcoatRoughness": 0.3 },
     "bloom": { "threshold": 0.85, "strength": 0.12, "radius": 0.4 },
     "ao": { "enabled": true, "intensity": 1.0, "radius": 0.5 },
     "reflection": { "enabled": false, "opacity": 0.5, "mixStrength": 0.5 },
     "fog": null,
-    "sun": { "azimuth": 150, "elevation": 55 },
-    "shadow": { "radius": 4, "bias": -0.0003 }
+    "sun": { "azimuth": 150, "elevation": 38 },
+    "shadow": { "radius": 7, "bias": -0.0003 }
   },
   "ui": {
     "_comment": "写实 2D chrome：克制——半透浅底 + 细描边 + 极弱发光（glowStrength 0.1）+ flat 切换器。与日间自然气质一致，不抢 3D 主体。",
