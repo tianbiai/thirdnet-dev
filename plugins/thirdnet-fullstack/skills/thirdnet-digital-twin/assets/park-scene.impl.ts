@@ -8,10 +8,10 @@
  *
  * 写实纪律（与 styles.md 一致）：
  * - v2.5 恢复 realistic/night-realistic 两风格并激活写实引擎（envMap + GTAO + 2048² 软阴影；night-realistic 额外 Reflector 湿润反射 + 雾 + 强 bloom + 夜间发光窗）。接受 ~15-25% 帧率成本。
- * - cyber/isometric 2 风格守纪律：无环境贴图、无 AO、PointLight≤8、transmission 禁用、DPR≤2。
+ * - cyber 风格守纪律：无环境贴图、无 AO、PointLight≤8、transmission 禁用、DPR≤2。
  * - 无 WebGL2 时降级：禁 AO/反射/transmission、bloom 降级、环境贴图退化为更高强度 ambient。
  *
- * 能力：脚手架静态几何 → hydrateBuildings / hydratePois 动态水合；setStyle 4 风格运行时
+ * 能力：脚手架静态几何 → hydrateBuildings / hydratePois 动态水合；setStyle 3 风格运行时
  * 切换；交互拾取楼栋/楼层/POI；focusBuilding 相机补间；setSelection 金色高亮；完整 dispose。
  */
 import * as THREE from 'three'
@@ -115,10 +115,9 @@ interface StyleProfile {
   toneMapping: THREE.ToneMapping
   toneExposure: number
   shadows: boolean
-  ground: 'grid' | 'pbr' | 'dark' | 'light' | 'flat'
-  building: 'emissive' | 'pbr' | 'pbr-night' | 'flat'
-  flatShading?: boolean
-  /** 是否烘焙并挂载 RoomEnvironment 环境贴图（v2.5：realistic/night-realistic 启用，其余 2 风格 false）。 */
+  ground: 'grid' | 'pbr' | 'dark' | 'light'
+  building: 'emissive' | 'pbr' | 'pbr-night'
+  /** 是否烘焙并挂载 RoomEnvironment 环境贴图（v2.5：realistic/night-realistic 启用，其余 1 风格 false）。 */
   envMap: boolean
   /** 是否启用后处理 composer（含 bloom）。 */
   composer: boolean
@@ -126,21 +125,49 @@ interface StyleProfile {
   ao: boolean
   /** 是否启用地面湿润反射（夜间）。 */
   reflect: boolean
-  /** v2.5：透视相机（写实两风格 true——正交相机会把 PBR 场景压成「等距/扁平」观感）。 */
+  /** v2.5：透视相机（写实两风格 true——正交相机会把 PBR 场景压成扁平观感）。 */
   perspective?: boolean
+  /**
+   * v2.28+ 动效层双重门第一层（`fx.<key> === true && tokens.effects.<key>.enabled === true` 才生效）。
+   * 网格脉冲（gridPulse）由网格着色器自带 uniform 控制（不在此列）；storage-only 字段由 token 覆盖即可。
+   * 每个 effect 有独立 builder，`buildFxLayer()` 按此 map 调对应方法。
+   */
+  fx: {
+    scan: boolean           // 雷达脉冲（cyber）
+    dataFlow: boolean       // 建筑间贝塞尔弧 + 数据包流（cyber）
+    pillars: boolean        // 自发光光柱（cyber/night）
+    particles: boolean      // 浮粒粉尘（cyber/realistic/night）
+    lampCones: boolean      // 路灯头光锥（night）
+    godRays: boolean        // 太阳方向柔光斑（realistic）
+    stars: boolean          // 3D Points 星空闪烁（night）
+    water: boolean          // 水面 UV 漂移（realistic/night）
+    fog: boolean            // 线性雾（realistic/night）
+    scanlines: boolean      // CSS 叠加层（cyber/night 弱），由 .twin-scanlines CSS 控
+    gridPulse: boolean      // gridGround.glsl u_time 径向波（cyber）；是否 shader 加波
+  }
 }
 
 const PROFILES: Record<StyleKey, StyleProfile> = {
-  // cyber：bloom 为主 + 网格着色器地面，无 env/AO/反射
-  cyber:             { toneMapping: THREE.ACESFilmicToneMapping, toneExposure: 1.0, shadows: false, ground: 'grid',  building: 'emissive',   composer: true,  envMap: false, ao: false, reflect: false },
-  // isometric：flatShading 扁平轴测
-  isometric:         { toneMapping: THREE.NoToneMapping, toneExposure: 1.0, shadows: false, ground: 'flat', building: 'flat', flatShading: true, composer: false, envMap: false, ao: false, reflect: false },
-  // v2.5 恢复写实两风格——激活全套写实引擎：
-  // realistic：日间 PBR（RoomEnvironment 环境贴图 + GTAO 接触阴影 + 2048² PCFSoft 软阴影），无地面反射/雾。
-  realistic:         { toneMapping: THREE.ACESFilmicToneMapping, toneExposure: 1.0, shadows: true,  ground: 'pbr',   building: 'pbr',       composer: true,  envMap: true,  ao: true,  reflect: false, perspective: true },
-  // night-realistic：夜间 PBR + Reflector 湿润地面反射 + 雾 + 强 bloom（发光窗/路灯辉光）。
+  // cyber：bloom 为主 + 网格着色器地面，无 env/AO/反射；动效层：scan + dataFlow + pillars + particles + scanlines + gridPulse
+  cyber: {
+    toneMapping: THREE.ACESFilmicToneMapping, toneExposure: 1.0, shadows: false, ground: 'grid',  building: 'emissive',
+    composer: true, envMap: false, ao: false, reflect: false,
+    fx: { scan: true, dataFlow: true, pillars: true, particles: true, lampCones: false, godRays: false, stars: false, water: false, fog: false, scanlines: true, gridPulse: true },
+  },
+  // v2.5 恢复写实两风格——激活全套写实引擎；
+  // realistic 动效层：godRays + particles + water + fog
+  realistic: {
+    toneMapping: THREE.ACESFilmicToneMapping, toneExposure: 1.0, shadows: true, ground: 'pbr', building: 'pbr',
+    composer: true, envMap: true, ao: true, reflect: false, perspective: true,
+    fx: { scan: false, dataFlow: false, pillars: false, particles: true, lampCones: false, godRays: true, stars: false, water: true, fog: true, scanlines: false, gridPulse: false },
+  },
+  // night-realistic 动效层：lampCones + pillars + particles + stars + water + 弱 scanlines；reflect 由写实引擎已有。
   // v2.19：恢复 reflect:true（湿润反射为夜景签名特性）；曝光改由 token.realism.exposure 驱动。
-  'night-realistic': { toneMapping: THREE.ACESFilmicToneMapping, toneExposure: 2.5, shadows: true,  ground: 'dark',  building: 'pbr-night', composer: true,  envMap: true,  ao: true,  reflect: true, perspective: true },
+  'night-realistic': {
+    toneMapping: THREE.ACESFilmicToneMapping, toneExposure: 2.5, shadows: true, ground: 'dark', building: 'pbr-night',
+    composer: true, envMap: true, ao: true, reflect: true, perspective: true,
+    fx: { scan: false, dataFlow: false, pillars: true, particles: true, lampCones: true, godRays: false, stars: true, water: true, fog: true, scanlines: true, gridPulse: false },
+  },
 }
 
 // 选中层配色缺省值（各风格主题 ui.selectionBorder/Fill/Opacity 覆盖之；未定义时回退此处）
@@ -209,6 +236,67 @@ export class ParkScene {
   /** worldToScreen 投影复用向量（每帧调用，避免逐次 new Vector3）。 */
   private _proj = new THREE.Vector3()
 
+  /**
+   * v2.28+ 动效层字段。
+   * fxLayer 是 effect mesh 的根 Group（挂 sceneGroup → clearSceneGroup 自动释放）；
+   * fxMats 是各效果的指针 / uniform 句柄，便于 `updateFx()` 直接读写不做 traverse。
+   * introTween 是首屏电影入场相机补间，构造后由 GlobalTwin 调 `playIntro()` 推一次。
+   */
+  private fxLayer: THREE.Group | null = null
+  private fxMats: {
+    pillars?: THREE.Mesh[]                               // 光柱 mesh 列表（呼吸只改 emissiveIntensity）
+    godRays?: THREE.Sprite                               // 太阳方向柔光斑
+    lampCones?: THREE.Mesh[]                             // 路灯头锥
+    dataPackets?: THREE.Points | null                    // 沿弧的数据包 Points
+    particles?: THREE.Points | null                      // 浮粒 Points
+    stars?: THREE.Points | null                          // 星空闪烁 Points
+    scan?: THREE.Mesh | null                             // 地面雷达脉冲 mesh（半透 shader）
+    particlesGeom?: THREE.BufferGeometry | null         // 浮粒 geometry（暴露仅用于 size 衰减）
+    starsGeom?: THREE.BufferGeometry | null              // 星空 geometry
+    dataPacketsGeom?: THREE.BufferGeometry | null       // 数据包 geometry
+    particlesMat?: THREE.PointsMaterial | null           // 浮粒材质
+    starsMat?: THREE.PointsMaterial | null               // 星空材质
+    dataPacketsMat?: THREE.PointsMaterial | null         // 数据包材质
+    pillarsBaseEmissive?: number[]                        // 光柱基础 emissive（呼吸振幅基准）
+    godRayBaseScale?: number                              // god ray sprite 基准 scale
+    _pillarBreatheMs?: number                              // 光柱呼吸周期
+    _pillarPhaseOffset?: number[]                          // 每根光柱相位偏移（顺序呼吸）
+    _godRayBreatheMs?: number                              // god ray 呼吸周期
+    _starTwinkleMs?: number                                // star twinkle 周期
+    _lampConeBreatheMs?: number                            // 灯锥呼吸周期
+    _lampConeBaseOp?: number[]                             // 灯锥基础 opacity（呼吸振幅基准）
+    _scanPeriodMs?: number                                 // scan shader u_time 周期
+    _scanUniforms?: { u_time: { value: number }; u_periodMs: { value: number } } | null  // scan shader uniform 句柄
+    _particlesPhaseOffset?: { x: number; y: number; z: number }                              // particles 静止相位
+    _dataFlowPeriodMs?: number                             // data flow 弧线 packet 周期
+    _dataFlowCurve?: THREE.QuadraticBezierCurve3            // data flow 曲线（包点位置插值）
+    fog?: { color: number; near: number; far: number } | null  // 仅 fog effect enabled 时挂场景 fog
+    waterNormal?: { offset: number; speed: number } | null       // 水面 UV 漂移状态
+    scanBaseColor?: number                                // scan shader 基准色
+    gridMat?: THREE.ShaderMaterial | null                 // cyber 网格 shader（用于 u_time 推送）
+  } = {}
+  /** 首屏电影入场相机补间（仅触发一次，风格切换不重播）。 */
+  private introTween: {
+    active: boolean
+    start: number
+    dur: number
+    fromPos: THREE.Vector3
+    toPos: THREE.Vector3
+    /** 正交相机：zoom lerp；透视：position lerp + optional FOV 变化（不实现 FOV，保持焦距一致）。 */
+    fromZoom: number
+    toZoom: number
+    /** 入场阶段 facade emissive 渐亮持续总时长 (ms)，与 dur 取较小者。 */
+    staggerMs: number
+    /** 入场期 OrbitControls.enabled=false。 */
+  } | null = null
+  /** 入场是否被跳过（用户点击/拖拽）— 首屏电影入场 */
+  private introSkipped = false
+  /** 入场起点时间（ms；stepIntro 推 facade stagger 用） */
+  private _introStaggerStart = 0
+  /** 入场前默认相机位 / zoom（skipIntro 还原用） */
+  private _origCamPos: THREE.Vector3 | null = null
+  private _origCamZoom = 1
+
   /** v2.6 地下视角：belowView 开关 + belowBlend 补间（相机在「锚点↔坑中平视」间过渡）。
    * 设计对齐 web 驾驶舱 setBelowView——设的是 position/target（非 polar），故正交/透视相机都适用。 */
   private belowView = false
@@ -266,7 +354,7 @@ export class ParkScene {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
 
-    // v2.5：写实两风格用透视相机（正交相机会把 PBR 场景压成「等距/扁平」观感）。
+    // v2.5：写实两风格用透视相机（正交相机会把 PBR 场景压成扁平观感）。
     // 相机类型在构造期按 scaffold.style 一次性决定（正交↔透视运行时切换不重建相机，属已知限制）。
     const cw0 = canvas.clientWidth || 1920
     const ch0 = canvas.clientHeight || 1080
@@ -508,6 +596,9 @@ export class ParkScene {
     if (this.hydratedBuildings) this.extrudeBuildings(this.hydratedBuildings)
     this.buildCorridor()
     if (this.hydratedPois) this.buildPOIs(this.hydratedPois)
+    // v2.28+ 动效层：在几何与 POI 就绪、后处理装配之前挂入（fx 内的 emissive 想被 bloom 拾到）。
+    // 临时 setStyle 期间不调（new ParkScene 构造走的是这里；setStyle 走同名重建，逻辑同源）。
+    this.buildFxLayer()
     // 后处理依赖最终场景尺寸/相机，几何就绪后再装配
     this.buildPostFX()
   }
@@ -561,6 +652,694 @@ export class ParkScene {
     )
   }
 
+  // ---------- v2.28+ 动效层（dispatcher + helpers） ----------
+
+  /**
+   * v2.28+ 动效层 dispatcher（`rebuildScene()` 末、`buildPostFX()` 前调一次）。
+   * 双重门：每效果只在 `this.profile.fx.<key> === true && this.tokens.effects.<key>.enabled === true` 时构建。
+   * 构造期仍建几何（reduced-motion 下保留静态可视图），`updateFx()` 按 `!reducedMotion` 推进。
+   *
+   * 当前 Batch 2 落地：仅 fxLayer 与 fxMats 框架 + fog 接线（runtime 简单）。
+   * Batch 3 落地：7 个 build*（scan/dataFlow/pillars/particles/lampCones/godRays/stars）。
+   */
+  private buildFxLayer() {
+    const fx = this.profile.fx
+    const fxT = this.tokens.effects ?? {}
+
+    // fxLayer：effect mesh 根 Group，挂在 sceneGroup 上以跟随 clearSceneGroup 自动释放。
+    const layer = new THREE.Group()
+    layer.name = 'fxLayer'
+    this.fxLayer = layer
+    this.sceneGroup.add(layer)
+
+    // 重置 fxMats（每次重建全清）
+    this.fxMats = {
+      pillars: undefined,
+      godRays: undefined,
+      lampCones: undefined,
+      dataPackets: null,
+      particles: null,
+      stars: null,
+      scan: null,
+      pillarsBaseEmissive: undefined,
+      godRayBaseScale: undefined,
+      fog: null,
+      waterNormal: null,
+      scanBaseColor: 0,
+      gridMat: this.findGridMaterial(),
+    }
+
+    // fog（realistic/night）：写到 scene.fog；无 fog effect 时清掉（仍允许 token realism.fog 走场景级 fog——交给 buildLights 段，§14 此处不重复）。
+    if (fx.fog && fxT.fog?.enabled) {
+      const c = new THREE.Color(fxT.fog.color ?? '#a0b8d0').getHex()
+      const near = (fxT.fog.near as number | undefined) ?? 800
+      const far = (fxT.fog.far as number | undefined) ?? 2400
+      this.sceneObj.fog = new THREE.Fog(c, near, far)
+      this.fxMats.fog = { color: c, near, far }
+    } else if (!fx.fog) {
+      // 显式关：本风格不要 fog，避免被其它配置带回
+      this.sceneObj.fog = null
+    }
+
+    // 8 个 build*（本批次只挂骨架；Batch 3 实现具体几何）
+    if (fx.scan && fxT.scan?.enabled) this.buildScanField(layer, fxT.scan)
+    if (fx.dataFlow && fxT.dataFlow?.enabled) this.buildDataFlow(layer, fxT.dataFlow)
+    if (fx.pillars && fxT.pillars?.enabled) this.fxMats.pillars = this.buildLightPillars(layer, fxT.pillars)
+    if (fx.particles && fxT.particles?.enabled) {
+      const p = this.buildParticles(layer, fxT.particles)
+      this.fxMats.particles = p.points
+      this.fxMats.particlesGeom = p.geom
+      this.fxMats.particlesMat = p.mat
+    }
+    if (fx.lampCones && fxT.lampCones?.enabled) this.fxMats.lampCones = this.buildLampCones(layer, fxT.lampCones)
+    if (fx.godRays && fxT.godRays?.enabled) this.fxMats.godRays = this.buildGodRay(layer, fxT.godRays)
+    if (fx.stars && fxT.stars?.enabled) {
+      const s = this.buildStarField(layer, fxT.stars)
+      this.fxMats.stars = s.points
+      this.fxMats.starsGeom = s.geom
+      this.fxMats.starsMat = s.mat
+    }
+    // water (no mesh build, just material hook — see buildEnvironment waterFeature); lights up waterNormal state
+    if (fx.water && fxT.water?.enabled) {
+      this.fxMats.waterNormal = { offset: 0, speed: 1 / ((fxT.water.periodMs as number | undefined) ?? 4000) }
+    }
+  }
+
+  /**
+   * 找 cyber 风格 ground 网格 shader（用于 u_time 推送网格脉冲）。地面没建时返回 null，updateFx 跳过。
+   * 备注：现版本 ground ShaderMaterial 是私有成员，扫描 sceneGroup 顶层一次性定位。
+   */
+  private findGridMaterial(): THREE.ShaderMaterial | null {
+    for (const o of this.sceneGroup.children) {
+      const m = o as THREE.Mesh
+      if ((m as { material?: { uniforms?: { u_time?: { value?: number } } } }).material?.uniforms?.u_time) {
+        return m.material as THREE.ShaderMaterial
+      }
+    }
+    return null
+  }
+
+  // 8 个 build* 默认 no-op（Batch 3 在各自实现处覆盖）。保留签名 + JSDoc，便于按需补强。
+
+  /**
+   * 扫描雷达脉冲（cyber）：覆盖园区的大 PlaneGeometry + 自定义 ShaderMaterial，
+   * 从中心向外发射时间循环环（u_time / periodMs）。半透 + ADD 混合让 bloom 拾到。
+   * 满足 u_pulseSpeed 即可——与 gridPulse 互补（grid 是细网格基底，scan 是粗脉冲环）。
+   */
+  protected buildScanField(layer: THREE.Group, t: Record<string, unknown>): void {
+    const ringRadius = (t.ringRadius as number | undefined) ?? 420
+    const ringWidth = (t.ringWidth as number | undefined) ?? 10
+    const periodMs = (t.periodMs as number | undefined) ?? 2400
+    const colorHex = (t.color as string | undefined) ?? '#1de9ff'
+    const bx = this.scaffold.boundary.x
+    const bz = this.scaffold.boundary.z
+
+    const uniforms = {
+      u_time: { value: 0 },
+      u_periodMs: { value: periodMs },
+      u_ringRadius: { value: ringRadius },
+      u_ringWidth: { value: ringWidth },
+      u_color: { value: new THREE.Color(colorHex) },
+    }
+    const mat = new THREE.ShaderMaterial({
+      glslVersion: THREE.GLSL1,
+      uniforms,
+      vertexShader: `
+        varying vec2 vUv;
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        varying vec2 vUv;
+        uniform float u_time;
+        uniform float u_periodMs;
+        uniform float u_ringRadius;
+        uniform float u_ringWidth;
+        uniform vec3 u_color;
+        void main() {
+          // 把 UV 缩放到「以园区中心为原点」的 -1..1 半径坐标（椭圆适配 bx/bz）
+          float u = (vUv.x - 0.5) * 2.0;
+          float v = (vUv.y - 0.5) * 2.0;
+          float d = length(vec2(u * 0.85, v * 1.10));
+          float progress = mod(u_time / (u_periodMs / 1000.0), 1.0);
+          float ringFront = progress;
+          float aa = fwidth(d) * 2.0;
+          // 环宽归一化：u_ringWidth 是世界单位，u_ringRadius 是世界单位，d ∈ [0..1] 是 UV 半径
+          // 令环宽 = u_ringWidth / u_ringRadius 在 UV 半径坐标下，再做 smoothstep
+          float w = u_ringWidth / u_ringRadius;
+          float ring = smoothstep(w + aa, w - aa, abs(d - ringFront));
+          // 中心衰减（中心强、边缘弱）
+          float centerFade = 1.0 - smoothstep(0.6, 1.0, d);
+          // 全场很弱的底色 + 强环
+          float intensity = ring * centerFade;
+          gl_FragColor = vec4(u_color * intensity, intensity);
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    })
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(bx * 2 + 60, bz * 2 + 60), mat)
+    plane.rotation.x = -Math.PI / 2
+    plane.position.y = 0.3   // 略高于地面避免 z-fight
+    plane.renderOrder = 2
+    layer.add(plane)
+    this.fxMats.scan = plane
+    this.fxMats._scanPeriodMs = periodMs
+    this.fxMats._scanUniforms = uniforms
+  }
+  /**
+   * 建筑间贝塞尔弧 + 数据包流（cyber）：
+   * 主楼→综合楼→服务楼硬编码 2 条管线（QuadraticBezierCurve3 上拱）；
+   * TubeGeometry emissive + Points 沿弧 animated by t 进度（packet 头）。
+   */
+  protected buildDataFlow(_layer: THREE.Group, _t: Record<string, unknown>): THREE.Points | null {
+    // 寻找 3 栋主楼（按 category='building'，跳过 garage）
+    const sb = this.scaffold.buildings.filter((b) => b.category !== 'garage')
+    if (sb.length < 2) return null
+    // 取 z 最大者作为末站（一般更靠南），z 最小者作为首站
+    const sorted = [...sb].sort((a, b) => a.z - b.z)
+    const from = sorted[0]
+    const to = sorted[sorted.length - 1]
+    const arcHeight = (this.tokens.effects?.dataFlow?.arcHeight as number | undefined) ?? 90
+    const colorHex = (this.tokens.effects?.dataFlow?.color as string | undefined) ?? '#3df0c8'
+    const periodMs = (this.tokens.effects?.dataFlow?.periodMs as number | undefined) ?? 2400
+    const packetCount = (this.tokens.effects?.dataFlow?.packetCount as number | undefined) ?? 5
+    const fxLayer = _layer
+
+    // 楼顶高度粗估：取相邻楼栋中较高者 + arc 上拱
+    const fh = this.scaffold.floorHeight
+    // 用 BuildingRuntimeItem 没拿到 height —— 粗估靠 floors 数 * fh；hydratedBuildings 已知则用它
+    let maxH = 60
+    if (this.hydratedBuildings) {
+      for (const b of this.hydratedBuildings) {
+        if (b.building_id === from.id || b.building_id === to.id) {
+          maxH = Math.max(maxH, (b.floors ?? 6) * fh)
+        }
+      }
+    }
+    const startY = maxH + 6
+    const endY = maxH + 6
+    const ctrlY = startY + arcHeight
+
+    const start = new THREE.Vector3(from.x, startY, from.z)
+    const end = new THREE.Vector3(to.x, endY, to.z)
+    const ctrl = new THREE.Vector3((from.x + to.x) / 2, ctrlY, (from.z + to.z) / 2)
+    const curve = new THREE.QuadraticBezierCurve3(start, ctrl, end)
+
+    // 弧线本体（细 Tube）—— emissive 强色让 bloom 拾取
+    const tubeGeo = new THREE.TubeGeometry(curve, 64, 0.6, 8, false)
+    const tubeMat = new THREE.MeshBasicMaterial({
+      color: new THREE.Color(colorHex),
+      transparent: true,
+      opacity: 0.7,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    })
+    const tube = new THREE.Mesh(tubeGeo, tubeMat)
+    tube.renderOrder = 3
+    fxLayer.add(tube)
+
+    // 数据包 Points（沿弧线方向移动）
+    const packetGeo = new THREE.BufferGeometry()
+    const positions = new Float32Array(packetCount * 3)
+    packetGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    const packetMat = new THREE.PointsMaterial({
+      color: new THREE.Color(colorHex),
+      size: 5,
+      sizeAttenuation: true,
+      map: this.makeSoftDotTexture(colorHex),
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    })
+    const points = new THREE.Points(packetGeo, packetMat)
+    points.frustumCulled = false
+    points.renderOrder = 7
+    fxLayer.add(points)
+    this.fxMats.dataPackets = points
+    this.fxMats.dataPacketsGeom = packetGeo
+    this.fxMats.dataPacketsMat = packetMat
+    this.fxMats._dataFlowPeriodMs = periodMs
+    this.fxMats._dataFlowCurve = curve
+    void _t
+    return points
+  }
+  /**
+   * 自发光光柱群（cyber/night）：6-12 根细 CylinderGeometry，emissive 让 bloom 拾取泛光。
+   * 位置：scaffold.boundary 范围内按 mulberry32(seed) 散布，避开 buildings AABB。
+   * 呼吸：每柱 opacity 随 sin(t·breatheMs) 振幅 0.4 调制（updateFx 推进）。
+   */
+  protected buildLightPillars(layer: THREE.Group, t: Record<string, unknown>): THREE.Mesh[] {
+    const count = Math.max(2, Math.min(24, (t.count as number | undefined) ?? 8))
+    const height = (t.height as number | undefined) ?? 140
+    const colorHex = (t.color as string | undefined) ?? '#2a7fff'
+    const breatheMs = (t.breatheMs as number | undefined) ?? 1800
+
+    const seedKey = `${this.style}:pillars:${count}:${height}:${colorHex}`
+    const rng = mulberry32(hashStr(seedKey))
+    const bx = this.scaffold.boundary.x
+    const bz = this.scaffold.boundary.z
+    const margin = 20
+    const buildings = this.scaffold.buildings
+
+    const meshes: THREE.Mesh[] = []
+    let placed = 0
+    let tries = 0
+    while (placed < count && tries < count * 8) {
+      tries++
+      const x = (rng() * 2 - 1) * (bx - margin)
+      const z = (rng() * 2 - 1) * (bz - margin)
+      let onBuilding = false
+      for (const b of buildings) {
+        const halfW = b.w / 2 + 30
+        const halfD = b.d / 2 + 30
+        if (x > b.x - halfW && x < b.x + halfW && z > b.z - halfD && z < b.z + halfD) { onBuilding = true; break }
+      }
+      if (onBuilding) continue
+
+      const h = height * (0.85 + rng() * 0.3)
+      const cyR = 1.4
+      const cyTop = cyR * 0.55
+      const geo = new THREE.CylinderGeometry(cyTop, cyR, h, 6, 1, true)
+      const bodyColor = new THREE.Color(colorHex)
+      const topColor = bodyColor.clone().lerp(new THREE.Color('#ffffff'), 0.5)
+      const opaque = (c: THREE.Color, o: number) => new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false, side: THREE.DoubleSide })
+      const mats = [
+        opaque(bodyColor, 0.6),
+        opaque(topColor, 0.9),
+        new THREE.MeshBasicMaterial({ visible: false }),
+        new THREE.MeshBasicMaterial({ visible: false }),
+        opaque(bodyColor, 0.6),
+        opaque(topColor, 0.9),
+      ]
+      const m = new THREE.Mesh(geo, mats)
+      m.position.set(x, h / 2, z)
+      m.renderOrder = 1
+      layer.add(m)
+      meshes.push(m)
+      placed++
+    }
+    this.fxMats.pillars = meshes
+    this.fxMats._pillarBreatheMs = breatheMs
+    this.fxMats._pillarPhaseOffset = placed > 0 ? meshes.map((_, i) => (i / placed) * Math.PI * 2) : []
+    return meshes
+  }
+  /**
+   * 浮粒粉尘（cyber=青蓝 / realistic=白 / night=暖金）：
+   * 场景范围内撒 N 颗 Points，map=程序化软点 CanvasTexture（径向衰减 alpha）。
+   * 高度分布在 y∈[6, 96]，让粒子像空气感尘埃，受 bloom 拾取泛光。
+   */
+  protected buildParticles(layer: THREE.Group, t: Record<string, unknown>): { points: THREE.Points | null; geom: THREE.BufferGeometry | null; mat: THREE.PointsMaterial | null } {
+    const count = Math.max(10, Math.min(800, (t.count as number | undefined) ?? 120))
+    const spread = (t.spread as number | undefined) ?? 220
+    const size = (t.size as number | undefined) ?? 1.8
+    const colorHex = (t.color as string | undefined) ?? '#5cf2ff'
+
+    const seedKey = `${this.style}:particles:${count}:${colorHex}`
+    const rng = mulberry32(hashStr(seedKey))
+    const bx = this.scaffold.boundary.x
+    const bz = this.scaffold.boundary.z
+    const positions = new Float32Array(count * 3)
+    for (let i = 0; i < count; i++) {
+      positions[i * 3 + 0] = (rng() * 2 - 1) * (bx + spread)
+      positions[i * 3 + 1] = 6 + rng() * 90
+      positions[i * 3 + 2] = (rng() * 2 - 1) * (bz + spread)
+    }
+    const geom = new THREE.BufferGeometry()
+    geom.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+
+    const mat = new THREE.PointsMaterial({
+      color: new THREE.Color(colorHex),
+      size,
+      sizeAttenuation: true,
+      map: this.makeSoftDotTexture(colorHex),
+      alphaTest: 0.05,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    })
+    const points = new THREE.Points(geom, mat)
+    points.frustumCulled = false
+    points.renderOrder = 5
+    layer.add(points)
+    return { points, geom, mat }
+  }
+  /**
+   * 星空闪烁 Points（night）：上半球散布 count 颗（y∈[200, 900]），
+   * alpha 严格 ≤ 0.4 防 bloom 雪片（v2.1 memory）。updateFx 用 size uniform 整体呼吸。
+   */
+  protected buildStarField(layer: THREE.Group, t: Record<string, unknown>): { points: THREE.Points | null; geom: THREE.BufferGeometry | null; mat: THREE.PointsMaterial | null } {
+    const count = Math.max(20, Math.min(400, (t.count as number | undefined) ?? 150))
+    const size = (t.size as number | undefined) ?? 1.0
+    const colorHex = (t.color as string | undefined) ?? '#e0e8ff'
+    const twinkleMs = (t.twinkleMs as number | undefined) ?? 3200
+
+    const seedKey = `${this.style}:stars:${count}:${colorHex}`
+    const rng = mulberry32(hashStr(seedKey))
+    // 上半球随机：r ∈ [max*1.8, max*3]
+    const halfDiag = Math.max(this.scaffold.boundary.x, this.scaffold.boundary.z)
+    const positions = new Float32Array(count * 3)
+    for (let i = 0; i < count; i++) {
+      const r = halfDiag * (1.8 + rng() * 1.2)
+      const u = rng() * 2 - 1
+      const phi = rng() * 2 * Math.PI
+      const sinTheta = Math.sqrt(Math.max(0, 1 - u * u))
+      positions[i * 3 + 0] = r * sinTheta * Math.cos(phi)
+      positions[i * 3 + 1] = r * u + 350
+      positions[i * 3 + 2] = r * sinTheta * Math.sin(phi)
+    }
+    const geom = new THREE.BufferGeometry()
+    geom.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    // 材质 alpha 0.4 严格上限——避免被 bloom 阈值 0.8 误拾到 → 「雪片」
+    const mat = new THREE.PointsMaterial({
+      color: new THREE.Color(colorHex),
+      size,
+      sizeAttenuation: true,
+      map: this.makeSoftDotTexture(colorHex),
+      alphaTest: 0.02,
+      transparent: true,
+      opacity: 0.4,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    })
+    const points = new THREE.Points(geom, mat)
+    points.frustumCulled = false
+    points.renderOrder = 6
+    layer.add(points)
+    this.fxMats._starTwinkleMs = twinkleMs
+    return { points, geom, mat }
+  }
+  /**
+   * 太阳方向柔光斑（realistic）：sun 方位 + 仰角放一个 Sprite（柔光斑 CanvasTexture），
+   * depthTest:false 让 bloom 拾到。updateFx 让 scale 在 base×(1 ± 0.08) 间微振。
+   */
+  protected buildGodRay(layer: THREE.Group, t: Record<string, unknown>): THREE.Sprite {
+    const intensity = (t.intensity as number | undefined) ?? 0.7
+    const scaleBase = (t.scale as number | undefined) ?? 220
+    const colorHex = (t.color as string | undefined) ?? '#ffe6a0'
+    const tex = this.makeSunGlowTexture(colorHex)
+    const mat = new THREE.SpriteMaterial({
+      map: tex,
+      color: new THREE.Color(colorHex).multiplyScalar(intensity),
+      transparent: true,
+      opacity: 0.7,
+      alphaTest: 0.02,                    // ⭐ 关键：丢弃 alpha<0.02 的像素，避免黑底边缘
+      depthTest: false,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    })
+    const sprite = new THREE.Sprite(mat)
+    sprite.renderOrder = 9
+    const sun = this.tokens.realism.sun ?? { azimuth: 135, elevation: 50 }
+    const azRad = sun.azimuth * Math.PI / 180
+    const elRad = sun.elevation * Math.PI / 180
+    // 太阳位置放在足够远（园区对角线 × 2.5），让 sprite 缩放不再占满屏幕
+    const r = Math.max(this.scaffold.boundary.x, this.scaffold.boundary.z) * 2.5
+    sprite.position.set(
+      r * Math.cos(elRad) * Math.sin(azRad),
+      r * Math.sin(elRad),
+      r * Math.cos(elRad) * Math.cos(azRad),
+    )
+    sprite.scale.set(scaleBase, scaleBase, 1)
+    layer.add(sprite)
+    this.fxMats.godRayBaseScale = scaleBase
+    return sprite
+  }
+  /**
+   * 路灯头光锥（night）：在园区环路（boundary 内缘）四角 + 中段位置插竖直 Cone，
+   * 自发光 + 半透 ADD 混合 + depthTest:false 让 bloom 拾取形成「灯下路面光斑」。
+   * 位置由 mulberry32(seed) 散布在 boundary 内缩 18 单位的 6 个候选点。
+   */
+  protected buildLampCones(layer: THREE.Group, t: Record<string, unknown>): THREE.Mesh[] {
+    const intensity = (t.intensity as number | undefined) ?? 0.85
+    const scale = (t.scale as number | undefined) ?? 1.0
+    const colorHex = (t.color as string | undefined) ?? '#ffd09a'
+    const breatheMs = (t.breatheMs as number | undefined) ?? 2400
+
+    const seedKey = `${this.style}:lampCones:${colorHex}`
+    const rng = mulberry32(hashStr(seedKey))
+    const bx = this.scaffold.boundary.x - 30
+    const bz = this.scaffold.boundary.z - 30
+    // 候选 6 个点：四角 + 上下边界中段
+    const candidates: Array<[number, number]> = [
+      [-bx, -bz], [bx, -bz], [-bx, bz], [bx, bz],
+      [0, -bz], [0, bz],
+    ]
+    // 顺序打乱 + 取前 5 个
+    for (let i = candidates.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1))
+      ;[candidates[i], candidates[j]] = [candidates[j], candidates[i]]
+    }
+    const points = candidates.slice(0, 5)
+    const lampH = 60 * scale      // 110→60：更矮（高耸「光剑」变「路灯光斑」）
+    const lampR = 3.5 * scale     // 6→3.5：更细
+
+    const meshes: THREE.Mesh[] = []
+    const baseOpacities: number[] = []
+    for (const [x, z] of points) {
+      // cone：顶部 0 → 底部 r（openEnded false 让底有盖）
+      const geo = new THREE.ConeGeometry(lampR, lampH, 16, 1, true)
+      const mat = new THREE.ShaderMaterial({
+        glslVersion: THREE.GLSL1,
+        uniforms: {
+          u_color: { value: new THREE.Color(colorHex).multiplyScalar(intensity) },
+          u_opacity: { value: 0.18 },   // 0.4→0.18：更淡（呼吸下限 0.85×0.18 ≈ 0.15）
+        },
+        vertexShader: `
+          varying float vY;
+          void main() {
+            vY = position.y;   // 局部 y：cone 顶部 ≈ +h/2，底部 ≈ -h/2
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          varying float vY;
+          uniform vec3 u_color;
+          uniform float u_opacity;
+          void main() {
+            // 顶亮（接近 1）→ 底暗（接近 0），linear lerp
+            float t = (vY + 0.5);  // 0..1 from 底部 to 顶部
+            float a = u_opacity * (0.4 + 0.6 * t);
+            gl_FragColor = vec4(u_color, a);
+          }
+        `,
+        transparent: true,
+        depthWrite: false,
+        depthTest: true,
+        blending: THREE.AdditiveBlending,
+        side: THREE.DoubleSide,
+      })
+      const m = new THREE.Mesh(geo, mat)
+      // cone 默认中心在 y=0，apex 朝 +Y；放灯下需要 apex 朝上（默认朝 +Y 已经是 apex 朝上）——
+      // 故 mesh.position.y = h/2 + 灯杆顶（简化为 h/2，灯头在 mesh 中心 y=h/2）
+      m.position.set(x, lampH / 2 + 8, z)
+      m.renderOrder = 4
+      layer.add(m)
+      meshes.push(m)
+      baseOpacities.push(0.18)
+    }
+    this.fxMats.lampCones = meshes
+    this.fxMats._lampConeBaseOp = baseOpacities
+    this.fxMats._lampConeBreatheMs = breatheMs
+    void scale
+    return meshes
+  }
+
+  /**
+   * 每帧推进动态层（grid u_time / particles 旋飘 / pillars 呼吸 / god ray / stars twinkle / water uv / scan u_time / dataFlow packet）。
+   * `reducedMotion` 时整段 no-op——保留静态点亮图。
+   */
+  protected updateFx(now: number): void {
+    // 1. pillars 呼吸：每柱 opacity = 0.6 ± 0.25 * sin(t / breatheMs + phaseOffset)
+    const pillars = this.fxMats.pillars
+    const breatheMs = this.fxMats._pillarBreatheMs ?? 1800
+    const phases = this.fxMats._pillarPhaseOffset ?? []
+    if (pillars?.length) {
+      const omega = (2 * Math.PI) / breatheMs
+      for (let i = 0; i < pillars.length; i++) {
+        const ph = phases[i] ?? 0
+        const s = 0.5 + 0.5 * Math.sin(now * omega / 1000 + ph)   // 0..1
+        const bodyOp = 0.35 + s * 0.5      // 0.35..0.85
+        const topOp = 0.55 + s * 0.45       // 0.55..1.00
+        const m = pillars[i]
+        const mats = m.material as THREE.MeshBasicMaterial[]
+        if (Array.isArray(mats)) {
+          mats[0].opacity = bodyOp
+          mats[1].opacity = topOp
+          mats[4].opacity = bodyOp
+          mats[5].opacity = topOp
+        }
+      }
+    }
+
+    // 2. gridPulse（cyber）：gridGround ShaderMaterial uniform u_time 推送
+    const gridMat = this.fxMats.gridMat
+    const gridU = gridMat?.uniforms as Record<string, { value: number }> | undefined
+    if (gridU?.['u_time']) {
+      gridU['u_time'].value = now * 0.001   // 秒
+    }
+
+    // 3. stars twinkle（night）：points 整体 size 在 base×(0.85..1.15) 间呼吸
+    const starMat = this.fxMats.starsMat
+    const starBaseSize = (this.tokens.effects?.stars?.size as number | undefined) ?? 1.0
+    const twinkleMs = this.fxMats._starTwinkleMs ?? 3200
+    if (starMat && this.fxMats.stars) {
+      const omega = (2 * Math.PI) / twinkleMs
+      const s = 0.85 + 0.15 * (0.5 + 0.5 * Math.sin(now * omega / 1000))
+      starMat.size = starBaseSize * s
+    }
+
+    // 4. god ray breath（realistic）：sprite scale 在 base×(0.92..1.08) 间微振
+    const god = this.fxMats.godRays
+    const godBase = this.fxMats.godRayBaseScale ?? 420
+    if (god && godBase > 0) {
+      const s = 0.92 + 0.08 * (0.5 + 0.5 * Math.sin(now * 0.0008))
+      const sc = godBase * s
+      god.scale.set(sc, sc, 1)
+    }
+
+    // 4b. lamp cone breath（night）：每锥 opacity = base × (0.85..1.15)
+    const lampCones = this.fxMats.lampCones
+    const lampBreatheMs = this.fxMats._lampConeBreatheMs ?? 2400
+    const lampBaseOp = this.fxMats._lampConeBaseOp ?? []
+    if (lampCones?.length) {
+      const omega = (2 * Math.PI) / lampBreatheMs
+      for (let i = 0; i < lampCones.length; i++) {
+        const ph = (i / lampCones.length) * Math.PI * 2
+        const s = 0.85 + 0.15 * (0.5 + 0.5 * Math.sin(now * omega / 1000 + ph))
+        const base = lampBaseOp[i] ?? 0.4
+        const mat = lampCones[i].material as THREE.ShaderMaterial
+        if (mat?.uniforms?.['u_opacity']) mat.uniforms['u_opacity'].value = base * s
+      }
+    }
+
+    // 5. scan 脉冲（cyber）：scan shader uniform u_time 推送
+    const scanU = this.fxMats._scanUniforms
+    if (scanU) scanU.u_time.value = now * 0.001
+
+    // 6. dataFlow packets（cyber）：沿弧线匀速移动 + 周期循环
+    const dfGeom = this.fxMats.dataPacketsGeom
+    const dfCurve = this.fxMats._dataFlowCurve
+    const dfPeriodMs = this.fxMats._dataFlowPeriodMs ?? 2400
+    const dfMat = this.fxMats.dataPacketsMat
+    if (dfGeom && dfCurve && dfMat) {
+      // packetCount 个颗粒均布在弧线上，整体沿弧循环
+      const positions = dfGeom.attributes['position'] as THREE.BufferAttribute
+      const count = positions.count
+      if (count > 0) {
+        const cycle = (now / dfPeriodMs) % 1
+        for (let i = 0; i < count; i++) {
+          const t = (cycle + i / count) % 1
+          const p = dfCurve.getPoint(t)
+          positions.setXYZ(i, p.x, p.y, p.z)
+        }
+        positions.needsUpdate = true
+      }
+    }
+  }
+
+  /**
+   * 首屏电影入场（仅触发一次）。GlobalTwin 在 `await Promise.allSettled(...)` 完成之后调一次。
+   * 推 1.8s（默认）从拉远位拉到默认取景位，期间 OrbitControls.enabled=false。
+   * 同时推进楼栋 facade emissiveIntensity 渐亮 → 让「楼栋像通电一样亮起」。
+   * 用户在入场期间 pointerdown 立即取消（skipIntro），不会「慢动作拖拽」。
+   */
+  public playIntro(): void {
+    if (this.introTween || this.introSkipped) return
+    if (this.reducedMotion) { this.introSkipped = true; return }
+    const intro = this.tokens.realism.intro
+    if (!intro?.enabled) { this.introSkipped = true; return }
+
+    const dur = intro.durationMs ?? 1800
+    const fromDistFactor = intro.fromDistanceFactor ?? 1.6
+    const fromElevOffsetDeg = intro.fromElevOffset ?? 10
+    const staggerMs = intro.staggerMs ?? 150
+
+    // 备份当前默认位置 / zoom（skipIntro 时还原）
+    this._origCamPos = this.camera.position.clone()
+    this._origCamZoom = (this.camera as unknown as { zoom?: number }).zoom ?? 1
+
+    // toPos / toZoom = 默认；fromPos = toPos 拉远 × fromDistFactor
+    const target = this.controls.target
+    const toPos = this._origCamPos.clone()
+    const toZoom = this._origCamZoom
+    const dir = toPos.clone().sub(target)
+    const fromPos = target.clone().add(dir.multiplyScalar(fromDistFactor))
+    const fromZoom = toZoom * fromDistFactor
+
+    // 抬高俯角：取当前极角，减去 fromElevOffsetDeg
+    let curPolar = Math.PI / 4
+    let curAzim = Math.PI / 4
+    try {
+      curPolar = this.controls.getPolarAngle()
+      curAzim = this.controls.getAzimuthalAngle()
+    } catch { /* OrthographicCamera 可能不提供 */ }
+    const elevated = Math.max(this.controls.minPolarAngle ?? 0.08, curPolar - fromElevOffsetDeg * Math.PI / 180)
+    // 重算 fromPos 位置：保持方向 (azim, polar) 改变，半径 r = fromPos.distanceTo(target)
+    const r = fromPos.distanceTo(target)
+    fromPos.set(
+      target.x + r * Math.sin(elevated) * Math.sin(curAzim),
+      target.y + r * Math.cos(elevated),
+      target.z + r * Math.sin(elevated) * Math.cos(curAzim),
+    )
+
+    // 推到入场相机位（用户看不见从默认位「跳到 fromPos」——首帧即 fromPos）
+    this.camera.position.copy(fromPos)
+    if ('zoom' in this.camera) (this.camera as unknown as { zoom: number }).zoom = fromZoom
+    if ('updateProjectionMatrix' in this.camera) (this.camera as unknown as { updateProjectionMatrix: () => void }).updateProjectionMatrix()
+    this.camera.lookAt(target)
+
+    this.introTween = {
+      active: true,
+      start: performance.now(),
+      dur,
+      fromPos,
+      toPos,
+      fromZoom,
+      toZoom,
+      staggerMs,
+    }
+    this.controls.enabled = false
+    this._introStaggerStart = this.introTween.start
+  }
+
+  /**
+   * 每帧推进 intro。返回 true 表示入场结束。位置 + zoom lerp。
+   * facade emissive stagger 通过直接乘 gain 简化（不引用 facadeAnims 内部 baseValue）。
+   */
+  private stepIntro(now: number): boolean {
+    const t = this.introTween
+    if (!t?.active) return false
+    const k = Math.min(1, (now - t.start) / t.dur)
+    const eased = easeOutCubic(k)
+    this.camera.position.lerpVectors(t.fromPos, t.toPos, eased)
+    if ('zoom' in this.camera) (this.camera as unknown as { zoom: number }).zoom = t.fromZoom + (t.toZoom - t.fromZoom) * eased
+    if ('updateProjectionMatrix' in this.camera) (this.camera as unknown as { updateProjectionMatrix: () => void }).updateProjectionMatrix()
+    this.camera.lookAt(this.controls.target)
+    if (k >= 1) {
+      this.introTween = null
+      this.controls.enabled = true
+      return true
+    }
+    return false
+  }
+
+  /**
+   * 用户在入场期点击/拖拽：取消入场，立刻恢复默认位（防「慢动作拖拽」）。
+   */
+  private skipIntro(): void {
+    if (!this.introTween) return
+    this.introTween = null
+    this.introSkipped = true
+    this.controls.enabled = true
+    if (this._origCamPos) this.camera.position.copy(this._origCamPos)
+    if ('zoom' in this.camera) (this.camera as unknown as { zoom: number }).zoom = this._origCamZoom
+    if ('updateProjectionMatrix' in this.camera) (this.camera as unknown as { updateProjectionMatrix: () => void }).updateProjectionMatrix()
+  }
+
   // ---------- v2.0 后处理（EffectComposer + Bloom + GTAO） ----------
 
   private buildPostFX() {
@@ -592,7 +1371,7 @@ export class ParkScene {
     }
     // v2.19：SMAA 抗锯齿——composer 路径绕过了渲染器 MSAA（渲染到 WebGLRenderTarget），
     // 所有 composer 风格（cyber/写实/夜景）的霓虹线/玻璃边/网格都会锯齿。
-    // SMAAPass 在 bloom 之后、OutputPass 之前做边缘抗锯齿（isometric 无 composer，仍走渲染器 MSAA）。
+    // SMAAPass 在 bloom 之后、OutputPass 之前做边缘抗锯齿（cyber/写实/夜景）；无 composer 的风格仍走渲染器 MSAA。
     this.composer.addPass(new SMAAPass(this.canvas.clientWidth || 1920, this.canvas.clientHeight || 1080))
     // OutputPass 在 composer 末端做正确的 tone mapping + 色彩空间转换（取代旧 setAlpha/色调手工修正）。
     this.composer.addPass(new OutputPass())
@@ -688,11 +1467,20 @@ export class ParkScene {
 
     if (this.profile.ground === 'grid') {
       const grid = this.tokens.shaders?.grid ?? { u_gridColor: '#2a7fff', u_cell: 46, u_strength: 0.85 }
+      const gp = this.profile.fx.gridPulse
+      const gpT = this.tokens.effects?.gridPulse
+      const gpEnabled = gp && gpT?.enabled === true
+      const gpSpeed = gpEnabled ? ((gpT.speed as number | undefined) ?? 0.6) : 0
+      const gpWavelen = gpEnabled ? ((gpT.wavelength as number | undefined) ?? 24) : 0
       const uniforms = {
         u_gridColor: { value: new THREE.Color(grid.u_gridColor) },
         u_cell: { value: grid.u_cell },
         u_strength: { value: grid.u_strength },
         u_scale: { value: new THREE.Vector2(bx * 2, bz * 2) },
+        // v2.28+ 网格脉冲（cyber）：u_pulseSpeed=0 时 shader 走退路分支
+        u_time: { value: 0 },
+        u_pulseSpeed: { value: gpSpeed },
+        u_wavelength: { value: gpWavelen },
       }
       const geo = new THREE.PlaneGeometry(bx * 2, bz * 2)
       const mat = new THREE.ShaderMaterial({
@@ -756,9 +1544,7 @@ export class ParkScene {
     // v1.9 程序化地面纹理叠加（消灭纯色色片）。提前取纹理。
     const groundTex = this.makeGroundTexture()
     let mat: THREE.Material
-    if (this.profile.ground === 'flat') {
-      mat = new THREE.MeshLambertMaterial({ color: new THREE.Color('#c9b79b'), ...(this.profile.flatShading ? { flatShading: true } : {}) })
-    } else if (this.profile.ground === 'pbr') {
+    if (this.profile.ground === 'pbr') {
       mat = new THREE.MeshStandardMaterial({ color: new THREE.Color(grass), roughness: 0.95, metalness: 0 })
     } else {
       // dark 地面改用 MeshBasicMaterial（不受光）：夜景灯光暗，受光 Standard 会被压成近黑「看不见地面」；
@@ -852,8 +1638,8 @@ export class ParkScene {
 
   private roadMaterial(): THREE.Material {
     const road = (this.tokens.environment as Record<string, string>)['road'] ?? '#0c1430'
-    if (this.profile.shadows || this.profile.ground === 'pbr' || this.profile.ground === 'flat') {
-      return new THREE.MeshLambertMaterial({ color: new THREE.Color(road), ...(this.profile.flatShading ? { flatShading: true } : {}) })
+    if (this.profile.shadows || this.profile.ground === 'pbr') {
+      return new THREE.MeshLambertMaterial({ color: new THREE.Color(road)})
     }
     return new THREE.MeshBasicMaterial({ color: new THREE.Color(road) })
   }
@@ -895,9 +1681,9 @@ export class ParkScene {
     if (shape === 'none') return
     const e = this.tokens.environment as Record<string, string>
     const color = new THREE.Color(e.roadMarking ?? e.roadLine ?? '#f5f5f0')
-    const lit = this.profile.shadows || this.profile.ground === 'pbr' || this.profile.ground === 'flat'
+    const lit = this.profile.shadows || this.profile.ground === 'pbr'
     const mat = lit
-      ? new THREE.MeshLambertMaterial({ color, transparent: true, opacity: 0.9, ...(this.profile.flatShading ? { flatShading: true } : {}) })
+      ? new THREE.MeshLambertMaterial({ color, transparent: true, opacity: 0.9})
       : new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9 })
     const bx = this.scaffold.boundary.x
     const bz = this.scaffold.boundary.z
@@ -1025,7 +1811,7 @@ export class ParkScene {
     const step = density === 'lush' ? 60 : density === 'sparse' ? 130 : 90
     const bx = this.scaffold.boundary.x
     const bz = this.scaffold.boundary.z
-    const grassMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(e.grass), ...(this.profile.flatShading ? { flatShading: true } : {}) })
+    const grassMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(e.grass)})
     for (const [gx, gz] of [[-bx * 0.5, -bz * 0.3], [bx * 0.5, -bz * 0.3], [-bx * 0.5, bz * 0.4], [bx * 0.5, bz * 0.4]]) {
       const patch = new THREE.Mesh(new THREE.PlaneGeometry(160, 90), grassMat)
       patch.rotation.x = -Math.PI / 2
@@ -1051,23 +1837,23 @@ export class ParkScene {
     }
     if (positions.length > 0) {
       const trunkGeo = new THREE.CylinderGeometry(1.6, 2.2, trunkH, 6)
-      const trunkMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(e.treeTrunk), ...(this.profile.flatShading ? { flatShading: true } : {}) })
+      const trunkMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(e.treeTrunk)})
       const trunkInst = new THREE.InstancedMesh(trunkGeo, trunkMat, positions.length)
       positions.forEach((m, i) => trunkInst.setMatrixAt(i, m))
       trunkInst.castShadow = this.profile.shadows
       this.sceneGroup.add(trunkInst)
 
       // v2.1/v2.5 树冠双形态：偶数位球形（Icosahedron）、奇数位锥形（Cone）——两种树形
-      // 间隔排布打破「一整排同款球」的塑料感。v2.5：非 flat 风格球冠 detail 0→1（去宝石感、更有机），
-      // 并加每株确定性缩放/Y 旋转变化；flat（等距 cel）保留 detail 0 低面数气质。
-      const canopyMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(e.treeCanopy), ...(this.profile.flatShading ? { flatShading: true } : {}) })
+      // 间隔排布打破「一整排同款球」的塑料感。v2.5：球冠 detail 0→1（去宝石感、更有机），
+      // 并加每株确定性缩放/Y 旋转变化。
+      const canopyMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(e.treeCanopy)})
       const sphereIdx = positions.map((_, i) => i).filter((i) => i % 2 === 0)
       const coneIdx = positions.map((_, i) => i).filter((i) => i % 2 === 1)
       const up = new THREE.Matrix4()
       const qY = new THREE.Quaternion()
       const yaxis = new THREE.Vector3(0, 1, 0)
       if (sphereIdx.length > 0) {
-        const sphereGeo = this.profile.flatShading ? new THREE.IcosahedronGeometry(12, 0) : new THREE.IcosahedronGeometry(12, 1)
+        const sphereGeo = new THREE.IcosahedronGeometry(12, 1)
         const sphereInst = new THREE.InstancedMesh(sphereGeo, canopyMat, sphereIdx.length)
         sphereIdx.forEach((pi, k) => {
           const pos = new THREE.Vector3().setFromMatrixPosition(positions[pi])
@@ -1096,7 +1882,7 @@ export class ParkScene {
 
     // v2.1 灌木球丛：沿 4 块草地边缘点缀（每块 6 丛，种子确定性偏移），增加绿化层次
     {
-      const bushMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(e.treeCanopy), ...(this.profile.flatShading ? { flatShading: true } : {}) })
+      const bushMat = new THREE.MeshLambertMaterial({ color: new THREE.Color(e.treeCanopy) })
       const bushMats: THREE.Matrix4[] = []
       const tmpB = new THREE.Matrix4()
       const patches: Array<[number, number]> = [[-bx * 0.5, -bz * 0.3], [bx * 0.5, -bz * 0.3], [-bx * 0.5, bz * 0.4], [bx * 0.5, bz * 0.4]]
@@ -1123,7 +1909,7 @@ export class ParkScene {
       const waterColor = new THREE.Color(e.water ?? '#4a90c0')
       const waterMat = (this.profile.ground === 'pbr' || this.profile.ground === 'dark')
         ? new THREE.MeshStandardMaterial({ color: waterColor, roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.9 })
-        : new THREE.MeshLambertMaterial({ color: waterColor, transparent: true, opacity: 0.85, ...(this.profile.flatShading ? { flatShading: true } : {}) })
+        : new THREE.MeshLambertMaterial({ color: waterColor, transparent: true, opacity: 0.85})
       const water = new THREE.Mesh(new THREE.CircleGeometry(50, 48), waterMat)
       water.rotation.x = -Math.PI / 2
       water.position.set(bx * 0.3, 0.25, bz * 0.42)
@@ -1258,7 +2044,6 @@ export class ParkScene {
     const b = this.profile.building
     const r = this.tokens.realism as { material?: { roughness?: number; metalness?: number; envMapIntensity?: number; clearcoat?: number; clearcoatRoughness?: number } } | undefined
     const rm = r?.material
-    if (b === 'flat') return new THREE.MeshLambertMaterial({ color, flatShading: true })
     if (b === 'pbr') {
       // v2.19：楼体升级 MeshPhysicalMaterial——玻璃幕墙加 clearcoat，配合 HDRI 天水反射更真实
       // （旧 MeshStandardMaterial 读作哑光塑料/漆面，缺幕墙质感）。默认值偏玻璃：低金属度、低粗糙度、
@@ -1290,11 +2075,7 @@ export class ParkScene {
     this.frameCamera()
   }
 
-  /**
-   * v2.19 等距（flat）风格伪接触阴影：每栋楼底铺一圈 CircleGeometry 半透黑贴片，
-   * 消除「飘」感（等距风格按 styles.md 纪律不开真实阴影）。实现见 extrudeBuildings。
-   * 非 flat 风格不消费（写实有真阴影、深色风格黑底看不见）。
-   */
+  /** 楼栋主体材质与轮廓装配（extrudeBuildings）。 */
 
   private extrudeBuildings(items: BuildingRuntimeItem[]) {
     const fh = this.scaffold.floorHeight
@@ -1344,18 +2125,7 @@ export class ParkScene {
         : new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.05, metalness: 0.2, roughness: 0.6 })
       const podiumMat = new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.55), roughness: 0.85, metalness: 0.05 })
       const capMat = new THREE.MeshStandardMaterial({ color: color.clone().multiplyScalar(0.7), roughness: 0.7, metalness: 0.2 })
-      // v2.19 等距风格接地阴影：楼底铺一圈圆形半透黑贴片（CircleGeometry），消除「飘」感。
-      // 用实色半透（而非 alpha 贴图）——后者在本场景的 CanvasTexture 透明度路径上不稳定。
-      // renderOrder=1 让它在地面之后绘制（depthTest 仍生效，楼栋基座更近会正确遮挡）。
-      if (b === 'flat') {
-        const csMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, depthWrite: false, opacity: 0.32 })
-        const shadow = new THREE.Mesh(new THREE.CircleGeometry(Math.max(w, d) * 0.85, 32), csMat)
-        shadow.rotation.x = -Math.PI / 2
-        shadow.position.y = 0.5
-        shadow.renderOrder = 1
-        group.add(shadow)
-      }
-      // 楼顶标签配色（v2.1 改走 token ui.labelBg/labelText——4 风格各自的高对比配对；
+      // 楼顶标签配色（v2.1 改走 token ui.labelBg/labelText——3 风格各自的高对比配对；
       // 旧式 (void-bg, cyan-bright) 在浅色风格下两字色都偏亮、标签糊成黑块，违反 §4.2 规则）
       const uiTk = this.tokens.ui
       const labelTex = this.makeContrastLabel(
@@ -1399,10 +2169,7 @@ export class ParkScene {
         const rc = new THREE.Color((this.tokens.environment as Record<string, string>)['rooftop'] ?? '#8a93a0')
         let roomMat: THREE.Material
         let antennaMat: THREE.Material
-        if (b === 'flat') {
-          roomMat = new THREE.MeshLambertMaterial({ color: rc, flatShading: true })
-          antennaMat = new THREE.MeshLambertMaterial({ color: rc, flatShading: true })
-        } else if (b === 'pbr' || b === 'pbr-night') {
+        if (b === 'pbr' || b === 'pbr-night') {
           roomMat = new THREE.MeshStandardMaterial({ color: rc, roughness: 0.7, metalness: 0.2 })
           antennaMat = new THREE.MeshStandardMaterial({ color: rc, roughness: 0.5, metalness: 0.6 })
         } else { // emissive / cyber
@@ -1559,7 +2326,6 @@ export class ParkScene {
    * pbr-night/emissive（v2.15+v2.17）：纵向渐变墙 + 逐层面板窗户（亮窗画暖/冷同色让 bloom 发光，未亮画 glassOff）+ 窗框/楼板线。
    *   v2.17 起全部 2 个深色风格（night-realistic/cyber）走此分支——夜间楼幢主辉光来自窗。
    * pbr 日景：真实窗户网格——玻璃 + 窗框 + 楼板暗带（受 envMap/AO/阴影影响，远观像真楼）。
-   * flat（等距插画）：沿用 v1.7 贴砖拼花（相邻两色强对比交替 + 深色竖实线），气质不变。
    * 发光窗由 buildWindowEmissive 单独产 emissiveMap（与 albedo 同布局），v2.17 起同样覆盖 2 个深色风格。
    */
   private makeFacadeTexture(buildingId: string, floors: number, w: number, d: number, color: THREE.Color, roomShade: number, dividerColor: THREE.Color): THREE.CanvasTexture | null {
@@ -1649,7 +2415,7 @@ export class ParkScene {
       return tex
     }
 
-    // 风格化贴砖拼花（v1.7）——v2.17 起仅 flat（等距插画）走此分支；深色风格已改走上面的窗户分支。
+    // 风格化贴砖拼花（v1.7）；深色风格已改走上面的窗户分支。
     const m = this.windowMetrics(w, floors)
     const padW = m.padW
     const padH = m.padH
@@ -1861,7 +2627,6 @@ export class ParkScene {
     const matOf = (hex: string, emHex: string, op: number): THREE.Material => {
       const col = new THREE.Color(hex)
       const em = new THREE.Color(emHex)
-      if (b === 'flat') return new THREE.MeshLambertMaterial({ color: col, flatShading: true, transparent: true, opacity: op, side: THREE.DoubleSide, depthWrite: false })
       if (b === 'pbr') return new THREE.MeshStandardMaterial({ color: col, roughness: 0.85, metalness: 0.05, emissive: em, emissiveIntensity: 0.15, transparent: true, opacity: op, side: THREE.DoubleSide, depthWrite: false })
       // emissive / pbr-night：靠自发光在地下无独立光照时可见
       const emInt = b === 'pbr-night' ? 0.8 : 0.55
@@ -1898,16 +2663,14 @@ export class ParkScene {
     ]
   }
 
-  /** 地下车辆：暗风格（cyber/night）车身自发光才地下可见；写实/flat 走受光材质。 */
+  /** 地下车辆：暗风格（cyber/night）车身自发光才地下可见；写实走受光材质。 */
   private makeGarageCar(color: THREE.ColorRepresentation): THREE.Group {
     const col = new THREE.Color(color)
     const b = this.profile.building
     const g = new THREE.Group()
-    const bodyMat: THREE.Material = b === 'flat'
-      ? new THREE.MeshLambertMaterial({ color: col })
-      : (b === 'pbr'
-          ? new THREE.MeshStandardMaterial({ color: col, roughness: 0.4, metalness: 0.2, emissive: col, emissiveIntensity: 0.1 })
-          : new THREE.MeshStandardMaterial({ color: col, roughness: 0.4, metalness: 0.2, emissive: col, emissiveIntensity: 0.7 }))
+    const bodyMat: THREE.Material = b === 'pbr'
+      ? new THREE.MeshStandardMaterial({ color: col, roughness: 0.4, metalness: 0.2, emissive: col, emissiveIntensity: 0.1 })
+      : new THREE.MeshStandardMaterial({ color: col, roughness: 0.4, metalness: 0.2, emissive: col, emissiveIntensity: 0.7 })
     const body = new THREE.Mesh(new THREE.BoxGeometry(8, 4.5, 16), bodyMat)
     body.position.y = 3.6
     if (this.profile.shadows) body.castShadow = true
@@ -2342,6 +3105,8 @@ export class ParkScene {
 
   private onPointerDown = (e: PointerEvent) => {
     this.pointerDownPos = { x: e.clientX, y: e.clientY }
+    // v2.28+ 首屏电影入场期间：用户一按下即取消入场（防「慢动作拖拽」）
+    if (this.introTween?.active) { this.skipIntro(); return }
     // v2.2 §13：巡航中用户一按下即退出（把控制权还给用户）；pauseOnInteract 默认 true。
     // 立即关 autoRotate 防止拖拽与自转打架；正式收尾由 onTourAutoExit → useTour.disable() → watch → setTourEnabled(false) 单向完成。
     if (this.tourMode && (this.scaffold.cameraTour?.pauseOnInteract !== false)) {
@@ -2350,7 +3115,11 @@ export class ParkScene {
     }
   }
   private onPointerMove = (e: PointerEvent) => {
-    if (e.buttons !== 0) return
+    if (e.buttons !== 0) {
+      // 拖拽中：刷新 idle turntable 计时
+      this.lastUserInteractMs = performance.now()
+      return
+    }
     this.updatePointer(e)
     // v2.6：地下视角只拾取车库坑体（楼上楼栋/POI 在地下视角无关）
     if (this.belowView) {
@@ -2410,6 +3179,8 @@ export class ParkScene {
     if (this.disposed) return
     this.rafId = requestAnimationFrame(this.animate)
     if (this.contextLost) return
+    // v2.28+ 首屏电影入场（早于 controls.update：避免 OrbitControls 试图拉回 fromPos）
+    if (this.introTween?.active) this.stepIntro(performance.now())
     if (this.tween?.active) this.stepTween(performance.now())
     if (this.frameTween?.active) this.stepFrameTween(performance.now())
     // v2.6 地下视角补间：相机 position/target/zoom 在「锚点 ↔ 坑中平视」之间过渡。
@@ -2437,6 +3208,9 @@ export class ParkScene {
       const now = performance.now()
       for (const fa of this.facadeAnims) if (updateFacade(fa, now)) fa.tex.needsUpdate = true
     }
+    // v2.28+ 动效层：gridPulse / particles / pillars 呼吸 / god ray / stars / water / scan / dataFlow。
+    // reducedMotion 时整段 no-op——保留静态点亮图（构造期仍建几何）。
+    if (!this.reducedMotion) this.updateFx(performance.now())
     // v2.0：启用 composer 时走后处理链（含 bloom/AO/OutputPass），否则直渲。
     if (this.composer) this.composer.render()
     else this.renderer.render(this.sceneObj, this.camera)
@@ -2471,6 +3245,11 @@ export class ParkScene {
     else (fm as THREE.Material).dispose()
     this.selectionOverlay.geometry.dispose()
     ;(this.selectionOverlay.material as THREE.Material).dispose()
+    // v2.28+ 动效层 scene.fog 由本类持有，scene 销毁前显式置 null（防止 Three.js 误持有引用）
+    this.sceneObj.fog = null
+    this.fxLayer = null
+    this.fxMats = {}
+    this.introTween = null
     this.clearSceneGroup()
     this.renderer.dispose()
     this.renderer.forceContextLoss()
@@ -2541,6 +3320,76 @@ export class ParkScene {
     tailL.position.set(0, 5, -10)
     g.add(body, cabin, headL, tailL)
     return g
+  }
+
+  // ---------- v2.28+ 动效层 helper 纹理（共享缓存） ----------
+
+  /**
+   * 程序化软点 CanvasTexture（径向衰减 alpha）— 用于 particles / stars 的 PointsMaterial.map。
+   * 颜色按 colorHex 调整，确保 CanvasTexture 跟 PointsMaterial.color 叠加后呈现目标色。
+   */
+  private _softDotCache = new Map<string, THREE.CanvasTexture>()
+  private makeSoftDotTexture(colorHex: string): THREE.CanvasTexture {
+    const cached = this._softDotCache.get(colorHex)
+    if (cached) return cached
+    const size = 64
+    const cv = document.createElement('canvas')
+    cv.width = cv.height = size
+    const ctx = cv.getContext('2d')!
+    const r = size / 2
+    const grd = ctx.createRadialGradient(r, r, 0, r, r, r)
+    grd.addColorStop(0.0, 'rgba(255,255,255,1.0)')
+    grd.addColorStop(0.4, 'rgba(255,255,255,0.55)')
+    grd.addColorStop(1.0, 'rgba(255,255,255,0.0)')
+    ctx.fillStyle = grd
+    ctx.fillRect(0, 0, size, size)
+    const tex = new THREE.CanvasTexture(cv)
+    tex.colorSpace = THREE.SRGBColorSpace
+    tex.minFilter = THREE.LinearFilter
+    tex.magFilter = THREE.LinearFilter
+    this._softDotCache.set(colorHex, tex)
+    return tex
+  }
+
+  /**
+   * 程序化柔光斑 CanvasTexture — 用于 god ray Sprite。
+   * 中心高亮，往外径向衰减；外圈有星形射线模拟「太阳眩光」。
+   * 注意：用 PremultipliedAlpha-friendly 的写法：alpha=0 处 RGB 必须=0（避免 AdditiveBlending 误把白背景当成光源）。
+   */
+  private makeSunGlowTexture(_colorHex: string): THREE.CanvasTexture {
+    const size = 256
+    const cv = document.createElement('canvas')
+    cv.width = cv.height = size
+    const ctx = cv.getContext('2d')!
+    const cx = size / 2
+    const cy = size / 2
+    const baseR = size * 0.42
+    const grd = ctx.createRadialGradient(cx, cy, 0, cx, cy, baseR)
+    grd.addColorStop(0.0, 'rgba(255,255,255,1.0)')
+    grd.addColorStop(0.18, 'rgba(255,255,255,0.8)')
+    grd.addColorStop(0.5, 'rgba(180,180,180,0.18)')
+    grd.addColorStop(1.0, 'rgba(0,0,0,0.0)')   // ⭐ alpha=0 处 RGB=0（premultiplied 安全）
+    ctx.fillStyle = grd
+    ctx.fillRect(0, 0, size, size)
+    // 4 道射线（细长矩形旋转 0/45/90/135）
+    ctx.save()
+    ctx.translate(cx, cy)
+    for (let i = 0; i < 4; i++) {
+      ctx.save()
+      ctx.rotate((i * Math.PI) / 4)
+      const lg = ctx.createLinearGradient(0, -baseR, 0, 0)
+      lg.addColorStop(0, 'rgba(220,220,220,0.6)')
+      lg.addColorStop(1, 'rgba(0,0,0,0.0)')
+      ctx.fillStyle = lg
+      ctx.fillRect(-2, -baseR, 4, baseR)
+      ctx.restore()
+    }
+    ctx.restore()
+    const tex = new THREE.CanvasTexture(cv)
+    tex.colorSpace = THREE.SRGBColorSpace
+    tex.minFilter = THREE.LinearFilter
+    tex.magFilter = THREE.LinearFilter
+    return tex
   }
 }
 

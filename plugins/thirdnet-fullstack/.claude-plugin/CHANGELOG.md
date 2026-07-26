@@ -1,5 +1,37 @@
 # Changelog
 
+## 2.28.1 - 2026-07-26
+
+### Changed
+- **thirdnet-digital-twin v2.28.1「等距 toon 描边 + 赛博/夜景瘦身」**：两类针对性优化
+  1. **v2.28.1 等距风格差异化**（解决「等距 vs 写实差不多」）：第二层 toon 描边 + 色彩饱和度提升
+     - `ThemeTokens.building` 新增 `toonOutline: { enabled, color, opacity, scale }` 可选块
+     - `isometric.tokens.json` 启用 `toonOutline` (`color: #0d1424, opacity: 0.95, scale: 1.005`) + 5 处主色提饱和（`#5b8def → #3a7af2` 等）+ `roomShade: 0.18 → 0.22`
+     - `ParkScene.extrudeBuildings` 在 `b==='flat'` 时挂第二层 `LineSegments(EdgesGeometry, scale 1.005)` 形成「内淡外深」双线包围
+  2. **v2.28.1.b 赛博/夜景瘦身**（解决「连线和竖线太多」）：禁用 `dataFlow`（楼间贝塞尔弧）+ `pillars`（6-12 根装饰光柱）
+     - `cyber.tokens.json` `dataFlow.enabled: true → false`、`pillars.enabled: true → false`
+     - `night-realistic.tokens.json` `pillars.enabled: true → false`
+     - 保留：cyber 留 `particles` + `scanlines`；night 留 `lampCones` + `particles` + `stars` + 水/雾
+     - `buildLightPillars` / `buildDataFlow` 代码保留（双重门 token 化，将来其它风格可启用）
+- **类型扩展**：`ThemeTokens.building.toonOutline` 新可选块
+- **版本同步**：`plugin.json` 2.28→2.28.1 / 协调技能 `SKILL.md` 2.28→2.28.1 / `marketplace.json` 顶层 `metadata.version` 0.59→0.60 / `thirdnet-fullstack` 条目 2.28→2.28.1 / 数字孪生技能 `metadata.version` 2.28→2.28.1
+
+## 2.28.0 - 2026-07-26
+
+### Changed
+- **thirdnet-digital-twin v2.28.0「动效层 + 首屏电影入场」**：让领导首次看场景有「指挥中心」级视觉冲击——每效果走「双重门」 `PROFILES.<flag>===true && tokens.effects.<key>.enabled===true` 控制，关闭某效果改 token 即可。
+  1. **4 风格 token 新增 `effects` 段**（13 效果：scan/dataFlow/pillars/particles/lampCones/godRays/stars/water/fog/contactShadow/scanlines/gridPulse/idleTurntable），各含 `enabled` + 颜色 + 数值旋钮——`applyCssVars` 展平为 `--twin-effects-*` CSS 变量。
+  2. **`realism.intro` 段**：首屏电影入场旋钮（enabled/durationMs/fromDistanceFactor/fromElevOffset/staggerMs），`GlobalTwin` 水合完成后调 `scene.playIntro()` 推 1.8s 入场（从拉远位 + 抬高俯角 → 默认取景位），期间 `OrbitControls.enabled=false`，用户点击/拖拽立即 `skipIntro` 还原。
+  3. **ParkScene 8 个 builder + `updateFx()` 推进器**：`buildScanField`（地面 shader 雷达脉冲）/ `buildDataFlow`（楼间贝塞尔弧 + 数据包流）/ `buildLightPillars`（光柱呼吸）/ `buildParticles`（浮粒粉尘）/ `buildLampCones`（路灯头光锥）/ `buildGodRay`（太阳柔光斑）/ `buildStarField`（星空闪烁）/ `buildContactShadows`（楼底贴地椭圆）。共享 helper `makeSoftDotTexture` + `makeSunGlowTexture`。
+  4. **gridGround.glsl 加 3 uniform**：`u_time` / `u_pulseSpeed` / `u_wavelength`——cyber 地面径向亮度波。
+  5. **GlobalTwin 扫描线 CSS 叠加层** + **StyleSwitcher 选中态呼吸环**：screen 混合 + 4s 动画；2.4s box-shadow 呼吸。
+  6. **per-style 效果矩阵**（Standard）：cyber=scan+dataFlow+pillars+particles+scanlines+gridPulse；realistic=particles+water；night=lampCones+pillars+particles+stars+water；isometric=contactShadow+idleTurntable。lampCones 标准参数：高 60 / 半径 3.5 / 基础 opacity 0.18 + 呼吸 (0.85..1.15)。
+  7. **`reduced-motion` 全程守护**：构造期仍建 mesh（静态可视），`updateFx()` 整段 no-op；CSS 动画也 `@media (prefers-reduced-motion: reduce) { animation: none }` 关闭。
+  8. **文档同步**：`references/styles.md` 加「动效层」段、`references/scene-recipe.md` 加 §16 动效层调度器与双重门、`references/park-scene-impl.md` 加 v2.28 节。
+- **类型扩展**：`theme.ts` 新增 `EffectTokens`/`EffectsTokens` 类型与 `ThemeTokens.realism.intro` 可选块；`StyleProfile.fx` 13 boolean 标志（构造期一次性决定，运行时不可改某风格 fx）。
+- **已知遗留**（后续 follow-up）：god ray（realistic）因 `SpriteMaterial+depthTest:false` 透明区 WebGL 黑底 bug 暂禁；water UV 漂移只挂状态未驱动（可见性靠既有 reflector）；skill 模板 writeback 一期只改本仓库工程，回写作为 follow-up。
+- **版本同步**：`plugin.json` 2.27→2.28 / 协调技能 `SKILL.md` 2.27→2.28 / `marketplace.json` 顶层 `metadata.version` 0.58→0.59 / `thirdnet-fullstack` 条目 2.27→2.28 / 数字孪生技能 `metadata.version` 2.21→2.28。
+
 ## 2.27.0 - 2026-07-26
 
 ### Changed

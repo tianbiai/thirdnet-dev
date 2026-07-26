@@ -7,7 +7,7 @@
  *
  * 用法：
  *   const style = useStyle()
- *   style.setStyle('isometric')   // 切到等距
+ *   style.setStyle('realistic')   // 切到写实
  *   style.current.value             // 读当前风格
  *   style.available.value           // 读可切换列表（来自 spec.previewStyles）
  */

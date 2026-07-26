@@ -46,7 +46,7 @@ interface ParkSpec {
   corridor?: CorridorSpec            // 空中连廊；缺省 = 不画连廊
 }
 
-type Style = 'cyber' | 'isometric' | 'realistic' | 'night-realistic'
+type Style = 'cyber' | 'realistic' | 'night-realistic'
 
 interface BuildingSpec {
   id: string                          // slug，唯一 —— 切换器/选中/详情

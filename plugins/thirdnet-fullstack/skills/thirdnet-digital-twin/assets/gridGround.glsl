@@ -13,6 +13,12 @@ uniform vec3 u_gridColor;
 uniform float u_cell;
 uniform float u_strength;
 uniform vec2 u_scale; // plane "pixel" extent so vUv*u_scale ~ grid units
+// v2.28+ 网格脉冲（cyber tech-feel 效果之一）：当 u_pulseSpeed > 0 时叠加从
+// 园区中心向外辐射的亮度波（u_wavelength 控制波长）。reduced-motion / 其它风格
+// 把 u_pulseSpeed 设为 0 → 跳过该分支（无 GLSL 编译损失）。
+uniform float u_time;
+uniform float u_pulseSpeed;
+uniform float u_wavelength;
 
 void main() {
   vec2 uv = vUv;
@@ -35,5 +41,14 @@ void main() {
   float major = 1.0 - smoothstep(0.0, 0.012, line2);
 
   float alpha = (fine * 0.45 + major * 0.95) * vig * u_strength + 0.04;
-  gl_FragColor = vec4(u_gridColor, alpha);
+
+  // v2.28+ 网格脉冲：center→edge 半径方向径向波（叠加到 alpha 上）
+  float pulse = 0.0;
+  if (u_pulseSpeed > 0.0) {
+    float dist = length(c);   // 复用 c（已是 center 偏移）
+    float wave = sin(dist * u_wavelength - u_time * u_pulseSpeed) * 0.5 + 0.5;
+    pulse = wave * vig * 0.22;
+  }
+
+  gl_FragColor = vec4(u_gridColor, alpha + pulse);
 }

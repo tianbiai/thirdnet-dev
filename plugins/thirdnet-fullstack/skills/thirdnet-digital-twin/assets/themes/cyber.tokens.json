@@ -157,14 +157,29 @@
       "idle": "#ffc24a"
     }
   },
+  "effects": {
+    "_comment": "v2.28.1.b 动效层旋钮（cyber = 高科技指挥中心；particles + scanlines 启用；dataFlow + pillars 关——v2.28 初期启用的 10 根青色光柱 + 楼间贝塞尔弧被视为「连线和竖线」噪音删除）。",
+    "scan":       { "enabled": false },
+    "dataFlow":   { "enabled": false },
+    "pillars":    { "enabled": false },
+    "particles":  { "enabled": true,  "color": "#5cf2ff", "count": 120,  "spread": 220, "size": 1.8 },
+    "lampCones":  { "enabled": false },
+    "godRays":    { "enabled": false },
+    "stars":      { "enabled": false },
+    "water":      { "enabled": false },
+    "fog":        { "enabled": false },
+    "scanlines":  { "enabled": true,  "color": "#1de9ff", "opacity": 0.06, "periodMs": 4 },
+    "gridPulse":  { "enabled": true,  "speed": 0.6, "wavelength": 24 }
+  },
   "realism": {
     "_comment": "v2.0 写实增强旋钮（scene-recipe 渲染器/后处理段、park-scene.impl.ts 消费）。cyber 是自发光仪表盘气质——不开环境贴图/AO/反射/雾；仅给一档微弱 bloom 让自发光边/标记溢出。envMapIntensity 仅在 scene.environment 存在时生效（cyber 默认无环境贴图）。strength=0 的 bloom 表示关闭 composer。",
     "material": { "roughness": 0.6, "metalness": 0.2, "envMapIntensity": 0.3 },
-    "bloom": { "threshold": 0.6, "strength": 0.25, "radius": 0.4 },
+    "bloom": { "threshold": 0.6, "strength": 0.4, "radius": 0.4 },
     "ao": { "enabled": false, "intensity": 0.5, "radius": 0.5 },
     "reflection": { "enabled": false, "opacity": 0.5, "mixStrength": 0.5 },
     "fog": null,
-    "sun": { "azimuth": 135, "elevation": 50 }
+    "sun": { "azimuth": 135, "elevation": 50 },
+    "intro": { "enabled": true, "durationMs": 1800, "fromDistanceFactor": 1.6, "fromElevOffset": 12, "staggerMs": 150 }
   },
   "ui": {
     "_comment": "v2.1 2D 组件观感旋钮（assets/components/ 消费，generate_theme.py 派生 --twin-ui-* CSS 变量）。cyber：半透明深底 + 霓虹描边发光 pill。颜色键仍优先复用 palette/accents（本块只放行为数值与高对比标签对），组件内零 hex 字面量。",

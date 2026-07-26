@@ -47,7 +47,7 @@ except ImportError:
 
 KNOWN_CATEGORIES = {"building", "garage"}
 # v2.5：恢复 realistic / night-realistic 两写实风格（激活 envMap/GTAO/反射/软阴影/雾）。
-VALID_STYLES = {"cyber", "isometric", "realistic", "night-realistic"}
+VALID_STYLES = {"cyber", "realistic", "night-realistic"}
 VALID_ROAD_SHAPES = {"loop", "cross", "grid", "none"}
 VALID_TREE_DENSITY = {"sparse", "normal", "lush"}
 VALID_FACING = {"N", "S", "E", "W"}

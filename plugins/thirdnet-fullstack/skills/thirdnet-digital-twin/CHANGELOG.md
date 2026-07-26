@@ -4,6 +4,82 @@
 
 ---
 
+## v2.29.0（2026-07-26）
+
+**精简风格集：删除 isometric（等距插画）风格**。v2.28.1 落地 toon outline 后用户反馈「等距 vs 写实差异感太弱」——技术上仍完全不同（Lambert+flatShading+ortho vs PBR+HDRI+GTAO+perspective），但视觉区分度低于维护成本：等距与 cyber/写实之间「轴测 vs 透视」一个维度的差异已足够，**3 种区分度更高的风格**（cyber / realistic / night-realistic）保留。**破坏性变更**：含 `isometric` 的 spec 经 `validate_spec.py` 将 FAIL，需改 `spec.style`/`previewStyles`（同时 `assets/themes/isometric.tokens.json` 已删除、对应风格 token 文件不再随包发布）。
+
+1. **删除资产**：`assets/themes/isometric.tokens.json`（唯一消费者）。
+2. **收窄类型与注册表**：
+   - `StyleKey` 联合去掉 `'isometric'`（theme.ts）
+   - `THEMES`/`STYLE_LABELS` 去掉 isometric（theme.ts）
+   - `PROFILES.isometric` 整块删（park-scene.impl.ts）—— 同时 `StyleProfile.ground`/`building` 联合收窄去掉 `'flat'`；`flatShading?: boolean` 字段一并删除（无消费者）
+   - `StyleProfile.fx.contactShadow`/`fx.idleTurntable` 两个 boolean 字段删（唯一消费者已随风格移除）
+   - `ThemeTokens.building.toonOutline` 整块删（v2.28.1 新增、仅 isometric 用）
+   - `EffectsTokens.contactShadow`/`idleTurntable` 字段删（公共 type 接口收口）
+3. **清理等距分支**：
+   - `buildContactShadows` 方法整段删（仅 isometric）
+   - `updateFx()` idleTurntable 分支整段删
+   - `extrudeBuildings` 删 `b === 'flat'` 的 contact-shadow mesh（CircleGeometry 黑贴片）+ toon outline 第二层 `LineSegments(EdgesGeometry)`
+   - `fxMats.contactShadowMeshes` 字段 + `fxMats.idleTurntable` 字段 + 初始化 + `lastUserInteractMs` 字段全删
+4. **契约同步**：`spec.schema.json` `style.enum`/`previewStyles.items.enum` 去 `"isometric"`；`validate_spec.py` `VALID_STYLES` 同步；`generate_theme.py`/`extract_pen.py` 提示串去 isometric；3 个保留主题 token JSON 删 `effects.contactShadow`/`effects.idleTurntable` 段（仅 `enabled:false` 死代码）
+5. **文档与计数**：SKILL.md / `references/{styles,scene-recipe,park-scene-impl,park-spec,intake,shell,dynamic-data-api}.md` 去 isometric 引用，「4 风格」→「3 风格」、「4 风格表」删 `isometric` 行；`references/styles.md` 删 `## isometric` 整节 + `v2.28.1 toon outline` 子段；`references/park-scene-impl.md` 删 v2.28.1 等距 toon outline 段（赛博/夜景瘦身条款历史保留）；动效清单由「13 效果」降为「11 效果」
+6. **evals**：删 eval id 11 "isometric-park"（仅该风格）；eval 12/17/18 计数与 prose 同步更新；fixture `evals/files/generality/government-complex.json` `previewStyles` 删 `"isometric"`
+
+文档：`SKILL.md` metadata.version `2.28.1→2.29.0`；插件三处 `2.28.1→2.29.0`；marketplace 顶层 `metadata.version` `0.60.0→0.61.0`。
+
+---
+
+## v2.28.1（2026-07-26）
+
+**两类针对性优化**——v2.28 落地后用户反馈两个具体问题。
+
+1. **等距差异化**：用户反馈「等距风格好像跟写实差不多」——技术上完全不同（Lambert+flatShading+ortho vs PBR+HDRI+GTAO+perspective），但观感相近。修复：
+   - **`ThemeTokens.building.toonOutline` 新可选块**：`{ enabled, color, opacity, scale }`；`applyCssVars` 展平 `--twin-building-toon-outline-*`
+   - **`isometric.tokens.json` 启用 toonOutline**：`color: #0d1424, opacity: 0.95, scale: 1.005`——深海军蓝近黑外描边 + 1.005 几何微放大 + LineBasicMaterial `depthWrite: false` 不遮挡远处描边
+   - **5 处主色提饱和**（`#5b8def → #3a7af2` 等），楼栋主色从「淡蓝灰」→「深正蓝」与 realistic 灰玻璃拉开
+   - **`roomShade: 0.18 → 0.22`**：cel 阶梯对比更明显（更深一档的"侧光"面）
+   - **`ParkScene.extrudeBuildings` 双重门**：当 `b === 'flat'`（isometric profile.building）时挂第二层 `LineSegments(EdgesGeometry(bodyGeo))`，与现有 `buildBuilding` 内 `dividerColor` 单层描边形成「内淡外深」错位。绕开 WebGL LineBasicMaterial lineWidth=1px 硬限制。
+2. **赛博/夜景瘦身**：用户反馈「连线和竖线太多」——`dataFlow` 楼间贝塞尔弧 + `pillars` 6-12 根装饰光柱被视为「没用的噪音」。修复：
+   - **`cyber.tokens.json`**：`dataFlow.enabled: true → false`、`pillars.enabled: true → false`
+   - **`night-realistic.tokens.json`**：`pillars.enabled: true → false`
+   - 保留：cyber 留 `particles` + `scanlines`（细 0.06 opacity）；night 留 `lampCones`（已调矮调淡）+ `particles` + `stars` + water + 弱 scanlines
+   - **代码不删**：`buildLightPillars` / `buildDataFlow` builder + `updateFx` 呼吸/packet 逻辑完整保留——双重门 token 化，将来其它风格启用零代码改动
+3. **不变量**：
+   - 双重门 token 化机制不变（`PROFILES.fx.* && tokens.effects.*.enabled`）
+   - `clearSceneGroup` 自动释放路径不变（fx mesh 跟随 group 走）
+   - `reduced-motion` 守卫不变（构造期仍建 mesh、`updateFx()` 整段 no-op）
+4. **类型扩展**：`ThemeTokens.building` 新增 `toonOutline?: { enabled?: boolean; color?: string; opacity?: number; scale?: number }`
+5. **版本同步**：`plugin.json` 2.28→2.28.1 / 协调技能 `SKILL.md` 2.28→2.28.1 / `marketplace.json` 顶层 `metadata.version` 0.59→0.60 / `thirdnet-fullstack` 条目 2.28→2.28.1 / 数字孪生技能 `metadata.version` 2.28→2.28.1
+6. **文档同步**：`references/styles.md` 动效层段加 v2.28.1 toon outline 段 + per-style 矩阵更新（cyber 关 dataFlow+pillars、night 关 pillars）；`references/scene-recipe.md` §16 更新 buildContactShadows 之外加 toon outline 实现细节；`references/park-scene-impl.md` 加 v2.28.1 段。
+
+---
+
+## v2.28.0（2026-07-26）
+
+**v2.28 动效层 + 首屏电影入场**：让领导首次看场景有「指挥中心」级冲击。每效果走「双重门」 `PROFILES.<flag>===true && tokens.effects.<key>.enabled===true`——关闭某效果只改 token 即可，无需改代码。`reduced-motion` 下构造期仍建 mesh（静态可视图），`updateFx()` 不驱动。
+
+1. **token `effects` 段（4 风格 + cyber baseline tokens.css）**：每风格 token 顶层新增 `effects` 块，按风格选择性启用 scan / dataFlow / pillars / particles / lampCones / godRays / stars / water / fog / contactShadow / scanlines / gridPulse / idleTurntable 共 13 效果，配置旋钮统一经 `applyCssVars` 展平为 `--twin-effects-*` CSS 变量。
+2. **`realism.intro` 段（首屏电影入场旋钮）**：每风格顶层 `realism.intro` 加 `enabled/durationMs/fromDistanceFactor/fromElevOffset/staggerMs`——`GlobalTwin` 水合完成后调 `scene.playIntro()` 推 1.8s 入场（从拉远位拉近 + 抬高俯角），期间 `OrbitControls.enabled=false`；用户在入场期点击/拖拽立即 `skipIntro` 还原。
+3. **ParkScene 动效层 8 个 builder**：`buildScanField`（地面 shader 雷达脉冲）/ `buildDataFlow`（楼间贝塞尔弧 + 数据包流）/ `buildLightPillars`（光柱呼吸）/ `buildParticles`（青蓝/白/暖金浮粒）/ `buildLampCones`（路灯头光锥）/ `buildGodRay`（太阳柔光斑）/ `buildStarField`（星空闪烁，alpha<0.45 防 bloom 雪片）/ `buildContactShadows`（楼底贴地椭圆）。共享 helper `makeSoftDotTexture` + `makeSunGlowTexture` 程序化 CanvasTexture 缓存。
+4. **`updateFx()` 推进 6 类动画**：pillars 呼吸 / stars twinkle / god ray 微振 / lamp cone 呼吸 / grid u_time 推送 / scan shader u_time / dataFlow packet 沿弧匀速循环 / idleTurntable 8s 后自转。每条都尊重 `reducedMotion` 守卫。
+5. **gridGround.glsl 加 3 个 uniform**：`u_time` / `u_pulseSpeed` / `u_wavelength`——cyber 风格地面有径向亮度波（u_pulseSpeed=0 时跳过分支，零运行时成本）。
+6. **GlobalTwin 扫描线 CSS 叠加层** + **StyleSwitcher 选中态呼吸环**：scanlines `mix-blend-mode:screen` + 4s 动画；chip-pulse 2.4s 呼吸 box-shadow。两者都尊重 `prefers-reduced-motion` 关闭。
+7. **per-style 效果矩阵**（Standard 强度）：cyber=scan+dataFlow+pillars+particles+scanlines+gridPulse；realistic=particles+water；night-realistic=lampCones+pillars+particles+stars+water；isometric=contactShadow+idleTurntable。
+8. **Lamp cones 标准参数**（后续可调）：高 60 / 半径 3.5 / 基础 opacity 0.18 + 呼吸 (0.85..1.15) — 既要「路灯下方小光斑」的存在感，又不能抢戏。
+9. **类型 / 接口**：`theme.ts` 新增 `EffectTokens` + `EffectsTokens` 类型，`ThemeTokens.realism.intro` 可选块；`StyleProfile.fx` 13 个 boolean 标志。`applyCssVars` 自动展平无需手改。
+10. **Playwright 验收**（Standard 强度）：4 风格截图 `park-digital-twin/screenshots/v3/{cyber,night,realistic,isometric,cyber-intro-mid}.png` 全部通过；0 console error。
+11. **文档同步**：`references/styles.md` 加「动效层」段、`references/scene-recipe.md` 加 §16 动效层调度器与双重门、`references/park-scene-impl.md` 加 v2.28 节。
+12. **版本同步**：`plugin.json` 2.27→2.28 / 协调技能 `SKILL.md` 2.27→2.28 / `marketplace.json` 顶层 `metadata.version` 0.58→0.59 / `thirdnet-fullstack` 条目 2.27→2.28 / 数字孪生技能 `SKILL.md` `metadata.version` 2.21→2.28。
+
+**不变量**（迁移须知）：
+- `applyCssVars` 自动展平 `effects.*` 字段名（camelCase → kebab），新增 token 不需改展平逻辑。
+- 双重门第一层 `PROFILES.fx` 在构造期一次性决定（与 `flatShading` 同源纪律），运行时不能改某风格 fx 标志。
+- `reducedMotion=true` 时构造期仍建 mesh（静态可视）；`updateFx()` 整段 no-op。
+- 切风格为整场景 rebuild（既有事实），fx mesh 跟随 clearSceneGroup 自动释放（ShaderMaterial / PointsMaterial / CanvasTexture 走 `disposeObject` 释放链）。
+- god ray（realistic）因 `SpriteMaterial + depthTest:false` 透明区域 WebGL 黑底 bug，暂禁——后续可改用 Plane+Shader 重写后再启。
+
+---
+
 ## v2.21.0（2026-07-26）
 
 **精简风格集：删除 holographic（全息）/ nebula（星云）两风格**。两者渲染管线（ACES + bloom + 自发光窗 + dark 地面）与 cyber 高度重叠，维护三套近似模板成本高、对「拷贝-改」生成器是噪音；保留 4 种区分度高的风格（cyber / isometric / realistic / night-realistic）。**破坏性变更**：含 `holographic`/`nebula` 的 spec 经 `validate_spec.py` 将 FAIL，需改 `spec.style`/`previewStyles`。

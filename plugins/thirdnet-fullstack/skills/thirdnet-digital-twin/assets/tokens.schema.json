@@ -278,7 +278,7 @@
     },
     "ui": {
       "type": "object",
-      "description": "v2.1 2D 组件观感旋钮（assets/components/ 消费，generate_theme.py 派生 --twin-ui-* CSS 变量）。赛博发光强，等距克制（glowStrength 0 → 组件退化为中性投影）。",
+      "description": "v2.1 2D 组件观感旋钮（assets/components/ 消费，generate_theme.py 派生 --twin-ui-* CSS 变量）。赛博发光强（glowStrength 0 → 组件退化为中性投影）。",
       "required": ["panelOpacity", "panelBlur", "panelRadius", "glowStrength", "glowColor", "borderWidth", "labelBg", "labelText", "switcherStyle"],
       "properties": {
         "panelOpacity": { "type": "number", "minimum": 0, "maximum": 1 },

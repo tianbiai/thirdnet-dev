@@ -157,16 +157,31 @@
       "idle": "#e0a02b"
     }
   },
+  "effects": {
+    "_comment": "v2.28.1.b 动效层旋钮（night-realistic = 高科技夜景；lampCones + particles + stars + water + 弱 scanlines 启用；pillars 关——v2.28 初期启用的 12 根暖色装饰光柱被视为「竖线」噪音删除）。",
+    "scan":       { "enabled": false },
+    "dataFlow":   { "enabled": false },
+    "pillars":    { "enabled": false },
+    "particles":  { "enabled": true,  "color": "#ffe49a", "count": 110,  "spread": 360, "size": 1.5 },
+    "lampCones":  { "enabled": true,  "color": "#ffd09a", "intensity": 0.85, "scale": 1.0, "breatheMs": 2400 },
+    "godRays":    { "enabled": false },
+    "stars":      { "enabled": true,  "color": "#e0e8ff", "count": 150, "size": 1.0, "twinkleMs": 3200 },
+    "water":      { "enabled": true,  "color": "#98c8f0", "normalScale": 1.0, "periodMs": 5000 },
+    "fog":        { "enabled": true,  "color": "#0a1428", "near": 1500, "far": 3200 },
+    "scanlines":  { "enabled": true,  "color": "#4fb0f0", "opacity": 0.03, "periodMs": 6 },
+    "gridPulse":  { "enabled": false, "speed": 0, "wavelength": 0 }
+  },
   "realism": {
     "_comment": "v2.19 夜间写实全套：真实 HDRI 天空 IBL（月光玻璃反射）+ GTAO + 2048² 软阴影 + Reflector 湿润地面反射（opacity/mixStrength 控制）+ 线性雾（深蓝远景空气感）+ bloom（发光窗/路灯辉光）。曝光数据化（realism.exposure，湿润反射会补光，故较 v2.18 的 4.0 下调）。",
     "exposure": 3.0,
     "material": { "roughness": 0.65, "metalness": 0.05, "envMapIntensity": 0.3 },
-    "bloom": { "threshold": 0.8, "strength": 0.18, "radius": 0.5 },
+    "bloom": { "threshold": 0.8, "strength": 0.32, "radius": 0.5 },
     "ao": { "enabled": true, "intensity": 0.55, "radius": 0.5 },
     "reflection": { "enabled": true, "opacity": 0.2, "mixStrength": 0.35 },
     "fog": { "color": "#0a1428", "near": 1500, "far": 3200 },
     "sun": { "azimuth": 200, "elevation": 60 },
-    "shadow": { "radius": 5, "bias": -0.0004 }
+    "shadow": { "radius": 5, "bias": -0.0004 },
+    "intro": { "enabled": true, "durationMs": 2200, "fromDistanceFactor": 1.6, "fromElevOffset": 8, "staggerMs": 220 }
   },
   "ui": {
     "_comment": "夜间 2D chrome：半透深底 + 冷光描边 + 中等发光（与夜景辉光气质一致）+ neon 切换器。",

@@ -140,6 +140,20 @@
       "idle": "#e09a2b"
     }
   },
+  "effects": {
+    "_comment": "v2.28 动效层旋钮（realistic = 日间高级；particles + water 启用做日间氛围；scan/dataFlow/pillars/lampCones/godRays/stars/fog/scanlines/gridPulse 关）。",
+    "scan":       { "enabled": false },
+    "dataFlow":   { "enabled": false },
+    "pillars":    { "enabled": false },
+    "particles":  { "enabled": true,  "color": "#ffffff", "count": 70,  "spread": 360, "size": 1.4 },
+    "lampCones":  { "enabled": false },
+    "godRays":    { "enabled": false },
+    "stars":      { "enabled": false },
+    "water":      { "enabled": true,  "color": "#3a6fb0", "normalScale": 1.2, "periodMs": 4000 },
+    "fog":        { "enabled": false },
+    "scanlines":  { "enabled": false, "opacity": 0, "periodMs": 0 },
+    "gridPulse":  { "enabled": false, "speed": 0, "wavelength": 0 }
+  },
   "realism": {
     "_comment": "v2.19 日间写实：真实 HDRI 天空 IBL（户外反射与天空方向/色温一致，替代 RoomEnvironment）+ 玻璃幕墙 clearcoat + GTAO 接触阴影 + 更柔更长软阴影 + 轻雾做大气透视；bloom 极弱。曝光数据化（realism.exposure）。",
     "exposure": 1.0,

@@ -4,7 +4,7 @@
 
 > **落地代码以 `assets/park-scene.impl.ts` 为基线**（导读见 `references/park-scene-impl.md`）。生成器「拷贝-改」范式实现产出 `src/scene/ParkScene.ts`，不再从下文散文合成渲染管线。本文件讲「为什么这么设计」；冲突时以范式实现代码为准。下文偶尔出现的 `DigitalTwin.ts` 是一个不随技能发布的历史范例文件，其模式（正交相机、射线拾取、聚焦补间、程序化幕墙纹理、完整 dispose）已全部并入 `park-scene.impl.ts`，生成器无需查阅它。
 
-下文 §2–§3 是**赛博风格**的详细配方，§4–§9（按类别上色、车库标牌、Legend、交互/选中、生命周期、园区环境）是**所有风格共用**的部分。**渲染器/灯光/材质/地面若选用其它风格**（等距插画 / 写实），见 `references/styles.md`——除 `cyber` 外的风格跳过 §3（网格着色器地面），按 `styles.md` 的 flatShading/PBR 材质构建，但 §4–§9 照常适用。
+下文 §2–§3 是**赛博风格**的详细配方，§4–§9（按类别上色、车库标牌、Legend、交互/选中、生命周期、园区环境）是**所有风格共用**的部分。**渲染器/灯光/材质/地面若选用其它风格**（写实），见 `references/styles.md`——除 `cyber` 外的风格跳过 §3（网格着色器地面），按 `styles.md` 的 PBR 材质构建，但 §4–§9 照常适用。
 
 ## 目录—— 为 X 读 §Y
 
@@ -81,7 +81,7 @@ this.camera.bottom = ymin - M*frustumH                        // 地面最近端
   - **`OrbitControls`**：带阻尼，极角夹紧 [0.08, π-0.1]（v2.18 起下限 0.5→0.08 允许拖到近顶视查看围合式园区中央元素；上限 π-0.1 允许拖到地面之下仰视坑体），缩放夹紧 [0.45, 2.6]。
   - **resize 重算**：宽高比 A 变了要重跑 (d)(e)——封装成 `frameCamera()`，`setupCamera` 末尾和 `onResize` 里都调，**防抖 150ms**。
 - **灯光**：刻意保持平，让着色器地面 + 自发光边线读起来像「数字孪生」而非「建筑可视化」。一个 `HemisphereLight` + 一盏柔和 `DirectionalLight`。丢掉 VSM 阴影贴图和 PMREM 环境（会与赛博地面打架）。
-- **环境光下限（所有风格强制）**：无论风格 `lights.ambient` 是否为 `null`，都额外补一盏 `AmbientLight`，强度取 token `lights.ambientFloor`（**v2.20 起 cyber/night-realistic ~1.2** 根治夜景立面/地面黑屏；realistic/isometric ~0.08–0.2）。why：cyber 等风格原本刻意无环境光，实测导致未受光面纯黑、被判定为「黑屏」；一道环境光抬起阴影。v2.20 大幅抬升（旧值 ~0.2）是因为 ACES toneMapping + 弱光下旧值仍把受光物体压成近黑，cyber/night-realistic 须到 ~1.2 楼墙/草地才可辨。
+- **环境光下限（所有风格强制）**：无论风格 `lights.ambient` 是否为 `null`，都额外补一盏 `AmbientLight`，强度取 token `lights.ambientFloor`（**v2.20 起 cyber/night-realistic ~1.2** 根治夜景立面/地面黑屏；realistic ~0.08–0.2）。why：cyber 等风格原本刻意无环境光，实测导致未受光面纯黑、被判定为「黑屏」；一道环境光抬起阴影。v2.20 大幅抬升（旧值 ~0.2）是因为 ACES toneMapping + 弱光下旧值仍把受光物体压成近黑，cyber/night-realistic 须到 ~1.2 楼墙/草地才可辨。
 
 ## 3. 网格着色器地面 ← cyber 风格的关键地面（其余风格跳过，按 `styles.md`）
 
@@ -105,7 +105,7 @@ ground.rotation.x = -Math.PI / 2
 
 ### §3.1 程序化地面纹理 `makeGroundTexture`（非 cyber 风格主地面 + cyber 降级）
 
-非 cyber 风格的园区地面叠一层**程序化 `CanvasTexture`**（与 `makeFacadeTexture` 同套画布思路，不引入外部图片），形态由 token `ground.texture.type` 决定：`grid`（isometric 细网格）、`tiles`（引擎保留分支）、`none`（纯色回退）。`wrapS/wrapT = RepeatWrapping`、`repeat.set(8,8)` 平铺。
+非 cyber 风格的园区地面叠一层**程序化 `CanvasTexture`**（与 `makeFacadeTexture` 同套画布思路，不引入外部图片），形态由 token `ground.texture.type` 决定：`tiles`（引擎保留分支）、`none`（纯色回退）。`wrapS/wrapT = RepeatWrapping`、`repeat.set(8,8)` 平铺。
 
 接线规则：
 - **非 cyber**：`makeGroundTexture(token)` 作为园区地面材质的 `map`。不替换两层地面结构，只给园区地面加纹理。
@@ -115,7 +115,7 @@ ground.rotation.x = -Math.PI / 2
 
 **两阶段构建**（见 §12）：① 静态脚手架阶段（同步）按 `spec.buildings[]` 的**占地几何**画低**占地底板**占位（高 ~2 单位），类别色已定，**不读 name/floors**（动态数据）；② 水合阶段（`getBuildings()` 返回后 `scene.hydrateBuildings(items)`）按返回的 `floors × floorHeight` 挤出为完整盒体、楼顶标签用返回的 `name`、楼层拾取板按返回的 `floor_ids` 注册。
 
-对每个 `BuildingSpec`，挤出一个盒体并按类别上色。**颜色所有风格一致**（token `category` 映射）；**材质按风格替换**（cyber 自发光 `MeshStandardMaterial`；isometric `flatShading` cel；realistic/night-realistic PBR）。幕墙纹理 + 楼层环线 + 屋顶轮廓已固化在 `park-scene.impl.ts` + `building-geometry.ts`，直接复用。
+对每个 `BuildingSpec`，挤出一个盒体并按类别上色。**颜色所有风格一致**（token `category` 映射）；**材质按风格替换**（cyber 自发光 `MeshStandardMaterial`；realistic/night-realistic PBR）。幕墙纹理 + 楼层环线 + 屋顶轮廓已固化在 `park-scene.impl.ts` + `building-geometry.ts`，直接复用。
 
 ```ts
 const CATEGORY_COLOR: Record<Category, number> = { building: 0x27a8ff, garage: 0x3df0c8 }  // 从 token 派生，绝不硬编码
@@ -286,7 +286,7 @@ watch(() => [sel.effBuildingId.value, sel.effFloorIndex.value] as const,
 调用顺序：先建外圈城市地面（§3 末尾），再依次 `buildInternalRoads → buildSurfaceParking → buildGreenery → buildSurrounding → buildAmbiance → buildPOIs`（§11），全部挂到同一个 `sceneGroup`。所有颜色取所选风格 token 的 `environment`/`poi` 子对象，不散落 hex。
 
 ### buildInternalRoads(env)
-在 `boundary` 内、楼栋间隙画园区内部道路。形状由 `env.internalRoads` 决定（默认 `'loop'` 环形）：`loop`（沿 boundary 内侧绕一圈）、`cross`（十字主干）、`grid`（井字网格）、`none`（跳过）。材质：沥青色 `MeshBasicMaterial`（isometric 用哑光 `MeshStandardMaterial`），`rotation.x=-π/2`、Y 略高于地面。车道虚线用 `Line2`/`LineSegments`。**不进 `pickables[]`**。
+在 `boundary` 内、楼栋间隙画园区内部道路。形状由 `env.internalRoads` 决定（默认 `'loop'` 环形）：`loop`（沿 boundary 内侧绕一圈）、`cross`（十字主干）、`grid`（井字网格）、`none`（跳过）。材质：沥青色 `MeshBasicMaterial`，`rotation.x=-π/2`、Y 略高于地面。车道虚线用 `Line2`/`LineSegments`。**不进 `pickables[]`**。
 
 ### buildSurfaceParking(env)
 若 `env.surfaceParking` 非 null，在内部道路某一侧铺一片**长方形地面车位**（真实车位语义）。`stalls` 缺省时按楼栋规模推算（如 `sum(floors) * 6`）。每个车位表达为「**长方形铺装 + 描边 + 中央印 P**」：
@@ -420,7 +420,7 @@ class ParkScene {
 
 ## 15. 夜间发光窗流水线（v2.15 + v2.17，2 个深色风格）—— 移植自 Park 驾驶舱
 
-深色风格的窗户不再「整楼统一 ~42% 静态点亮」或「贴砖无窗」，改走 Park 驾驶舱 `DigitalTwin.ts` 同款程序化流水线（**v2.15 起 `profile.building === 'pbr-night'` 消费；v2.17 扩到 `'emissive'`(cyber)——共 2 个深色风格**；realistic 日景仍画静态窗户网格、isometric 仍贴砖，立面像素不变）。旋钮全走可选 `tokens.windows` 块（2 个深色风格 token 各配一块；缺省 `DEFAULT_WINDOWS`；`animRatio=0` 退化为静态烘焙）。**后果（cyber）**：`emissive:white`+emissiveMap 让窗光取代旧「整栋均匀霓虹蓝自发光」，立面 albedo 仍保留蓝色底色（深青蓝渐变墙）。
+深色风格的窗户不再「整楼统一 ~42% 静态点亮」或「贴砖无窗」，改走 Park 驾驶舱 `DigitalTwin.ts` 同款程序化流水线（**v2.15 起 `profile.building === 'pbr-night'` 消费；v2.17 扩到 `'emissive'`(cyber)——共 2 个深色风格**；realistic 日景仍画静态窗户网格，立面像素不变）。旋钮全走可选 `tokens.windows` 块（2 个深色风格 token 各配一块；缺省 `DEFAULT_WINDOWS`；`animRatio=0` 退化为静态烘焙）。**后果（cyber）**：`emissive:white`+emissiveMap 让窗光取代旧「整栋均匀霓虹蓝自发光」，立面 albedo 仍保留蓝色底色（深青蓝渐变墙）。
 
 ### §15.1 双纹理接线（`map` + `emissiveMap`）
 
@@ -454,11 +454,11 @@ class ParkScene {
 
 生成后，`npm run dev`（端口 3000）并确认（条件子清单见 SKILL.md「验证」段 + `shell.md`）：
 
-- [ ] **场景不死黑**：4 种风格首屏都有可辨识的 `scene.background`（暗色风格为顶→底渐变、非纯黑）；未受光区域不再是纯黑（`ambientFloor` 生效）。
-- [ ] **写实增强层**：`realistic`/`night-realistic` 启用 env/AO（night-realistic 另开反射/雾），其余 2 风格守纪律不启用；`EffectComposer`+`UnrealBloomPass` 已实例化（cyber 亮部有溢光）；isometric 不挂 bloom。
-- [ ] **夜间发光窗流水线（v2.15，night-realistic）**：立面纵向渐变墙；顶层比中层少亮窗、**底层零亮窗**；亮窗两色（暖黄/冷蓝）≈70/30；等 5–15s 约 20% 窗 800ms 渐隐渐显、无全屏闪烁；切后台回来不爆发；开 OS reduced-motion 重载→零动画、静态点亮图仍在；cyber→night-realistic→cyber 切换无报错、切走后 `facadeAnims` 清空。其余 5 风格立面与改动前像素一致。
+- [ ] **场景不死黑**：3 种风格首屏都有可辨识的 `scene.background`（暗色风格为顶→底渐变、非纯黑）；未受光区域不再是纯黑（`ambientFloor` 生效）。
+- [ ] **写实增强层**：`realistic`/`night-realistic` 启用 env/AO（night-realistic 另开反射/雾），cyber 守纪律不启用；`EffectComposer`+`UnrealBloomPass` 已实例化（cyber 亮部有溢光）。
+- [ ] **夜间发光窗流水线（v2.15，night-realistic）**：立面纵向渐变墙；顶层比中层少亮窗、**底层零亮窗**；亮窗两色（暖黄/冷蓝）≈70/30；等 5–15s 约 20% 窗 800ms 渐隐渐显、无全屏闪烁；切后台回来不爆发；开 OS reduced-motion 重载→零动画、静态点亮图仍在；cyber→night-realistic→cyber 切换无报错、切走后 `facadeAnims` 清空。其余 1 风格立面与改动前像素一致。
 - [ ] **轮廓对齐**：楼栋几何装配走 `building-geometry.ts` 的 `buildBuilding()`（不在 ParkScene 里手写 `position.y`）；金色楼层高亮对齐楼层 slab、不偏移。
-- [ ] **地面有纹理**：cyber 显示着色器网格；isometric 显示细网格——没有一种风格是「纯色色片」。破坏 cyber shader 引用后地面降级为带网格纹理的纯色平面（不消失）。
+- [ ] **地面有纹理**：cyber 显示着色器网格；其余 2 风格按 token 决定（tiles/grid/none）——没有一种风格是「纯色色片」。破坏 cyber shader 引用后地面降级为带网格纹理的纯色平面（不消失）。
 - [ ] 楼栋按类别上色，与 Legend 一致；每栋楼顶常驻名称标签；立面有楼层虚线分隔 + 贴砖（相邻两块深浅交替）；同一 spec 重复生成一致。
 - [ ] 所有标签（楼名/车库 P/车位 P/POI 图标）高对比可读。
 - [ ] 车库渲染为半金字塔三角门入口 + P 牌，**无**占用标牌/进度条/车位数。
@@ -472,3 +472,143 @@ class ParkScene {
 - [ ] 动态数据水合：`VITE_MOCK_ENABLED=true` 首屏先出脚手架再水合；切 `false` 后请求落到 `/api/manager/park/*`；失败时脚手架仍可交互。
 - [ ] 航拍巡航（`spec.cameraTour` 提供时）：点按钮相机过渡到鸟瞰并自动环绕；巡航中滚轮可缩放、拖拽即退出；`enabled:true` 首屏自动开；reducedMotion 下禁用。
 - [ ] `npm run typecheck` 干净通过。
+
+---
+
+## §16 动效层（v2.28+）
+
+为「高大上」数字孪生驾驶舱提供风格专属签名运动。每效果走**双重门**（`PROFILES.<flag> === true && tokens.effects.<key>.enabled === true`），关闭某效果改 token 即可无需改代码。`reduced-motion` 守卫：构造期仍建 mesh（保留静态可视图），`updateFx()` 整段 no-op。详细 spec 数值与 per-style 矩阵见 `references/styles.md` 动效层段。
+
+### 调度器：buildFxLayer()
+
+插入 `rebuildScene()` 末、`buildPostFX()` 之前（保证 effect emissive 被 bloom 拾到）：
+
+```ts
+private buildFxLayer() {
+  // 1. 创 fxLayer Group（挂 sceneGroup，切风格 clearSceneGroup 自动释放）
+  // 2. 重置 fxMats 引用缓存
+  // 3. fog effect 启用时挂 scene.fog = new THREE.Fog(...)
+  // 4. 按 profile.fx + token.effects 双重门调 7 个 builder
+  if (fx.scan && fxT.scan?.enabled)        this.buildScanField(layer, fxT.scan)
+  if (fx.dataFlow && fxT.dataFlow?.enabled) this.buildDataFlow(layer, fxT.dataFlow)
+  if (fx.pillars && fxT.pillars?.enabled)   this.fxMats.pillars = this.buildLightPillars(layer, fxT.pillars)
+  if (fx.particles && fxT.particles?.enabled) { ...this.buildParticles(layer, fxT.particles)... }
+  if (fx.lampCones && fxT.lampCones?.enabled) this.fxMats.lampCones = this.buildLampCones(layer, fxT.lampCones)
+  if (fx.godRays && fxT.godRays?.enabled)   this.fxMats.godRays = this.buildGodRay(layer, fxT.godRays)
+  if (fx.stars && fxT.stars?.enabled)       { ...this.buildStarField(layer, fxT.stars)... }
+  if (fx.water && fxT.water?.enabled)       this.fxMats.waterNormal = { offset: 0, speed: 1/periodMs }
+}
+```
+
+### 7 个 builder 实现要点
+
+| Builder | 几何 | 材质 | 关键 token |
+|---|---|---|---|
+| `buildScanField` | PlaneGeometry 覆盖园区（bx*2+60 × bz*2+60）y=0.3 | 自写 ShaderMaterial 雷达脉冲（uniform: u_time/u_periodMs/u_ringRadius/u_ringWidth/u_color），AdditiveBlending | scan.color / ringRadius / ringWidth / periodMs |
+| `buildDataFlow` | QuadraticBezierCurve3（主楼→综合楼→服务楼 2 弧）+ TubeGeometry r=0.6 | MeshBasicMaterial emissive + AdditiveBlending；Points packet 沿弧 `getPoint(t)` 插值 | dataFlow.arcHeight / packetCount / periodMs / color |
+| `buildLightPillars` | CylinderGeometry(r=1.4, top=0.55, h∈[120,160]) × 6-12 根，避开楼栋 AABB | 6 材质数组（顶亮底暗），MeshBasicMaterial transparent+depthWrite:false+DoubleSide | pillars.count / height / color / breatheMs |
+| `buildParticles` | BufferGeometry 6-90 高度 N 颗点 | PointsMaterial+程序化软点 CanvasTexture（径向衰减 alpha）+ AdditiveBlending | particles.count / color / size / spread |
+| `buildLampCones` | ConeGeometry(r=3.5, h=60, 16 段, openEnded) × 5 根，boundary 4 角 + 中段 | 自写 ShaderMaterial 顶亮底暗梯度（`vY` 局部 y 渐变）+ AdditiveBlending | lampCones.scale / color / intensity / breatheMs |
+| `buildGodRay` | Sprite（柔光斑 CanvasTexture + 4 道射线） | SpriteMaterial depthTest:false + AdditiveBlending | godRays.scale / color / intensity |
+| `buildStarField` | 上半球 200-900 高度 N 颗 Points | PointsMaterial opacity=0.4（严格 < 0.45 防 bloom 雪片）+ AdditiveBlending | stars.count / color / size / twinkleMs |
+
+### updateFx() — 每帧推进 5 类动画
+
+```ts
+protected updateFx(now: number): void {
+  // 1. pillars 呼吸：每柱 opacity = base × (0.85..1.15) sin(2π·t/breatheMs + phaseOffset)
+  // 2. gridPulse：gridMat.uniforms.u_time = now * 0.001
+  // 3. stars twinkle：starMat.size = base × (0.85..1.15)
+  // 4. god ray breath：god.scale = base × (0.92..1.08)
+  // 4b. lamp cone breath：cone u_opacity = base × (0.85..1.15)
+  // 5. scan 脉冲：scan shader u_time = now * 0.001
+  // 6. dataFlow packets：5 颗粒沿弧 getPoint(cycle) 循环
+}
+```
+
+`reducedMotion` 守卫在 `animate()` 调 `updateFx()` 之前：
+
+```ts
+if (!this.reducedMotion) this.updateFx(performance.now())
+```
+
+### gridGround.glsl 加 3 uniform
+
+```glsl
+uniform float u_time;
+uniform float u_pulseSpeed;  // cyber=0.6；其余 0（shader 分支跳过）
+uniform float u_wavelength;  // cyber=24
+
+// in main: 复用 vUv 到 center 偏移 c，长度 dist = length(c)
+// if (u_pulseSpeed > 0.0) {
+//   float wave = sin(dist * u_wavelength - u_time * u_pulseSpeed) * 0.5 + 0.5;
+//   gl_FragColor = vec4(u_gridColor, alpha + wave * vig * 0.22);
+// }
+```
+
+### 首屏电影入场 playIntro() / stepIntro() / skipIntro()
+
+```ts
+public playIntro(): void {
+  if (this.introTween || this.introSkipped || this.reducedMotion) return
+  const intro = this.tokens.realism.intro
+  if (!intro?.enabled) { this.introSkipped = true; return }
+  // 1. 备份默认位置 / zoom（skipIntro 用）
+  this._origCamPos = this.camera.position.clone()
+  this._origCamZoom = this.camera.zoom ?? 1
+  // 2. 计算 fromPos = toPos 拉远 × fromDistanceFactor + 抬高 fromElevOffsetDeg
+  // 3. 立即跳到 fromPos（首帧即拉远位，禁用 OrbitControls）
+  // 4. 推 introTween = { active, start, dur, fromPos, toPos, fromZoom, toZoom, staggerMs }
+  this.controls.enabled = false
+}
+
+private stepIntro(now: number): boolean {
+  // easeOutCubic(k)；lerp position + zoom；k=1 → 解锁 controls、tween=null
+}
+
+private skipIntro(): void {
+  // 还原 _origCamPos / _origCamZoom；introSkipped=true；controls.enabled=true
+}
+```
+
+GlobalTwin.vue 在 `await Promise.allSettled([loadBuildings(), loadPois()])` 完成之后调 `scene?.playIntro?.()`。
+
+### 共享 helper 纹理
+
+```ts
+private makeSoftDotTexture(colorHex: string): THREE.CanvasTexture {
+  // 64×64 程序化径向衰减 alpha 软点；按 colorHex 缓存 _softDotCache Map
+}
+
+private makeSunGlowTexture(_colorHex: string): THREE.CanvasTexture {
+  // 256×256 程序化柔光斑（中心高亮 + 4 道射线）；alpha=0 处 RGB=0（premultiplied 安全）
+}
+```
+
+### dispose 清理
+
+```ts
+this.sceneObj.fog = null
+this.fxLayer = null
+this.fxMats = {}
+this.introTween = null
+// clearSceneGroup 自动通过 disposeObject 释放 fxLayer 子树（ShaderMaterial / PointsMaterial / CanvasTexture）
+```
+
+### 不要做什么（落地铁律）
+
+- ❌ 不要把 `effects` 数值硬编码进 ParkScene.ts——一律走 token（双重门）。
+- ❌ 不要绕过双重门直接 `if (style === 'cyber')` 加效果——风格切换即失效。
+- ❌ 不要在 `updateFx()` 内 `new THREE.Texture()` 或 `new CanvasTexture()`——程序化纹理只构造 1 次，缓存于 `_softDotCache` / `_godRaysCache`。
+- ❌ 不要让 stars `opacity > 0.45`——会触发 bloom 阈值 0.8 误拾到「雪片」（v2.1 memory 踩坑）。
+- ❌ 不要让 `SpriteMaterial` + `depthTest:false` 透明区用 `AdditiveBlending` + premultiplied RGB=white（god ray 当前 bug 根因）——后续改用 `Plane+Shader` 重写。
+- ❌ 不要忘了在 effect 完成后把 `controls.enabled` 还原（intro 结束、用户主动取消）——防「入场后 OrbitControls 卡死」。
+- ❌ 不要给非 cyber 风格接入 `gridGround.glsl`——保留 `grid` 字段给赛博专用（v2.5 起赛博独占写实引擎）。
+- ❌ 不要忘了在 effect 完成后把 `controls.enabled` 还原（intro 结束、用户主动取消）——防「入场后 OrbitControls 卡死」。
+
+### Playwright 验收清单
+
+- 3 风格截图（cyber / night / realistic）应分别显示其矩阵列出的效果元素。
+- cyber 连拍 2 张（间隔 ≥ 5s）应能看出 gridPulse 进度差（u_time 推 ±12px 波峰）。
+- 入场期截图 1 张：相机从拉远位 + 抬高俯角开始；2.5s 后再截 1 张：已恢复默认位。
+- 浏览器开 `prefers-reduced-motion: reduce`：3 风格应与正常模式视觉等价（动画静止）。

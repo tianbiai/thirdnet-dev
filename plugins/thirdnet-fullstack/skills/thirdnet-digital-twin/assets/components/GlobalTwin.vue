@@ -26,6 +26,8 @@
     <TourToggleButton class="global-twin__tour" />
     <!-- v2.12 多风格实时切换器（左上角；读/写 useStyle，watch 推回 scene.setStyle） -->
     <StyleSwitcher v-if="parkScaffold.previewStyles && parkScaffold.previewStyles.length > 1" class="global-twin__style" />
+    <!-- v2.28+ 扫描线 CSS 叠加层（cyber/night 弱）；pointer-events:none 不阻交互；z-index 在 mask 之下 -->
+    <div class="twin-scanlines" aria-hidden="true" />
     <!-- WebGL context 丢失遮罩（shell.md 契约：显式遮罩 + 停渲染，恢复时重建） -->
     <div v-if="contextLost" class="twin-mask">
       <p>3D 上下文丢失，正在恢复…</p>
@@ -195,6 +197,11 @@ onMounted(async () => {
   twinData.hydrating.value = true
   await Promise.allSettled([loadBuildings(), loadPois()])
   twinData.hydrating.value = false
+
+  // ③ v2.28+ 首屏电影入场（仅触发一次；水合完成后才推——楼栋 label 都已就位）。
+  // 推 1.8s（默认）从拉远位拉到默认取景位，期间 OrbitControls.enabled=false，
+  // 用户在入场期点击/拖拽 → skipIntro 立刻恢复。
+  scene?.playIntro?.()
 })
 
 onBeforeUnmount(() => {
@@ -214,7 +221,7 @@ onBeforeUnmount(() => {
 .global-twin { position: relative; width: 100%; height: 100%; }
 .twin-canvas { display: block; width: 100%; height: 100%; outline: none; }
 .global-twin__tour { position: absolute; top: 20px; right: 24px; z-index: 20; }
-.global-twin__style { position: absolute; top: 20px; left: 24px; z-index: 20; }
+.global-twin__style { position: absolute; top: 64px; left: 24px; z-index: 22; }
 
 .twin-mask {
   position: absolute; inset: 0; z-index: 30;
@@ -248,5 +255,31 @@ onBeforeUnmount(() => {
   background: color-mix(in srgb, var(--twin-palette-panel-top) calc(var(--twin-ui-panel-opacity, 0.9) * 100%), transparent);
   color: var(--twin-palette-text-lo);
   font-size: 12px;
+}
+
+/* v2.28+ 扫描线 CSS 叠加层（cyber/night 弱）：
+ * — 始终覆盖全画布，pointer-events:none 不阻交互
+ * — opacity/color 走 token（cyber baseline = 青 0.06；night 切换后是 蓝 0.03）
+ * — 背景条纹 2px 实 + 1px 透明，screen 混合让暗部「赛博」透出
+ * — 入场入场期（global-twin 根节点挂 .is-intro）外环更明显
+ */
+.twin-scanlines {
+  position: absolute; inset: 0; pointer-events: none; z-index: 18;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0,
+    transparent 2px,
+    var(--twin-effects-scanlines-color, #1de9ff) 3px
+  );
+  opacity: var(--twin-effects-scanlines-opacity, 0.06);
+  mix-blend-mode: screen;
+  animation: twin-scanlines-move var(--twin-effects-scanlines-period-ms, 4000ms) linear infinite;
+}
+@keyframes twin-scanlines-move {
+  from { background-position-y: 0; }
+  to { background-position-y: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .twin-scanlines { animation: none; }
 }
 </style>

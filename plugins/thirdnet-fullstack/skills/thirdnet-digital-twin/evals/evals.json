@@ -99,19 +99,6 @@
       ]
     },
     {
-      "id": 11,
-      "name": "isometric-park",
-      "prompt": "做一个等距插画风的园区信息图——扁平 cel 着色的彩色楼栋、鲜活友好、适合汇报。3 栋楼。",
-      "expected_output": "An isometric scene using MeshLambertMaterial with flatShading:true (v1.8), warm directional light camera-locked, NO shadows (v1.8 DO-NOT-ENABLE-SHADOWS), NoToneMapping.",
-      "files": [],
-      "expectations": [
-        "Spec passes validate_spec.py with style='isometric'",
-        "Building material is MeshLambertMaterial with flatShading:true (v1.8, NOT MeshStandardMaterial)",
-        "shadowMap is disabled and there is an explicit DO-NOT-ENABLE-SHADOWS note (light is camera-locked) (v1.8)",
-        "DirectionalLight color from tokens.lights.sun; NoToneMapping; outputColorSpace = SRGB"
-      ]
-    },
-    {
       "id": 12,
       "name": "negative-malformed-spec",
       "prompt": "我整理了个园区规格，你先帮我校验一下有没有问题再生成。规格在 spec.json：有一栋普通楼没写楼层数、style 写成了 'neon'、有个 POI 的 buildingId 指向不存在的楼、有两栋楼的占地完全重叠。",
@@ -120,7 +107,7 @@
       "expectations": [
         "Output runs scripts/validate_spec.py and reports exit code 1 with specific FAIL lines",
         "Validator flags the building-category entry missing 'floors' (v1.8 B1 — was previously silent)",
-        "Validator flags style 'neon' as not in the 4-style enum",
+        "Validator flags style 'neon' as not in the 3-style enum",
         "Validator flags the POI buildingId that doesn't match any buildings[].id",
         "Assistant does NOT proceed to generate the scene until every FAIL is resolved"
       ]
@@ -195,7 +182,7 @@
         "All 13 assets/components/ files are copied into the project (GlobalTwin/CenterStage/BuildingSwitcher/UnitDetail/GarageCard/LegendPanel/PoiOverlay/TourToggleButton + useSelection/useScaleBoard/useTwinData/useTour + theme.ts); component CSS uses var(--twin-*) with zero hex literals",
         "spec.environment.greenery.waterFeature is true; generated scene renders the water surface + rim (CircleGeometry + RingGeometry at token environment.water color)",
         "Generated ParkScene.ts (from assets/park-scene.impl.ts) includes buildRooftopKit wiring (machine-room box + antenna per building, seeded by buildingId) and buildRoadMarkings (center dashes InstancedMesh + zebra + driveway + arrow at token environment.roadMarking color)",
-        "night-realistic style shows programmatic starfield + moon in the background texture (scene.sky.stars=true, moon=true); cyber shows sparse stars; isometric/realistic have sky all-off",
+        "night-realistic style shows programmatic starfield + moon in the background texture (scene.sky.stars=true, moon=true); cyber shows sparse stars; realistic has sky all-off",
         "Roof name labels sit ABOVE the roof (y = h + 22, not h/2 + 22) and use token ui.labelBg/labelText pair (readable in light styles — no black-on-black labels)",
         "frameCamera is re-run after hydrateBuildings with real max floors (not the default 18-floor estimate), so the park fills ~2/3 of the frame",
         "ParkSceneCallbacks includes onPoiHover; PoiOverlay shows a hover name tooltip (HTML, not a Sprite) and projects only the currently-open POI card",
@@ -219,7 +206,7 @@
         "When prefers-reduced-motion is set, setTourEnabled(true) is a no-op and TourToggleButton renders aria-disabled + disabled (autoRotate is motion, same discipline as the §8 tween/breathing disable)",
         "generate_data.py emits spec.cameraTour into ParkScaffold.cameraTour in src/data/<park>.ts when provided (and omits it cleanly when not); re-running is byte-identical (deterministic)",
         "validate_spec.py returns exit 1 with specific FAIL lines for a bad cameraTour (speed=0, framingK=1.5, elevation=2, unknown key) and exit 0 for a valid/omitted one",
-        "The tour works across all 4 styles without breaking the existing framing / engine realism enhancements (env map, bloom, AO — enabled in realistic/night-realistic, retained-but-off in the other 2) — tour only changes framing + autoRotate, not materials/lights"
+        "The tour works across all 3 styles without breaking the existing framing / engine realism enhancements (env map, bloom, AO — enabled in realistic/night-realistic, retained-but-off in cyber) — tour only changes framing + autoRotate, not materials/lights"
       ]
     }
   ]

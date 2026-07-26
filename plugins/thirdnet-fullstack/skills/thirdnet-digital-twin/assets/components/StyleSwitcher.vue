@@ -64,5 +64,14 @@ function onPick(s: StyleKey) {
   color: var(--twin-palette-text-hi);
   border-color: var(--twin-ui-glow-color);
   box-shadow: 0 0 calc(10px * var(--twin-ui-glow-strength, 1)) var(--twin-ui-glow-color);
+  /* v2.28+ 选中态呼吸：border 在 2.4s 周期 opacity 0.4→0.0 微振（保持选中可读 + 一丝「在线感」） */
+  animation: style-chip-pulse 2.4s ease-in-out infinite;
+}
+@keyframes style-chip-pulse {
+  0%, 100% { box-shadow: 0 0 calc(10px * var(--twin-ui-glow-strength, 1)) var(--twin-ui-glow-color); }
+  50%      { box-shadow: 0 0 calc(20px * var(--twin-ui-glow-strength, 1)) var(--twin-ui-glow-color); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .style-chip--active { animation: none; }
 }
 </style>

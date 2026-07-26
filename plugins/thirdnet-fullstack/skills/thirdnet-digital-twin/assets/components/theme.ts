@@ -12,11 +12,38 @@
  * ⚠️ 需要 tsconfig 开 "resolveJsonModule": true（Vite 原生支持 JSON import）。
  */
 import cyberTokens from '@/scene/themes/cyber.tokens.json'
-import isometricTokens from '@/scene/themes/isometric.tokens.json'
 import realisticTokens from '@/scene/themes/realistic.tokens.json'
 import nightRealisticTokens from '@/scene/themes/night-realistic.tokens.json'
 
-export type StyleKey = 'cyber' | 'isometric' | 'realistic' | 'night-realistic'
+export type StyleKey = 'cyber' | 'realistic' | 'night-realistic'
+
+/**
+ * v2.28+ 单效果旋钮（启用与否 + 颜色 + 数值）。所有效果用「双重门」控制：
+ *   `PROFILES[style].fx.<flag> === true && this.tokens.effects.<key>.enabled === true`，
+ * `applyCssVars` 把 numbers 展平为 `--twin-effects-<key>-<field>`，颜色进同名变体 CSS 变量。
+ * ParkScene 的 `buildFxLayer()` + `updateFx()` 双重门联动。
+ */
+export interface EffectTokens {
+  enabled?: boolean
+  /** 任意十六进制色字符串，多数效果用 color 字段；CSS 端取 `var(--twin-effects-<key>-color)`。 */
+  color?: string
+  /** 兜底数值字段（rate/count/intensity/scale/opacity/...），按 effect 含义不同，由消费方各自读取。 */
+  [field: string]: unknown
+}
+
+export interface EffectsTokens {
+  scan?: EffectTokens
+  dataFlow?: EffectTokens
+  pillars?: EffectTokens
+  particles?: EffectTokens
+  lampCones?: EffectTokens
+  godRays?: EffectTokens
+  stars?: EffectTokens
+  water?: EffectTokens
+  fog?: EffectTokens
+  scanlines?: EffectTokens
+  gridPulse?: EffectTokens
+}
 
 /** ThemeTokens：与 assets/tokens.schema.json 同形（注释键/null 允许存在，消费方自己判空）。 */
 export interface ThemeTokens {
@@ -24,7 +51,11 @@ export interface ThemeTokens {
   palette: Record<string, string>
   accents: Record<string, string>
   category: Record<string, string>
-  building: { roomShade: number; dividerColor: string; edgeColor?: string }
+  building: {
+    roomShade: number
+    dividerColor: string
+    edgeColor?: string
+  }
   lights: Record<string, string | number | null>
   ground?: { texture?: { type: 'tiles' | 'grid' | 'dots'; base: string; line: string; cell: number } }
   shaders?: { grid?: { u_gridColor: string; u_cell: number; u_strength: number } | null }
@@ -34,14 +65,28 @@ export interface ThemeTokens {
   /** v2.6 地下场景配色（deck/wall/edge/room/spot/ramp + deckOpacity/wallOpacity）。 */
   underground?: Record<string, unknown>
   poi: Record<string, unknown>
+  /** v2.28+ 动效层旋钮（每风格 token 配 effects 段；缺省整段未配 → 全部 disabled）。 */
+  effects?: EffectsTokens
   realism: {
-    material: { roughness: number; metalness: number; envMapIntensity: number }
+    material: { roughness: number; metalness: number; envMapIntensity: number; clearcoat?: number; clearcoatRoughness?: number }
     bloom: { threshold: number; strength: number; radius: number }
     ao: { enabled: boolean; intensity: number; radius: number }
     reflection: { enabled: boolean; opacity: number; mixStrength: number }
     fog: { color: string; near: number; far: number } | null
     sun: { azimuth: number; elevation: number }
     shadow?: { radius?: number; bias?: number }
+    /** v2.28+ 首屏电影入场：GlobalTwin 水合完成后调 `playIntro()` 推一次。 */
+    intro?: {
+      enabled?: boolean
+      /** 入场时长（ms；推荐 1600-2200）。reduced-motion 下整段跳过。 */
+      durationMs?: number
+      /** 起手相机距离倍数（>1 = 拉远开场，=1.6 → 1.0 推近）。仅 perspective 风格生效。 */
+      fromDistanceFactor?: number
+      /** 起手俯角偏移（度，正值 = 更高俯视开场）。 */
+      fromElevOffset?: number
+      /** 楼栋 facade emissiveIntensity 顺序亮起间隔（ms）。0 = 一起亮。 */
+      staggerMs?: number
+    }
   }
   ui?: {
     panelOpacity: number; panelBlur: number; panelRadius: number
@@ -54,7 +99,6 @@ export interface ThemeTokens {
 
 const THEMES: Record<StyleKey, ThemeTokens> = {
   cyber: cyberTokens as unknown as ThemeTokens,
-  isometric: isometricTokens as unknown as ThemeTokens,
   realistic: realisticTokens as unknown as ThemeTokens,
   'night-realistic': nightRealisticTokens as unknown as ThemeTokens,
 }
@@ -65,7 +109,6 @@ const THEMES: Record<StyleKey, ThemeTokens> = {
  */
 export const STYLE_LABELS: Record<StyleKey, string> = {
   cyber: '赛博',
-  isometric: '等距',
   realistic: '写实',
   'night-realistic': '夜景',
 }

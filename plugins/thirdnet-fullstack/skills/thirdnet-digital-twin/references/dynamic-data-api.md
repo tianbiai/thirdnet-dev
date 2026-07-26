@@ -195,4 +195,4 @@ POI `status` 需要颜色映射。在所选风格 `assets/themes/<style>.tokens.
 }
 ```
 
-渲染 POI 标记时：图标底色取 `poi[type]`，外圈光晕/动画色取 `poi.status[status]`（alarm 可加呼吸动画）。`status` 缺省回退 `online`。这套 status 色跨 4 风格各定义一份，换肤只改 token。
+渲染 POI 标记时：图标底色取 `poi[type]`，外圈光晕/动画色取 `poi.status[status]`（alarm 可加呼吸动画）。`status` 缺省回退 `online`。这套 status 色跨 3 风格各定义一份，换肤只改 token。
