@@ -1,5 +1,23 @@
 # Changelog
 
+## 2.33.0 - 2026-07-30
+
+### Changed
+- **proto-workflow v1.1.0「通用化去 SmartPark 耦合」**：原 v1.0.0 深度耦合 SmartPark（分支名硬编码 `Park-PT{r}`、SVN 路径硬编码 `^/future/Park` 与 `e:/SVN/future/Park`、阶段 3 以 repair 模块为唯一样板、权限前缀 `park:`、正文开篇「SmartPark 仓库」、全文引用未随包发布的源文档《代码发布管理-原型驱动流程.md》）。现参数化为**任意 thirdnet 全栈项目开箱即用**：
+  - 新增「迭代参数」节定义 `{Project}` / `{repoPrefix}` / `{wcTrunk}` / `r_base` 四参数，下游所有命令与模板统一引用，不再出现项目名字面量。
+  - 阶段 0 改为「探测 + 确认」：在工作副本 `svn info` 自动解析项目名 / 仓库前缀 / 工作副本路径（默认值=探测值），非工作副本时退化为全量询问。
+  - 分支命名遵循「项目名 + 主干 revision」：原型分支 `{Project}-PT{r}`、Bug 分支 `{Project}-BF{r}`（`-PT`/`-BF` 保留为语义标记以区分两类分支）；`Park` 仅作示例值保留并显式注明。
+  - 阶段 3 删除 repair 专属样板，改为抽象契约范例（`src/api/interfaces/{endpoint}/<entity>.ts` ↔ `<Entity>Controller.cs`，路由 `/api/{endpoint}/<entity>`，权限 `{project}:<entity>:*`），以本项目任一已闭环模块为参照。
+  - 工厂文件冲突热点 `api/modules/{app|manager}/*.ts` 泛化为 `src/api/modules/**/*.ts`（`app|manager` 降级为例示子目录）。
+  - 删除全部源文档 `§X.X` 引用与「事实来源为《代码发布管理-原型驱动流程.md》」句（该文档未随包，通用项目读不到；承载性规则已内联）。
+  - 三处 references（`svn-commands.md` / `release-params.md` / `checklists.md`）同步参数化；「Admin 与 Park 两个 API」等专属表述泛化为「项目内各 API」。
+  - 三处 references 同步参数化；「Admin 与 Park 两个 API」等专属表述泛化为「项目内各 API」。
+- **同版进一步「精简到分支生命周期」**：技能范围收窄为原型/Bug 分支的**创建、合并回主干、删除**三类操作（确认门随之精简为 A 创建 / B 合并 / C 删除，原冻结门 B 的清理纪律并入合并预检）；移除真实实现阶段、测试阶段（对照验收 / Bug 分流判定）、全部发布清单、环境模型与 Jenkins/Octopus 内容；编码 / 测试 / 发布明确委托既有技能或由人完成。**删除 `references/release-params.md`**（不再有发布流程），`references/checklists.md` 精简为合并预检 / 冲突处理 / 删分支确认三类，`references/svn-commands.md` 保留并同步确认门编号。`hooks.json` 不变。
+
+### 版本同步
+- `plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.32.0 → 2.33.0`；`marketplace.json` 顶层 `metadata.version` `0.63.0 → 0.64.0`；技能 `proto-workflow` `metadata.version` `1.0.0 → 1.1.0`。
+- `hooks.json` 不变（技能走 Bash 执行 SVN，不落 PreToolUse 合规门）。
+
 ## 2.32.0 - 2026-07-30
 
 ### Added
