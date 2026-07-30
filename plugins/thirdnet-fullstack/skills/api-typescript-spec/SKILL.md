@@ -8,7 +8,7 @@ description: >
   触发词：API、接口、Mock、请求、adapter、类型定义、DTO、策略模式、工厂模式、接口契约、IXxxApi。
 license: MIT
 metadata:
-  version: "2.2.0"
+  version: "2.2.1"
   author: thirdnet
 ---
 
@@ -348,7 +348,7 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 #### 生产构建排除机制
 
-生产构建（`vite build`）时，自定义 Vite 插件 `mockDataStripPlugin()` 拦截 `/mock/data/` 导入替换为空对象桩，配合 `MOCK_ENABLED` 静态为 `false` 让 `new MockXxxApi()` 分支成为死代码被 Rollup tree-shaking 移除；开发模式插件不启用。切换由 `VITE_MOCK_ENABLED` 控制，工厂函数模块初始化执行一次。
+生产构建（`vite build`）时，自定义 Vite 插件 `mockDataStripPlugin()` 拦截 `/mock/data/` 导入替换为空数组桩，配合 `MOCK_ENABLED` 静态为 `false` 让 `new MockXxxApi()` 分支成为死代码被 Rollup tree-shaking 移除；开发模式插件不启用。切换由 `VITE_MOCK_ENABLED` 控制，工厂函数模块初始化执行一次。
 
 完整 `mockDataStripPlugin()` 源码、tree-shaking 原理与开发辅助文案剥离示例见 [mock-stripping.md](references/mock-stripping.md)，当修改 `vite.config.ts` 或排查 tree-shaking 问题时再读。
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.31.0 - 2026-07-30
+
+### Fixed
+- **api-typescript-spec v2.2.1「mock-stripping 改为完整可运行源码」**：修复 `references/mock-stripping.md` 中 `mockDataStripPlugin` 代码块为不可运行伪代码的问题——`resolveId` 引用未定义的 `resolvedPath`、`load` 引用未定义的 `content`，照抄即 ReferenceError。现替换为与 `frontend/web/vite.config.ts` 一致的完整实现：补齐 `fs` 读文件（含 `.ts`/`.js` 候选扩展名）、`@/` 别名解析（基于 `srcDir = path.resolve(__dirname, 'src')`）、`export` 具名导出提取、`command === 'build'` 守卫、`.filter(Boolean)` 挂载。
+
+### Changed
+- 桩值统一为 `export const ${n} = []`（原文档误写 `{}`，与真实实现不符），并注释说明「死代码分支永不执行，桩值仅为占位」。
+- 明确拦截范围：只拦截 `/mock/data/`，不拦截 `/mock/api/`（后者靠 `MOCK_ENABLED=false` + tree-shaking）。
+- 新增「Web 与小程序端一致性」章节：`mockDataStripPlugin` 两端（`frontend/web` 与 `frontend/minigram`）都需配备；小程序端 `defineConfig` 须用函数形式 `defineConfig(({ command }) => ({...}))` 才能按 `command` 启用插件，给出 minigram 最小集成示例。
+- 新增「生产包验证」章节：构建后 grep 一个只存在于 `mock/data/**` 的特征字面量应无命中，并提示 `mock/api/**` 死代码硬编码值可能残留。
+- `SKILL.md` 步骤 4 指向语「空对象桩」修正为「空数组桩」。
+
 ## 2.30.0 - 2026-07-26
 
 ### Added
