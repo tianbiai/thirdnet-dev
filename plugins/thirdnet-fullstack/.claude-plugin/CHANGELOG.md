@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.32.0 - 2026-07-30
+
+### Added
+- **proto-workflow v1.0.0「原型驱动迭代编排」**：新增流程编排类技能，自动化《代码发布管理-原型驱动流程.md》定义的 5 阶段 SVN 原型迭代循环（原型分支 → 合并主干 → 补真实实现 → 对照测试 → 发布收尾）。**执行式 + 纯编排**：实际执行 `svn copy` / `svn merge` / `svn delete` / `svn commit`，每个不可逆操作前设确认门（A 建分支 / B 冻结 / C 合并 / D 删分支，均 `AskUserQuestion`）；编码环节委托 `frontend-workflow` + `backend-workflow` + `api-typescript-spec`，本技能不写业务代码。覆盖分支命名（`Park-PT{r}` / `Park-BF{r}` 同级目录）、整体合并纪律（冻结前必清理废弃代码）、工厂文件冲突热点预警、三环境构建参数固化（原型 `VITE_MOCK_ENABLED=true` / 测试正式 `false` + Mock 剥离）、Bug 分支（BF）子流程、DB schema 与微信审核风险提示。结构含 `SKILL.md` + 3 个 references（`svn-commands.md` / `release-params.md` / `checklists.md`），SKILL.md 控制在 500 行内、按需加载 references。事实来源为 `代码发布管理-原型驱动流程.md` v1.0（已逐条对齐《代码发布管理.docx》既有约定）。
+
+### Changed
+- 协调技能 `thirdnet-fullstack`「任务路由」表新增一行：原型 / 发布分支管理（拉原型分支、合并回主干、迭代发布、对照原型验收、线上 bug 走分支）→ 委派 `proto-workflow`。
+- 协调技能「自包含说明」技能清单新增「迭代发布编排：`proto-workflow`」条目。
+- `plugin.json` / `marketplace.json` 的插件描述补列「迭代发布编排」与 `proto-workflow`。
+
+### 版本同步
+- `plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.31.0 → 2.32.0`；`marketplace.json` 顶层 `metadata.version` `0.62.0 → 0.63.0`；新技能 `proto-workflow` `metadata.version` `1.0.0`。
+- `hooks.json` 不变：本技能走 Bash 执行 SVN，不落 PreToolUse 合规门的 `*.cs` / `**/src/**/*.{vue,ts,...}` 模式，无需加入技能路由门。
+
 ## 2.31.0 - 2026-07-30
 
 ### Fixed
