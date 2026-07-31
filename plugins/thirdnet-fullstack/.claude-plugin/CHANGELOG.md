@@ -3,16 +3,12 @@
 ## 2.33.0 - 2026-07-30
 
 ### Changed
-- **proto-workflow v1.1.0「通用化去 SmartPark 耦合」**：原 v1.0.0 深度耦合 SmartPark（分支名硬编码 `Park-PT{r}`、SVN 路径硬编码 `^/future/Park` 与 `e:/SVN/future/Park`、阶段 3 以 repair 模块为唯一样板、权限前缀 `park:`、正文开篇「SmartPark 仓库」、全文引用未随包发布的源文档《代码发布管理-原型驱动流程.md》）。现参数化为**任意 thirdnet 全栈项目开箱即用**：
-  - 新增「迭代参数」节定义 `{Project}` / `{repoPrefix}` / `{wcTrunk}` / `r_base` 四参数，下游所有命令与模板统一引用，不再出现项目名字面量。
-  - 阶段 0 改为「探测 + 确认」：在工作副本 `svn info` 自动解析项目名 / 仓库前缀 / 工作副本路径（默认值=探测值），非工作副本时退化为全量询问。
-  - 分支命名遵循「项目名 + 主干 revision」：原型分支 `{Project}-PT{r}`、Bug 分支 `{Project}-BF{r}`（`-PT`/`-BF` 保留为语义标记以区分两类分支）；`Park` 仅作示例值保留并显式注明。
-  - 阶段 3 删除 repair 专属样板，改为抽象契约范例（`src/api/interfaces/{endpoint}/<entity>.ts` ↔ `<Entity>Controller.cs`，路由 `/api/{endpoint}/<entity>`，权限 `{project}:<entity>:*`），以本项目任一已闭环模块为参照。
-  - 工厂文件冲突热点 `api/modules/{app|manager}/*.ts` 泛化为 `src/api/modules/**/*.ts`（`app|manager` 降级为例示子目录）。
-  - 删除全部源文档 `§X.X` 引用与「事实来源为《代码发布管理-原型驱动流程.md》」句（该文档未随包，通用项目读不到；承载性规则已内联）。
-  - 三处 references（`svn-commands.md` / `release-params.md` / `checklists.md`）同步参数化；「Admin 与 Park 两个 API」等专属表述泛化为「项目内各 API」。
-  - 三处 references 同步参数化；「Admin 与 Park 两个 API」等专属表述泛化为「项目内各 API」。
-- **同版进一步「精简到分支生命周期」**：技能范围收窄为原型/Bug 分支的**创建、合并回主干、删除**三类操作（确认门随之精简为 A 创建 / B 合并 / C 删除，原冻结门 B 的清理纪律并入合并预检）；移除真实实现阶段、测试阶段（对照验收 / Bug 分流判定）、全部发布清单、环境模型与 Jenkins/Octopus 内容；编码 / 测试 / 发布明确委托既有技能或由人完成。**删除 `references/release-params.md`**（不再有发布流程），`references/checklists.md` 精简为合并预检 / 冲突处理 / 删分支确认三类，`references/svn-commands.md` 保留并同步确认门编号。`hooks.json` 不变。
+- **proto-workflow v1.0.0 → 1.1.0「通用化 + 收窄为 .Proto 双向同步模型」**：对新增技能做三件叠加调整，使其成为任意 thirdnet 全栈项目可用的原型分支同步编排器：
+  1. **通用化去 SmartPark 耦合**：原 v1.0.0 硬编码 `Park-PT{r}` / `^/future/Park` / `e:/SVN/future/Park`、阶段 3 以 repair 模块为样板、权限前缀 `park:`、正文「SmartPark 仓库」、引用未随包的源文档《代码发布管理-原型驱动流程.md》。现参数化：新增「迭代参数」`{Project}` / `{repoPrefix}` / `{wcMain}` / `{wcProto}` / `r_main`；首次交互 `svn info` 探测 + AskUserQuestion 确认；工厂文件热点泛化为 `src/api/modules/**/*.ts`；删除全部源文档 §X 引用。
+  2. **模型改为固定命名 `{Project}.Proto` 长期分支 + 与 main 双向 `svn merge` 同步**：原型分支固定命名、与 main 同级、长期存在不删除。聚焦两个核心操作——① `main → {Project}.Proto`：把 main 最新代码（或指定 revision `@{r}`）合并进原型分支作为初始基线；② `{Project}.Proto → main`：把原型代码合并回主干，随后基于 main 做真实开发。首次用 `svn copy` 从 main 建分支（bootstrap）。确认门 A 首次建 / B 同步 main→Proto / C 合并 Proto→main；同步是合并 main 进 .Proto、非重置。
+  3. **范围收窄**：只管 `{Project}.Proto` 与 main 的分支同步；移除真实实现阶段、测试阶段（对照验收 / Bug 分流）、全部发布清单、环境模型、Jenkins/Octopus、删除分支操作与 BF 子流程；编码 / 测试 / 发布委托既有技能或由人完成。**删除 `references/release-params.md`**，`references/checklists.md` 精简为合并预检 / 冲突处理（双向通用）。
+  4. **新增「不自动 svn commit」硬性要求**：技能执行 `svn info` / `svn status` / `svn copy`（建分支，门 A）/ `svn merge`（非提交）；**唯独 `svn commit`（提交）由用户手动执行**——技能给出确切命令、用户手动运行。合并后工作副本保持「已合并未提交」，由用户核对内容后手动提交。
+- 协调技能 `thirdnet-fullstack` 路由表与自包含说明中 `proto-workflow` 的描述同步改为「原型分支同步编排」（固定 .Proto + 与 main 双向 svn merge）；`plugin.json` / `marketplace.json` 插件描述中「迭代发布编排」改为「原型分支同步编排」。`hooks.json` 不变。
 
 ### 版本同步
 - `plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.32.0 → 2.33.0`；`marketplace.json` 顶层 `metadata.version` `0.63.0 → 0.64.0`；技能 `proto-workflow` `metadata.version` `1.0.0 → 1.1.0`。
