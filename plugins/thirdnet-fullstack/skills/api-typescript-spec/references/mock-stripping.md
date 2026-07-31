@@ -2,24 +2,27 @@
 
 > 何时需要读：当你要修改 `vite.config.ts` 中的 `mockDataStripPlugin`、排查生产包是否真正不含 Mock 数据、为新端点（web/minigram）配备该插件，或排查 tree-shaking 失效问题时再读。日常切换 Mock 开关无需读。
 
-生产构建（`vite build`）时，通过自定义 Vite 插件 `mockDataStripPlugin()`（`vite.config.ts`）剥离 Mock 数据，配合 `MOCK_ENABLED` 静态为 `false` 让 Mock 分支成为死代码被 tree-shaking 移除。
+生产构建（`vite build`）**且 Mock 关闭**时，通过自定义 Vite 插件 `mockDataStripPlugin()`（`vite.config.ts`）剥离 Mock 数据，配合 `MOCK_ENABLED` 静态为 `false` 让 Mock 分支成为死代码被 tree-shaking 移除。Mock 开启的生产构建（原型/演示）不剥离。
 
 ## 完整插件源码（可直接粘贴运行）
 
-下面是与 `frontend/web/vite.config.ts` 一致的完整实现——不是省略版，含 `fs` 读文件、`@/` 别名解析、导出名提取、空桩生成、`command === 'build'` 守卫、`.filter(Boolean)` 挂载。照抄即可运行：
+下面是与 `frontend/web/vite.config.ts` 一致的完整实现——不是省略版，含 `fs` 读文件、`@/` 别名解析、导出名提取、空桩生成、`loadEnv` 读 Mock 开关、`command === 'build' && !mockEnabled` 双守卫、`.filter(Boolean)` 挂载。照抄即可运行：
 
 ```typescript
 // vite.config.ts
-import { defineConfig, type Plugin } from 'vite'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import path from 'path'
 import fs from 'fs'
 
 /**
  * 生产构建 Mock 数据剥离插件
  *
- * 生产模式（command === 'build'）下，拦截 @/mock/data/ 导入，
- * 读取原文件导出名称，生成等价的空数组桩模块。
+ * 仅在「生产构建（command === 'build'）且 Mock 关闭（VITE_MOCK_ENABLED !== 'true'）」时由
+ * defineConfig 挂载。挂载后拦截 @/mock/data/ 导入，读取原文件导出名称，生成等价的空数组桩模块。
  * 配合 MOCK_ENABLED=false 让 new MockXxxApi() 分支成为死代码，被 tree-shaking 移除。
+ *
+ * Mock 开启的生产构建（原型/演示，VITE_MOCK_ENABLED=true）不挂载本插件——此时 Mock 分支是
+ * 存活分支，剥离 /mock/data/ 会让演示界面拿不到数据。
  *
  * 拦截范围仅 /mock/data/（数据层）；/mock/api/（Mock 类）靠 MOCK_ENABLED + tree-shaking。
  */
@@ -63,14 +66,24 @@ function mockDataStripPlugin(): Plugin {
   }
 }
 
-export default defineConfig(({ command }) => ({
-  plugins: [
-    // 其它插件保持不变：
-    //   web      → vue() / AutoImport / Components ...
-    //   minigram → uni()
-    command === 'build' ? mockDataStripPlugin() : null,
-  ].filter(Boolean),
-}))
+export default defineConfig(({ command, mode }) => {
+  // 仅「生产构建 + Mock 关闭」时启用剥离：
+  //   MOCK_ENABLED=false（正式/测试）→ 剥离 /mock/data/，配合 tree-shaking 移除 Mock 类
+  //   MOCK_ENABLED=true（原型/演示构建）→ 不剥离，保留真实 Mock 数据供演示
+  //
+  // 注：MOCK_ENABLED（import.meta.env.VITE_MOCK_ENABLED）在 vite.config.ts 作用域不可用，
+  //     配置期必须用 loadEnv(mode, process.cwd()) 读 .env。
+  const env = loadEnv(mode, process.cwd())
+  const mockEnabled = env.VITE_MOCK_ENABLED === 'true'
+  return {
+    plugins: [
+      // 其它插件保持不变：
+      //   web      → vue() / AutoImport / Components ...
+      //   minigram → uni()
+      command === 'build' && !mockEnabled ? mockDataStripPlugin() : null,
+    ].filter(Boolean),
+  }
+})
 ```
 
 ## 拦截范围（重要）
@@ -80,11 +93,11 @@ export default defineConfig(({ command }) => ({
 - `/mock/data/**`：被替换为空数组桩，真实 Mock 数据不进生产包。
 - `/mock/api/**`（`MockXxxApi` 类）：不靠本插件。它通过 `MOCK_ENABLED=false` 让工厂函数中 `new MockXxxApi()` 所在分支不可达，再由 Rollup tree-shaking 移除整个类。
 
-开发模式（`command !== 'build'`）插件不启用，Mock 模块正常加载。
+开发模式（`command !== 'build'`）插件不启用，Mock 模块正常加载。**Mock 开启的生产构建**（`command === 'build'` 且 `VITE_MOCK_ENABLED=true`，即原型/演示构建）也不启用——此时 Mock 分支存活，需保留真实 Mock 数据。
 
 ## 原理
 
-生产构建时，所有 `/mock/data/**` 的导入被 `mockDataStripPlugin` 拦截，替换为「每个具名导出 = 空数组 `[]`」的虚拟桩模块。由于 `MOCK_ENABLED` 静态为 `false`，工厂函数中 `new MockXxxApi()` 所在分支不可达，Rollup tree-shaking 移除该分支；Mock 数据本身已被桩替换为空数组，最终产物中不含真实 Mock 数据。
+生产构建**且 Mock 关闭**时（`command === 'build' && !mockEnabled`），所有 `/mock/data/**` 的导入被 `mockDataStripPlugin` 拦截，替换为「每个具名导出 = 空数组 `[]`」的虚拟桩模块。由于 `MOCK_ENABLED` 静态为 `false`，工厂函数中 `new MockXxxApi()` 所在分支不可达，Rollup tree-shaking 移除该分支；Mock 数据本身已被桩替换为空数组，最终产物中不含真实 Mock 数据。若 Mock 开启（原型/演示构建），插件不挂载，`/mock/data/**` 原样保留供演示。
 
 **切换流程**：通过环境变量 `VITE_MOCK_ENABLED`（开发期 `.env`）控制，无需手动改配置。工厂函数在模块初始化时执行一次，运行期间不再切换。
 
@@ -92,25 +105,31 @@ export default defineConfig(({ command }) => ({
 
 `api-typescript-spec` 覆盖 Web 与 uniapp 小程序两端，`mockDataStripPlugin` 因此**两端都需配备**：`frontend/web/vite.config.ts` 与 `frontend/minigram/vite.config.ts` 直接复用同一个 `mockDataStripPlugin` 函数即可。
 
-**小程序端关键差异**：`frontend/minigram/vite.config.ts` 默认常写成对象形式 `defineConfig({...})`，对象形式拿不到 `command`，插件守卫失效。必须改为**函数形式** `defineConfig(({ command }) => ({...}))` 才能按 `command === 'build'` 启用插件：
+**小程序端关键差异**：`frontend/minigram/vite.config.ts` 默认常写成对象形式 `defineConfig({...})`，对象形式拿不到 `command`/`mode`，插件守卫失效。必须改为**函数形式** `defineConfig(({ command, mode }) => ({...}))` 才能既按 `command === 'build'` 启用插件、又用 `loadEnv(mode, ...)` 读 Mock 开关：
 
 ```typescript
 // frontend/minigram/vite.config.ts
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import uni from '@dcloudio/vite-plugin-uni'
 // mockDataStripPlugin 定义同上文（两端可共享一个文件导入，或各自内联同一函数）
 
-export default defineConfig(({ command }) => ({
-  plugins: [
-    uni(),
-    command === 'build' ? mockDataStripPlugin() : null,
-  ].filter(Boolean),
-}))
+export default defineConfig(({ command, mode }) => {
+  const env = loadEnv(mode, process.cwd())
+  const mockEnabled = env.VITE_MOCK_ENABLED === 'true'
+  return {
+    plugins: [
+      uni(),
+      command === 'build' && !mockEnabled ? mockDataStripPlugin() : null,
+    ].filter(Boolean),
+  }
+})
 ```
 
-> Web 端 `defineConfig` 已是函数形式；只在小程序端需注意从对象形式改为函数形式。
+> Web 端 `defineConfig` 已是函数形式；只在小程序端需注意从对象形式改为函数形式（并解构 `mode`）。
 
 ## 生产包验证
+
+> 仅适用于 **Mock 关闭**的正式/测试构建。原型/演示构建（`VITE_MOCK_ENABLED=true`）产物**应含** Mock 数据，本验证不适用。
 
 构建后验证生产包确实不含 Mock 数据：在产物目录（如 `dist/`）grep 一个**只存在于 `mock/data/**`** 的特征字面量（如某条 mock 订单号、测试手机号），应**无命中**。
 

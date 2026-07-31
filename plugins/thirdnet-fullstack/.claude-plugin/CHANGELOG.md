@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.32.1 - 2026-07-31
+
+### Fixed
+- **api-typescript-spec v2.2.2「mockDataStripPlugin 仅在 Mock 关闭的生产构建启用」**：修复 `references/mock-stripping.md` 中插件挂载守卫只看 `command === 'build'`、与 `MOCK_ENABLED` 无关的问题。原实现导致**原型/演示构建**（`vite build` + `VITE_MOCK_ENABLED=true`，`proto-workflow` 明确支持的部署形态）时插件仍把 `/mock/data/**` 桩成空数组，而此时 `new MockXxxApi()` 正是存活分支、import 这些数据 → 演示界面无数据。现改为 `command === 'build' && !mockEnabled` 双守卫：Mock 关闭（正式/测试）才剥离，Mock 开启（原型/演示）保留真实数据。技术要点：`MOCK_ENABLED`（`import.meta.env`）在 `vite.config.ts` 不可用，配置期改用 `loadEnv(mode, process.cwd())` 读取，`defineConfig` 解构 `({ command, mode })`。同步更新 web/minigram 两端示例、JSDoc、原理段与「生产包验证」段（注明验证仅适用于 Mock 关闭的构建）。
+
+### 版本同步
+- `plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.32.0 → 2.32.1`；`api-typescript-spec` `metadata.version` `2.2.1 → 2.2.2`。顶层 `metadata.version` 不变（非重大变更）。
+
 ## 2.32.0 - 2026-07-30
 
 ### Added
