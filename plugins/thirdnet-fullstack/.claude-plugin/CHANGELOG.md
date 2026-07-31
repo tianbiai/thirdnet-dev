@@ -1,12 +1,26 @@
 # Changelog
 
-## 2.32.1 - 2026-07-31
+## 2.33.1 - 2026-07-31
 
 ### Fixed
 - **api-typescript-spec v2.2.2「mockDataStripPlugin 仅在 Mock 关闭的生产构建启用」**：修复 `references/mock-stripping.md` 中插件挂载守卫只看 `command === 'build'`、与 `MOCK_ENABLED` 无关的问题。原实现导致**原型/演示构建**（`vite build` + `VITE_MOCK_ENABLED=true`，`proto-workflow` 明确支持的部署形态）时插件仍把 `/mock/data/**` 桩成空数组，而此时 `new MockXxxApi()` 正是存活分支、import 这些数据 → 演示界面无数据。现改为 `command === 'build' && !mockEnabled` 双守卫：Mock 关闭（正式/测试）才剥离，Mock 开启（原型/演示）保留真实数据。技术要点：`MOCK_ENABLED`（`import.meta.env`）在 `vite.config.ts` 不可用，配置期改用 `loadEnv(mode, process.cwd())` 读取，`defineConfig` 解构 `({ command, mode })`。同步更新 web/minigram 两端示例、JSDoc、原理段与「生产包验证」段（注明验证仅适用于 Mock 关闭的构建）。
 
 ### 版本同步
-- `plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.32.0 → 2.32.1`；`api-typescript-spec` `metadata.version` `2.2.1 → 2.2.2`。顶层 `metadata.version` 不变（非重大变更）。
+- `plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.33.0 → 2.33.1`；`api-typescript-spec` `metadata.version` `2.2.1 → 2.2.2`。顶层 `metadata.version` 不变（非重大变更）。
+
+## 2.33.0 - 2026-07-30
+
+### Changed
+- **proto-workflow v1.0.0 → 1.1.0「通用化 + 收窄为 .Proto 双向同步模型」**：对新增技能做三件叠加调整，使其成为任意 thirdnet 全栈项目可用的原型分支同步编排器：
+  1. **通用化去 SmartPark 耦合**：原 v1.0.0 硬编码 `Park-PT{r}` / `^/future/Park` / `e:/SVN/future/Park`、阶段 3 以 repair 模块为样板、权限前缀 `park:`、正文「SmartPark 仓库」、引用未随包的源文档《代码发布管理-原型驱动流程.md》。现参数化：新增「迭代参数」`{Project}` / `{repoPrefix}` / `{wcMain}` / `{wcProto}` / `r_main`；首次交互 `svn info` 探测 + AskUserQuestion 确认；工厂文件热点泛化为 `src/api/modules/**/*.ts`；删除全部源文档 §X 引用。
+  2. **模型改为固定命名 `{Project}.Proto` 长期分支 + 与 main 双向 `svn merge` 同步**：原型分支固定命名、与 main 同级、长期存在不删除。聚焦两个核心操作——① `main → {Project}.Proto`：把 main 最新代码（或指定 revision `@{r}`）合并进原型分支作为初始基线；② `{Project}.Proto → main`：把原型代码合并回主干，随后基于 main 做真实开发。首次用 `svn copy` 从 main 建分支（bootstrap）。确认门 A 首次建 / B 同步 main→Proto / C 合并 Proto→main；同步是合并 main 进 .Proto、非重置。
+  3. **范围收窄**：只管 `{Project}.Proto` 与 main 的分支同步；移除真实实现阶段、测试阶段（对照验收 / Bug 分流）、全部发布清单、环境模型、Jenkins/Octopus、删除分支操作与 BF 子流程；编码 / 测试 / 发布委托既有技能或由人完成。**删除 `references/release-params.md`**，`references/checklists.md` 精简为合并预检 / 冲突处理（双向通用）。
+  4. **新增「不自动 svn commit」硬性要求**：技能执行 `svn info` / `svn status` / `svn copy`（建分支，门 A）/ `svn merge`（非提交）；**唯独 `svn commit`（提交）由用户手动执行**——技能给出确切命令、用户手动运行。合并后工作副本保持「已合并未提交」，由用户核对内容后手动提交。
+- 协调技能 `thirdnet-fullstack` 路由表与自包含说明中 `proto-workflow` 的描述同步改为「原型分支同步编排」（固定 .Proto + 与 main 双向 svn merge）；`plugin.json` / `marketplace.json` 插件描述中「迭代发布编排」改为「原型分支同步编排」。`hooks.json` 不变。
+
+### 版本同步
+- `plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.32.0 → 2.33.0`；`marketplace.json` 顶层 `metadata.version` `0.63.0 → 0.64.0`；技能 `proto-workflow` `metadata.version` `1.0.0 → 1.1.0`。
+- `hooks.json` 不变（技能走 Bash 执行 SVN，不落 PreToolUse 合规门）。
 
 ## 2.32.0 - 2026-07-30
 
