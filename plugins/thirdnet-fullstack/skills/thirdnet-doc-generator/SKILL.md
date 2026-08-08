@@ -1,17 +1,20 @@
 ---
 name: thirdnet-doc-generator
 description: >
-  根据 thirdnet 代码库的功能模块，生成系统开发交付文档：需求规格说明书、系统设计文档、用户手册、测试用例文档。
+  根据 thirdnet 代码库的功能模块，生成系统开发交付文档：需求规格说明书、系统设计文档、用户手册、测试用例文档；
+  另可生成技术参考类的「数据库表结构文档」——经 PostgreSQL MCP（dbhub）实时导出表名 / schema / 表用途 /
+  字段（列名·类型·注释·备注）。
   支持单类生成，也支持一次生成「全部 4 类（交付套件）」——多类共享一次代码扫描、并行填充，保证跨文档一致。
-  每类文档基于专属模板填充，内容源自对实体 / Controller / 接口契约 / Vue 页面 / 枚举字典等的自动扫描。
+  每类文档基于专属模板填充，内容源自对实体 / Controller / 接口契约 / Vue 页面 / 枚举字典等的自动扫描（数据库表结构文档则源自实时库）。
   输出 Markdown，可按需转 Word（.docx）。当用户提到"生成文档 / 写文档 / 项目文档 / 交付文档 / 交付套件 /
-  全套文档 / 四件套 / 一次性生成所有文档 / 需求规格说明书 / 系统设计文档 / 用户手册 / 测试用例 / 测试文档"，
+  全套文档 / 四件套 / 一次性生成所有文档 / 需求规格说明书 / 系统设计文档 / 用户手册 / 测试用例 / 测试文档，
+  或数据库表结构 / 表结构文档 / 数据字典 / 数据库设计文档 / 导出表结构 / 表结构生成 / database schema"，
   或在功能开发完成后需要交付、归档、验收文档时，使用此技能。若用户未指明文档类型，用 AskUserQuestion
   询问文档集合与范围，并把"全部 4 类（交付套件）"作为交付 / 归档 / 验收场景的推荐首选，其次单类与自定义——
-  不替用户拍板，但给出合理默认。
+  不替用户拍板，但给出合理默认。数据库表结构文档需 PostgreSQL MCP（dbhub）已连接，未连接时引导走 thirdnet-mcp-setup。
 license: MIT
 metadata:
-  version: "1.5.0"
+  version: "1.6.0"
   author: thirdnet
 ---
 > **定位**：本技能是功能开发完成后的**文档交付**技能，与 `fullstack-review` 同级——前者产出审查报告，本技能产出可交付的项目文档。属于质量/交付类技能，**不触发** PreToolUse 编码门禁，也不修改任何代码（扫描阶段只读）。本插件自包含，直接可用。
@@ -51,7 +54,8 @@ metadata:
 | **系统设计文档**   | 技术评审 / 架构归档 / 新人 onboard         | [references/system-design-template](references/system-design-template.md)       |
 | **用户手册**       | 终端用户使用指引（非技术语言）             | [references/user-manual-template](references/user-manual-template.md)           |
 | **测试用例文档**   | 测试执行 / 回归 / 验收依据                 | [references/test-case-template](references/test-case-template.md)               |
-| **自定义文档**     | 上述之外（如部署文档、API 文档、数据字典） | [references/custom-doc-guide](references/custom-doc-guide.md)                   |
+| **数据库表结构文档**（技术参考） | 接手 / 归档 / 联调 / 运维——经 dbhub MCP 实时导出库表结构 | [references/database-schema-template](references/database-schema-template.md) |
+| **自定义文档**     | 上述之外（如部署文档、API 文档）           | [references/custom-doc-guide](references/custom-doc-guide.md)                   |
 
 ## 标准工作流
 
@@ -62,7 +66,7 @@ metadata:
 - 用户**明确点名一类**（如"生成用户手册"）→ 文档集合 = 该类，直接进入 Step 2（单类路径）。
 - 用户**点名多类**（如"出用户手册和测试用例"）→ 文档集合 = 所点各类（批量路径）。
 - 用户**未指明或含糊**（如"帮我生成项目文档""写个交付文档"）→ 用 `AskUserQuestion` **一次**问清，不要替用户决策：
-  - **文档集合**（multiSelect）：`全部 4 类（交付套件，推荐）` / 需求规格说明书 / 系统设计文档 / 用户手册 / 测试用例文档 / 自定义。交付 / 归档 / 验收场景默认推荐"全部 4 类"。
+  - **文档集合**（multiSelect）：`全部 4 类（交付套件，推荐）` / 需求规格说明书 / 系统设计文档 / 用户手册 / 测试用例文档 / 数据库表结构文档 / 自定义。交付 / 归档 / 验收场景默认推荐"全部 4 类"。**数据库表结构文档是技术参考类（非业务交付）**，需 PostgreSQL MCP（dbhub）已连接，详见 Step 3.7。
   - **覆盖范围**（整库 / 某个微服务 / 某些模块；若用户给了模块名则以之为准）
   - **目标读者**（开发 / 测试 / 业务方 / 终端用户——决定语言深浅，尤其用户手册 vs 设计文档差异巨大）
   - **是否需要 Word 输出**（默认只出 Markdown；要 Word 则在 Step 5 转换）
@@ -84,6 +88,8 @@ metadata:
 - **批量路径**（多类 / 全 4）：**只派 1 个 Explore 子代理**，prompt 指明扫描根目录 + **所选各类型采集项的并集**（直接合并 doc-scan-guide 对应小节；4 类同源、采集源高度重叠，见下文「各类型采集要点速查」矩阵），要求返回**一份**覆盖全部所选类型的结构化功能模块清单——不要为每类各扫一遍。
 
 派发 prompt 必须自包含：指明扫描根目录、目标文档集合、要采集的代码位置清单（按 doc-scan-guide），并要求子代理**返回结构化清单**（模块名 / 实体 / 字段 / 接口 / 权限 / 字典），而非大段原文。
+
+> **数据库表结构文档例外**：它的数据源是**实时 PostgreSQL（MCP）**，**不参与本步代码扫描**——其提取在 Step 3.7 单独进行。批量路径下，代码扫描只覆盖其它所选类型，数据库表结构文档的「表结构清单」由 Step 3.7 并行产出。
 
 ### Step 3　用户确认 / 裁剪范围（一次裁剪，适用集合内全部文档）
 
@@ -118,6 +124,18 @@ metadata:
 
 把这一轮的答案连同共享清单一起下发给各填充子代理。若某文档仍有**该文档独有**的未知项，子代理留 `[待用户确认：...]` 占位并在文末「备注」汇总，**绝不臆造**（沿用 Step 4 原则）。单类路径无需本步——直接在 Step 4 单次追问即可。
 
+### Step 3.7　经 PostgreSQL MCP 提取表结构（仅当 数据库表结构文档 ∈ 文档集合）
+
+数据库表结构文档的表 / 字段 / 类型 / 注释来自**实时 PostgreSQL**，不经代码扫描。**仅当文档集合中包含数据库表结构文档时执行本步**（单类、或批量路径含它均执行）——不含则跳过。详细操作见 [references/database-schema-extract-guide](references/database-schema-extract-guide.md)，要点：
+
+- **前置硬依赖**：确认 dbhub MCP（服务名 `postgres`）已 `✔ Connected`（看会话内是否可用 `execute_sql` / `search_objects`，或 `/mcp`）。**未连接则中止**——引导用户先跑 `thirdnet-fullstack:thirdnet-mcp-setup` 挂 dbhub 并批准连接后重试，**不降级为代码扫描**。
+- **选库与范围**：dbhub 已连到具体 DSN（`thirdnet-mcp-setup` 时定）；本步用 `AskUserQuestion` 让用户选要文档化的 schema / 表（默认全部用户表，排除系统 schema；`public` 框架表是否纳入由用户定）。
+- **提取**：用 dbhub 两工具——`search_objects` 枚举 schema / 表 / 列 / 索引；`execute_sql` 跑 catalog SQL（指南内嵌即用片段）取**表用途（`obj_description`）+ 字段注释（`col_description`）+ 类型 + 可空 + 默认值 + 主键 / 唯一**，并发现字典表取枚举取值。
+- **「备注」= 结构 + 语义标注**：结构元数据（主键 / 可空 / 默认 / 唯一）+ 语义（审计字段 `created_by/time` 等、枚举字典映射；推断项标「（推断）」）。`xmin` 乐观锁是系统列、不进字段表，文档说明里统一一句话带过。
+- **产出**：一份「表结构清单」（schema 清单 + 每表的表名 / schema / 表用途 / 字段行：列名 / 类型 / 注释 / 备注 + 枚举字典），供 Step 4 填 `database-schema-template.md`。
+
+> 全程只读，不执行任何 DML/DDL。表 / 列无 `COMMENT` 时填 `[未设置注释]`，可由命名推断并标「（推断）」，不臆造——所有推断项在文末「备注」汇总。
+
 ### Step 4　按模板填充
 
 读取对应 `references/*-template.md`，**逐节**用 Step 2/3（批量含 Step 3.6）的内容替换占位符（`[项目名称]`、`[模块名]`、表格行等）。填充须遵循：
@@ -127,6 +145,7 @@ metadata:
 - 模板中的「填写说明 / 提示」文字在最终文档中删除
 - 同类重复结构（如多个模块的接口表）按模块复制填充，不要遗漏
 - **用户手册特有**：「操作步骤」「字段说明」文案须与 Step 3.5 截图记录的实际按钮/字段一致；模板中的截图占位符（`![...](images/...)`）替换为 Step 3.5 产出的真实相对路径（如 `![用户列表](images/user-manual/user-list.png)`）。降级时占位符保留。
+- **数据库表结构文档特有**：直接用 Step 3.7 的「表结构清单」逐表填 `database-schema-template.md` 的「表结构明细」（每表字段表 `列名 | 类型 | 注释 | 备注`）——表用途来自 `obj_description`、字段注释来自 `col_description`、备注按「结构 + 语义标注」拼装；推断项标「（推断）」并汇总到文末「备注」。
 
 **单类路径**：在主上下文直接填充并 Write 单个文件。
 
@@ -163,9 +182,13 @@ metadata:
 
 （◉ = 主要来源；◐ = 辅助参考；– = 通常不涉及）
 
+> 上表只覆盖 4 类**业务交付文档**的代码扫描来源。**数据库表结构文档**的数据源是**实时 PostgreSQL（MCP）**，不走代码扫描矩阵——其采集见 Step 3.7 / [database-schema-extract-guide](references/database-schema-extract-guide.md)。
+
 ## 自定义文档类型
 
-当用户要的文档不在上述 4 类（如部署运维文档、API 联调文档、数据字典），走 [references/custom-doc-guide](references/custom-doc-guide.md) 的通用工作流：与用户共建大纲 → 临时定模板 → 按本技能同样的"扫描 → 确认 → 填充 → 输出"流程产出。
+当用户要的文档不在上述默认类型（如部署运维文档、API 联调文档），走 [references/custom-doc-guide](references/custom-doc-guide.md) 的通用工作流：与用户共建大纲 → 临时定模板 → 按本技能同样的"扫描 → 确认 → 填充 → 输出"流程产出。
+
+> 「数据字典」已固化为默认类型「**数据库表结构文档**」（见上文「文档类型总览」），不再走自定义流程。
 
 ## 输出与命名约定
 
@@ -185,4 +208,5 @@ metadata:
 | [frontend-workflow](../frontend-workflow/SKILL.md)             | 其`references/page-spec-template.md` 是用户手册功能点梳理的参考                                                |
 | [md-to-word](../md-to-word/SKILL.md)                           | Step 5 Word 转换执行者                                                                                           |
 | Playwright MCP（`playwright@claude-plugins-official` 插件） | 用户手册 Step 3.5 截图执行者：`browser_navigate` / `browser_snapshot` / `browser_take_screenshot` 逐页截图 |
+| [thirdnet-mcp-setup](../thirdnet-mcp-setup/SKILL.md)           | 数据库表结构文档 Step 3.7 的前置：装配 `@bytebase/dbhub` Postgres MCP，让本技能经 `execute_sql` / `search_objects` 直查实时库 |
 | [thirdnet-fullstack](../thirdnet-fullstack/SKILL.md)           | 协调技能，全栈开发完成后可串联本技能做文档交付                                                                   |

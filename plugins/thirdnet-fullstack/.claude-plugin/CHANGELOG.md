@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.35.0 - 2026-08-08
+
+### Added
+- **thirdnet-doc-generator v1.5.0 → 1.6.0「数据库表结构文档（技术参考）」**：给文档生成技能新增一类**技术参考文档**——经 PostgreSQL MCP（`@bytebase/dbhub`，由 `thirdnet-mcp-setup` 装配）实时导出库的真实表结构，输出表名 / schema / 表用途 / 字段（列名·类型·注释·备注），可转 Word。与既有 4 类**业务交付文档**（需求规格 / 系统设计 / 用户手册 / 测试用例）刻意区分：那 4 类面向业务、禁堆代码细节；本类是技术参考（同 `spec.md` 类），表名与字段类型本就是内容，**不受**交付文档写作原则约束。**MCP 硬依赖**（用户明确选定）：表 / 字段 / 类型 / 注释的唯一权威数据源是实时库，未连接则引导走 `thirdnet-mcp-setup` 挂 dbhub 并**中止**，**不降级**为 EF Core 代码扫描。**「备注」= 结构 + 语义标注**（用户明确选定）：结构元数据（主键 / 可空 / 默认值 / 唯一，来自 `information_schema`/`pg_catalog`）+ 语义标注（审计字段 `created_by/time` 等、枚举字典映射；推断项标「（推断）」）；`xmin` 乐观锁是系统列、不进字段表，文档说明里统一带过。
+- **提取流程（Step 3.7，对标 Step 3.5 截图步骤）**：前置硬依赖检查（dbhub 是否 `✔ Connected`）→ `AskUserQuestion` 选 schema / 表范围 → dbhub 两工具配合：`search_objects` 枚举 schema / 表 / 列 / 索引，`execute_sql` 跑 catalog SQL 取注释（表用途用 `obj_description(oid,'pg_class')`、字段注释用 `col_description(oid,attnum)`）+ 结构元数据 + 主键 / 唯一约束 + 字典表发现；产出「表结构清单」供 Step 4 填模板。全程只读，不执行 DML/DDL；表 / 列无 `COMMENT` 填 `[未设置注释]`、可由命名推断并标注，不臆造。
+- **新增 2 个 references**：`database-schema-extract-guide.md`（Step 3.7 执行细则，内嵌即用 catalog SQL 四段：注释主查询 / 可空+默认 / 主键+唯一 / 字典表发现）+ `database-schema-template.md`（输出模板：文档说明 / 数据库概览（表清单总表）/ 表结构明细（每表字段表）/ 枚举字典 / 备注）。
+- SKILL.md 同步更新：文档类型总览表新增一行、Step 1 文档集合补该类型 + MCP 前置、Step 2 加「数据库表结构文档不走代码扫描」例外、Step 4 加该类型填充规则、采集矩阵脚注、自定义文档段（「数据字典」标注为已固化）、相关技能表新增 `thirdnet-mcp-setup`（前置）；`description` 追加触发词「数据库表结构 / 表结构文档 / 数据字典 / 数据库设计文档 / 导出表结构 / 表结构生成 / database schema」与 MCP 前置说明。`custom-doc-guide.md` 的「数据字典」行改为指向新固化类型。
+
+### 版本同步
+- `plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.34.0 → 2.35.0`；技能 `thirdnet-doc-generator` `metadata.version` `1.5.0 → 1.6.0`。`marketplace.json` 顶层 `metadata.version` 不变（`0.64.0`，非重大变更，沿用 2.34.0 先例）。
+- `hooks.json` 不变——新增 / 改动均为 `.md`/`.json` 插件仓内容，非 `*.cs/*.csproj` 或 `src/**/*.{vue,ts,...}`，不落 Pre/PostToolUse 合规门与提醒；Stop 文档门只盯 `backend/`/`frontend/` 功能性代码，下游产出的 `docs/数据库表结构文档-*.md` 也不触任何门（与既有 4 类文档一致）。
+
 ## 2.34.0 - 2026-08-08
 
 ### Added

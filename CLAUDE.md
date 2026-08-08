@@ -62,7 +62,7 @@ marketplace 还声明了若干外部插件（superpowers / supabase-postgres-bes
 - **数字孪生（1）**：`thirdnet-digital-twin`——园区 3D 模块生成（Vue 3 + Three.js，1920×1080 舞台 + 楼栋切换器 + POI 打点 + 地下车库多层剖面，6 种视觉风格：cyber/holographic/isometric/nebula/realistic/night-realistic）。数据分层：基础信息静态内联（含地下车库 `garages[]` 几何+占用），动态数据走 `IDigitalTwinApi` 契约层（Mock/Real 工厂，`VITE_MOCK_ENABLED` 切换）。随包发布完整范式 `assets/park-scene.impl.ts` + `building-geometry.ts` + 2D 组件范式 + 6 个 API 契约层模板，生成器「拷贝-改」。详见技能内 `SKILL.md` 与 `references/`。
 - **协调（1）**：`thirdnet-fullstack`——全栈协调（前端先行、Admin CRUD 模式、前后端类型映射、RBAC 桥接、子代理调度）
 - **质量（1）**：`fullstack-review`——全栈代码审查（前后端规范、API、数据库、跨端契约、业务正确性、性能、安全、文档），产出 review-report.md
-- **文档（1）**：`thirdnet-doc-generator`——项目交付文档生成（需求规格/系统设计/用户手册/测试用例，Markdown 可转 Word）
+- **文档（1）**：`thirdnet-doc-generator`——项目交付文档生成（需求规格/系统设计/用户手册/测试用例，Markdown 可转 Word）；另可生成技术参考类「数据库表结构文档」（经 dbhub MCP 实时导出 PostgreSQL 表结构：表名/schema/表用途/字段·列名·类型·注释·备注）
 - **模板升级（1）**：`thirdnet-template-upgrade`
 - **原型同步（1）**：`proto-workflow`——原型分支同步编排（固定命名 `.Proto` 分支 + 与 main 双向 `svn merge` 同步）
 - **工具（2）**：`md-to-word`、`thirdnet-mcp-setup`——Postgres MCP 装配（Admin 创建时默认挂 `@bytebase/dbhub`，让 Claude Code 直查 PostgreSQL；连接串从 appsettings 读出、用户确认用哪个库）
