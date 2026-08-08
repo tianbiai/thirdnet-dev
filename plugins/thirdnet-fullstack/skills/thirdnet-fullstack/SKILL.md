@@ -9,7 +9,7 @@ description: >
   以及子代理调度（backend-developer / frontend-developer，通过 Task 工具派发重型阶段）。
 license: MIT
 metadata:
-  version: "2.33.1"
+  version: "2.34.0"
   author: thirdnet
 ---
 

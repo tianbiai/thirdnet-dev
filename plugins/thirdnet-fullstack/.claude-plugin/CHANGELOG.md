@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.34.0 - 2026-08-08
+
+### Added
+- **thirdnet-mcp-setup v0.1.0「Postgres MCP 装配」**：新增工具类技能，给 thirdnet 工程挂上 Postgres 的 MCP 服务（让 Claude Code 在会话内直查项目的 PostgreSQL 数据库）。在工程根写项目级 `.mcp.json`，挂载 `@bytebase/dbhub`（stdio，npx 运行）。**默认流程**：从后端 `Admin/{ProjectName}.Admin.APIService/appsettings*.json` 读取连接串（优先 `appsettings.Development.json` 真实值，回退 `appsettings.json` 占位）→ `AskUserQuestion` 让用户确认暴露框架库（`DefaultConnectionString`/`ThirdNetDbContext`/public schema）还是业务库（`ConnectionString`/`AdminDbContext`/admin schema）→ 把选中真实 DSN 写入 `backend/{ProjectName}.Admin/.mcp.json`，并把 `.mcp.json` 加入工程 `.gitignore`（与 `appsettings.Development.json` 同约定，真实账密不入库）。**降级路径**：用户不愿暴露真实串 / 读不到可用值时改写无密 `${THIRDNET_PG_DSN}` 占位版（可提交、用户后填环境变量）。**批准门**：项目级 `.mcp.json` 不自动启用——Claude Code 在每个克隆者首次交互式会话弹批准提示（`⏸ Pending approval`，受 workspace trust 约束）；`claude -p`/Agent SDK 无提示加载，排除走 `disabledMcpjsonServers`。前置依赖 Node.js/npx（后端同学机器可能没有，技能显著提示）。包选择：默认 `@bytebase/dbhub`（Claude Code 当前默认推荐的 Postgres MCP）；用户偶尔点名的 `@modelcontextprotocol/server-postgres` 已被 npm 标记废弃（末版 0.6.2 / 2024-12），仅作兼容提及。结构含 `SKILL.md` + 2 个 assets（`mcp.json.template` / `mcp.env-placeholder.template`）+ `references/mcp-deep-dive.md`（三种 scope、信任/批准门、`claude mcp` 全量命令、dbhub vs server-postgres、连接串关键字↔URL 转换、Windows 环境变量、只读角色建议、双库抉择）。范围：只管 Admin 工程；不在插件仓自身挂 MCP。
+
+### Changed
+- **backend-workflow「创建 Admin 管理后台项目」新增 step 8（默认开启、可跳过）**：在 `dotnet run` 后调用 `thirdnet-fullstack:thirdnet-mcp-setup`，按上述默认流程在解决方案根写 `.mcp.json` 并 gitignore；生成结果目录树与「技能路由表」同步补条目（新增「配置 Postgres MCP → thirdnet-mcp-setup」）。`net-microservice-generator`（Service 微服务）不动——Service 工程装配 MCP 留待后续单独议。
+
+### 版本同步
+- `plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.33.1 → 2.34.0`；技能 `thirdnet-mcp-setup` `metadata.version` 初始 `0.1.0`。顶层 `metadata.version` 不变（非重大变更）。
+- `hooks.json` 不变——`.mcp.json` / `SKILL.md` / `.gitignore` 既非 `*.cs/*.csproj` 也非 `src/**/*.{vue,ts,...}`，不落 Pre/PostToolUse 合规门与提醒；Stop 文档门只盯 `backend/`、`frontend/` 功能性代码变更，本次是插件仓自身内容新增，不被收尾门拦截。
+
 ## 2.33.1 - 2026-07-31
 
 ### Fixed

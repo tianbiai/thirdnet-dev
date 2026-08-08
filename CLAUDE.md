@@ -13,7 +13,7 @@ thirdnet-dev/
     ├── .claude-plugin/plugin.json            # 插件元数据（version 权威来源之一）
     ├── .claude-plugin/hooks/hooks.json       # 3 个 Stop + 2 个 PreToolUse + 2 个 PostToolUse 钩子
     ├── agents/                               # 子代理：backend-developer.md / frontend-developer.md
-    └── skills/                               # 25 个技能（见下「技能体系」）
+    └── skills/                               # 27 个技能（见下「技能体系」）
 ```
 
 marketplace 还声明了若干外部插件（superpowers / supabase-postgres-best-practices / ui-ux-pro-max / webapp-testing），通过 URL source 引用，不在本仓库内。
@@ -55,7 +55,7 @@ marketplace 还声明了若干外部插件（superpowers / supabase-postgres-bes
 
 每次同步在 `plugins/thirdnet-fullstack/.claude-plugin/CHANGELOG.md` 记录条目。
 
-## 技能体系（25 个，统一 thirdnet-fullstack: 命名空间）
+## 技能体系（27 个，统一 thirdnet-fullstack: 命名空间）
 
 - **后端（8）**：`backend-workflow`（后端总工作流，含框架/模板目录）、`net-microservice-generator`、`net-api-developer`、`net-efcore-developer`（含批量操作）、`net-auth`、`net-cache-use`、`net-background-job`、`net-enum-dict`
 - **前端（11）**：`frontend-workflow`、`vue-best-practices`、`api-typescript-spec`（策略工厂 Real/Mock 切换）、`frontend-design`、`design-apple`、`admin-template-setup`、`create-adaptable-composable`、`vue-pinia-best-practices`、`vue-router-best-practices`、`vue-jsx-best-practices`、`vue-enum-dict`
@@ -64,7 +64,8 @@ marketplace 还声明了若干外部插件（superpowers / supabase-postgres-bes
 - **质量（1）**：`fullstack-review`——全栈代码审查（前后端规范、API、数据库、跨端契约、业务正确性、性能、安全、文档），产出 review-report.md
 - **文档（1）**：`thirdnet-doc-generator`——项目交付文档生成（需求规格/系统设计/用户手册/测试用例，Markdown 可转 Word）
 - **模板升级（1）**：`thirdnet-template-upgrade`
-- **工具（1）**：`md-to-word`
+- **原型同步（1）**：`proto-workflow`——原型分支同步编排（固定命名 `.Proto` 分支 + 与 main 双向 `svn merge` 同步）
+- **工具（2）**：`md-to-word`、`thirdnet-mcp-setup`——Postgres MCP 装配（Admin 创建时默认挂 `@bytebase/dbhub`，让 Claude Code 直查 PostgreSQL；连接串从 appsettings 读出、用户确认用哪个库）
 
 ## 常用命令
 

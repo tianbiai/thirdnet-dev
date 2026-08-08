@@ -150,6 +150,12 @@ dotnet ef database update \
 
 # 7. 运行
 dotnet run --project Admin/{ProjectName}.Admin.APIService
+
+# 8.（默认开启，可跳过）配置 Postgres MCP —— 让 Claude Code 能在本工程内直查 PostgreSQL
+#    调用技能 thirdnet-fullstack:thirdnet-mcp-setup：读取第 5 步配好的 appsettings 连接串、
+#    AskUserQuestion 让你确认暴露框架库(DefaultConnectionString) 还是业务库(ConnectionString)，
+#    把选中的真实 DSN 写入 backend/{ProjectName}.Admin/.mcp.json，并把 .mcp.json 加入工程 .gitignore
+#    （与 appsettings.Development.json 同约定，真实账密不入库）。不想用就跳过；后续随时用同技能补装。
 ```
 
 生成结果（`dotnet new thirdnet-admin` 模板产物 = `{ProjectName}.Admin.slnx`、`Admin/`、`Tools/`；`plan.md`/`changelog.md`/`spec.md` **不是模板产物**，由后续「文档先行」阶段生成，Admin 模板创建例外流程暂不生成）：
@@ -161,6 +167,7 @@ backend/
     ├── plan.md                                # 非模板产物——backend-workflow「文档先行」生成（Admin 创建例外暂不生成）
     ├── changelog.md                           # 非模板产物——同上
     ├── spec.md                                # 非模板产物——项目级规格说明书（全局唯一），同上
+    ├── .mcp.json                              # 第 8 步写入——默认含真实账密→已 .gitignore；DSN 由 thirdnet-mcp-setup 从 appsettings 读出、用户确认
     ├── Admin/
     │   ├── {ProjectName}.Admin.APIService/    # API 宿主（Controllers、Services、DTOs）
     │   └── {ProjectName}.Admin.Database/      # AdminDbContext + 实体 + EntityConfigurations
@@ -237,6 +244,7 @@ Admin 项目的 Program.cs 和 Startup.cs 遵循固定的启动模式和 10 步 
 | 任务类型 | 必须调用的技能 |
 |---------|-------------|
 | 创建 Admin/Service 项目 | `backend-workflow` + `net-microservice-generator` |
+| 配置 Postgres MCP（让 Claude 直查数据库）/ Admin 创建时默认装配 | `thirdnet-mcp-setup` |
 | 创建或修改数据库实体、DbContext、迁移、批量操作 | `net-efcore-developer` |
 | 创建或修改 Redis 缓存域 | `net-cache-use` |
 | 创建或修改 Controller、Service、DTO | `net-api-developer` |
