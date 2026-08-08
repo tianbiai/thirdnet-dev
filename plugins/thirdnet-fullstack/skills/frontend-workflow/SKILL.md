@@ -8,7 +8,7 @@ description: >
   以保证代码与文档一致。
 license: MIT
 metadata:
-  version: "2.3.0"
+  version: "2.3.1"
   author: thirdnet
 ---
 # 前端开发工作流
@@ -17,13 +17,7 @@ metadata:
 
 ## 相关技能
 
-当同时涉及前后端开发时，配合以下技能使用：
-
-| 场景 | 相关技能 | 说明 |
-|------|---------|------|
-| 全栈功能开发 | `thirdnet-fullstack:backend-workflow` | 后端开发工作流入口，定义实体/API/权限 |
-| 全栈协调 | `thirdnet-fullstack` | 后端 DTO → 前端类型的映射规则、RBAC 桥接、开发顺序 |
-| 后端 API 项目创建 | `thirdnet-fullstack:backend-workflow` | `dotnet new thirdnet-admin` 创建后端项目 |
+涉及前后端协同时配合：`thirdnet-fullstack`（全栈协调：后端 DTO → 前端类型映射、RBAC 桥接、开发顺序）与 `thirdnet-fullstack:backend-workflow`（后端开发入口、`dotnet new thirdnet-admin` 创建后端项目）。
 
 ## 工作流步骤概览
 
@@ -31,9 +25,7 @@ metadata:
 
 1. **需求澄清**（AskUserQuestion）—— 明确平台、范围、数据来源、交互流程
 
-   > **例外：Admin 模板项目创建** —— 如果任务明确为"创建 Admin 管理后台前端项目"（使用 `create-thirdnet-admin`），模板已内置全部功能页面（系统管理、API 管理、认证授权共 19 个模块），功能范围固定、无需澄清。此时跳过需求澄清的多轮提问，仅用一次 AskUserQuestion 确认品牌参数（项目名称、`--brand` 品牌名称、`--initial` 首字母、`--abbr` 缩写，均可使用默认值）后直接进入步骤 2。后端 API 地址使用默认 `http://localhost:5000`，无需确认。
-   >
-   > 此例外**仅适用于创建新 Admin 模板前端项目**。在已有项目中新增业务页面/模块时，仍须执行完整的需求澄清流程。
+   > **例外：Admin 模板项目创建**（`create-thirdnet-admin`）跳过多轮澄清——模板功能固定，仅一次 AskUserQuestion 确认品牌参数。详见下文「需求澄清 → Admin 模板项目创建」。
 
 > **说明**：`AskUserQuestion` 指 Claude Code Agent 内置的用户交互能力——通过向用户输出结构化问题列表（含选项）并等待回复来实现需求澄清。在 Claude Code 环境中直接使用 `AskUserQuestion` 工具，在其他环境中通过等价的用户提问机制实现。
 2. **项目结构检查** —— 确认 frontend/ 目录和子系统布局
@@ -247,21 +239,11 @@ metadata:
 - **TypeScript 强制**：所有代码 `.ts` 扩展名，Vue 组件 `<script setup lang="ts">`，禁止 `.js`
 - **枚举规范**：→ 枚举/字典规范见 `api-typescript-spec`（约定 #7：纯前端常量才用 TS enum）与 `vue-enum-dict`（int/string 字典字段用法）
 - **移动端**：开发用 H5 模式，最终发布微信小程序，代码须兼容 H5 + 小程序
-
-## API 策略工厂架构
-
-所有 API 模块采用接口契约策略工厂模式（`IXxxApi` + `RealXxxApi` + `MockXxxApi` + `createXxxApi()`），通过 `VITE_MOCK_ENABLED` 切换。完整规范见 `api-typescript-spec`。
+- **API 模块**：接口契约策略工厂模式（`IXxxApi` + `RealXxxApi` + `MockXxxApi` + `createXxxApi()`，`VITE_MOCK_ENABLED` 切换；完整规范见 `api-typescript-spec`）
 
 ## 演示模式与生产剥离
 
-`VITE_MOCK_ENABLED` 控制开发/演示模式（`true`=演示走 Mock、`false`=生产走真实 API）；生产构建经 `mockDataStripPlugin` + tree-shaking 自动剥离 Mock。每个页面右上角必须有 HelpBubble（Web 用 `ElPopover`/`QuestionFilled`，移动端用 `van-popup`/`uni.showModal`），用 `v-if="MOCK_ENABLED"` 而非 `v-show`；辅助文案须用 `MOCK_ENABLED` 条件守卫让生产构建彻底移除（不能仅靠 `v-if`）。
-
-| 模式 | MOCK_ENABLED | 帮助气泡 | 数据来源 |
-| ---- | ------------ | -------- | -------- |
-| 演示 | `true` | 右上角显示 | Mock 数据 |
-| 生产 | `false` | `v-if` 不渲染（禁 `v-show`） | 真实 API |
-
-> Admin 模板项目例外：使用单一 `.env` 文件，详见 `admin-template-setup`。
+`VITE_MOCK_ENABLED` 控制开发/演示模式（`true`=演示走 Mock、`false`=生产走真实 API）；生产构建经 `mockDataStripPlugin` + tree-shaking 自动剥离 Mock。每个页面右上角必须有 HelpBubble（Web 用 `ElPopover`/`QuestionFilled`，移动端用 `van-popup`/`uni.showModal`），用 `v-if="MOCK_ENABLED"` 而非 `v-show`；辅助文案须用 `MOCK_ENABLED` 条件守卫让生产构建彻底移除（不能仅靠 `v-if`）。Admin 模板项目例外：使用单一 `.env` 文件，详见 `admin-template-setup`。
 
 > 完整 `mockDataStripPlugin` 源码、tree-shaking 原理与文案剥离代码示例见 `api-typescript-spec` 的 [mock-stripping.md](../api-typescript-spec/references/mock-stripping.md)。
 
@@ -328,18 +310,7 @@ frontend/
 
 ### 结构适配
 
-如果项目使用了不同的顶层目录布局，仍必须遵循以下内部目录模式：
-
-- `src/api/` — API 模块（策略工厂模式）
-- `src/mock/data/` — Mock 数据文件（与 API 模块名一一对应）
-- `src/stores/` — Pinia Store
-- `src/views/` 或 `src/pages/` — 页面组件
-- `src/components/` — 公共组件
-- `src/composables/` — 组合式函数
-- `src/router/` — 路由配置
-- `src/styles/` — 全局样式
-
-将任何结构偏差记录在项目的 spec.md 中。
+若项目顶层目录布局不同，仍必须保留上图树中的内部目录模式（`src/api/` 策略工厂、`src/mock/data/`、`src/stores/`、`src/views|pages/`、`src/components/`、`src/composables/`、`src/router/`、`src/styles/`），并将任何结构偏差记录在项目的 spec.md 中。
 
 ## 开发完成校验
 
@@ -389,13 +360,3 @@ frontend/
 ### E2E 测试参考
 
 参考仓库 `code/frontend/e2e-tests/` 包含 48 个 Playwright E2E 测试，覆盖 Admin 模板全部主要模块。新增业务页面后可参照其模式编写对应测试。完整 18 个测试目录索引见 [e2e-test-index](references/e2e-test-index.md)。
-
-## 文件存放位置
-
-| 文件          | Web 应用                                  | 小程序应用               |
-| ------------- | ----------------------------------------- | ------------------------ |
-| changelog.md  | `public/changelog.md`                   | `static/changelog.md`  |
-| viewer.html   | `public/viewer.html`                    | `static/viewer.html`   |
-| marked.min.js | `public/marked.min.js`                  | `static/marked.min.js` |
-| spec.md       | `frontend/{子系统名}/spec.md`           | 同左                     |
-| 页面 spec     | `frontend/{子系统名}/specs/{页面名}.md` | 同左                     |

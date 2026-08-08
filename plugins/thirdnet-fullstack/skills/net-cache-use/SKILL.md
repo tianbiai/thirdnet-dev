@@ -8,7 +8,7 @@ description: >
   "分布式锁"、"加缓存"、"CacheDbContext"时，必须使用此技能。
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "1.0.1"
   author: thirdnet
 ---
 
@@ -142,7 +142,6 @@ public class XxxCache : RedisCacheManager
 {
     private readonly IDbContextFactory<CacheDbContext> _dbFactory;
     private static readonly TimeSpan _ttl8 = TimeSpan.FromHours(8);
-    private static readonly TimeSpan _ttl24 = TimeSpan.FromHours(24);
 
     public XxxCache(IRedisDatabase redis, ILogger<XxxCache> log,
         IDbContextFactory<CacheDbContext> dbFactory)
@@ -160,22 +159,12 @@ public class XxxCache : RedisCacheManager
         => GetSingle<XxxView?>($"{AdminCacheKeys.XxxPrefix}{id}",
             () => QueryXxx(id), _ttl8);
 
-    /// <summary>
-    /// 获取全量字典，TTL 24 小时。
-    /// </summary>
-    public virtual async Task<Dictionary<long, XxxView>> GetXxxDic()
-        => await GetSingle(AdminCacheKeys.XxxDic,
-            () => QueryXxxList(), _ttl24) ?? new();
-
     #endregion
 
     #region Remove
 
     public virtual Task RemoveXxx(long id)
         => RemoveSingle($"{AdminCacheKeys.XxxPrefix}{id}");
-
-    public virtual Task RemoveXxxDic()
-        => RemoveSingle(AdminCacheKeys.XxxDic);
 
     #endregion
 
@@ -188,15 +177,6 @@ public class XxxCache : RedisCacheManager
                     FROM admin.t_xxx_xxx WHERE id = {0} AND status = 0";
         return await db.Database.SqlQueryRaw<XxxView>(sql, id)
             .FirstOrDefaultAsync();
-    }
-
-    private async Task<Dictionary<long, XxxView>> QueryXxxList()
-    {
-        await using var db = await _dbFactory.CreateDbContextAsync();
-        var sql = @"SELECT id, field1, field2
-                    FROM admin.t_xxx_xxx WHERE status = 0";
-        var list = await db.Database.SqlQueryRaw<XxxView>(sql).ToListAsync();
-        return list.ToDictionary(x => x.id);
     }
 
     #endregion
@@ -248,7 +228,6 @@ if (await redisLock.Lock("order.123", TimeSpan.FromSeconds(30)))
 
 **注意事项**：
 - `RedisLock` 实例**持有所抢的 key 状态**，每次抢锁新建实例（不要跨请求复用同一实例并发抢多个锁）
-- 解锁用 Lua 脚本保证原子性（比对 `lock_id` 再 `del`，不会误删别人的锁）
 - `timespan` 是锁的自动过期时间，应大于临界区预期执行时间，避免业务未完锁先失效
 
 ## DI 注册
@@ -287,8 +266,6 @@ public virtual async Task<List<XxxView>> GetXxxList(List<long> ids)
 ### 代码质量
 
 - [ ] 缓存键命名符合规范（小写、点号分隔）
-- [ ] `GetSingle` 使用 `TimeSpan?` 过期参数
-- [ ] `GetMultiple` 使用 `DateTimeOffset?` 过期参数
 - [ ] 使用了正确的 TTL（根据数据特性）
 - [ ] Query 方法用 `SqlQueryRaw` 原生 SQL（本身即 no-tracking，无需 `AsNoTracking()`）；若改用 LINQ 查询则必须加 `AsNoTracking()`
 - [ ] 多键场景 Remove 时删除了所有关联 key

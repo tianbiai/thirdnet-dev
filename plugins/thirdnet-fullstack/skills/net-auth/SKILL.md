@@ -11,7 +11,7 @@ description: >
   "OperatorContext"、"Policy"时，必须使用此技能。
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "1.0.1"
   author: thirdnet
 ---
 
@@ -131,7 +131,7 @@ Admin 项目中的 `AdminAccountValidator` 查询 `AdminDbContext`，用 PBKDF2 
 - 从 `UserCache`/`RoleCache` 查用户关联的启用角色 key 集合
 - 构造 Claims：`user_id`、`dept_id`、`admin_roles`（逗号分隔）、`name`
 
-> 完整源码（含 `AtomicIncrementFailedAttempts`/`AtomicResetFailedAttempts` 等原子 SQL）见生成项目 `Admin/{ProjectName}.Admin.APIService/Auth/AdminAccountValidator.cs`。上例用到的 `SystemConfigKeys`（`{ProjectName}.Common.Constants`）对应 `t_sys_config.config_key`，避免硬编码字符串；常用键：`MaxLoginAttempts`（默认 5）、`LockoutDurationHours`（默认 12）、`SessionTimeoutMinutes`、`PasswordExpiryDays`、`ShowLoginErrorDetail`、`CaptchaEnabled`、`UploadAllowedExtensions`、`HeartbeatIntervalSeconds`；经 `ConfigCache.GetConfigInt/GetConfigBool` 读取，完整清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md)。
+> 完整源码（含 `AtomicIncrementFailedAttempts`/`AtomicResetFailedAttempts` 等原子 SQL）见生成项目 `Admin/{ProjectName}.Admin.APIService/Auth/AdminAccountValidator.cs`。上例用到的 `SystemConfigKeys`（`{ProjectName}.Common.Constants`）对应 `t_sys_config.config_key`，避免硬编码字符串；本处相关键：`MaxLoginAttempts`（默认 5）、`LockoutDurationHours`（默认 12）、`ShowLoginErrorDetail`，经 `ConfigCache.GetConfigInt/GetConfigBool` 读取，完整键清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md)。
 
 注册：
 - **AdminService（Admin 主项目）**：必须注册 `services.AddScoped<IAccountValidator, AdminAccountValidator>();`
@@ -287,36 +287,11 @@ public async Task<IActionResult> GetList() { ... }
 [PermissionAuthorize("sys:user:add")]
 ```
 
-这是 Admin 项目最核心的授权方式，运行时流程：
-
-```
-1. 请求到达 Controller 端点
-2. PermissionAuthorizeAttribute 触发 PermissionAuthorizationHandler
-3. Handler 从 JWT 获取 user_id
-4. 通过 IPermissionProvider（CachePermissionProvider）获取用户权限列表
-5. CachePermissionProvider 调用 RoleCache.GetRolePermissions(roleKeys)
-6. RoleCache 先查 Redis，miss 则从 DB 查询
-7. PermissionMatcher 进行匹配：
-   ├─ 精确匹配："sys:user:add" == "sys:user:add" ✅
-   ├─ 模块通配："sys:*" 匹配 "sys:user:add" ✅
-   └─ 全局通配："*" 匹配一切 ✅
-```
+这是 Admin 项目最核心的授权方式：`[PermissionAuthorize]` 触发 `PermissionAuthorizationHandler` → 从 JWT 取 `role_keys` → `CachePermissionProvider`/`RoleCache`（Redis 命中或 DB 回退）取权限 → `PermissionMatcher` 匹配（精确 / 模块通配 / 实体通配 / 全局通配，无匹配→403）。完整运行时流程见 [rbac-flow.md](references/rbac-flow.md)「§3 PermissionAuthorize 权限校验流程」。
 
 ### CachePermissionProvider
 
-参考文件：生成项目 `Tools/{ProjectName}.Cache/Auth/CachePermissionProvider.cs`。
-
-```csharp
-public class CachePermissionProvider(RoleCache roleCache) : IPermissionProvider
-{
-    public async Task<List<string>> GetPermissionsAsync(string[] roleKeys)
-    {
-        return await roleCache.GetRolePermissions(roleKeys);
-    }
-}
-```
-
-连接缓存层和授权框架：`IPermissionProvider` → `CachePermissionProvider` → `RoleCache` → Redis/DB。
+参考文件：生成项目 `Tools/{ProjectName}.Cache/Auth/CachePermissionProvider.cs`。连接缓存层与授权框架：`IPermissionProvider` → `CachePermissionProvider` → `RoleCache` → Redis/DB。接口 + 实现类 + `RoleCache` 内部（Redis key 与 SQL fallback）见 [rbac-flow.md](references/rbac-flow.md)「CachePermissionProvider 代码追踪」。
 
 ### PermissionCatalog 自动同步
 

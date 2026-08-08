@@ -106,6 +106,7 @@
 | `ThirdNetWebApiExtensions` | `Library/ThirdNet.Vibe.WebAPI/ThirdNetWebApiExtensions.cs` | **`ToPageListAsync<T>(this IQueryable<T> query, int page_index, int page_size, int? count=null)` → `Task<PageListInfo<List<T>>>`**（分页，框架提供，无需手写）。另有 `GetAllFunctions`/`GetAllPermissionCatalogs`（反射扫描端点与权限目录）。 |
 | `PageListInfo<T>` | `.../PageListInfo.cs` | 分页结果 POCO：`List`/`Total`/`Index`/`Pages`。 |
 | `WebApiException` | `.../WebApiException.cs` | 业务异常：`HttpStatusCode` + `Error`。 |
+| `SaveChangesWithUniqueGuardAsync` | （`DbContext` 扩展方法，本库内） | 保存变更并在唯一约束冲突时转译为 `WebApiException`：`db.SaveChangesWithUniqueGuardAsync(HttpStatusCode, string)`。兜底 `AnyAsync` 查重与落库之间的 TOCTOU 竞态，避免裸 `DbUpdateException` 冒泡成 500。详见 `net-efcore-developer`「保存变更 / 唯一冲突兜底」。 |
 | `ErrorInfo` | `.../ErrorInfo.cs` | `error`/`error_description`/`code`。 |
 | `DefaultOptions` | `.../DefaultOptions.cs` | 根配置：`DefaultConnectionString`/`VisitLog`/`Timestamp`/`SwaggerAuth`/`AdminSecret`。 |
 

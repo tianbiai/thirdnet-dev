@@ -8,7 +8,7 @@ description: >
   "创建微服务"、"新建服务"、"AddThirdNetMvc"、"appsettings"、"中间件"时，必须使用此技能。
 license: MIT
 metadata:
-  version: "1.1.0"
+  version: "1.1.1"
   author: thirdnet
 ---
 
@@ -131,7 +131,7 @@ backend/
 
 ### 修复 A —— Tools 的 ProjectReference 路径
 
-模板在 `{ServiceName}.API.csproj` 里写死了 `..\..\Tools\ADMIN_NAME.*` 的引用路径。`ADMIN_NAME` 会被正确替换为 `{ProjectName}`，但 `..\..\Tools\` 前缀是写死的——它隐含假设 Service 创建在 Admin 解决方案根**内部**。而本技能的命令把 Service 放在与 `{ProjectName}.Admin/` **平级**的 `backend/{ServiceName}/`，于是 `..\..\` 落在 `backend/`，`..\..\Tools\` 解析到不存在的 `backend/Tools/`（真实路径是 `backend/{ProjectName}.Admin/Tools/`）。
+模板在 `{ServiceName}.API.csproj` 写死 `..\..\Tools\{ProjectName}.*` 引用路径（`{ProjectName}` 替换正确，`..\..\Tools\` 前缀固定），假设 Service 在 Admin 解决方案根**内部**。但本技能把 Service 放在与 `{ProjectName}.Admin/` **平级**的 `backend/{ServiceName}/`，于是 `..\..\Tools\` 解析到不存在的 `backend/Tools/`（真实路径 `backend/{ProjectName}.Admin/Tools/`）。
 
 文件：`{ServiceName}/{ServiceName}.API/{ServiceName}.API.csproj`
 
@@ -302,11 +302,8 @@ using ThirdNet.Vibe.WebAPI;
 
 var host = AdminHostBuilder.BuildAdminWebHost<Startup>(args);
 
-// Service 的 MigrateHelper 只提供【同步】的 InitializeDatabases()（仅迁移 ServiceDbContext）。
-// 注意：Service 的 Program.cs 只调 InitializeDatabases()——不像 Admin 那样还调
-// InitializeDatabasesAsync() + InitializeFunctionTableAsync() + InitializePermissionCatalogTableAsync()
-//（后三者是框架 ThirdNet.Vibe.WebAPI 的扩展方法，定义在 ThirdNetDatabaseHelper，Admin 用于
-// 扫描端点功能表 / 权限目录；Service 模板不启用它们）。
+// Service 只调【同步】InitializeDatabases()（仅迁移 ServiceDbContext）——不像 Admin 还调
+// InitializeDatabasesAsync/InitializeFunctionTableAsync/InitializePermissionCatalogTableAsync（端点功能表/权限目录扫描，Service 不启用）。
 host.InitializeDatabases();
 
 await host.RunAsync();
@@ -341,12 +338,6 @@ dotnet ef database update \
 |-----------|------|
 | ConnectionString | Service 业务数据库（ServiceDbContext） |
 | DefaultConnectionString | 框架数据库（ThirdNetDbContext）+ 缓存回退查询 |
-
-## 参考文件索引
-
-| 文件 | 内容 | 何时读取 |
-|-----|------|---------|
-| [appsettings-management.md](references/appsettings-management.md) | 配置文件管理规范、完整模板、入职指南 | 创建项目配置或修改 appsettings 时 |
 
 ## 相关技能
 

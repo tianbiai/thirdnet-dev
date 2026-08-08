@@ -8,7 +8,7 @@ description: >
   触发词：API、接口、Mock、请求、adapter、类型定义、DTO、策略模式、工厂模式、接口契约、IXxxApi。
 license: MIT
 metadata:
-  version: "2.2.2"
+  version: "2.2.3"
   author: thirdnet
 ---
 
@@ -16,7 +16,7 @@ metadata:
 
 # 前端 API 接口 TypeScript 规范（策略工厂模式）
 
-API 层采用**接口契约的策略工厂模式**，通过 TypeScript 接口定义 API 契约，Real 和 Mock 作为可互换的策略实现，工厂函数根据 `.env` 配置自动选择具体实例。每个模块的职责拆分到独立文件：类型定义、接口契约、真实实现、Mock 数据、Mock 实现各占一个文件。
+API 层采用**接口契约的策略工厂模式**——组合策略（`IXxxApi` + Real/Mock 可互换）、简单工厂（`createXxxApi` 按 `MOCK_ENABLED` 选实例）、适配器（Real/Mock 适配 HTTP 与本地数据）三种设计模式：通过 TypeScript 接口定义 API 契约，工厂函数根据 `.env` 配置自动选择 Real 或 Mock 实例。每个模块的职责拆分到独立文件：类型定义、接口契约、真实实现、Mock 数据、Mock 实现各占一个文件；完整约定与示例见下方「文件职责分离」与「创建步骤」。
 
 ## 核心约定
 
@@ -29,10 +29,6 @@ API 层采用**接口契约的策略工厂模式**，通过 TypeScript 接口定
 5. **API 与 Mock 文件对应**：`api/modules/{endpoint}/{module}.ts` 对应 `mock/api/{endpoint}/{module}.ts` + `mock/data/{endpoint}/{module}.ts`
 6. **全面 TypeScript**：所有前端代码必须使用 `.ts` 扩展名，Vue 组件必须使用 `<script setup lang="ts">`
 7. **TS 枚举仅用于纯前端常量**：仅当某选项集是**纯前端常量**（不来自后端字典、不会由运营改动）时，才定义 TS `enum`（每个成员加 JSDoc，禁止 union type / const object 替代）。**后端字典驱动字段不定义 TS enum**：枚举字典（`dict_source=0`，int）下拉走 `useDict(dictType)`、显示走后端 `*_label`、提交 number；自定义字典（`dict_source=1`，string）走 `dictApi.getDictDataByType`、提交 string。这类字段的 TS 类型直接用 `number` 或 `string`。详见 `vue-enum-dict` 技能
-
-## 设计模式
-
-API 层组合运用三种设计模式：策略模式（`IXxxApi` + Real/Mock 可互换）、简单工厂（`createXxxApi` 按 `MOCK_ENABLED` 选实例）、适配器（Real/Mock 适配 HTTP 与本地数据）。架构流程见各子技能概述；下方「文件职责分离」与「创建步骤」给出完整约定与示例。
 
 ## 文件职责分离
 
@@ -106,25 +102,7 @@ interface RequestConfig<TData = unknown> {
 interface ApiError { status: number; message: string }
 ```
 
-**枚举规范**：仅纯前端常量才用 TS `enum`（见核心约定 #7）。命名格式 `{Entity}{Property}Enum`，每个成员加 JSDoc。通用枚举放 `api/types/enums.ts`，模块专属枚举放 `api/types/{module}.ts`。
-
-> ⚠️ **后端字典驱动字段不要定义 TS enum**：枚举字典（int）/ 自定义字典（string）字段类型直接写 `number`/`string`，选项走 `useDict`/`getDictDataByType`，显示走后端 `*_label`。详见 `vue-enum-dict` 技能。
-
-下面是**纯前端常量枚举**示例（不依赖后端字典）：
-
-```typescript
-/** 订单状态枚举 */
-export enum OrderStatusEnum {
-  /** 待支付 */
-  Pending = 'pending',
-  /** 已支付 */
-  Paid = 'paid',
-  /** 已取消 */
-  Cancelled = 'cancelled',
-  /** 已完成 */
-  Completed = 'completed',
-}
-```
+**枚举规范**：命名格式 `{Entity}{Property}Enum`，每个成员加 JSDoc。何时用 enum 见核心约定 #7（仅纯前端常量；后端字典驱动字段直接 `number`/`string`，详见 `vue-enum-dict`）。通用枚举放 `api/types/enums.ts`，模块专属放 `api/types/{module}.ts`。完整枚举示例见下方 3.1。
 
 ### 步骤 2：请求适配器
 
@@ -155,8 +133,7 @@ export enum OrderStatusEnum {
 import type { PaginationParams } from './common'
 
 // ---- 枚举 ----
-// 以下为「纯前端常量」枚举示例（不依赖后端字典）。若 status 实际来自后端枚举字典，
-// 则此处不要建 TS enum，改用 number + useDict（见 vue-enum-dict 技能）。
+// 纯前端常量枚举（不依赖后端字典）；字典字段见 #7 用 number + useDict。
 
 /** 订单状态枚举 */
 export enum OrderStatusEnum {
@@ -197,7 +174,6 @@ export interface OrderItem {
 **要点**：
 - 枚举和出入参类型集中在此文件，全部 `export`
 - `import type` 引入基础类型，`import` 引入其他模块的 enum（enum 是值）
-- TS enum 仅用于纯前端常量；若字段来自后端枚举字典，类型直接用 `number` + `useDict` 取下拉（见 `vue-enum-dict`）
 
 #### 3.2 接口契约 — `api/interfaces/app/order.ts`
 
@@ -348,7 +324,7 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 #### 生产构建排除机制
 
-生产构建（`vite build`）**且 Mock 关闭**时，自定义 Vite 插件 `mockDataStripPlugin()` 拦截 `/mock/data/` 导入替换为空数组桩，配合 `MOCK_ENABLED` 静态为 `false` 让 `new MockXxxApi()` 分支成为死代码被 Rollup tree-shaking 移除；开发模式与 Mock 开启的生产构建（原型/演示）插件不启用。切换由 `VITE_MOCK_ENABLED` 控制，工厂函数模块初始化执行一次。
+生产构建（`vite build`）**且 Mock 关闭**时，自定义 Vite 插件 `mockDataStripPlugin()` 拦截 `/mock/data/` 导入替换为空数组桩，配合 `MOCK_ENABLED` 静态为 `false` 让 `new MockXxxApi()` 分支成为死代码被 Rollup tree-shaking 移除；开发模式与 Mock 开启的生产构建（原型/演示）插件不启用。
 
 完整 `mockDataStripPlugin()` 源码、tree-shaking 原理与开发辅助文案剥离示例见 [mock-stripping.md](references/mock-stripping.md)，当修改 `vite.config.ts` 或排查 tree-shaking 问题时再读。
 

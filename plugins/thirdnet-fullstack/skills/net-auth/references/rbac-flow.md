@@ -72,73 +72,6 @@
          └── 权限校验通过 → 继续执行 Controller Action
 ```
 
-### 4. 权限解析流程图
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                     HTTP 请求到达                                │
-│              GET /api/manager/user/list                          │
-│              Authorization: Bearer <JWT>                        │
-└──────────────────────────┬───────────────────────────────────────┘
-                           │
-                           ▼
-┌──────────────────────────────────────────────────────────────────┐
-│                  JWT 中间件验证 Token                            │
-│  ┌─ 验证 SM2 签名                                                │
-│  ├─ 检查过期时间                                                 │
-│  ├─ TokenCache.SetTokenInvalidationTime 检查                     │
-│  └─ 解析 Claims: user_id, role_keys                             │
-└──────────────────────────┬───────────────────────────────────────┘
-                           │
-                           ▼
-┌──────────────────────────────────────────────────────────────────┐
-│         AdminControllerBase.OnActionExecuting()                  │
-│         OperatorContext.Initialize(userId)                       │
-│         (幂等，同一请求只记录第一次)                               │
-└──────────────────────────┬───────────────────────────────────────┘
-                           │
-                           ▼
-┌──────────────────────────────────────────────────────────────────┐
-│         [PermissionAuthorize("sys:user:list")]                   │
-│                  权限校验触发                                     │
-└──────────────────────────┬───────────────────────────────────────┘
-                           │
-                           ▼
-┌──────────────────────────────────────────────────────────────────┐
-│         PermissionAuthorizationHandler                           │
-│         ┌─ 从 JWT 获取 role_keys                                 │
-│         └─ 调用 IPermissionProvider                              │
-└──────────────────────────┬───────────────────────────────────────┘
-                           │
-                           ▼
-┌──────────────────────────────────────────────────────────────────┐
-│         CachePermissionProvider                                  │
-│         RoleCache.GetRolePermissions(roleKeys)                   │
-│         ┌─ Redis 查询 admin.role.perm.{roleKey}                  │
-│         ├─ 命中 → 返回权限列表                                    │
-│         └─ 未命中 → SQL 查询 → 写入 Redis → 返回                 │
-└──────────────────────────┬───────────────────────────────────────┘
-                           │
-                           ▼
-┌──────────────────────────────────────────────────────────────────┐
-│         PermissionMatcher.Match()                                │
-│         要求: "sys:user:list"                                    │
-│         用户权限: ["sys:user:list", "sys:user:add", ...]         │
-│         ┌─ 精确匹配 → ✅ 通过                                    │
-│         ├─ 模块通配 "sys:*" → ✅ 通过                             │
-│         ├─ 全局通配 "*" → ✅ 通过                                 │
-│         └─ 无匹配 → ❌ HTTP 403                                  │
-└──────────────────────────┬───────────────────────────────────────┘
-                           │
-                    ✅ 通过 │
-                           ▼
-┌──────────────────────────────────────────────────────────────────┐
-│         Controller Action 执行                                   │
-│         var result = await _service.GetList(query, CurrentUserId)│
-│         return Ok(result);                                       │
-└──────────────────────────────────────────────────────────────────┘
-```
-
 ## CachePermissionProvider 代码追踪
 
 ```csharp
@@ -189,33 +122,4 @@ public class CachePermissionProvider(RoleCache roleCache) : IPermissionProvider
 
 ## 新增权限保护模块的完整步骤
 
-以"通知管理"模块为例：
-
-```
-1. 定义权限字符串
-   sys:notice:list, sys:notice:query, sys:notice:add, sys:notice:edit, sys:notice:remove
-
-2. Controller 端点标注
-   [PermissionAuthorize("sys:notice:list")]
-   [HttpGet("list")]
-   public async Task<IActionResult> GetList(...)
-
-3. PermissionCatalog 自动同步
-   启动时扫描所有 [PermissionAuthorize]，自动写入权限目录表
-   → 无需手动注册权限字符串
-
-4. 数据库添加菜单条目
-   INSERT INTO admin.t_sys_menu (menu_name, parent_id, menu_type, permission, ...)
-   VALUES ('通知管理', {系统管理ID}, 0, NULL, ...)      -- 目录
-   VALUES ('通知列表', {通知管理ID}, 1, NULL, ...)      -- 菜单页面
-   VALUES ('通知新增', {通知列表ID}, 2, 'sys:notice:add', ...) -- 按钮
-   VALUES ('通知编辑', {通知列表ID}, 2, 'sys:notice:edit', ...)
-   VALUES ('通知删除', {通知列表ID}, 2, 'sys:notice:remove', ...)
-
-5. 通过管理后台分配权限
-   角色 → 菜单权限 → 勾选通知管理的按钮权限
-
-6. Service 层使用 OperatorContext
-   _operatorContext.Initialize(operatorId);
-   var visibleDeptIds = await _operatorContext.GetVisibleDeptIds();
-```
+新增权限保护模块的 5 步流程（定义权限字符串 → Controller 标注 `[PermissionAuthorize]` → 添加菜单树条目 SQL → 分配权限给角色 → Service 层用 `OperatorContext`）见 [net-auth SKILL.md → 新增权限保护模块的步骤](../SKILL.md)（含完整 SQL 与代码）。注意第 3 步 `PermissionCatalog` 会在启动时自动扫描所有 `[PermissionAuthorize]` 写入权限目录表，无需手动注册权限字符串。

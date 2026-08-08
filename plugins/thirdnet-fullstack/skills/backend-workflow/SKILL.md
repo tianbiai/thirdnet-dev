@@ -7,7 +7,7 @@ description: >
   "backend"、"开发流程"时，必须使用此技能。
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "1.1.1"
   author: thirdnet
 ---
 
@@ -33,41 +33,15 @@ metadata:
 
 ## 框架内置能力（开箱即用，无需自研）
 
-下列能力已由框架提供，遇到对应需求**直接用**，不要自己实现：
-
-| 能力 | 入口 | 简述 |
-|------|------|------|
-| 分页 | `IQueryable<T>.ToPageListAsync(page_index, page_size)` | `ThirdNet.Vibe.WebAPI.ThirdNetWebApiExtensions` 扩展，返回 `PageListInfo<List<T>>`。 |
-| 限流 | `services.AddThirdNetIpAndApplicationPathRateLimiting(config)`（Admin 模板在 `AddAdminCommonInfrastructure` 内实际注册项；另有 IP-only `AddThirdNetIpRateLimiting()` 与 IP+应用 变体） | 基于 ASP.NET Core `RateLimiter` 固定窗口/分钟，超限 429；配置 `"RateLimiting":{"Times":500}`。 |
-| 文件上传 | `MultipartData`（`Files` + `DataList`） | `ThirdNet.Vibe.WebAPI` 的 multipart 解析模型。 |
-| IP 黑/白名单 | `BlackIpMiddleware` + `CidrMatcher` | 支持 CIDR，黑名单 403；数据经 `ThirdNetDbContext` 的 `IpBlackList`/`IpWhiteList`。 |
-| 访问日志 | `RequestLoggerMiddleware` + `IVisitLogger`（`DatabaseVisitLogger`/`NpgsqlVisitLogRunner`） | 自动批量写访问日志。 |
-| 分布式锁 | `RedisLock.Lock(key, timespan)`（`await using` 自动释放，Lua 原子解锁） | `ThirdNet.Vibe.Common`，`AddRedisExtensionService` 已注册。 |
-| 模板升级 | `thirdnet-migrate check / diff / apply` | `ThirdNet.Migrate` 工具，让已生成项目跟进模板更新（**非数据库迁移工具**）。 |
-
-各项的命名空间与签名详见 [能力目录](references/framework-and-template-catalog.md)。
+下列能力已由框架提供，遇到对应需求**直接用**，不要自己实现：分页（`ToPageListAsync`）、限流（`AddThirdNetIpAndApplicationPathRateLimiting`，超限 429）、文件上传（`MultipartData`）、IP 黑/白名单（`BlackIpMiddleware` + CIDR）、访问日志（`RequestLoggerMiddleware`）、分布式锁（`RedisLock`）、模板升级（`thirdnet-migrate`，**非数据库迁移工具**）。各项命名空间、方法签名与配置详见 [能力目录](references/framework-and-template-catalog.md)。
 
 ### 框架过滤器（由 `AddThirdNetDefaultMvc` 自动注册）
 
-开发者无需手动注册或调用以下过滤器，框架已自动处理：
-
-| 过滤器 | 行为 |
-|--------|------|
-| `ValidateModelAttribute` | 自动校验 `[FromBody]` DTO，`ModelState` 无效时抛 `WebApiException(400, 拼接的错误信息)`。**Controller 方法中无需手动检查 `ModelState.IsValid`**。 |
-| `CustomExceptionFilter` | 捕获 `WebApiException` 返回 `{code, error, error_description}` JSON + 对应 HTTP 状态码；未处理异常返回 500 + 通用消息。 |
-| `DefaultResultHeaderFilter` | 所有响应自动添加 `X-Content-Type-Options: nosniff` + `X-Frame-Options: deny` 安全头。 |
+框架自动注册三个过滤器，开发者无需手动处理：`ValidateModelAttribute`（`ModelState` 无效抛 `WebApiException(400)`，**Controller 无需手查 `ModelState.IsValid`**）、`CustomExceptionFilter`（`WebApiException`→结构化 JSON，其它异常→500）、`DefaultResultHeaderFilter`（自动加 `nosniff`/`deny` 安全头）。详见 [能力目录](references/framework-and-template-catalog.md)「过滤器」。
 
 ## 相关技能
 
-当同时涉及前后端开发时，配合以下技能使用：
-
-| 场景 | 相关技能 | 说明 |
-|------|---------|------|
-| 全栈功能开发 | `thirdnet-fullstack:frontend-workflow` | 前端开发工作流入口，页面/组件/路由/API 模块开发 |
-| 全栈协调 | `thirdnet-fullstack` | 后端 DTO → 前端 TypeScript 类型的映射规则、RBAC 前后端桥接、全栈开发顺序 |
-| 前端 Admin 项目创建 | `thirdnet-fullstack:admin-template-setup` | `create-thirdnet-admin` 创建前端管理后台项目 |
-| 前端 API 规范 | `thirdnet-fullstack:api-typescript-spec` | 前端消费后端 API 的策略工厂模式规范 |
-| 已生成项目跟进模板升级 | `thirdnet-template-upgrade` | `thirdnet-migrate` 完整升级流程（manifest 模式、6 态文件分类、冲突决策矩阵）——模板升级的单一事实来源 |
+当同时涉及前后端时，配合：`frontend-workflow`（前端开发入口）、`thirdnet-fullstack`（全栈协调：后端 DTO→前端 TS 类型映射、RBAC 桥接、开发顺序）、`admin-template-setup`（前端 Admin 项目创建）、`api-typescript-spec`（前端消费 API 的策略工厂规范）、`thirdnet-template-upgrade`（`thirdnet-migrate` 模板升级的单一事实来源）。
 
 ## 工作流步骤
 
@@ -75,9 +49,7 @@ metadata:
 
 1. **需求澄清**（AskUserQuestion）—— 明确服务范围、数据模型、接口需求、架构约束
 
-   > **例外：Admin 模板项目创建** —— 如果任务明确为"创建 Admin 管理后台项目"（使用 `dotnet new thirdnet-admin`），模板已内置全部模块（用户/角色/菜单/部门/字典/配置/操作日志/缓存、API 管理、认证授权），功能范围固定、无需澄清。此时跳过需求澄清的 3 轮提问，仅用一次 AskUserQuestion 确认项目名称（`{ProjectName}`，用于 `-n` 参数）后直接进入步骤 2。（例外说明——NuGet 源地址、连接字符串默认值、不适用场景——见「需求澄清」章节）
-   >
-   > 此例外**仅适用于创建新 Admin 模板项目**。在已有 Admin 项目上新增业务模块（如"通知管理"）时，仍须执行完整的需求澄清流程。
+   > **例外：Admin 模板项目创建**（`dotnet new thirdnet-admin`）跳过 3 轮澄清——模板功能固定，仅一次 AskUserQuestion 确认项目名称。详见下文「需求澄清 → Admin 模板项目创建」。
 
 2. **项目结构检查** —— 确认 backend/ 目录和服务布局
 3. **调用路由技能** —— 根据技能路由表加载所有适用的编码规范
@@ -194,9 +166,6 @@ cd backend
 ## 双数据库架构
 
 Admin 使用框架数据库（`ThirdNetDbContext`，public schema）+ 业务数据库（`AdminDbContext`，admin schema）双库；Service 用 `ServiceDbContext` 替代 `AdminDbContext` 并自定义 schema。完整对照见 net-efcore-developer「双数据库上下文区别」。
-
-关键点：
-- Service 项目使用 `ServiceDbContext` 替代 `AdminDbContext`，自定义 schema
 
 ## Program.cs 与 Startup.cs DI 管道
 

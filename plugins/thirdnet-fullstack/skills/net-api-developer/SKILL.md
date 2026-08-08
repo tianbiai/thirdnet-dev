@@ -8,7 +8,7 @@ description: >
   "接口开发"、"写接口"、"CRUD"、"HttpGet"、"HttpPost"时，必须使用此技能。
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "1.1.1"
   author: thirdnet
 ---
 
@@ -255,7 +255,7 @@ public class XxxService
 
 **3. 查询模式**：`AsNoTracking()` + 条件筛选 + 部门数据过滤 + `Select` 投影 + `ToPageListAsync` 分页（`ThirdNet.Vibe.WebAPI.ThirdNetWebApiExtensions` 扩展，框架提供，勿自写分页）。绝不返回实体。
 
-**4. 变更模式**：验证 → 创建实体 → `SaveChangesAsync` → 缓存失效。
+**4. 变更模式**：验证（`AnyAsync` 预检唯一性）→ 创建实体 → 保存 → 缓存失效。**写入唯一键字段的保存必须用框架扩展 `SaveChangesWithUniqueGuardAsync(db, code, message)`，而非裸 `SaveChangesAsync`**——它捕获唯一约束冲突并转译为与预检一致的 `WebApiException`，兜底 `AnyAsync` 与落库之间的 TOCTOU 竞态（否则裸 `DbUpdateException` 冒泡成 500）。`code`/`message` 与预检命中时保持一致。完整示例见 [controller-service-examples](references/controller-service-examples.md) 的 Add 方法，方法语义见 net-efcore-developer「保存变更 / 唯一冲突兜底」。
 
 **5. 事务（安全关键操作）**：使用 `Serializable` 隔离级别。
 
@@ -294,6 +294,7 @@ queryable = queryable.Where(x => visibleDeptIds.Contains(x.dept_id));
 - [ ] 返回 Map DTO，禁止匿名对象和 EF Core 实体
 - [ ] Entity → DTO 转换在 Service 层完成
 - [ ] 使用 WebApiException 抛出错误
+- [ ] 写入唯一键字段的端点用 `SaveChangesWithUniqueGuardAsync` 兜底（而非裸 `SaveChangesAsync` + 手写唯一 catch，或裸 `DbUpdateException` 冒泡成 500）
 - [ ] 每个端点有 `[ProducesResponseType]`
 
 ### 授权
@@ -311,6 +312,7 @@ queryable = queryable.Where(x => visibleDeptIds.Contains(x.dept_id));
 |------|----------|------|
 | `AdminControllerBase` | `{ProjectName}.Common.Controllers` | Admin 控制器基类，提供 `CurrentUserId`/`CurrentUserName`/`CurrentDeptId`，自动初始化 `IOperatorContext` |
 | `WebApiException` | `ThirdNet.Vibe.WebAPI` | 业务异常类，构造参数 `(HttpStatusCode, string message)` |
+| `SaveChangesWithUniqueGuardAsync` | `ThirdNet.Vibe.WebAPI`（DbContext 扩展） | **保存兜底扩展**：`db.SaveChangesWithUniqueGuardAsync(HttpStatusCode, string)` —— 保存变更并在唯一约束冲突时转译为 `WebApiException`，兜底 `AnyAsync` 查重与落库之间的 TOCTOU 竞态 |
 | `PageQueryDto` | `{ProjectName}.Common.DTOs` | 分页查询基类，含 `page_index`、`page_size` |
 | `PageListInfo<T>` | `ThirdNet.Vibe.WebAPI` | 分页返回类型，含 `List`、`Total`、`Index`、`Pages` |
 | `ToPageListAsync` | `ThirdNet.Vibe.WebAPI.ThirdNetWebApiExtensions` | **分页扩展**：`IQueryable<T>.ToPageListAsync(page_index, page_size) → Task<PageListInfo<List<T>>>`，勿自写分页 |
@@ -325,7 +327,7 @@ queryable = queryable.Where(x => visibleDeptIds.Contains(x.dept_id));
 | `TreeHelper` | `ThirdNet.Vibe.Common` | 树操作：`FlattenTree()` / `BuildNameMap()` / `ValidateNoCircularReference()`（与 `TreeBuilder` 是两个类，勿混淆） |
 | `UserCacheInvalidation` | `{ProjectName}.Admin.APIService.Services` | `InvalidateUserAuthAsync(userCache, tokenCache, userId)`，权限/角色变更后统一失效 |
 
-> `{ProjectName}` 是创建项目时指定的名称前缀（模板默认 `sourceName` 为 `ThirdNetVibe`）。`ThirdNet.Vibe.*` 命名空间来自框架 NuGet 库；模板生成层的命名空间**并非统一带 `.Admin.`**——主机/数据库层是 `{ProjectName}.Admin.APIService` / `{ProjectName}.Admin.Database`，而公共工具层（`Tools/{ProjectName}.Common`、`Tools/{ProjectName}.Cache`）的命名空间是 `{ProjectName}.Common.*` / `{ProjectName}.Cache.*`（**无 `.Admin.` 中缀**），使用时注意区分。
+> `{ProjectName}` = 创建项目时指定的名称前缀（模板默认 `ThirdNetVibe`）；`ThirdNet.Vibe.*` 来自框架 NuGet 库。模板生成层命名空间**并非统一带 `.Admin.`**：主机/数据库层 `{ProjectName}.Admin.APIService`/`.Admin.Database`，但公共工具层 `Tools/{ProjectName}.Common`、`Tools/{ProjectName}.Cache` 的命名空间是 `{ProjectName}.Common.*`/`{ProjectName}.Cache.*`（**无 `.Admin.` 中缀**），注意区分。
 
 ## 完整示例
 

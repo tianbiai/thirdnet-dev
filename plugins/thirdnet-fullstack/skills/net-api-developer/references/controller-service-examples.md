@@ -276,15 +276,8 @@ public async Task<IdResult> Add(UserCreateMap dto, long operatorId, string opera
     };
     db.SysUsers.Add(user);
 
-    // 4. TOCTOU 兜底：捕获 DB UNIQUE 约束违反
-    try
-    {
-        await db.SaveChangesAsync();
-    }
-    catch (DbUpdateException ex) when (IsUniqueViolation(ex))
-    {
-        throw new WebApiException(HttpStatusCode.BadRequest, "用户名已存在");
-    }
+    // 4. TOCTOU 兜底：捕获唯一冲突转译为 WebApiException（code/message 须与第 2 步一致；语义见 SKILL #4）。
+    await db.SaveChangesWithUniqueGuardAsync(HttpStatusCode.BadRequest, "用户名已存在");
 
     // 5. 创建关联记录
     if (dto.role_ids?.Any() == true)

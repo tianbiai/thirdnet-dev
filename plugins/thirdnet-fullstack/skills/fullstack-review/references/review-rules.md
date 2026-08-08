@@ -59,6 +59,7 @@
 | 中间关联表为独立实体（`long id` + 两 FK 列 + 复合唯一索引），**不**实现 `IAuditableEntity`，**不**用导航属性 | `net-efcore-developer` | 无 `HasMany`/`WithMany`；`SysUserRoleModel` 等为纯 POCO |
 | 批量操作用 `IDbAsyncBulk`（COPY 协议），**禁** `SaveChanges` 循环；**批量后必须手动删缓存** | `net-efcore-developer` | `_bulkCopy.*` 调用后紧跟 `_xxxCache.Remove*` |
 | 已在库的多步操作用**单语句 CTE**，**禁**拆成多次 `SaveChanges()`；SQL 必参数化、表名带 schema 前缀 | `net-efcore-developer` | 无字符串拼接 SQL；多步未拆 SaveChanges |
+| 写入唯一键字段（受唯一索引保护 / 前置 `AnyAsync` 查重）**必须**用 `SaveChangesWithUniqueGuardAsync(db, code, message)` 兜底，**禁**裸 `SaveChangesAsync` + 手写唯一 catch，**禁**裸 `DbUpdateException` 冒泡成 500；`code`/`message` 与查重命中一致 | `net-api-developer` / `net-efcore-developer` | grep 裸 `SaveChangesAsync` 紧跟唯一索引实体 / grep `IsUniqueViolation` 手写 catch → 命中即违例 |
 | 软删用 `StatusEnum`（0=正常,1=停用），**非** `deleted_at` 列 | `postgres-best-practices` | 新实体无 `deleted_at`/`is_deleted` |
 | 迁移仅在用户明确要求时创建；生产迁移走 expand/contract | `net-efcore-developer` | 无对大表 `AddColumn ... NOT NULL` 无默认 |
 
@@ -268,3 +269,4 @@
 10. 缺 `dept_id` 索引 → **Major**（权限过滤 Seq Scan）
 11. 手写分页 / 直接 `el-pagination` → **Major**
 12. 批量操作后未删缓存 → **Major**（脏数据）
+13. 唯一键写入未用 `SaveChangesWithUniqueGuardAsync`（裸 `DbUpdateException` 冒泡成 500 / 手写 `IsUniqueViolation` catch）→ **Major**

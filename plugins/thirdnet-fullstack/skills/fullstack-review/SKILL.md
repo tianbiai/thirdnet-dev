@@ -9,7 +9,7 @@ description: >
   或功能开发收尾时，必须使用此技能。支持 SVN（未提交 / 最近提交）与 git 变更范围自动识别。
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   author: thirdnet
 ---
 

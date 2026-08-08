@@ -154,28 +154,11 @@ namespace {ProjectName}.Cache.Domain
 }
 ```
 
-### 逐步解析
+### 设计要点（代码已自解释，以下为非显而易见处）
 
-**构造函数**：
-- 继承 `RedisCacheManager`，传入 `IRedisDatabase` 和 `ILogger`
-- 注入 `IDbContextFactory<CacheDbContext>` 用于 DB 回退查询
-- 定义静态 TTL 常量（避免重复创建 TimeSpan）
-
-**Reader 方法**：
-- 返回类型标记 `virtual`（允许测试 mock）
-- 使用 `GetSingle<T>(key, dbQueryFunc, ttl)` — Read-Through 模式
-  - Redis 命中 → 直接返回
-  - Redis 未命中 → 调用 dbQueryFunc → 写入 Redis → 返回
-- 集合方法用 `?? new()` 防止 null
-
-**Remove 方法**：
-- 使用 `RemoveSingle(key)` 删除缓存
-- 变更操作后由 Service 调用
-
-**Query 方法**：
-- 使用 `db.Database.SqlQueryRaw<T>(sql, params)` 原始 SQL
-- 表名使用完全限定名 `admin.t_xxx_xxx`
-- `{0}` 参数化（Npgsql 自动转换为参数化查询）
+- Reader 方法标记 `virtual`（允许测试 mock）；集合返回用 `?? new()` 防 null
+- SQL 用 `{0}` 占位符，Npgsql 自动转为参数化查询（防注入）；表名用完全限定名 `admin.t_xxx_xxx`
+- TTL 常量提为静态字段（避免每次创建 TimeSpan）；不同数据 TTL 不同（见 SKILL「TTL 约定」）
 
 ---
 
@@ -256,10 +239,8 @@ namespace {ProjectName}.Cache.Domain
 
 ### 树形缓存模式说明
 
-1. Redis 中存储的是**扁平列表**（`List<MenuView>`），不是树形结构
-2. Reader 方法取出扁平列表后，调用 `TreeBuilder.BuildForest()` 在内存中构建树
-3. `BuildForest` 参数：`items, idSelector, parentIdSelector, childrenGetter, childrenSetter`
-4. 这种方式比缓存整个树更灵活（可以按需过滤、排序）
+1. Redis 存**扁平列表**（非树形），Reader 取出后用 `TreeBuilder.BuildForest()`（参数：items/idSelector/parentIdSelector/childrenGetter/childrenSetter）在内存构建树
+2. 比缓存整个树更灵活（可按需过滤、排序）
 
 ---
 
@@ -274,11 +255,6 @@ services.AddPooledDbContextFactory<CacheDbContext>(options =>
     options.UseNpgsql(connectionString);  // 与 AdminDbContext 共享连接字符串
 });
 ```
-
-**特点**：
-- 不定义 DbSet（所有查询使用原始 SQL）
-- 不需要迁移
-- 共享 Admin 数据库的连接字符串（因为缓存回退查询的是 admin schema 下的表）
 
 **使用方式**（在 Query 方法中）：
 ```csharp

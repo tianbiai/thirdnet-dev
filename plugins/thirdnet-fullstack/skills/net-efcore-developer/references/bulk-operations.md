@@ -11,7 +11,21 @@
 
 ### 依赖注入
 
-通过依赖注入进行初始化实例。
+框架已将 `IDbAsyncBulk`（实现 `PostgresqlAsyncBulk`）自动注册为 Transient，在 Service 中直接构造函数注入即可。批量方法接受连接字符串或 `DbConnection`：**业务库**连接串来自 appsettings 的 `ConnectionString`，**框架库**（`ThirdNetDbContext` 的表）用 `DefaultConnectionString`。
+
+```csharp
+public class MyService
+{
+    private readonly IDbAsyncBulk _bulkCopy;
+    private readonly string _connectionString;
+
+    public MyService(IDbAsyncBulk bulkCopy, IConfiguration configuration)
+    {
+        _bulkCopy = bulkCopy;
+        _connectionString = configuration.GetConnectionString("ConnectionString")!;
+    }
+}
+```
 
 ### 初始化映射关系
 

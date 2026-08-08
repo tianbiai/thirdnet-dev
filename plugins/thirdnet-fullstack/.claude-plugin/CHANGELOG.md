@@ -1,5 +1,35 @@
 # Changelog
 
+## 2.37.0 - 2026-08-08
+
+### Changed
+- **8 个技能中度精简（去重 reference + 收紧措辞，保留全部表 / 决策树 / ✅❌示例 / frontmatter 触发词）**：消除 `SKILL.md` 与 `references/` 双向收录同一段内容（违反 progressive disclosure）的冗余，把细节收敛进 reference、SKILL 留指路与高价值速查。无新能力、不破坏行为。各技能要点：
+  - **net-efcore-developer**（565→481）：`[DbBulk]` 配置/Merge 示例去重指向 `bulk-operations.md`；构造函数注入模式 + 业务/框架库连接串区分**先迁入** `bulk-operations.md` 再删正文（唯一缺口先迁后删）；CTE 核心 SQL 压形状 + 指向 `cte-batch-patterns.md`；保存变更兜底并入引言；`timestamptz`/迁移命令/设计取舍收紧。
+  - **net-auth**（427→401）+ **rbac-flow.md**（221→125）：删除 `rbac-flow.md` §4 66 行 ASCII 框图（§1-3 文本树信息更全）、新增模块步骤压为指向 SKILL 的指针；SKILL 的 `CachePermissionProvider` 代码、第三层运行时流程、`SystemConfigKeys` 改为指针（权威 SQL 留 SKILL）。
+  - **frontend-workflow**（402→362）：删第三次重复的「文件存放位置」表；相关技能表/结构适配/演示模式表/API 策略工厂 H2/Admin 例外双重表述收紧。
+  - **backend-workflow**（402→370）：框架内置能力表/过滤器表压为索引+指针指向 `framework-and-template-catalog.md`（保留「Controller 无需手查 `ModelState.IsValid`」硬规则）；双数据库架构/Admin 例外重复/相关技能表收紧。
+  - **api-typescript-spec**（389→365）：enum/dict 规则去重（4× → 保留权威 #7 + 指针）；`OrderStatusEnum` 同文件去重（步骤1 → 3.1 权威）；设计模式过渡段并入引言。
+  - **net-api-developer**（342→341）+ **controller-service-examples.md**（398→393）：收紧上版新增的 `SaveChangesWithUniqueGuardAsync` rationale——SKILL #4 为单一来源，examples.md Add 注释压为指针。
+  - **net-cache-use**（313→290）+ **cache-examples.md**（287→263）：模板 Reader/Remove/Query 各删字典变体（全量模式由 UserCache 示例展示）；`逐步解析`删代码字面复述、树形说明 4→2 点、`CacheDbContext 特点`删（SKILL 已含）；审查清单去 2 条与 TTL 规则段重复项、锁 Lua 注释与代码注释合并。
+  - **net-microservice-generator**（357→348）：修复 A 叙述收紧；删不完整且重复的「参考文件索引」段（两份 ref 已 inline 链接）；Program.cs 内联注释 4→2 行。
+- **跨技能硬约束保留**：`UserCacheInvalidation` 反向引用链（`net-cache-use` L213 权威定义 ↔ `net-auth` L187/400 指针）两侧均在；8 个 frontmatter `description` 触发词原样不动。
+
+### 版本同步
+- `plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.36.0 → 2.37.0`；子技能各 PATCH +1：`net-efcore-developer` `1.2.0 → 1.2.1`、`net-auth` `1.0.0 → 1.0.1`、`frontend-workflow` `2.3.0 → 2.3.1`、`backend-workflow` `1.1.0 → 1.1.1`、`api-typescript-spec` `2.2.2 → 2.2.3`、`net-api-developer` `1.1.0 → 1.1.1`、`net-cache-use` `1.0.0 → 1.0.1`、`net-microservice-generator` `1.1.0 → 1.1.1`。`marketplace.json` 顶层 `metadata.version` 不变（`0.64.0`，非重大变更）。
+- `hooks.json` 不变——本次仅改技能 `.md`（含 3 个 reference 与 CHANGELOG），非 `*.cs/*.csproj` 或 `src/**/*.{vue,ts,...}`，不落 Pre/PostToolUse 合规门与提醒；Stop 收尾门只盯 `backend/`/`frontend/` 功能性代码，本次是插件仓自身技能内容精简，不被收尾门拦截。
+
+## 2.36.0 - 2026-08-08
+
+### Changed
+- **net-api-developer v1.0.0 → 1.1.0「写入唯一键字段用 SaveChangesWithUniqueGuardAsync 兜底 TOCTOU 竞态」**：修复 `references/controller-service-examples.md` Add 示例的**幽灵方法 bug**——原 `catch (DbUpdateException ex) when (IsUniqueViolation(ex))` 中的 `IsUniqueViolation` 全仓库无任何定义/导入说明，模型照抄必卡壳或裸 `DbUpdateException` 冒泡成 500；改用框架扩展 `await db.SaveChangesWithUniqueGuardAsync(HttpStatusCode.BadRequest, "用户名已存在")` 单行兜底。同步升级 `SKILL.md`：核心模式 #4 由一行「验证→创建实体→SaveChangesAsync→缓存失效」改为显式「`AnyAsync` 预检 → `SaveChangesWithUniqueGuardAsync` 兜底（code/message 与预检一致）→ 缓存失效」并解释 TOCTOU 竞态；框架类型速查表新增 `SaveChangesWithUniqueGuardAsync` 行；审查清单「响应与错误处理」新增唯一兜底检查项。Update 示例未触碰唯一键字段（不改 user_name），保留原 `SaveChangesAsync`。
+- **net-efcore-developer v1.1.0 → 1.2.0「新增保存变更 / 唯一冲突兜底章节」**：该技能原管 DbContext/建模/查询/批量却**完全没有写入章节**，新增「保存变更 / 唯一冲突兜底」一节（紧跟 DbContext 核心约定）：方法签名、TOCTOU 竞态成因、用法示例、适用边界（仅用于唯一索引/`AnyAsync` 预检的写入；普通写入仍用 `SaveChangesAsync`；事务内 `Commit` 仍由调用方负责；批量走 `IDbAsyncBulk`）。索引策略列表与 EntityConfiguration 关键约定表各加一句交叉引用指向新章节。
+- **backend-workflow v1.0.0 → 1.1.0「框架能力目录登记 SaveChangesWithUniqueGuardAsync」**：`references/framework-and-template-catalog.md` 1.2 `ThirdNet.Vibe.WebAPI`「分页与通用扩展」表（紧邻 `WebApiException`）新增一行登记 `SaveChangesWithUniqueGuardAsync` 为 DbContext 扩展方法，让 net-api-developer / net-efcore-developer 两技能的「框架类型速查 / 参考」落点真实存在。
+- **fullstack-review v1.0.0 → 1.1.0「新增唯一兜底审查规则」**：`references/review-rules.md` A3 EF Core 规范表新增规则——写入唯一键字段必须用 `SaveChangesWithUniqueGuardAsync`，禁裸 `SaveChangesAsync` + 手写唯一 catch、禁裸 `DbUpdateException` 冒泡 500；速查「最易出 Critical」清单新增第 13 条（唯一键写入未兜底 → Major）。
+
+### 版本同步
+- `plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.35.0 → 2.36.0`；技能 `net-api-developer` `1.0.0 → 1.1.0`、`net-efcore-developer` `1.1.0 → 1.2.0`、`backend-workflow` `1.0.0 → 1.1.0`、`fullstack-review` `1.0.0 → 1.1.0`。`marketplace.json` 顶层 `metadata.version` 不变（`0.64.0`，非重大变更）。
+- `hooks.json` 不变——本次仅改技能 `.md`（含 catalog / review-rules / CHANGELOG），非 `*.cs/*.csproj` 或 `src/**/*.{vue,ts,...}`，不落 Pre/PostToolUse 合规门与提醒；Stop 收尾门只盯 `backend/`/`frontend/` 功能性代码，本次是插件仓自身技能内容更新，不被收尾门拦截。
+
 ## 2.35.0 - 2026-08-08
 
 ### Added

@@ -13,7 +13,7 @@ description: >
   必须使用此技能。
 license: MIT
 metadata:
-  version: "1.1.0"
+  version: "1.2.1"
   author: thirdnet
 ---
 
@@ -85,10 +85,8 @@ foreach (var prop in modelBuilder.Model.GetEntityTypes()
 builder.Property(x => x.last_active_time).HasColumnType("timestamptz");
 ```
 
-- **审计字段** `created_time` / `updated_time` 仍走 `now()` 数据库默认值（`HasDefaultValueSql("now()")`，服务端返回的本身就是 `timestamptz`），Service 层无需赋值——这条规则针对的是**业务时间字段**（如 `login_date`、`lockout_end`、`last_active_time`、各类计划/截止时间）以及批量入库时由应用层提供的时间值。
-- **既有库改 `timestamptz`** 属破坏性变更，须 expand/contract（加 `timestamptz` 新列 → 回填 → 切换 → 删旧列）；**新项目 / 新实体直接建为 `timestamptz`** 即可。
-
-完整背景与迁移细节见 [postgres-best-practices.md](references/postgres-best-practices.md)「八、时区类型」。
+- **审计字段** `created_time` / `updated_time` 走 `now()` 默认值（`HasDefaultValueSql("now()")`，本身就是 `timestamptz`），Service 层无需赋值；本规则针对**业务时间字段**（`login_date`、`last_active_time`、各类计划/截止时间）及批量入库时应用层提供的时间值。
+- **既有库改 `timestamptz`** 属破坏性变更，须 expand/contract（新列 → 回填 → 切换 → 删旧列）；**新项目/新实体直接建为 `timestamptz`**。背景与迁移细节见 [postgres-best-practices.md](references/postgres-best-practices.md)「七、迁移安全性 / 八、时区类型」。
 
 ### 索引策略
 
@@ -98,6 +96,7 @@ builder.Property(x => x.last_active_time).HasColumnType("timestamptz");
 - 常量谓词过滤场景用部分索引 `HasFilter(...)`。
 - 复合索引遵循左前缀原则（等值列在前、范围列在后）。
 - 覆盖索引（INCLUDE）、表达式索引等高级模式 EF Core 不直接支持，在迁移中手写。
+- **唯一索引的保存兜底**：声明了 `IsUnique()` 的列，写入时必须用框架扩展 `SaveChangesWithUniqueGuardAsync` 兜底唯一冲突（见下文「保存变更 / 唯一冲突兜底」）。
 
 完整指引见 [postgres-best-practices.md](references/postgres-best-practices.md)「一、索引策略」。
 
@@ -161,6 +160,26 @@ await using var db = await _dbFactory.CreateDbContextAsync();
 ### ServiceDbContext
 
 自定义微服务使用 `ServiceDbContext`，与 AdminDbContext 模式相同但使用自定义 schema。详见 `net-microservice-generator` 技能。
+
+## 保存变更 / 唯一冲突兜底
+
+写入受唯一索引保护（见上文「索引策略」、下文 `HasIndex(...).IsUnique()`）或前置了 `AnyAsync` 查重的实体时，**必须用框架扩展 `SaveChangesWithUniqueGuardAsync` 替代裸 `SaveChangesAsync`**：`AnyAsync` 查重与 `SaveChanges` 落库之间存在 **TOCTOU 竞态**——查重放行后、落库前，另一个并发请求可能写入相同键值使落库撞唯一约束，裸 `SaveChangesAsync` 抛 `DbUpdateException` 冒泡成 500。扩展在内部捕获该冲突并转译为 `WebApiException`，使错误响应与查重命中时完全一致。
+
+```csharp
+// ThirdNet.Vibe.WebAPI（DbContext 扩展）：code/message 应与该接口查重命中时一致
+public static async Task SaveChangesWithUniqueGuardAsync(
+    this DbContext db, HttpStatusCode code, string message);
+
+// 1. AnyAsync 预检 → 2. 创建/更新实体 → 3. 保存兜底（code/message 与预检一致）
+var exists = await db.XxxModels.AnyAsync(x => x.field == dto.field);
+if (exists) throw new WebApiException(HttpStatusCode.BadRequest, "xxx 已存在");
+// …
+await db.SaveChangesWithUniqueGuardAsync(HttpStatusCode.BadRequest, "xxx 已存在");
+```
+
+**适用边界**：① 用于受唯一索引保护或前置 `AnyAsync` 查重的写入；② 无唯一约束的普通写入直接 `SaveChangesAsync`；③ 事务内只包裹 `SaveChangesAsync`，`tx.CommitAsync()` 仍由调用方负责；④ 批量写入走 `IDbAsyncBulk`（COPY 协议），不走此扩展（见下文）。
+
+Service 层完整示例（含预检 + 兜底 + 缓存失效）见 net-api-developer 的 [controller-service-examples](../net-api-developer/references/controller-service-examples.md)。
 
 ## 实体建模规范
 
@@ -248,6 +267,8 @@ public class XxxConfiguration : IEntityTypeConfiguration<XxxModel>
 | 唯一索引 | `HasIndex(x => x.field).IsUnique()` |
 | 复合唯一索引 | `HasIndex(x => new { x.a, x.b }).IsUnique()` |
 
+> 声明唯一/复合唯一索引后，写入该实体的保存须用 `SaveChangesWithUniqueGuardAsync` 兜底冲突，见上文「保存变更 / 唯一冲突兜底」。
+
 ## 中间关联表
 
 多对多关系使用独立的关联实体（不使用 EF Core 导航属性）：
@@ -290,20 +311,13 @@ public long parent_id { get; set; }  // 顶级节点 parent_id = 0
 在生成项目根目录下执行（路径相对生成项目根）：
 
 ```bash
-# 添加迁移
+# 路径相对生成项目根；三条命令共用相同的 --project / --startup-project（下同）
 dotnet ef migrations add AddXxxEntity \
   --project Admin/{ProjectName}.Admin.Database \
   --startup-project Admin/{ProjectName}.Admin.APIService
 
-# 应用迁移
-dotnet ef database update \
-  --project Admin/{ProjectName}.Admin.Database \
-  --startup-project Admin/{ProjectName}.Admin.APIService
-
-# 回滚到指定迁移
-dotnet ef database update <MigrationName> \
-  --project Admin/{ProjectName}.Admin.Database \
-  --startup-project Admin/{ProjectName}.Admin.APIService
+dotnet ef database update                 # 应用迁移
+dotnet ef database update <MigrationName> # 回滚到指定迁移
 ```
 
 ## 双数据库上下文区别
@@ -338,20 +352,13 @@ dotnet ef database update <MigrationName> \
 
 ```sql
 WITH
-  matched AS (
-    SELECT id, column_a FROM admin.t_target WHERE status = @Status
-  ),
-  archived AS (
-    INSERT INTO admin.t_history (id, column_a, archived_at)
-    SELECT id, column_a, NOW() FROM matched
-    RETURNING id
-  ),
-  removed AS (
-    DELETE FROM admin.t_target WHERE id IN (SELECT id FROM archived)
-    RETURNING id
-  )
-SELECT COUNT(*) AS removed_count FROM removed;
+  matched AS ( SELECT … FROM admin.t_target WHERE … ),                 -- 1. 选出待处理行
+  archived AS ( INSERT … SELECT … FROM matched RETURNING id ),        -- 2. 写入历史/目标表
+  removed  AS ( DELETE … WHERE id IN (SELECT id FROM archived) RETURNING id )  -- 3. 清理源表
+SELECT COUNT(*) FROM removed;   -- 4. 返回结果（配合 SqlQueryRaw<View>）
 ```
+
+4 种完整场景（归档 / 同步 / 清理 / 迁移，含 View 模型与参数化版本）见 [cte-batch-patterns.md](references/cte-batch-patterns.md)。
 
 ### EF Core 执行方式
 
@@ -405,57 +412,15 @@ await db.Database.ExecuteSqlInterpolatedAsync($@"WITH ... DELETE ...");
         └── 否 → CopyToServer（纯插入）
 ```
 
-注入与连接串：`IDbAsyncBulk` 的方法接受连接字符串或 `DbConnection`；业务库连接串来自 appsettings 的 `ConnectionString`，框架库（ThirdNetDbContext 表）用 `DefaultConnectionString`。
+注入方式与连接串（业务库 `ConnectionString` / 框架库 `DefaultConnectionString`）见 [bulk-operations.md](references/bulk-operations.md)「依赖注入」。
 
 ```csharp
-public class MyService
-{
-    private readonly IDbAsyncBulk _bulkCopy;
-    private readonly string _connectionString;
-
-    public MyService(IDbAsyncBulk bulkCopy, IConfiguration configuration)
-    {
-        _bulkCopy = bulkCopy;
-        _connectionString = configuration.GetConnectionString("ConnectionString")!;
-    }
-}
-
 // 批量插入
 await _bulkCopy.InitDefaultMappings<User>();
 await _bulkCopy.CopyToServer(_connectionString, "users", users);
-
-// 合并（Upsert，按 email 去重）
-await _bulkCopy.MergeToServer(_connectionString, new List<string> { "email" }, "users", users);
-
-// 完整同步（外部数据覆盖本地，删除本地多余的）
-await _bulkCopy.MergeAndDeleteToServer(_connectionString, new List<string> { "external_id" }, "local_table", localData);
 ```
 
-`[DbBulk]` 字段映射配置（实体唯一允许的数据注解）：
-
-```csharp
-public class User
-{
-    [DbBulk(Ignore = true)]
-    public int InternalId { get; set; }  // 不参与批量操作
-
-    [DbBulk(ColumnName = "user_id", Type = NpgsqlDbType.Integer)]
-    public int Id { get; set; }  // 自定义列名和类型
-
-    [DbBulk(Type = NpgsqlDbType.Varchar)]
-    public string Name { get; set; }
-
-    [DbBulk(UnknownType = "jsonb")]
-    public string Metadata { get; set; }  // 特殊类型
-}
-```
-
-| 属性 | 说明 |
-|------|------|
-| `Ignore` | 忽略该字段，不参与批量操作 |
-| `ColumnName` | 自定义数据库列名 |
-| `Type` | 指定 NpgsqlDbType |
-| `UnknownType` | 特殊类型（如 jsonb） |
+`[DbBulk]` 字段映射特性的完整配置（`Ignore` / `ColumnName` / `Type` / `UnknownType`）与 `MergeToServer` / `MergeAndDeleteToServer` 等方法示例见 [bulk-operations.md](references/bulk-operations.md)。
 
 > **批量操作后必须手动删缓存**：BulkCopy 直接改库、绕过 Service 层的缓存失效逻辑，操作完成后必须手动调用对应缓存域的 `Remove` 方法（如 `await _xxxCache.RemoveXxxDic();`），详见 net-cache-use。
 >
@@ -488,24 +453,24 @@ public class User
 
 ## 设计取舍说明
 
-下列选择属**有意为之**，与通用 Postgres 最佳实践不同，需明确理由与边界，避免被误判为缺陷：
+下列选择属**有意为之**，与通用 Postgres 最佳实践不同——明确理由与边界，避免被误判为缺陷：
 
 ### 不建外键
 
-- **理由**：微服务跨库（业务库与框架库分离）无法跨库建 FK；表结构演进灵活；避免级联锁影响并发。
-- **边界**：关联完整性由应用层 Service 保证；**同库内强一致关系**（如字典主从表）**可选加 FK**，但需评估级联锁风险。
-- **替代约束**：用复合唯一索引（如 `t_sys_user_role(user_id, role_id)`）保证业务唯一性。
+- **理由**：微服务跨库无法跨库建 FK，且利于表结构演进、避免级联锁。
+- **边界**：关联完整性由应用层 Service 保证；同库内强一致关系（如字典主从表）可选加 FK（需评估级联锁）。
+- **替代**：用复合唯一索引（如 `t_sys_user_role(user_id, role_id)`）保证业务唯一性。
 
 ### 不做 RLS（行级安全）
 
-- **理由**：数据权限模型基于部门树（`DeptFilterHelper.GetVisibleDeptIds` 注入查询 `Where`），业务复杂度（含 `include_sub_depts`、通配符、自定义数据范围）高于 RLS 策略表达力。
+- **理由**：数据权限基于部门树（`DeptFilterHelper.GetVisibleDeptIds` 注入 `Where`），复杂度（`include_sub_depts`、通配符、自定义范围）高于 RLS 策略表达力。
 - **边界**：若未来出现严格多租户隔离需求（租户间数据绝对不可串），再评估 RLS。
 
 ### 数据权限走应用层
 
-- `DeptFilterHelper` 把可见 `dept_id` 集合注入查询 `Where(x => visibleDeptIds.Contains(x.dept_id))`。
-- **关键约束**：`dept_id` 等被数据权限过滤的列**必须建索引**（如 `entity-examples.md` 中 `HasIndex(x => x.dept_id)`），否则每次权限过滤触发 Seq Scan，应用层权限反而拖垮查询。
-- 高频过滤列、JOIN 关联列同理必须建索引——这正是 Postgres「外键列须建索引」最佳实践在本插件无 FK 架构下的对应体现。
+- `DeptFilterHelper` 把可见 `dept_id` 注入 `Where(x => visibleDeptIds.Contains(x.dept_id))`。
+- **关键约束**：`dept_id` 等被过滤的列**必须建索引**（见 `entity-examples.md` 的 `HasIndex(x => x.dept_id)`），否则每次权限过滤触发 Seq Scan，应用层权限反而拖垮查询。
+- 高频过滤列、JOIN 关联列同理须建索引——这正是 Postgres「外键列须建索引」在无 FK 架构下的对应体现。
 
 ## 相关技能
 
