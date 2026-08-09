@@ -4,7 +4,7 @@
     {
       "id": 1,
       "prompt": "请生成项目的完整UI测试",
-      "expected_output": "技能被触发。Claude 先问 2-3 个范围问题（有哪些端 / 测哪些角色 / 后端可达还是只交付不联调），然后探索代码库（从源码读真实的 selector/label/流程/权限），设计 TEST_PLAN.md，并在 testing/ 下生成一套完整的纯 UI Playwright(Python) 套件：驱动真实弹窗/表单，只断言 DOM 文本（测试代码不直连后端），用多个权限不同的账号登录，断言写入即回验 + 跨端 + 按钮不存在的负向用例，挂被动 console/pageerror/4xx-5xx 监听。每个 .py 都能 py_compile 通过。",
+      "expected_output": "技能被触发。Claude 先问 2-3 个范围问题（有哪些端 / 测哪些角色 / 输出位置），生成阶段不连接待测系统，然后探索代码库（从源码读真实的 selector/label/流程/权限），设计 TEST_PLAN.md，并在 testing/ 下生成一套完整的纯 UI Playwright(Python) 套件：驱动真实弹窗/表单，只断言 DOM 文本（测试代码不直连后端），用多个权限不同的账号登录，断言写入即回验 + 跨端 + 按钮不存在的负向用例，挂被动 console/pageerror/4xx-5xx 监听。每个 .py 都能 py_compile 通过。",
       "files": []
     },
     {
@@ -16,7 +16,7 @@
     {
       "id": 3,
       "prompt": "generate a complete UI test suite for this codebase — it's a Vue3 admin plus a uni-app mobile H5, business flows cross the two ends",
-      "expected_output": "技能因英文变体被触发。Claude 确认两端都存在后组合变体：后台用 Element Plus 原子 + 移动端用 uni-app H5 原子（从源码探索到的项目自身移动端组件 class，原生 <uni-picker> 滚轮标为校准点，卡片回验）。测试用对的账号驱动两端并断言跨端一致性（一端产生的数据在另一端可见/正确）。README 记录 picker/上传/一次性绑定 校准点。后端不可达则只交付不联调。",
+      "expected_output": "技能因英文变体被触发。Claude 确认两端都存在后组合变体：后台用 Element Plus 原子 + 移动端用 uni-app H5 原子（从源码探索到的项目自身移动端组件 class，原生 <uni-picker> 滚轮标为校准点，卡片回验）。测试用对的账号驱动两端并断言跨端一致性（一端产生的数据在另一端可见/正确）。README 记录 picker/上传/一次性绑定 校准点。生成阶段默认不连接待测系统，真实 URL/账号留作环境变量占位，由执行者在可连通环境里跑。",
       "files": []
     },
     {

@@ -8,10 +8,11 @@
 import os
 
 # ---------- 服务地址 ----------
-# {{ADAPT}} 按本项目实际端口/地址填写（下方 localhost 仅为示例默认值，用环境变量覆盖）。
+# {{ADAPT}} 仅当探索阶段读到了确切的开发端口才改默认值；下方 localhost 是惰性占位，真实地址由执行者在运行时用环境变量提供。
 BASE_URL_WEB = os.getenv("E2E_WEB_URL", "http://localhost:3000")
 BASE_URL_MOBILE = os.getenv("E2E_MOBILE_URL", "http://localhost:5173")   # 无移动端可删
 # 后端 API 仅用于「健康检查」（被动探活），测试代码绝不直连其业务接口（原则 #1）。
+# 真实后端地址在运行时由执行者提供（生成机器不需要连通待测系统）。
 BACKEND_BASES = [b for b in os.getenv("E2E_BACKEND_URLS", "").split(",") if b]  # 如 "http://localhost:5000,http://localhost:5001"
 
 # ---------- 账号 ----------
@@ -44,7 +45,7 @@ MOBILE_VIEWPORT = {"width": 390, "height": 844}
 ARTIFACTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artifacts")
 
 # ---------- 后端健康检查（仅探活，不测业务）----------
-# {{ADAPT}} 按项目健康检查端点填写；BACKEND_HEALTH[(base,path)]，path 可空字符串跳过。
+# {{ADAPT}} 按项目健康检查端点**路径**填写（从代码里读到，不是真实地址）；BACKEND_HEALTH[(base,path)]，path 可空字符串跳过。真实 base 在运行时由执行者用环境变量提供。
 BACKEND_HEALTH = {}
 HEALTH_TIMEOUT = int(os.getenv("E2E_HEALTH_TIMEOUT", "180"))
 

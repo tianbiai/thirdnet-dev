@@ -3,13 +3,22 @@ name: e2e-test-generator
 description: 为任意既有项目代码库生成一套完整的、可入库的、**纯 UI 驱动**的 Playwright（Python）端到端（E2E）测试套件——覆盖 Web 后台、移动端（H5/小程序）、大屏/驾驶舱，或其任意组合；通过探索代码库来生成。测试会打开真实弹窗、按 label/placeholder 填表、提交、再从表格/列表 DOM 文本断言结果；用多个权限不同的账号登录，验证每条业务流（含数据范围、跨端一致性、越权负向用例），**且绝不从测试代码直连后端**。本技能会按目标项目**自身的前端框架**适配——Element Plus、uni-app 或任何其它框架——因为每个选择器/label/流程都是从目标项目的真实源码里读出来的，而不是假设的，所以它适用于任意 web/移动代码库。当用户想为某个项目创建 / 生成 / 搭建 / 编写 E2E 测试套件、集成测试或 Playwright 测试时，务必使用本技能——例如「请生成项目的完整UI测试」「为这个后台写一套E2E测试，要用不同权限账号验证越权」「generate the complete UI tests for this project」「write an E2E suite for this codebase」「add Playwright tests covering all business flows」。**不要**用于一次性运行时检查或快速浏览器验证（那是另一个独立的 `webapp-testing` 技能），也不要用于单元/组件测试。
 license: MIT
 metadata:
-  version: "0.1.0"
+  version: "0.2.0"
   author: thirdnet
 ---
 
 # E2E 测试生成器
 
-通过探索既有项目的代码库，为其生成一套**完整的、可入库的、纯 UI 驱动**的 Playwright（Python）E2E 测试套件。这套件会提交进仓库（放在 `testing/` 下），与项目自身的构建钩子隔离。方法是项目无关的：适用于任意 web/移动代码库，因为每个选择器、label、流程都是从目标项目的真实源码里读出来的，而非凭空假设。
+通过探索**用户指定的**既有项目代码库，为其生成一套**完整的、可入库的、纯 UI 驱动**的 Playwright（Python）E2E 测试套件。这套件会提交进仓库（放在 `testing/` 下），与项目自身的构建钩子隔离。方法是项目无关的：适用于任意 web/移动代码库，因为每个选择器、label、流程都是从目标项目的真实源码里读出来的，而非凭空假设。
+
+## 两个阶段，两台机器（生成 vs 运行）
+
+本技能的工作分两个阶段，发生在两台不同的机器上：
+
+- **生成阶段（这台机器）**——只读你指给我的代码库。从源码里提取真实的 selector/label/流程/权限，生成 `testing/` 套件。**不连接、不启动、不探活**待测系统；真实 URL/账号/密码在这一阶段**未知**，一律留作环境变量占位。这台机器不需要能连通待测环境。
+- **运行阶段（一台能连通的机器）**——把 `testing/` 拿到能访问待测环境的人那里。由执行者用环境变量提供真实 URL/账号/密码、启动目标服务；`run_all.py` 先做健康检查轮询，再驱动真实 UI。真正的 pass/fail 在这里发生。
+
+换句话说：**交付的是一套可入库、可在任何可连通环境里跑起来的套件**，不是在生成这台机器上证明它跑得通。
 
 ## 「纯 UI 驱动」是什么意思（定义本技能的那一条铁律）
 
@@ -40,13 +49,15 @@ metadata:
 
 ### 阶段 0——范围确认（问清楚，别猜）
 生成前用 `AskUserQuestion` 确认 2–3 件事：
+- **用户指定的代码库在哪**：确认待测项目的根目录路径（生成只读这里的源码，见上方「两个阶段」）。
 - **存在哪些端**：B 端 web 后台？C 端移动（H5/小程序）？整屏大屏/驾驶舱？（决定你要建哪些登录层与 UI 原子层。）
 - **要测哪些角色**：存在哪些权限有别的账号，或需要自动开通哪些？（如超管 + 范围受限的角色 A/B。）
-- **后端现在可达吗，还是只交付不联调？** 如果这台机器连不上后端/DB，测试就*只做生成 + 静态检查*，并把运行说明交给有真实环境的人去跑。（别假装能跑。）
 - 确认输出位置（默认 `<project>/testing/`）。
 
+**生成阶段默认不连接待测系统**——所以这里*不问*「后端可不可达」。真实 URL/账号/密码都留到运行阶段，由执行者用环境变量填。若用户碰巧在这台机器上跑着开发栈、并主动要求做一次本地冒烟，按阶段 4 的「可选冒烟」处理；否则默认就是离线生成 + 交付。
+
 ### 阶段 1——探索代码库（这是引擎）
-按 `references/discovery.md` 派发**并行 Explore 子代理**（每个关注一个方面）。目标：从真实代码里提取*真实的* selector/label/placeholder/按钮文案/表头/列表卡片 class/状态机/权限指令/数据范围机制——绝不猜。产出两份东西：
+按 `references/discovery.md` 派发**并行 Explore 子代理**（每个盯一个维度——组件/UI 原子、字段 label/placeholder/按钮文案/表头、业务流与状态机、认证与权限/数据范围、移动端）。目标：从真实代码里提取*真实的* selector/label/placeholder/按钮文案/表头/列表卡片 class/状态机/权限指令/数据范围机制——绝不猜。产出两份东西：
 - 一份**探索笔记**小结（每条业务流是什么、它的状态机、它表单的字段），
 - 一份**选择器登记表草稿**（即项目的 `selectors.py`）。
 
@@ -56,7 +67,7 @@ metadata:
 写 `testing/TEST_PLAN.md`：把业务流映射成测试用例，应用原则 2–4（回验 / 跨端 / 多角色+负向）。敲定 `lib/` 分层和选择器登记表。读 `references/architecture.md` 了解分层。
 
 ### 阶段 3——生成套件
-- 从 `assets/lib-skeletons/` 拷贝**通用 lib 骨架**（config/state/data_factory/harness/sessions/run_all）——这些几乎不用改；填上项目的 URL/账号即可。
+- 从 `assets/lib-skeletons/` 拷贝**通用 lib 骨架**（config/state/data_factory/harness/sessions/run_all）——这些几乎不用改；URL/账号留作环境变量占位（见 config.py.tpl 的 `E2E_*` 契约），生成阶段不填真实值。
 - 通过阅读对应的**变体参考**来生成**适配层**：
   - **Element Plus** 的 web 后台 → `references/web-element-plus.md`（首选快速通道），
   - **uni-app（H5）** 的移动端 → `references/mobile-uniapp.md`（首选快速通道），
@@ -66,9 +77,9 @@ metadata:
 
 ### 阶段 4——验证
 - 对**每个**生成的 `.py` 跑 `python -m py_compile`——必须全过。（读 `references/verification.md`。）
-- 如果技术栈可达：一次**冒烟**（导航 + 选择器准确性）（最有价值的本地检查）。
+- **可选冒烟**（仅在用户主动要求、且这台机器上正好跑着可访问的开发栈时）：启动前端 → 跑 2–3 条导航 + 选择器断言，验证原子层对真实 DOM 是准的。这是离线生成之外的**额外**检查，不是主流程的一环——默认不做。
 - 写 `testing/README.md`，包含：怎么跑、**校准点**（像原生 picker/文件上传这种首次真跑要在真实 DOM 上微调的脆弱交互）、已知边界。
-- 交付：套件产出完成；真正的 pass/fail 运行在真实环境里发生。
+- 交付：套件产出完成；真正的 pass/fail 运行在可连通测试环境里发生（见「两个阶段」）。
 
 ## 变体选择（速查）
 
@@ -91,7 +102,7 @@ metadata:
 - `references/web-element-plus.md`——Element Plus 原子 + 易踩的坑（状态是 radio 不是 select；角色-菜单树按可见 label 勾选而非权限串；mock 下按路由前缀投票；等等）。
 - `references/mobile-uniapp.md`——uni-app H5 的 UI 原子 + 原生 `<picker>`（#1 校准风险）+ toast/弹窗/卡片回验。
 - `references/negative-testing.md`——权限按钮/菜单不存在；冲突 toast + `expect_response` 兜底。
-- `references/verification.md`——py_compile、冒烟、真实环境交付、记录校准点。
+- `references/verification.md`——py_compile、可选冒烟、异地运行交付、记录校准点。
 - `examples/worked-example.md`——一套完整建好的参考套件（13 个用例 + 12 个 lib）作为工作示例；不确定某层长啥样时翻它。
 
 ## 输出形态（你必须产出什么）

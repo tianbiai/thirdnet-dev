@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.40.0 - 2026-08-09
+
+### Changed
+- **`skills/e2e-test-generator/` 定位重构——明确「离线生成、异地运行」模型**：把「生成阶段绝不连接目标系统」从隐性默认抬成显性铁律，对应用户四点诉求：① 基于**用户指定的代码库**生成；② 从代码库分析功能 / UI / 业务流程 / 权限等多维度；③ 真实地址 / 账号 / 密码**由运行时（执行者）提供**，生成阶段未知；④ **不要求生成机能连通目标系统**，测试代码后续放到可连通测试环境的机器上运行。
+  - **SKILL.md**：frontmatter `description` **不动**（当前无连通性断言，加运行时细节会稀释触发短语）；引言点明「用户指定的代码库」；新增「两个阶段，两台机器（生成 vs 运行）」小节作为重构支点；阶段 0 删「后端可达吗」分支，改为确认代码库路径 + 输出位置 + 声明「生成阶段默认不连接待测系统」；阶段 1 显式列出分析维度（组件/UI 原子、字段 label、业务流与状态机、认证与权限/数据范围、移动端）；阶段 3「填上 URL/账号即可」→「留作环境变量占位，生成阶段不填真值」；阶段 4「技术栈可达则冒烟」降级为**可选冒烟**（用户主动 opt-in 才做，默认不做）；reference 索引「冒烟」→「可选冒烟」。
+  - **references/verification.md**：L3 引言改为正向陈述「生成机不假设连通待测系统」；§2 标题「冒烟（开发栈可达时）」→「冒烟（可选 · 用户主动 opt-in 时）」，基调从「可达就做」改为「默认不做」；§4「环境诚实」去掉条件式「如果」，改为无条件陈述（诚实义务必须落地，不能又装回刚拆掉的分支）。
+  - **assets/lib-skeletons/config.py.tpl**：仅注释强化（localhost/admin@123 是惰性占位、真实值运行时由执行者提供），**代码逻辑不动**。
+  - **assets/adapt-skeletons/README.md.tpl**：「环境与安装」前加运行模型 callout（真实 URL/账号/密码由执行者运行时提供、在可连通机器上跑）。
+  - **references/discovery.md**：补「只读代码，不连接、不启动、不探活待测系统」。
+  - **evals/evals.json**：更新 eval #1（L7）与 eval #3（L19）的 `expected_output`，与新定位一致（旧文本「后端可达还是只交付不联调 / 后端不可达则只交付不联调」→「生成阶段不连接待测系统，由执行者在可连通环境跑」）。
+  - **不改动**：运行时代码（`run_all.py.tpl` 健康轮询 + `--skip-ready`、`harness.py` 探活、`config.py.tpl` 环境变量契约）、5 条原则、各框架适配参考、`examples/worked-example.md`——均与新定位无矛盾（Explore 子代理已全量确认）。
+
+### 注意（防回退）
+- `assets/lib-skeletons/run_all.py.tpl` 里的 `dashboard/smoke` 是**运行时 `TEST_MODULES` 条目**（套件在真实栈上的尾段自冒烟），**不是**生成阶段冒烟——别因「冒烟改为可选」误判为矛盾去删它。
+- 端到端 eval-loop 重跑为可选后续：本次只同步 `expected_output` 措辞；重构不改触发短语 / 技能选择 / 产出物（`testing/` 布局不变），改的是 Claude 对「分阶段」的*叙述*。
+
+### 版本同步
+- `plugin.json` / 协调技能 `thirdnet-fullstack/SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.39.0 → 2.40.0`；`marketplace.json` 顶层 `metadata.version` 不变（`0.64.0`，非重大变更）。技能自身 `e2e-test-generator/SKILL.md` `metadata.version` 由 `0.1.0 → 0.2.0`（实质性定位调整，非纯翻译；2.39.0 已立「纯翻译不 bump」先例，本次实质故 bump）。
+- `hooks.json` 不变（本技能不触发合规门；本次仅改插件仓内 `.md/.tpl/.json`，不落 Pre/PostToolUse 门）。
+
 ## 2.39.0 - 2026-08-09
 
 ### Changed
