@@ -9,7 +9,7 @@ description: >
   以及子代理调度（backend-developer / frontend-developer，通过 Task 工具派发重型阶段）。
 license: MIT
 metadata:
-  version: "2.37.0"
+  version: "2.39.0"
   author: thirdnet
 ---
 
@@ -30,6 +30,7 @@ metadata:
 - **后端技能**：`backend-workflow`、`net-api-developer`、`net-efcore-developer`（含批量操作）、`net-auth`、`net-cache-use`、`net-background-job`、`net-enum-dict`、`net-microservice-generator`
 - **前端技能**：`frontend-workflow`、`api-typescript-spec`、`vue-best-practices`、`admin-template-setup`、`vue-pinia-best-practices`、`vue-router-best-practices`、`vue-jsx-best-practices`、`vue-enum-dict`、`create-adaptable-composable`、`design-apple`、`frontend-design`
 - **质量保障**：`fullstack-review`——功能开发完成后的全栈代码审查与验证（前后端规范、API、数据库、跨端契约、业务正确性、性能、安全、文档），产出审查报告与修改方案；由 Stop Hook 在收尾时强制
+- **E2E 测试生成**：`e2e-test-generator`——纯 UI 驱动的 Playwright（Python）E2E 测试套件生成；探索任意项目代码库后按真实选择器 / 业务流程生成测试（多角色 + 数据范围 + 跨端一致 + 越权负向「按钮 DOM 不存在」），测试不直连后端、仅驱动 DOM。项目无关，适用于任意 web / 移动代码库
 - **文档交付**：`thirdnet-doc-generator`——功能开发完成后基于代码库功能模块生成项目交付文档（需求规格说明书、系统设计文档、用户手册、测试用例文档等，每类有专属模板），输出 Markdown 并可转 Word；与 `fullstack-review` 同级，属交付类技能
 - **原型分支同步编排**：`proto-workflow`——维护固定命名原型分支 `{Project}.Proto`，与 main 双向 `svn merge` 同步（main→.Proto 拉取基线 / .Proto→main 合并回），三确认门；编码委托前后端工作流；属流程编排类技能
 

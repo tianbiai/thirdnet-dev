@@ -1,5 +1,28 @@
 # Changelog
 
+## 2.39.0 - 2026-08-09
+
+### Changed
+- **`skills/e2e-test-generator/` 全量中文化**：将技能文档由英文改为中文，与全插件「中文优先」约定及其它 27 个技能一致。翻译范围：`SKILL.md`（正文 + frontmatter `description`——保留中英双语触发短语以兼容中英文用户输入）+ 7 个 `references/`（principles / discovery / architecture / web-element-plus / mobile-uniapp / negative-testing / verification）+ `examples/worked-example.md` + `evals/evals.json` 的 `expected_output`。**代码与模板不动**：`assets/lib-skeletons/` 与 `assets/adapt-skeletons/` 下的 `.py` / `.py.tpl` / `README.md.tpl` 本就已是中文（含注释、docstring、报告串），本次未改动；`evals.json` 的 `prompt` 保持原样（刻意保留中英混合的真实用户输入，验证跨语言触发）。术语与既有中文代码注释对齐（原则 #1–5、回验、校准点、纯 UI 驱动等）。
+
+### 版本同步
+- `plugin.json` / 协调技能 `thirdnet-fullstack/SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.38.0 → 2.39.0`；`marketplace.json` 顶层 `metadata.version` 不变（`0.64.0`，非重大变更）。技能自身 `metadata.version` 维持 `0.1.0`（非三处权威版本之一，纯文档翻译不 bump）。
+- `hooks.json` 不变。
+
+## 2.38.0 - 2026-08-09
+
+### Added
+- **`skills/e2e-test-generator/`（新技能，纯 UI 驱动 E2E 测试套件生成）**：探索任意项目代码库后，按其真实选择器 / 标签 / 业务流程 / 权限模型，生成一套完整、持久、**纯 UI 驱动**的 Playwright（Python）端到端测试套件（落 `<project>/testing/`，与项目构建 / 钩子隔离）。**定义性规则——测试绝不直连后端**：每个业务动作都开真实弹窗 → 按 label/placeholder 填表 → 提交 → 从表格 / 列表 DOM 文本回验，请求一律由被测前端自身发出，测试代码只驱动 DOM 与断言文本。5 条不变原则：纯 UI 驱动 / 写入即回验 / 跨端一致（B↔C↔dashboard）/ 多角色 + 数据范围 + 越权负向（断言「按钮 / 菜单 DOM 不存在」而非 403）/ 被动监听 console·pageerror·4xx-5xx 并用 `expect_response` 登记预期失败。4 阶段工作流：范围确认（AskUserQuestion）→ 并行 Explore 提取真实选择器 → `TEST_PLAN.md` → 生成 lib 通用管线 + 按前端框架适配的原子层 → `py_compile` 校验 + 可选 Mock 烟测 + 校准点 README 交付。多前端变体：**Element Plus 后台**、**uni-app H5 移动**为两个命名变体（开箱即用的默认原子），其它框架（React / Ant Design / 原生等）走 `references/discovery.md` 从零生成。结构含 `SKILL.md` + 7 个 references（principles / discovery / architecture / web-element-plus / mobile-uniapp / negative-testing / verification）+ `assets/lib-skeletons/`（通用管线 harness / sessions / state / config / data_factory / run_all）+ `assets/adapt-skeletons/`（按变体适配的选择器 / CRUD / login 模板）+ `examples/worked-example.md`（结构参考）+ `evals/`。**项目无关**：所有选择器 / 标签 / 流程从目标项目源码 discovery 而来，不预设某项目；已清除来源项目（ThirdNet / SmartPark）的私有组件库 `Pk*`、业务词汇（park/repair/meeting…）、`.NET` 私有类名、写死的 `d:\SVN\...` 路径——可应用于任意代码库。
+
+### Changed
+- 协调技能 `thirdnet-fullstack/SKILL.md`「自包含说明」技能清单新增「E2E 测试生成：`e2e-test-generator`」条目；`plugin.json` / `marketplace.json` 的插件描述补列 `e2e-test-generator`。
+- 仓库根 `CLAUDE.md`：技能总数 27 → 28，新增「测试（1）：`e2e-test-generator`」分类。
+- 新技能 `SKILL.md` frontmatter 补 `metadata.version: "0.1.0"` + `author: thirdnet`，与全插件其他技能一致。
+
+### 版本同步
+- `plugin.json` / 协调技能 `SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.37.0 → 2.38.0`；新技能 `e2e-test-generator` `metadata.version` 初始 `0.1.0`。`marketplace.json` 顶层 `metadata.version` 不变（`0.64.0`，非重大变更，沿用既有「新增技能不 bump 顶层」先例：2.34.0 thirdnet-mcp-setup / 2.32.0 proto-workflow）。
+- `hooks.json` 不变——本技能产出 Playwright（Python）套件、读取目标项目代码，不编辑本仓库 `*.cs/*.csproj` 或 `src/**/*.{vue,ts,...}`，不落 Pre/PostToolUse 合规门；Stop 收尾门只盯 `backend/`/`frontend/` 功能性代码，本次是插件仓自身新增技能，不被收尾门拦截。
+
 ## 2.37.0 - 2026-08-08
 
 ### Changed

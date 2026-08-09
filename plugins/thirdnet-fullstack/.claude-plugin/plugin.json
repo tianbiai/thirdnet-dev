@@ -1,7 +1,7 @@
 {
   "name": "thirdnet-fullstack",
-  "version": "2.37.0",
-  "description": "ThirdNet 全栈 Admin 开发插件（自包含）— 后端 .NET 10 微服务（8 个技能）+ 前端 Vue 3（11 个技能）+ 全栈协调、审查、文档交付、模板升级、迭代发布编排与文档转换技能一体（含 thirdnet-fullstack 协调技能、fullstack-review 全栈代码审查技能、thirdnet-doc-generator 项目文档生成技能、thirdnet-template-upgrade 模板升级技能、proto-workflow 原型分支同步编排技能与 md-to-word 文档转换技能与 thirdnet-mcp-setup Postgres MCP 装配技能），统一 thirdnet-fullstack: 命名空间，开箱即用；含前后端子代理（backend-developer / frontend-developer）、文档驱动与技能合规钩子、以及开发完成后的全栈质量收尾门（Stop Hook 强制审查）。前后端开发统一由此插件提供。",
+  "version": "2.39.0",
+  "description": "ThirdNet 全栈 Admin 开发插件（自包含）— 后端 .NET 10 微服务（8 个技能）+ 前端 Vue 3（11 个技能）+ 全栈协调、审查、文档交付、模板升级、迭代发布编排与文档转换技能一体（含 thirdnet-fullstack 协调技能、fullstack-review 全栈代码审查技能、thirdnet-doc-generator 项目文档生成技能、thirdnet-template-upgrade 模板升级技能、proto-workflow 原型分支同步编排技能与 md-to-word 文档转换技能与 thirdnet-mcp-setup Postgres MCP 装配技能、e2e-test-generator 纯 UI 驱动 E2E 测试套件生成技能），统一 thirdnet-fullstack: 命名空间，开箱即用；含前后端子代理（backend-developer / frontend-developer）、文档驱动与技能合规钩子、以及开发完成后的全栈质量收尾门（Stop Hook 强制审查）。前后端开发统一由此插件提供。",
   "author": {
     "name": "thirdnet"
   },

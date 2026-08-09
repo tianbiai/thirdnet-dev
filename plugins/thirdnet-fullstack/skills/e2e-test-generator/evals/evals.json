@@ -1,0 +1,29 @@
+{
+  "skill_name": "e2e-test-generator",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "请生成项目的完整UI测试",
+      "expected_output": "技能被触发。Claude 先问 2-3 个范围问题（有哪些端 / 测哪些角色 / 后端可达还是只交付不联调），然后探索代码库（从源码读真实的 selector/label/流程/权限），设计 TEST_PLAN.md，并在 testing/ 下生成一套完整的纯 UI Playwright(Python) 套件：驱动真实弹窗/表单，只断言 DOM 文本（测试代码不直连后端），用多个权限不同的账号登录，断言写入即回验 + 跨端 + 按钮不存在的负向用例，挂被动 console/pageerror/4xx-5xx 监听。每个 .py 都能 py_compile 通过。",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "为这个 Element Plus 后台管理系统写一套 E2E 测试，覆盖用户/角色/权限和核心业务 CRUD，要用不同权限的账号验证越权",
+      "expected_output": "技能因「E2E 测试」+「Element Plus 后台」+「不同权限账号」被触发。Claude 确认范围后走 Element Plus 快速通道参考：构建 web_crud 原子（按 label 的 fill_*、按列头的 read_cell、find_row），从真实菜单/label/按钮探索得到的选择器登记表，通过菜单树（按可见菜单名勾选）准备角色/用户，以及断言无权限按钮在 DOM 中不存在（to_have_count(0)）的测试。到处没有针对后端的 requests/ApiClient。",
+      "files": []
+    },
+    {
+      "id": 3,
+      "prompt": "generate a complete UI test suite for this codebase — it's a Vue3 admin plus a uni-app mobile H5, business flows cross the two ends",
+      "expected_output": "技能因英文变体被触发。Claude 确认两端都存在后组合变体：后台用 Element Plus 原子 + 移动端用 uni-app H5 原子（从源码探索到的项目自身移动端组件 class，原生 <uni-picker> 滚轮标为校准点，卡片回验）。测试用对的账号驱动两端并断言跨端一致性（一端产生的数据在另一端可见/正确）。README 记录 picker/上传/一次性绑定 校准点。后端不可达则只交付不联调。",
+      "files": []
+    },
+    {
+      "id": 4,
+      "prompt": "I've got a Next.js (React) app — admin dashboard plus a customer portal, Postgres backend. Can you generate a full E2E suite covering the main flows and checking that different roles only see what they're supposed to?",
+      "expected_output": "技能针对一个非 Vue/Element-Plus 技术栈因「E2E suite」被触发。Claude 确认范围后——因为这既不是 Element Plus 也不是 uni-app——走探索驱动路径（references/discovery.md）：读真实的 React 组件 DOM（无论用哪个 UI 库，如 MUI/Ant Design/原生），从零对着真实 selector 构建 fill_*/read 原子，并在 testing/ 下生成同一套纯 UI Playwright(Python) 套件。同样原则适用：驱动真实弹窗/表单，只断言 DOM 文本，测试代码不直连后端，多角色 + 按钮不存在的负向用例，被动监听。证明本技能适配任意技术栈，而非仅那两个命名变体。",
+      "files": []
+    }
+  ]
+}

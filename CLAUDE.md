@@ -13,7 +13,7 @@ thirdnet-dev/
     ├── .claude-plugin/plugin.json            # 插件元数据（version 权威来源之一）
     ├── .claude-plugin/hooks/hooks.json       # 3 个 Stop + 2 个 PreToolUse + 2 个 PostToolUse 钩子
     ├── agents/                               # 子代理：backend-developer.md / frontend-developer.md
-    └── skills/                               # 27 个技能（见下「技能体系」）
+    └── skills/                               # 28 个技能（见下「技能体系」）
 ```
 
 marketplace 还声明了若干外部插件（superpowers / supabase-postgres-best-practices / ui-ux-pro-max / webapp-testing），通过 URL source 引用，不在本仓库内。
@@ -55,13 +55,14 @@ marketplace 还声明了若干外部插件（superpowers / supabase-postgres-bes
 
 每次同步在 `plugins/thirdnet-fullstack/.claude-plugin/CHANGELOG.md` 记录条目。
 
-## 技能体系（27 个，统一 thirdnet-fullstack: 命名空间）
+## 技能体系（28 个，统一 thirdnet-fullstack: 命名空间）
 
 - **后端（8）**：`backend-workflow`（后端总工作流，含框架/模板目录）、`net-microservice-generator`、`net-api-developer`、`net-efcore-developer`（含批量操作）、`net-auth`、`net-cache-use`、`net-background-job`、`net-enum-dict`
 - **前端（11）**：`frontend-workflow`、`vue-best-practices`、`api-typescript-spec`（策略工厂 Real/Mock 切换）、`frontend-design`、`design-apple`、`admin-template-setup`、`create-adaptable-composable`、`vue-pinia-best-practices`、`vue-router-best-practices`、`vue-jsx-best-practices`、`vue-enum-dict`
 - **数字孪生（1）**：`thirdnet-digital-twin`——园区 3D 模块生成（Vue 3 + Three.js，1920×1080 舞台 + 楼栋切换器 + POI 打点 + 地下车库多层剖面，6 种视觉风格：cyber/holographic/isometric/nebula/realistic/night-realistic）。数据分层：基础信息静态内联（含地下车库 `garages[]` 几何+占用），动态数据走 `IDigitalTwinApi` 契约层（Mock/Real 工厂，`VITE_MOCK_ENABLED` 切换）。随包发布完整范式 `assets/park-scene.impl.ts` + `building-geometry.ts` + 2D 组件范式 + 6 个 API 契约层模板，生成器「拷贝-改」。详见技能内 `SKILL.md` 与 `references/`。
 - **协调（1）**：`thirdnet-fullstack`——全栈协调（前端先行、Admin CRUD 模式、前后端类型映射、RBAC 桥接、子代理调度）
 - **质量（1）**：`fullstack-review`——全栈代码审查（前后端规范、API、数据库、跨端契约、业务正确性、性能、安全、文档），产出 review-report.md
+- **测试（1）**：`e2e-test-generator`——纯 UI 驱动 E2E 测试套件生成（探索任意项目代码库 → 按真实选择器 / 业务流程生成 Playwright（Python）套件；多角色 + 数据范围 + 跨端一致 + 越权负向「按钮 DOM 不存在」；测试不直连后端、仅驱动 DOM）。项目无关，适用于任意 web / 移动代码库
 - **文档（1）**：`thirdnet-doc-generator`——项目交付文档生成（需求规格/系统设计/用户手册/测试用例，Markdown 可转 Word）；另可生成技术参考类「数据库表结构文档」（经 dbhub MCP 实时导出 PostgreSQL 表结构：表名/schema/表用途/字段·列名·类型·注释·备注）
 - **模板升级（1）**：`thirdnet-template-upgrade`
 - **原型同步（1）**：`proto-workflow`——原型分支同步编排（固定命名 `.Proto` 分支 + 与 main 双向 `svn merge` 同步）
