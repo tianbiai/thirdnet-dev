@@ -9,7 +9,7 @@ description: >
   以及子代理调度（backend-developer / frontend-developer，通过 Task 工具派发重型阶段）。
 license: MIT
 metadata:
-  version: "2.41.0"
+  version: "2.43.0"
   author: thirdnet
 ---
 
@@ -193,7 +193,7 @@ Task(
 
 | 步骤 | 内容 | 调用技能 | 产出文件 |
 |------|------|---------|---------|
-| 1 | TypeScript 类型定义 | `api-typescript-spec` | `api/types/{module}.ts`（枚举 + 出入参接口） |
+| 1 | TypeScript 类型定义 | `api-typescript-spec` | `api/types/{endpoint}/{module}.ts`（枚举 + 出入参接口；跨端共用放 `api/types/shared/`） |
 | 2 | 接口契约 | `api-typescript-spec` | `api/interfaces/manager/{module}.ts`（`I{Entity}Api`） |
 | 3 | Mock 数据 | `api-typescript-spec` | `mock/data/manager/{module}.ts` |
 | 4 | Mock 实现 | `api-typescript-spec` | `mock/api/manager/{module}.ts` |
@@ -201,6 +201,8 @@ Task(
 | 6 | CRUD 页面开发 | `admin-template-setup`（CRUD 指南） + `vue-best-practices` | `src/views/{module}/index.vue` 等 |
 
 前端阶段完成后，页面已可通过 Mock 数据独立运行和验证交互。
+
+> 上表以 **`manager` 端**（Admin 默认端）为例。端类型 ∈ 默认 `manager` / `app` / `third` + `shared` 桶（**非封闭、可扩展**如 `cockpit`）；模块归属哪个端，`types` / `interfaces` / `modules` / `mock` 就放哪个端目录。前后端四桶一一对照：前端 `api/{types,modules}/manager/` ↔ 后端 `Controllers/Manager/` + `DTOs/Manager/`，前端 `api/types/shared/` ↔ 后端 `DTOs/Shared/`。详见 `api-typescript-spec`「端类型与目录映射」与 `net-api-developer`「前后端四桶对照」。
 
 **步骤 6 详细指引**：Admin 模板提供了完整的 CRUD 页面开发基础设施，新增页面时复用既有 composables / 组件（`useCrudTable`、`PaginationBar`、`useDialogFocus`、`validators`、`confirmAction`、`formatDateTime` 等，并遵守「禁止手写 `usePagination + useActionLoading` 样板」「禁止直接使用 `el-pagination`」等约束）。
 
@@ -317,12 +319,13 @@ const canModify = computed(() => hasPermiOr(['sys:notice:edit', 'sys:notice:remo
 - [ ] 认证流程变更 → 检查 `net-auth` 和 `api-typescript-spec` 认证模块
 - [ ] 权限字符串格式变更 → 检查 `net-auth` 和前端权限组件
 - [ ] API 路由格式变更 → 检查 `net-api-developer` 和 `api-typescript-spec` URL 命名规范
+- [ ] 端类型（terminal）变更（新增/调整端、types 按端分组） → 查 `api-typescript-spec`「端类型与目录映射」+ `net-api-developer`「端类型分层组织」「前后端四桶对照」，两端端集合必须一致
 - [ ] 审查 / 交付前校验 → 功能开发完成后调用 `fullstack-review` 做全栈审查（含本清单 7 项的跨端一致性复核）；发现跨端不一致时以本技能的「类型映射」「RBAC 桥接」为对照基准
 
 **原则**：前端先定义接口契约，后端按契约实现。当前端契约变更时，需同步检查后端实现是否匹配；当后端架构约束变更时（如网关规则），需同步检查前端约定是否需调整。
 
 ## Admin 模板模块对照表
 
-Admin 模板内置约 19 个管理端模块（以模板实际为准），前端 `api/modules/manager/` 与后端 `Controllers/Manager/` 基本一一对应。完整对照表（含 Controller 命名模式、权限字符串约定、「在线用户」合并说明）见 [admin-module-mapping](references/admin-module-mapping.md)。
+Admin 模板内置约 19 个管理端模块（以模板实际为准），前端 `api/modules/manager/` 与后端 `Controllers/Manager/` 基本一一对应（`manager` 为 Admin 默认端、可换；其它端 `app`/`third` 同理各自分目录，前后端四桶对齐）。完整对照表（含 Controller 命名模式、权限字符串约定、「在线用户」合并说明）见 [admin-module-mapping](references/admin-module-mapping.md)。
 
 新增业务模块时，参考该对照表的命名模式。

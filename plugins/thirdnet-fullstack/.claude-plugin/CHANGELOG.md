@@ -1,5 +1,47 @@
 # Changelog
 
+## 2.43.0 - 2026-08-10
+
+### Changed
+- **「端类型（terminal）目录分组」升级为贯穿前后端的一等、可扩展维度**：后端 `net-api-developer` 早已把 Controller/Service/DTO 按 Manager/App/Third 分目录（2.41.0 引入），但端集合写死「固定三选一」、DTO 树 Third/Shared 缺模块子层，前端 `api-typescript-spec` 仍是 app/manager 两端 + 扁平 types——前后端不对齐。现统一为：端类型集合**默认 manager/app/third + shared 桶（跨端共用 DTO 去重、无路由前缀），非封闭、可按项目扩展**（如 cockpit/openapi/iot）；前后端四桶一一对照。
+  - **`api-typescript-spec`（2.2.3 → 2.3.0）**：新增「端类型与目录映射」主节——四桶定义、DTO 归属规则（单端 `types/{endpoint}/`、≥2 端共用 `types/shared/` 不复制）、单端项目可折叠端层（兼容现实单端项目）、**扩展机制**（新增端沿用同规则、cockpit 为例）；目录树 types/interfaces/modules/mock 全按端分层；全部示例 import 路径更新（`@/api/types/{endpoint}/{module}`、`@/api/types/shared/common`）；补 manager 完整示例 + third 简例；`Endpoint` 类型对齐后端语义（shared 无路由前缀）；兼容性段澄清「端类型（服务对象）vs 构建目标（web/mp-weixin）」正交。references：`mock-stripping.md` `miniapp` 笔误 → 四桶 + 端类型/构建目标澄清；`auth-module.md` 消解扁平 `interfaces/auth.ts` vs `modules/manager/auth.ts` 不对称（auth 归 manager 端、扁平结构标「待对齐历史遗留」、import 全改 manager/）；`adapter-implementation.md` `common` → `shared/common`。
+  - **`net-api-developer`（1.2.0 → 1.3.0）**：端集合「固定三选一」→「默认三选一 + 可扩展」（Cockpit/OpenAPI/Iot 例，新增端同步前端）；修 DTO 树不对称（Third/Shared 补模块子层 `Third/System/`、`Shared/System/`）；新增「前后端四桶对照」表（前端 `api/{types,modules}/manager/` ↔ 后端 `Controllers/Manager/`+`DTOs/Manager/`，`types/shared/` ↔ `DTOs/Shared/`）；路由段端标识补可扩展。references `controller-service-examples.md` 顶部补扩展端同理。
+  - **后端一致性打磨**：`net-microservice-generator`（1.1.1 → 1.2.0）脚手架树补「四端子目录由 net-api-developer 规定、按需创建」（仅 seed Manager 勿误读为完整布局）；`net-enum-dict`（1.0.0 → 1.1.0）§7 清单 `DTOs/*/` 通配 → 显式 `DTOs/{Endpoint}/<模块>/` + 端无关说明、规范化陈旧 `backend/src/` 路径；`backend-workflow`（1.2.0 → 1.3.0）速查「端类型分层」行补「默认三端 + 可扩展」+ 前端桥梁；`agents/backend-developer.md` DTO 命名速记补 `{Endpoint}` 段。
+  - **前端下游全面同步**（泛化 `manager/` → `{endpoint}/`、补四端 + shared）：`thirdnet-fullstack`（5 文件表 types 行、manager 默认端注、四桶对照、同步清单加「端类型变更」项）；`frontend-workflow`（2.3.1 → 2.4.0，结构树/检查项四端）+ project-spec/page-spec 两模板；`fullstack-review`（1.1.0 → 1.2.0，5 类契约枚举 + B1 types 行 + 新增「DTO 端归属不重复」检查）+ review-rules + scope-and-vcs 模块推断；`thirdnet-digital-twin`（2.30.0 → 2.31.0，types 路径 `types/digital-twin.ts` → `types/manager/digital-twin.ts`、驾驶舱沿用 manager 不变）+ dynamic-data-api/park-scene-impl/park-spec 三 references；`proto-workflow`（1.1.0 → 1.2.0，冲突热点四端）+ svn-commands/checklists 两 references；`admin-template-setup`（1.2.0 → 1.3.0，manager 端归属 + 扁平结构标「待对齐历史遗留」）+ frontend-template-structure/crud-page-development-guide 两 references；`agents/frontend-developer.md` 补端类型分组速记 + 前后端四桶对照。
+  - **钩子**：`hooks.json` PostToolUse「API 策略工厂架构检查」第 4 条 Mock 数据路径 `src/mock/data/{模块名}/` → `src/mock/data/{endpoint}/{module}.ts`（endpoint ∈ manager/app/third/shared）；三件检查（IXxxApi/Real+Mock/createXxxApi）端无关、保持；PreToolUse 触发匹配（api/、mock/）不变。
+
+### 版本同步
+- `plugin.json` / 协调技能 `thirdnet-fullstack/SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.42.0 → 2.43.0`；`marketplace.json` 顶层 `metadata.version` 由 `0.66.0 → 0.67.0`（端类型目录分组是贯穿前后端生成代码的规范级变更，视为重大变更故 bump 顶层）。
+- 子技能 bump：`api-typescript-spec` 2.2.3→2.3.0、`net-api-developer` 1.2.0→1.3.0、`net-microservice-generator` 1.1.1→1.2.0、`net-enum-dict` 1.0.0→1.1.0、`backend-workflow` 1.2.0→1.3.0、`frontend-workflow` 2.3.1→2.4.0、`fullstack-review` 1.1.0→1.2.0、`thirdnet-digital-twin` 2.30.0→2.31.0、`proto-workflow` 1.1.0→1.2.0、`admin-template-setup` 1.2.0→1.3.0。
+
+### 注意
+- **不改后端核心规则**：Controller/Service/DTO 已按端分（2.41.0），本次只开放端集合 + 打磨 + 前后端桥梁。
+- **端无关层不动**：Models/EntityConfigurations/Cache 域/Jobs/Auth 基础设施保持共享。
+- **`cockpit` 不进默认集合**：仅作「自定义扩展端」示例；数字孪生沿用 `manager` 端。
+- **committed assets 不改**：`thirdnet-digital-twin` 的 `assets/api/types/digital-twin.ts` 仍扁平（interfaces/modules/mock asset 已在 manager/，半迁移态），按红线未动；SKILL/references 已说明拷贝时对齐到 `types/manager/` + import 路径。
+- **不自动迁移既有项目**：前瞻规范；现存 `d:\Vibe\` 项目扁平 types 不动（经验证：protohub=app+manager 多端、企业=cockpit 扩展端、河北燃气/admin/dt-verify=单端折叠，新规范均能解释）。
+- Admin 模板历史扁平 `api/interfaces/{module}.ts`、`api/types/{module}.ts` 标为「待对齐历史遗留」，新模块一律按端分层。
+
+## 2.42.0 - 2026-08-10
+
+### Changed
+- **`skills/e2e-test-generator/` 生成「分阶段执行 + 阶段报告 + 决策门」的测试套件**：对应用户实测诉求——生成的 `run_all.py` 原先是单一串行循环、从头跑到尾、最后才出一份总报告，跑得久且中途无法介入。现改为分阶段执行：早反馈、早止损，每个阶段结束出报告，由人决定继续还是先排查。
+  - **`assets/lib-skeletons/run_all.py.tpl`**：扁平 `TEST_MODULES` 列表 → 声明式 `STAGES`（`{name, modules}` 顺序即执行顺序）；`main()` 重写为「启动交互菜单（选运行模式：逐阶段确认/仅失败时暂停/一气跑完 + 选起始阶段）→ 逐阶段执行 → 每阶段写 `reports/stage_NN.md` + 覆写滚动 `reports/TEST_REPORT.md` → 按模式在阶段间 `input()` 决策门」；保留 `--skip-ready`；无 TTY 时菜单取默认不阻塞；续跑靠"启动选起始阶段"（前置主数据在 `run_state.json`），无需命令行参数。
+  - **`assets/lib-skeletons/harness.py`**：`Findings` 加 `current_stage` 给捕获项盖阶段戳（被动监听在测试执行期间触发，能正确归阶段）；`TestRunner` 加 `set_stage` + 阶段感知 `run`（结果盖 `stage_idx/stage_name`）+ `write_stage_report`（阶段报告，返回是否有失败）+ 重构 `write_reports`（滚动总报告，按阶段分节，顶部总览）；报告产物从套件根/artifacts 迁到 `reports/`。
+  - **`assets/lib-skeletons/config.py.tpl`**：新增 `REPORTS_DIR`（`<套件根>/reports`），`ensure_artifacts()` 建该目录（screenshots 仍归 `artifacts/`）。
+  - **`assets/adapt-skeletons/test_template.py.tpl`**：注释说明用例所属阶段由 `run_all.py` 的 `STAGES` 编排、文件名建议带阶段前缀 `test_sN_*`。
+  - **SKILL.md**：阶段 2 新增「划分测试阶段（提候选、让用户选）」——从候选方案库（按业务模块/按依赖层/按角色/按端/按测试类型）挑 2–3 个最贴合的用 `AskUserQuestion` 让用户选/组合，附四条好坏判据（独立报告性/依赖顺序/失败隔离/阶段数适中）；阶段 3 加「填入 STAGES + 阶段前缀命名」；新增「分阶段执行」小节（启动菜单 + 阶段报告 + 决策门）；输出形态树加 `reports/`、`artifacts/`；frontmatter `metadata.version` `0.2.0 → 0.3.0`。
+  - **references/architecture.md**：`run_all.py` 行改「分阶段交互式运行器 + 阶段报告 + 滚动总报告」；新增「阶段化执行模型」小节（STAGES 机制 + 运行流程 + 为什么分阶段）。
+  - **references/verification.md**：运行命令与产物路径更新（`reports/stage_NN.md` + 滚动 `TEST_REPORT.md` + `reports/findings.json`）。
+  - **examples/worked-example.md**：run_all.py / harness.py 骨架映射行更新为分阶段交互式运行器 + 阶段感知报告。
+
+### 版本同步
+- `plugin.json` / 协调技能 `thirdnet-fullstack/SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.41.0 → 2.42.0`；`marketplace.json` 顶层 `metadata.version` 由 `0.65.0 → 0.66.0`（生成的测试运行行为跨所有套件实质变化，视为重大变更故 bump 顶层）。子技能 `e2e-test-generator` `0.2.0 → 0.3.0`。
+
+### 注意
+- 本次只改「运行阶段」行为，不动「生成阶段绝不连通待测系统」铁律；`state.py`/`sessions.py`/`data_factory.py.tpl` 及各 web/mobile adapt 原子未改（state 天然支持跨阶段，sessions 单进程内跨阶段复用）。
+- Windows GBK 控制台：新增的 `run_all.py` 控制台输出一律用 ASCII 标记（`[阶段 N/M]`、`[Y/n]`、`>>>`），不用 `✓✗✅❌` 等 unicode 字形以免误报 exit 1；报告 `.md` 写文件用 utf-8 可保留 `✅/❌`。
+
 ## 2.41.0 - 2026-08-10
 
 ### Changed

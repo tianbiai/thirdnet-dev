@@ -43,6 +43,7 @@ MOBILE_VIEWPORT = {"width": 390, "height": 844}
 
 # ---------- 产物目录 ----------
 ARTIFACTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "artifacts")
+REPORTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "reports")   # 阶段报告 + 滚动总报告
 
 # ---------- 后端健康检查（仅探活，不测业务）----------
 # {{ADAPT}} 按项目健康检查端点**路径**填写（从代码里读到，不是真实地址）；BACKEND_HEALTH[(base,path)]，path 可空字符串跳过。真实 base 在运行时由执行者用环境变量提供。
@@ -51,4 +52,5 @@ HEALTH_TIMEOUT = int(os.getenv("E2E_HEALTH_TIMEOUT", "180"))
 
 
 def ensure_artifacts():
+    os.makedirs(REPORTS_DIR, exist_ok=True)
     os.makedirs(os.path.join(ARTIFACTS_DIR, "screenshots"), exist_ok=True)

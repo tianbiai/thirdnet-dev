@@ -36,8 +36,8 @@ python -m py_compile config.py state.py data_factory.py run_all.py lib/*.py test
 
 写 `testing/README.md`，包含同事在真实栈上跑起来所需的一切：
 - **前置依赖**：Python、`pip install playwright` + `playwright install chromium`、环境变量（URL/账号）、怎么设 `MOCK`/`REAL` 模式。
-- **运行**：`python run_all.py`（有序）或 `pytest tests/`（若 pytest 兼容）——给出确切命令。
-- **产物**：报告去哪（`TEST_REPORT.md`、`findings.json`、`testing/screenshots/` 下的截图）。
+- **运行**：`python run_all.py`（分阶段——启动时选运行模式 + 起始阶段，逐阶段出报告并在阶段间决策继续/停止）或 `pytest tests/`（若 pytest 兼容，作为整体跑的备选）——给出确切命令。
+- **产物**：报告去哪——`reports/stage_NN.md`（各阶段报告）、`reports/TEST_REPORT.md`（滚动总报告）、`reports/findings.json`（原始数据）、`artifacts/screenshots/`（失败截图）。
 - **校准点**（来自 §3）。
 - **已知边界**：套件覆盖/不覆盖什么；什么是条件式/跳过的以及原因。
 - **环境诚实**：本套件按「生成机器不连通待测系统」的默认方式构建——说清验证了什么（py_compile；冒烟若跑了也写明）、没验证什么（真实 UI 运行，由执行者在可连通环境里跑）。

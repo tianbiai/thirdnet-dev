@@ -10,7 +10,7 @@
 - [ ] main 工作副本 `{wcMain}` `svn status` 无输出（已全部提交）
 - [ ] 原型分支工作副本 `{wcProto}` `svn status` 无输出（已全部提交）
 - [ ] `.Proto` 上废弃实验代码已清理（未被 spec 收录的 `views/` 页面、临时 Mock 数据、console 调试输出、注释死代码、孤儿页面）——双向合并都会保留/带入这些
-- [ ] 已与前端协同确认工厂文件（`src/api/modules/**/*.ts`，如 `app/`、`manager/` 等子目录）的合并风险
+- [ ] 已与前端协同确认工厂文件（`src/api/modules/**/*.ts`，如 `manager/`、`app/`、`third/`、`shared/` 等子目录）的合并风险
 - [ ] 已确认无他人在另一端并行写同一模块（时序纪律）
 
 预检通过后，触发对应确认门（B 或 C）执行 `svn merge`。

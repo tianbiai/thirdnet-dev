@@ -8,7 +8,7 @@ description: >
   "创建微服务"、"新建服务"、"AddThirdNetMvc"、"appsettings"、"中间件"时，必须使用此技能。
 license: MIT
 metadata:
-  version: "1.1.1"
+  version: "1.2.0"
   author: thirdnet
 ---
 
@@ -124,6 +124,8 @@ backend/
         │   └── ServiceDbContext.cs
         └── Models/                     # 空，待开发
 ```
+
+> 上树仅 seed 了 `Controllers/Manager/`（健康检查占位）。`Controllers/`、`Services/`、`DTOs/` 的**四端子目录**（`Manager/`、`App/`、`Third/`、`Shared/`，默认集合可扩展）由 net-api-developer「端类型分层组织」规定，**按需创建**——不要把此处仅含 Manager 的脚手架误读为完整布局。
 
 ## 生成后校验与修复（已知模板缺陷）
 

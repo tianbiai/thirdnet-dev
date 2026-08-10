@@ -134,28 +134,34 @@ frontend/[子系统名]/
 │   ├── components/            # 通用组件（含 HelpBubble）
 │   ├── composables/           # 可复用逻辑
 │   ├── api/                   # API 接口层（TypeScript）
-│   │   ├── types/common.ts   # 基础类型（PaginationParams、PaginatedResponse、RequestConfig）
-│   │   ├── types/enums.ts    # 跨模块枚举类型（enum + JSDoc 注释）
+│   │   ├── types/            # DTO 类型，按端分子目录（默认三端 manager/app/third + shared 桶）
+│   │   │   ├── shared/       # 跨端共用 DTO 去重桶（无路由前缀）
+│   │   │   │   ├── common.ts # 基础类型（PaginationParams、PaginatedResponse、RequestConfig）
+│   │   │   │   └── enums.ts  # 跨模块枚举类型（enum + JSDoc 注释）
+│   │   │   ├── manager/      # 管理端单端 DTO（{module}.ts）
+│   │   │   ├── app/          # 用户端单端 DTO
+│   │   │   └── third/        # 第三方端单端 DTO
 │   │   ├── adapter.ts        # RequestAdapter 接口定义
 │   │   ├── adapter.web.ts    # Web 端 Axios 实现
 │   │   ├── adapter.uni.ts    # 移动端 uni.request 实现
 │   │   ├── request.ts        # 统一 request<T>() 导出
-│   │   └── modules/          # API 模块（策略工厂模式：IXxxApi + Real + Mock + factory）
+│   │   └── modules/          # API 模块（策略工厂：IXxxApi + Real + Mock + factory）
+│   │       ├── shared/       # 跨端共用 API 契约（≥2 端共用接口）
 │   │       ├── app/          # 用户端接口
 │   │       │   ├── auth.ts
-│   │       │   ├── order.ts
-│   │       │   └── product.ts
-│   │       └── manager/      # 管理端接口
-│   │           ├── user.ts
-│   │           └── role.ts
+│   │       │   └── order.ts
+│   │       ├── manager/      # 管理端接口（Admin 默认端）
+│   │       │   ├── user.ts
+│   │       │   └── role.ts
+│   │       └── third/        # 第三方端接口
 │   ├── mock/                  # Mock 数据（TypeScript）
-│   │   └── data/             # Mock 数据（与 api/modules/ 一一对应）
+│   │   └── data/             # Mock 数据（与 api/modules/ 一一对应，按端分子目录）
+│   │       ├── shared/
 │   │       ├── app/
-│   │       │   ├── order.ts  # ←→ api/modules/app/order.ts
-│   │       │   └── product.ts # ←→ api/modules/app/product.ts
-│   │       └── manager/
-│   │           ├── user.ts   # ←→ api/modules/manager/user.ts
-│   │           └── role.ts   # ←→ api/modules/manager/role.ts
+│   │       │   └── order.ts  # ←→ api/modules/app/order.ts
+│   │       ├── manager/
+│   │       │   └── user.ts   # ←→ api/modules/manager/user.ts
+│   │       └── third/
 │   ├── stores/                # 状态管理（Pinia）
 │   ├── router/                # 路由配置（Web端）
 │   ├── utils/                 # 工具函数
@@ -174,8 +180,8 @@ frontend/[子系统名]/
 - **类型安全**：`request<T>()` 泛型请求，`PaginationParams`/`PaginatedResponse<T>` 分页类型，`RequestConfig<TData>` 请求配置
 - **枚举规范**：所有枚举使用 `enum` 关键字 + JSDoc 注释，禁止 union type 替代
 - **适配器**：Web 端使用 Axios（`adapter.web.ts`），移动端使用 uni.request（`adapter.uni.ts`），条件编译自动选择
-- **端点组织**：用户端 `api/modules/app/`，管理端 `api/modules/manager/`，对应后端 Controller 目录
-- **路径**：用户端 `/app/{模块名}/{操作}`，管理端 `/manager/{模块名}/{操作}`
+- **端点组织**：默认三端 `manager`/`app`/`third` + `shared` 跨端去重桶（集合非封闭，可按项目扩展）；接口 `api/modules/{endpoint}/{module}.ts`，DTO `api/types/{endpoint}/{module}.ts`，共用 DTO 入 `api/types/shared/`（`common.ts`/`enums.ts`/`{module}.ts`），对应后端 Controller 目录
+- **路径**：`/{endpoint}/{模块名}/{操作}`（如 `/manager/{模块名}/{操作}`、`/app/{模块名}/{操作}`）；shared 桶无路由前缀
 - **字段命名强制 snake_case**：所有 API 入参、出参、Mock 数据的字段名必须使用 `snake_case`（`user_name`, `order_id`, `created_at`），与后端 DTO 保持一致，**禁止使用 camelCase**
 - **响应**：直接返回数据或 `PaginatedResponse<T>`，HTTP 状态码表达结果，禁止 `code` 字段
 - **认证**：`api/modules/app/auth.ts` 使用 ThirdNet 应用加密认证（HMAC-SM3 Basic 签名），与 manager 端一致（**非 IdentityServer `/connect/token`**）；`utils/token.ts` 双平台 Token 管理

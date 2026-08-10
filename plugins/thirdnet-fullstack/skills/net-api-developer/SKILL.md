@@ -9,7 +9,7 @@ description: >
   "接口开发"、"写接口"、"CRUD"、"HttpGet"、"HttpPost"时，必须使用此技能。
 license: MIT
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
   author: thirdnet
 ---
 
@@ -69,8 +69,8 @@ AdminControllerBase 提供：
 └── DTOs/                     # 端类型优先，再按业务模块
     ├── Manager/System/       # UserItemManagerMap.cs / UserCreateManagerMap.cs ...
     ├── App/System/           # UserItemAppMap.cs
-    ├── Third/                # 第三方出入参
-    └── Shared/               # 跨端通用 Map，类名无端后缀（如 UserItemMap.cs）
+    ├── Third/System/         # UserItemThirdMap.cs（第三方出入参，同样带模块子层）
+    └── Shared/System/        # 跨端通用 Map，类名无端后缀（如 UserItemMap.cs）
 ```
 
 > **端无关的层不参与此划分**：Models / EntityConfigurations / Cache 域 / Jobs / Auth 基础设施等是数据层或全局设施，不随端点变化，保持原有目录（如 `Models/`、`...Cache/Domain/`）。只有 Controller / Service / DTO 三层按端分。
@@ -83,7 +83,7 @@ AdminControllerBase 提供：
 | Service | `{Module}{Endpoint}Service`：`SysUserManagerService` / `SysUserAppService` | `{Module}SharedService` 或 `{Module}Service`（如 `SysUserSharedService`） |
 | DTO(Map) | `{Entity}{Action}{Endpoint}Map`：`UserItemManagerMap` / `UserCreateAppMap` | `{Entity}{Action}Map`（如 `UserItemMap`） |
 
-`{Endpoint}` 取值固定三选一：`Manager` / `App` / `Third`，与 URL 路由前缀、目录名、命名空间完全一致。
+`{Endpoint}` 默认三选一：`Manager` / `App` / `Third`，与 URL 路由前缀、目录名、命名空间完全一致。**该集合非封闭枚举——项目可按实际新增端**（如 `Cockpit` 驾驶舱、`OpenAPI` 开放接口、`Iot` 设备端）：新增端沿用同一套目录/类名后缀/命名空间/路由规则即可——建 `Controllers/Cockpit/` 等子目录、URL 前缀 `api/cockpit/...`、DTO 插入 `Cockpit` 段，并同步前端 `api-typescript-spec` 的端类型集合（见下「前后端四桶对照」）。
 
 #### 命名 ↔ 文件夹 ↔ 路由 统一对照
 
@@ -97,6 +97,19 @@ AdminControllerBase 提供：
 | 共用 | — | `Controllers/Shared/`（如有） | `Services/Shared/SysUserSharedService.cs` | `DTOs/Shared/System/UserItemMap.cs` |
 
 命名空间随之分层：`{ProjectName}.Admin.APIService.Controllers.Manager`、`...Services.App`、`...DTOs.Manager.System` 等。
+
+#### 前后端四桶对照（与 api-typescript-spec 对齐）
+
+本规则的「端类型 + Shared 桶」是全栈权威源，前端 `api-typescript-spec` 已对齐同一套四桶——前后端目录、命名一一可对照，看一端即能定位另一端：
+
+| 层 | 后端（本文档） | 前端 api-typescript-spec |
+|----|--------------|--------------------------|
+| Controller / 契约 | `Controllers/Manager/UserManagerController.cs` | `api/interfaces/manager/user.ts`（`IUserApi`） |
+| Service / Real+Mock | `Services/Manager/SysUserManagerService.cs` | `api/modules/manager/user.ts`（`RealUserApi` + `MockUserApi` + `createUserApi`） |
+| DTO / types | `DTOs/Manager/System/UserItemManagerMap.cs` | `api/types/manager/user.ts` |
+| 跨端共用 | `DTOs/Shared/System/UserItemMap.cs`、`Services/Shared/` | `api/types/shared/user.ts`（≥2 端共用 DTO 去重桶） |
+
+端类型集合前后端必须一致：后端新增 `Cockpit` 端时，前端 `api/{types,interfaces,modules}/cockpit/` 与 `mock/{api,data}/cockpit/` 同步建目录。命名对照：后端 `{Module}{Endpoint}Controller` ↔ 前端 `I{Entity}Api`、后端 `{Entity}{Action}{Endpoint}Map` ↔ 前端同名 TS interface。
 
 #### 拆分原则：何时放 Shared/，何时各端一份
 
@@ -116,7 +129,7 @@ AdminControllerBase 提供：
 
 ```
 格式：api/{端标识}/{模块名}/{操作}
-端标识：manager / app / third
+端标识：默认 manager / app / third；可按项目扩展（如 cockpit / openapi / iot），与目录/类名端段一致
 禁止在路由中包含版本号（v1、v2）
 ```
 

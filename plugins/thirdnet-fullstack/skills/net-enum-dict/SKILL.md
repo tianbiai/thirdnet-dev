@@ -9,7 +9,7 @@ description: >
   "*_label"时，必须使用此技能。
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "1.1.0"
   author: thirdnet
 ---
 
@@ -195,7 +195,7 @@ CRUD 写操作后 `SysDictService` 自动清缓存（`_dictCache.RemoveDictData`
 业务表里存字典值的列用普通 `text`/`string`，**不要用 int、也不要建枚举**（即便值形如 `"1"`/`"2"` 数字形态编码，也按 string 存，自定义字典值统一 string；`"web"` 等更存不进 int）：
 
 ```csharp
-// backend/src/Admin/.../Models/SysUserModel.cs
+// {ProjectName}.Admin.Database/Models/SysUserModel.cs
 public string user_source { get; set; } = string.Empty;   // 存 "web" / "app" / "mini_program"
 ```
 
@@ -249,10 +249,12 @@ foreach (var m in list)
 | 1 | 枚举定义 | `Enums/PriorityEnum.cs` | 新建枚举，标 `[SystemDict("priority","优先级")]` + 每成员 `[EnumMeta]` |
 | 2 | （自动） | 启动时 | `SystemEnumRegistry` 注册 + `SystemEnumDictSync` 同步字典表 |
 | 3 | 实体 + EF 配置 | 业务实体类 + `EntityConfigurations/*` | 加 `priority` 字段（建议裸 `int` 兼容 bulk copy，参考 `SysOperLogModel.business_type`） |
-| 4 | 响应 DTO Map | `DTOs/*/XxxMap.cs` | 加 `priority`(int) + `priority_label`(string)，`FromEntity` 里用 `EnumHelper.GetLabel(typeof(PriorityEnum), entity.priority)` |
-| 5 | 创建/更新 DTO | `DTOs/*/XxxCreateMap.cs` 等 | 加 `int priority` 字段 |
-| 6 | 查询 DTO + Service | `XxxQueryMap.cs` + `XxxService.cs` | 加 `int? priority`，Service 按 int 精确匹配 |
+| 4 | 响应 DTO Map | `DTOs/{Endpoint}/<模块>/XxxItem{Endpoint}Map.cs` | 加 `priority`(int) + `priority_label`(string)，`FromEntity` 里用 `EnumHelper.GetLabel(typeof(PriorityEnum), entity.priority)` |
+| 5 | 创建/更新 DTO | `DTOs/{Endpoint}/<模块>/XxxCreate{Endpoint}Map.cs` 等 | 加 `int priority` 字段 |
+| 6 | 查询 DTO + Service | `XxxQuery{Endpoint}Map.cs` + `Services/{Endpoint}/Xxx{Endpoint}Service.cs` | 加 `int? priority`，Service 按 int 精确匹配 |
 | 7 | 前端页面 | `views/**/*.vue` | `useDict('priority')` 取下拉；表格列用 `priority_label`；表单提交 number（详见 **`vue-enum-dict`** 技能） |
+
+> 行 4–6 的 `{Endpoint}` ∈ `Manager` / `App` / `Third`（默认集合，可按项目扩展，详见 net-api-developer「端类型分层组织」）；该模块归属哪个端，DTO/Service 就放哪个端目录、类名带对应端段。枚举字典本身（`[SystemDict]` 定义、`EnumHelper`、`DictCache`）属**端无关基础设施**，不按端划分。
 
 ## §8 禁止事项（后端相关）
 

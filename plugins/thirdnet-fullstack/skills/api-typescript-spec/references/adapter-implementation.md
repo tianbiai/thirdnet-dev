@@ -19,7 +19,7 @@ interface RequestAdapter {
 **`adapter.uni.ts` 参考实现**：
 ```typescript
 import type { RequestAdapter, RequestConfig } from './adapter'
-import type { ApiError } from '@/api/types/common'
+import type { ApiError } from '@/api/types/shared/common'
 import { getToken, clearToken } from '@/utils/token'
 
 export class UniAdapter implements RequestAdapter {

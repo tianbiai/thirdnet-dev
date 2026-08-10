@@ -7,7 +7,9 @@
 - Token 工具（`src/utils/token.ts`）：Admin Web 端用 `sessionStorage`；若为移动端/小程序则用 `uni.getStorageSync`（双平台适配）。
 - 导出 `getToken`、`setToken`、`getRefreshToken`、`setRefreshToken`、`clearToken`
 
-**`api/types/auth.ts`**（精简示意；真实 `CurrentUserResponse` 字段更多——含菜单树 `menus`、角色 `roles`、权限 `permissions` 等，以 `api/interfaces/auth.ts` 为准）：
+> **目录归属**：auth 归 `manager` 端，目标是 `api/{types,interfaces,mock/{api,data}}/manager/auth.ts` 四处同端，与后端 `Controllers/Manager/AuthController` + `DTOs/Manager/Auth/` 对齐。早期 Admin 模板生成的扁平 `api/interfaces/auth.ts` / `api/types/auth.ts`（无 `manager/` 子目录）属**待对齐历史遗留**——新模块一律按端分层，旧模块迁移时同步下沉到 `manager/`。
+
+**`api/types/manager/auth.ts`**（auth 归属 `manager` 端；精简示意——真实 `CurrentUserResponse` 字段更多，含菜单树 `menus`、角色 `roles`、权限 `permissions` 等，以 `api/interfaces/manager/auth.ts` 为准）：
 ```typescript
 export interface LoginParams { username: string; password: string }
 export interface TokenResponse { access_token: string; refresh_token: string }
@@ -16,9 +18,9 @@ export interface CurrentUserResponse {
 }
 ```
 
-**`api/interfaces/auth.ts`**（Admin 模板的 `api/interfaces/` 为扁平结构，无 `manager/` 子目录）：
+**`api/interfaces/manager/auth.ts`**（auth 归属 `manager` 端，与 `modules/manager/auth.ts`、`mock/{api,data}/manager/auth.ts` 同端；与后端 `Controllers/Manager/AuthController` 对齐）：
 ```typescript
-import type { LoginParams, TokenResponse, CurrentUserResponse } from '@/api/types/auth'
+import type { LoginParams, TokenResponse, CurrentUserResponse } from '@/api/types/manager/auth'
 
 export interface IAuthApi {
   login(data: LoginParams): Promise<TokenResponse>
@@ -32,8 +34,8 @@ export interface IAuthApi {
 import { request } from '@/api/request'
 import { MOCK_ENABLED } from '@/config'
 import { signBasicAuth } from '@/utils/basicAuth'
-import type { IAuthApi } from '@/api/interfaces/auth'
-import type { LoginParams, TokenResponse, CurrentUserResponse } from '@/api/types/auth'
+import type { IAuthApi } from '@/api/interfaces/manager/auth'
+import type { LoginParams, TokenResponse, CurrentUserResponse } from '@/api/types/manager/auth'
 import { MockAuthApi } from '@/mock/api/manager/auth'
 
 // ---- Real 实现（应用加密认证：HMAC-SM3 Basic 签名）----
@@ -87,8 +89,8 @@ export const authApi = createAuthApi()
 
 **`mock/api/manager/auth.ts`** — Mock 实现返回固定 token：
 ```typescript
-import type { IAuthApi } from '@/api/interfaces/auth'
-import type { TokenResponse, CurrentUserResponse } from '@/api/types/auth'
+import type { IAuthApi } from '@/api/interfaces/manager/auth'
+import type { TokenResponse, CurrentUserResponse } from '@/api/types/manager/auth'
 import { mockCurrentUser } from '@/mock/data/manager/auth'
 
 export class MockAuthApi implements IAuthApi {
@@ -111,7 +113,7 @@ export class MockAuthApi implements IAuthApi {
 
 **`mock/data/manager/auth.ts`** — Mock 数据：
 ```typescript
-import type { CurrentUserResponse } from '@/api/types/auth'
+import type { CurrentUserResponse } from '@/api/types/manager/auth'
 
 export const mockCurrentUser: CurrentUserResponse = {
   user_id: 1,

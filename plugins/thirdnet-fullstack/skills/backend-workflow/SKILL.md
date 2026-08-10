@@ -7,7 +7,7 @@ description: >
   "backend"、"开发流程"时，必须使用此技能。
 license: MIT
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
   author: thirdnet
 ---
 
@@ -357,7 +357,7 @@ Admin 项目的 Program.cs 和 Startup.cs 遵循固定的启动模式和 10 步 
 | 主键 | `long id`（bigint 自增） → 见 net-efcore-developer |
 | 错误处理 | `throw new WebApiException(HttpStatusCode.xxx, "msg")` → 见 net-api-developer |
 | DTO 命名 | `{Entity}{Action}{Endpoint}Map`（端特定，带 Manager/App/Third 段）；跨端共用 `{Entity}{Action}Map` 放 Shared/ → 见 net-api-developer |
-| 端类型分层 | Controller/Service/DTO 统一按 Manager/App/Third 分目录 + 类名带端后缀，共用放 Shared/ → 见 net-api-developer |
+| 端类型分层 | Controller/Service/DTO 统一按 Manager/App/Third 分目录 + 类名带端后缀，共用放 Shared/（**默认三端、可按项目扩展**如 Cockpit/OpenAPI/Iot）；前端 `api-typescript-spec` 已对齐同一套四桶 → 见 net-api-developer「端类型分层组织」「前后端四桶对照」 |
 | Controller 基类 | `AdminControllerBase`（非 ControllerBase） → 见 net-api-developer |
 | Service 生命周期 | Scoped → 见 net-api-developer |
 | Cache 生命周期 | Singleton → 见 net-cache-use |

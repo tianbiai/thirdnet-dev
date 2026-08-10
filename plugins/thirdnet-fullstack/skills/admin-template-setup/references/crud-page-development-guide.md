@@ -5,6 +5,8 @@
 
 **标准参考实现**：`src/views/api/blacklist/index.vue` — 展示了 useCrudTable + PaginationBar + useDialogFocus + validators + confirmAction 的完整组合。开发新页面时，参考此文件的代码结构。
 
+> **端类型分组（待对齐历史遗留）**：Admin 模块端类型为 `manager`。模板现有的 `api/interfaces/{module}.ts`、`api/types/{module}.ts` 为**扁平**结构（历史遗留），下文示例里的 `@/api/interfaces/blacklist` 即此扁平路径。**新建模块一律按端分层**（对齐 `api-typescript-spec` v2.3.0）：契约走 `api/interfaces/manager/{module}.ts`、类型走 `api/types/manager/{module}.ts`，跨端共用 DTO 走 `api/types/shared/`。
+
 ---
 
 ## 页面布局结构

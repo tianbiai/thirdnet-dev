@@ -8,7 +8,7 @@ description: >
   以保证代码与文档一致。
 license: MIT
 metadata:
-  version: "2.3.1"
+  version: "2.4.0"
   author: thirdnet
 ---
 # 前端开发工作流
@@ -292,11 +292,11 @@ frontend/
 │       ├── composables/
 │       ├── utils/token.ts
 │       ├── api/
-│       │   ├── types/
+│       │   ├── types/{manager,app,third,shared}/   # shared 桶：common/enums + ≥2 端共用 DTO 去重
 │       │   ├── adapter.ts / adapter.web.ts / adapter.uni.ts
 │       │   ├── request.ts
-│       │   └── modules/{app,manager}/
-│       ├── mock/data/{app,manager}/
+│       │   └── modules/{manager,app,third,shared}/
+│       ├── mock/data/{manager,app,third,shared}/
 │       ├── stores/
 │       ├── router/
 │       └── styles/
@@ -349,7 +349,7 @@ frontend/
 ### 文件结构
 
 - [ ] 页面组件在 `src/views/`（Web）或 `src/pages/`（移动端）
-- [ ] API 模块在 `src/api/modules/` 下按端分类（app/manager）
+- [ ] API 模块在 `src/api/modules/` 下按端分类（默认三端 manager/app/third + shared 跨端去重桶，集合非封闭可扩展）
 - [ ] Mock 数据在 `src/mock/data/` 下与 API 模块一一对应
 - [ ] Store 在 `src/stores/`，路由在 `src/router/`
 

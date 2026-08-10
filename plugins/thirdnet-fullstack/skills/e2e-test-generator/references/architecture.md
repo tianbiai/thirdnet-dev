@@ -11,7 +11,7 @@
 | `data_factory.py` | 确定性测试数据生成器（`run_tag + idx`） | 通用（形态需适配） | `lib-skeletons/data_factory.py.tpl` |
 | `lib/harness.py` | Playwright 引擎 + `Findings` 被动监听器 + `expect_response` | 通用 | `lib-skeletons/harness.py` |
 | `lib/sessions.py` | 身份缓存的 web 登录 + 每访客独立移动端上下文 | 通用 | `lib-skeletons/sessions.py` |
-| `run_all.py` | 有序运行器 + 报告（`TEST_REPORT.md` + `findings.json` + 截图） | 通用 | `lib-skeletons/run_all.py.tpl` |
+| `run_all.py` | 分阶段交互式运行器 + 阶段报告 + 滚动总报告（`reports/stage_NN.md` + `TEST_REPORT.md` + `findings.json` + 截图） | 通用 | `lib-skeletons/run_all.py.tpl` |
 | `lib/selectors.py` | 集中选择器/路由登记表 | **适配** | `adapt-skeletons/selectors.py.tpl` |
 | `lib/web_crud.py` | web UI 原子（fill_*、read_cell、find_row、open_module、submit_dialog……） | **适配**（按框架） | `adapt-skeletons/web_crud.py.tpl` + 变体参考 |
 | `lib/web_login.py` | web 登录驱动 | **适配** | `adapt-skeletons/web_login.py.tpl` |
@@ -27,6 +27,26 @@
 - **通用层是纯管道**——Playwright 生命周期、被动监听、身份会话、确定性数据、有序执行 + 报告。它们在项目间完全一致；拷贝骨架省得每次重造，并保持行为一致（例如 `expect_response` 机制到处都一样工作）。
 - **适配层是项目落地之处**——它的选择器、它的组件库原子、它的实体、它的流程。阶段 1 探索的成果就喂到这里。
 - **`selectors.py` 是唯一事实源**——每个 label/placeholder/按钮文案/路由/class 都集中在这，这样改一处 UI 文案就是改一个文件，而不是满测试去找。
+
+## 阶段化执行模型（run_all.py 怎么跑）
+
+生成的套件**分阶段执行**，不再一次性全跑。用例按阶段分组，编排的唯一事实源是 `run_all.py` 顶部的 `STAGES`：
+
+```python
+STAGES = [
+    {"name": "阶段名", "modules": ["tests.test_sN_xx", ...]},
+    ...
+]
+```
+
+阶段怎么划分（按业务模块/按依赖层/按角色/按端/按测试类型）由生成时阶段 2 与用户商定，写进 `TEST_PLAN.md` 再落到 `STAGES`——本文件不规定具体方案，只提供机制。
+
+`run_all.py` 的运行流程：
+1. **启动交互菜单**：打印阶段清单 → 问运行模式（`1)` 逐阶段确认 / `2)` 仅失败时暂停 / `3)` 一气跑完）→ 问从第几阶段开始（默认 1，用于停下排查后续跑）。
+2. **逐阶段执行**：每个阶段跑完其全部用例（阶段内失败不中断），`TestRunner.set_stage(idx,name)` 给结果和被动捕获盖阶段戳；阶段结束写 `reports/stage_NN.md` + `reports/stage_NN.json`，并覆写滚动 `reports/TEST_REPORT.md`（截至当前全量）。
+3. **决策门**：按所选模式决定是否在阶段间 `input()` 问继续/停止——把"继续 vs 先排查"交回给人。
+
+**为什么分阶段**：早反馈（不用等整套跑完）、早止损（早期阶段失败就不浪费后续时间）、报告有意义（一个阶段一份聚焦的报告，而非一份巨型总表）。跨阶段的数据依赖由 `state.py` 的 `run_state.json` 携带；同一进程内 persona 会话（`sessions.get_web`）跨阶段复用，无需重复登录。
 
 ## 命名约定（保持一致——测试就靠它找辅助函数）
 

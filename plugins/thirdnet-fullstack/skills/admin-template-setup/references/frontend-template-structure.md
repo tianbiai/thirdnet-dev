@@ -43,13 +43,13 @@ src/
 ├── main.ts                 # 应用入口（Vue + Pinia + Router + Element Plus）
 ├── App.vue                 # 根组件
 │
-├── api/                    # API 策略工厂模块
+├── api/                    # API 策略工厂模块（端=manager）
 │   ├── adapter.ts          # API 适配器接口
 │   ├── adapter.web.ts      # Web 适配器（Axios + token 刷新队列）
 │   ├── request.ts          # Axios 请求封装
-│   ├── interfaces/         # 19 个接口契约文件
+│   ├── interfaces/         # 19 个接口契约文件（扁平，待对齐历史遗留；新模块走 interfaces/manager/）
 │   ├── modules/manager/    # 19 个 API 实现 + 工厂函数
-│   └── types/              # 21 个 TypeScript 类型定义
+│   └── types/              # 21 个 TypeScript 类型定义（扁平，待对齐历史遗留；新模块走 types/manager/）
 │
 ├── views/                  # 页面组件
 │   ├── login/              # 登录页（粒子动画背景）
@@ -262,14 +262,17 @@ src/
 
 ### API 策略工厂
 
-每个 API 模块遵循统一的架构模式：
+每个 API 模块遵循统一的架构模式（按端分层，Admin 端=manager，对齐 `api-typescript-spec` v2.3.0）：
 
 ```
-api/interfaces/{module}.ts    → I{Module}Api 接口定义
+api/types/manager/{module}.ts    → 类型定义（枚举 + 出入参 interface；跨端共用走 types/shared/）
+api/interfaces/manager/{module}.ts → I{Module}Api 接口定义
 api/modules/manager/{module}.ts → Real{Module}Api（Axios HTTP）+ create{Module}Api() 工厂
 mock/api/manager/{module}.ts   → Mock{Module}Api（本地数据）
 mock/data/manager/{module}.ts  → 纯数据导出
 ```
+
+> **待对齐历史遗留**：模板现有的 `api/interfaces/{module}.ts`、`api/types/{module}.ts` 为**扁平**结构（无 `manager/` 子目录），属历史遗留，与上述按端分层不一致。**新建模块一律按端分层**走 `interfaces/manager/`、`types/manager/`；既有扁平文件待后续对齐，勿在新模块沿用扁平写法。
 
 通过 `VITE_MOCK_ENABLED` 环境变量切换 Real/Mock 实现。生产构建时由 `vite.config.ts` 的 `mockDataStripPlugin()` 插件拦截 `/mock/data/**` 导入，为每个具名导出生成空对象桩模块，配合 `VITE_MOCK_ENABLED=false` + tree-shaking 彻底移除 Mock 代码（详见 `api-typescript-spec` 技能「生产构建排除机制」）。
 

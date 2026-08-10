@@ -8,7 +8,7 @@ description: >
   模板安装、品牌定制、初始化 admin 项目。
 license: MIT
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
   author: thirdnet
 ---
 # Admin 管理后台前端模板安装指南
@@ -92,7 +92,7 @@ npm run dev
 ```
 my-admin/
 ├── src/
-│   ├── api/              # 19 个 API 模块（策略工厂模式）
+│   ├── api/              # 19 个 API 模块（策略工厂模式，端=manager）
 │   ├── views/            # 页面：系统管理 + API 管理 + 登录 + 欢迎页
 │   ├── stores/           # 5 个 Pinia Store（auth / app / dict / theme / tagsView）
 │   ├── layouts/          # 布局：AdminLayout / Navbar / Sidebar / TagsView

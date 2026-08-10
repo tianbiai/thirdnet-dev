@@ -4,7 +4,7 @@
 
 本文件是 schema 的事实来源。`scripts/validate_spec.py` 依据它校验 spec；`assets/spec.schema.json` 是同结构的 JSON Schema（draft-07），可供 IDE 自动补全与 CI 无 Python 校验。编写或编辑 spec 前先读本文件。
 
-> **命名约定**：spec 层一律 **camelCase**（`buildingId`、`floorIndex`）。运行时 TypeScript 契约层（`api/types/digital-twin.ts`）与组件默认 snake_case（`building_id`、`floor_index`，类型即契约、零漂移）——见 `dynamic-data-api.md §4`。
+> **命名约定**：spec 层一律 **camelCase**（`buildingId`、`floorIndex`）。运行时 TypeScript 契约层（`api/types/manager/digital-twin.ts`，按端分层、端=manager）与组件默认 snake_case（`building_id`、`floor_index`，类型即契约、零漂移）——见 `dynamic-data-api.md §4`。
 
 ## 数据分层注记
 

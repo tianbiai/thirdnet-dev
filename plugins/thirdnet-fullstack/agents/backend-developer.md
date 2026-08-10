@@ -47,7 +47,7 @@ tools:
 
 完整 API / 权限 / DI / 菜单约定以你已强制调用的技能为权威源——见 `net-api-developer`（API/路由/DTO `Map` 后缀）、`net-auth`（权限字符串格式）、`backend-workflow`（DI 注册、菜单数据配置），以及协调技能 `thirdnet-fullstack` 的「共享 API 约定」「前后端类型映射」「RBAC 桥接」章节。此处仅列对契约对齐最关键的速记项：
 
-- API 仅 GET/POST（网关限制）；字段统一 snake_case；DTO 后缀 `Map`（`{Entity}ItemMap` / `{Entity}QueryMap` / `{Entity}CreateMap` / `{Entity}UpdateMap`）
+- API 仅 GET/POST（网关限制）；字段统一 snake_case；DTO 后缀 `Map`（端特定 `{Entity}{Action}{Endpoint}Map`，如 `UserItemManagerMap` / `UserCreateAppMap`；跨端共用无端段 `{Entity}{Action}Map` 放 `Shared/`）。`{Endpoint}` ∈ Manager/App/Third（默认，可扩展），与目录、命名空间、路由前缀一致
 - 权限字符串 `{module}:{entity}:{action}`，action 用 `query`/`edit`/`remove`（**非** `detail`/`update`/`delete`，后者是前端 URL 路由 action）
 - 菜单/路由为**数据配置**（`t_sys_menu` 三级菜单条目），DI 注册在 `Startup.cs`，均非代码生成
 

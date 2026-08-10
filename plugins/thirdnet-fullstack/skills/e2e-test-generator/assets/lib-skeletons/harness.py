@@ -31,6 +31,7 @@ class Findings:
         self.items = []              # 所有捕获项
         self._expect = []            # 预期失败规则 [(url_substring, status), ...]
         self._console_disabled = []  # 忽略的控制台消息子串
+        self.current_stage = None    # 当前阶段名（由 TestRunner.set_stage 设置，给捕获项盖阶段戳）
 
     # ---- 预期失败注册 ----
     def expect_response(self, url_substring, status):
@@ -50,7 +51,8 @@ class Findings:
     def add(self, kind, severity, message, tag="", **extra):
         item = {
             "kind": kind, "severity": severity, "message": message,
-            "tag": tag, "time": time.strftime("%H:%M:%S"), **extra,
+            "tag": tag, "time": time.strftime("%H:%M:%S"),
+            "stage": self.current_stage, **extra,   # 阶段归属；extra 显式传 stage 则覆盖
         }
         self.items.append(item)
 
@@ -176,12 +178,23 @@ class Harness:
 class TestRunner:
     def __init__(self, harness: Harness):
         self.h = harness
-        self.results = []   # [{"id","name","status","error","duration"}]
+        self.results = []       # [{"id","name","status","error","duration","stage_idx","stage_name"}]
+        self.cur_stage = None   # (idx, name) 当前阶段
+        self.stage_order = []   # [(idx, name), ...] 已跑阶段（按序，供总报告分节）
+
+    def set_stage(self, idx, name):
+        """进入一个新阶段：盖戳当前阶段，并让被动捕获（HTTP/console）也能归属到本阶段。"""
+        self.cur_stage = (idx, name)
+        self.h.findings.current_stage = name
+        if not self.stage_order or self.stage_order[-1][0] != idx:
+            self.stage_order.append((idx, name))
 
     def run(self, tc_id, name, fn):
+        stage_idx, stage_name = self.cur_stage or (0, "")
         print(f"\n===== [{tc_id}] {name} =====")
         start = time.time()
-        rec = {"id": tc_id, "name": name, "status": "pass", "error": "", "duration": 0}
+        rec = {"id": tc_id, "name": name, "status": "pass", "error": "", "duration": 0,
+               "stage_idx": stage_idx, "stage_name": stage_name}
         try:
             fn(self.h)
             rec["status"] = "pass"
@@ -196,43 +209,91 @@ class TestRunner:
             self.results.append(rec)
         return rec
 
-    # ---- 报告 ----
-    def write_reports(self):
-        fj = os.path.join(cfg.ARTIFACTS_DIR, "findings.json")
-        with open(fj, "w", encoding="utf-8") as f:
-            json.dump({"results": self.results, "findings": self.h.findings.items, "state": state.all()}, f,
-                      ensure_ascii=False, indent=2)
-        md = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "TEST_REPORT.md")
-        lines = [f"# {REPORT_TITLE}", "", f"生成时间：{time.strftime('%Y-%m-%d %H:%M:%S')}", ""]
-        total = len(self.results)
-        passed = sum(1 for r in self.results if r["status"] == "pass")
-        lines += ["## 1. 用例执行概览", "", f"- 总数：{total}  通过：{passed}  失败：{total-passed}", "",
-                  "| 编号 | 用例 | 结果 | 耗时(s) |", "|---|---|---|---|"]
-        for r in self.results:
+    # ---- 阶段内结果过滤 ----
+    def _stage_results(self, idx):
+        return [r for r in self.results if r.get("stage_idx") == idx]
+
+    def _stage_findings(self, name):
+        """归属到本阶段的捕获项。被动捕获在测试执行期间触发，按 current_stage 盖戳。"""
+        return [i for i in self.h.findings.items if i.get("stage") == name]
+
+    # ---- 渲染：单个阶段的报告章节（阶段报告与总报告复用）----
+    @staticmethod
+    def _render_section(idx, name, results, findings, with_detail=True):
+        total = len(results)
+        passed = sum(1 for r in results if r["status"] == "pass")
+        has_fail = total - passed > 0
+        head = (f"## 阶段 {idx}：{name}  ❌ 有 {total-passed} 条失败"
+                if has_fail else f"## 阶段 {idx}：{name}  ✅ 全部通过")
+        lines = [head, "", f"- 用例：{total}  通过：{passed}  失败：{total-passed}", "",
+                 "| 编号 | 用例 | 结果 | 耗时(s) |", "|---|---|---|---|"]
+        for r in results:
             lines.append(f"| {r['id']} | {r['name']} | {'✅通过' if r['status']=='pass' else '❌失败'} | {r['duration']} |")
-        unexpected = [i for i in self.h.findings.items if i.get("kind") == "http" and not i.get("expected")]
-        errors = [i for i in self.h.findings.items if i.get("severity") == "error"]
-        pageerrs = [i for i in self.h.findings.items if i.get("kind") == "pageerror"]
-        lines += ["", "## 2. 自动捕获的潜在问题", "",
+        unexpected = [i for i in findings if i.get("kind") == "http" and not i.get("expected")]
+        pageerrs = [i for i in findings if i.get("kind") == "pageerror"]
+        errors = [i for i in findings if i.get("severity") == "error"]
+        lines += ["", "### 本阶段捕获的潜在问题", "",
                   f"- 意外 HTTP 4xx/5xx（可能 bug）：{len(unexpected)}",
                   f"- 控制台/页面错误：{len([e for e in errors if e.get('kind') in ('console','pageerror')]) + len(pageerrs)}",
                   f"- 页面未捕获异常：{len(pageerrs)}", ""]
-        lines += ["### 意外 HTTP 错误（按接口聚合）", "", "| 状态 | URL | 来源 | 响应片段 |", "|---|---|---|---|"]
-        for i in unexpected:
-            lines.append(f"| {i.get('status')} | `{i.get('message','')}` | {i.get('tag','')} | {(i.get('body','') or '').replace('|','/')[:120]} |")
-        lines += ["", "### 控制台/页面错误", "", "| 类型 | 严重 | 信息 | 来源 |", "|---|---|---|---|"]
-        for i in [x for x in self.h.findings.items if x.get("kind") in ("console", "pageerror")]:
-            lines.append(f"| {i.get('kind')} | {i.get('severity')} | {(i.get('message',''))[:160].replace('|','/')} | {i.get('tag','')} |")
+        if unexpected:
+            lines += ["| 状态 | URL | 来源 | 响应片段 |", "|---|---|---|---|"]
+            for i in unexpected:
+                lines.append(f"| {i.get('status')} | `{(i.get('message',''))[:100]}` | {i.get('tag','')} | {(i.get('body','') or '').replace('|','/')[:100]} |")
+            lines.append("")
+        if with_detail and has_fail:
+            lines += ["### 本阶段失败详情", ""]
+            for r in [x for x in results if x["status"] == "fail"]:
+                lines += [f"#### {r['id']} {r['name']}", "```", r["error"][-3000:], "```", ""]
+        return lines, has_fail
+
+    # ---- 阶段报告 ----
+    def write_stage_report(self, idx, name):
+        results = self._stage_results(idx)
+        findings = self._stage_findings(name)
+        body, has_fail = self._render_section(idx, name, results, findings)
+        md = os.path.join(cfg.REPORTS_DIR, f"stage_{idx:02d}.md")
+        out = [f"# {REPORT_TITLE} — 阶段 {idx}：{name}", "",
+               f"生成时间：{time.strftime('%Y-%m-%d %H:%M:%S')}", ""]
+        out += body
+        out += ["", "## 建议", "",
+                ("- 本阶段有失败，建议先排查再继续下一阶段。" if has_fail
+                 else "- 本阶段全部通过，可继续下一阶段。"), ""]
+        with open(md, "w", encoding="utf-8") as f:
+            f.write("\n".join(out))
+        sj = os.path.join(cfg.REPORTS_DIR, f"stage_{idx:02d}.json")
+        with open(sj, "w", encoding="utf-8") as f:
+            json.dump({"stage_idx": idx, "stage_name": name, "results": results, "findings": findings},
+                      f, ensure_ascii=False, indent=2)
+        print(f"阶段 {idx} 报告：{md}")
+        return has_fail
+
+    # ---- 滚动总报告（每阶段后覆写，任何时候都是截至当前的全量快照）----
+    def write_reports(self):
+        fj = os.path.join(cfg.REPORTS_DIR, "findings.json")
+        with open(fj, "w", encoding="utf-8") as f:
+            json.dump({"results": self.results, "findings": self.h.findings.items, "state": state.all()}, f,
+                      ensure_ascii=False, indent=2)
+        md = os.path.join(cfg.REPORTS_DIR, "TEST_REPORT.md")
+        total = len(self.results)
+        passed = sum(1 for r in self.results if r["status"] == "pass")
+        lines = [f"# {REPORT_TITLE}", "", f"生成时间：{time.strftime('%Y-%m-%d %H:%M:%S')}", "",
+                 "## 总览", "", f"- 用例：{total}  通过：{passed}  失败：{total-passed}", ""]
+        for idx, name in self.stage_order:                 # 已跑阶段各一节
+            sec, _ = self._render_section(idx, name, self._stage_results(idx),
+                                          self._stage_findings(name), with_detail=False)
+            lines += ["", *sec]
         failed = [r for r in self.results if r["status"] == "fail"]
         if failed:
-            lines += ["", "## 3. 失败用例详情", ""]
+            lines += ["", "## 失败用例详情（汇总）", ""]
             for r in failed:
-                lines += [f"### {r['id']} {r['name']}", "```", r["error"][-3000:], "```", ""]
-        lines += ["", "## 4. 说明", "",
+                lines += [f"### {r['id']} {r['name']}（阶段 {r.get('stage_idx')}：{r.get('stage_name')}）",
+                          "```", r["error"][-3000:], "```", ""]
+        lines += ["", "## 说明", "",
                   "- 「意外 HTTP 错误」中除标注「预期」外的 4xx/5xx 均需排查（可能是真实 bug）。",
                   "- 负向用例（如冲突 409、越权 4xx）已在代码中标记为预期，不计为 bug。",
-                  "- 失败截图见 `artifacts/screenshots/`，原始数据见 `artifacts/findings.json`。", ""]
+                  "- 各阶段明细见 `reports/stage_NN.md`；失败截图见 `artifacts/screenshots/`；原始数据见 `reports/findings.json`。", ""]
         with open(md, "w", encoding="utf-8") as f:
             f.write("\n".join(lines))
-        print(f"\n报告已生成：{md}")
+        print(f"总报告：{md}")
         print(f"原始数据：{fj}")

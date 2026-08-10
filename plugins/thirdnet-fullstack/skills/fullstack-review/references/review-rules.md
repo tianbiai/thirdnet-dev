@@ -15,7 +15,7 @@
 | 实体类用 `Model` 后缀（`SysUserModel`），纯 POCO | `net-efcore-developer` | `Database/Models/*.cs` 类名以 `Model` 结尾 |
 | DTO **必须** `Map` 后缀，**禁止** `Request`/`Response`/`Dto`（`{Entity}CreateMap` / `UpdateMap` / `QueryMap`(继承 `PageQueryDto`) / `ItemMap` / `DetailMap`） | `net-api-developer` | grep DTO 目录类名 `Request\|Response\|Dto$` → 命中即违例 |
 | 全链路 snake_case（C# 属性 ↔ JSON ↔ DB 列） | `backend-workflow` / `net-efcore-developer` | 实体/DTO 公共属性为小写 snake_case，无 PascalCase |
-| Controller 类名带端类型后缀：`{Module}ManagerController` / `AppController` / `ThirdController` | `net-api-developer` | `*Controller.cs` 文件名与类名匹配 `*(Manager\|App\|Third)Controller` |
+| Controller 类名带端类型后缀：`{Module}ManagerController` / `AppController` / `ThirdController`（端集合默认 Manager/App/Third + Shared，可按项目扩展如 Cockpit/OpenApi/IoT） | `net-api-developer` | `*Controller.cs` 文件名与类名匹配 `*(Manager\|App\|Third)Controller`（扩展端按项目内一致判定） |
 | Service 类名 `{Entity}Service`，**无** `I` 前缀，DI 注入具体类型 | `net-api-developer` | `services.AddScoped<XxxService>()`，非 `IXxxService` |
 | Cache 类 `{Domain}Cache : RedisCacheManager`，置于 `{Project}.Cache/Domain/` | `net-cache-use` | 类名 `Cache` 结尾、继承 `RedisCacheManager`、命名空间无 `.Admin.` |
 | View 模型 `View` 后缀（`UserView`），无 Fluent 配置 | `net-efcore-developer` | `View/*.cs` 以 `View` 结尾，无对应 `IEntityTypeConfiguration<>` |
@@ -126,7 +126,8 @@
 
 | 规则 | 来源 | 检查方法 |
 |------|------|----------|
-| 每模块 5 文件齐全：`api/types/{module}.ts`、`api/interfaces/{endpoint}/{module}.ts`、`api/modules/{endpoint}/{module}.ts`、`mock/api/{endpoint}/{module}.ts`、`mock/data/{endpoint}/{module}.ts` | `api-typescript-spec` | 对每个 `api/modules/manager/{m}.ts`，4 个兄弟文件存在 |
+| 每模块 5 文件齐全：`api/types/{endpoint|shared}/{module}.ts`、`api/interfaces/{endpoint}/{module}.ts`、`api/modules/{endpoint}/{module}.ts`、`mock/api/{endpoint}/{module}.ts`、`mock/data/{endpoint}/{module}.ts`（端 ∈ manager/app/third/shared，`manager` 为 Admin 默认端、可换） | `api-typescript-spec` | 对每个 `api/modules/{endpoint}/{m}.ts`，4 个兄弟文件存在 |
+| DTO 端归属正确：单端用 `types/{endpoint}/`、≥2 端共用放 `types/shared/`，同一 DTO 不重复出现在多个端目录 | `api-typescript-spec` | grep DTO 类型名，确认仅出现在单一端目录或 `shared/` |
 | 接口名 `I{Entity}Api`，仅接口定义无实现 | `api-typescript-spec` | 文件含 `export interface I{Entity}Api` |
 | `api/modules/{m}.ts` 含三件：`class Real{Entity}Api implements I{Entity}Api` + `export function create{Entity}Api(): I{Entity}Api` + `export const {entity}Api` 单例 | `api-typescript-spec` | 三件齐全，工厂返回类型为接口 |
 | Mock 类数据取自 `@/mock/data/`，非硬编码；方法签名与接口一致 | `api-typescript-spec` | Mock 类无内联数据字面量 |

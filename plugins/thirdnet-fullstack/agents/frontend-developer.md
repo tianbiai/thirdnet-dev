@@ -51,6 +51,7 @@ tools:
 
 - **前端先行**：先定义 `I{Entity}Api` 接口契约与 TypeScript 类型，后端按契约实现
 - API 仅 GET/POST；URL action 用 `/list`/`/detail`/`/add`/`/update`/`/delete`（与权限 action `query`/`edit`/`remove` 区分）；字段统一 snake_case
+- **端类型分组**：API 层按**端类型**分目录（默认集合 `manager`/`app`/`third` + `shared` 跨端共用桶；非封闭，可按项目扩展如 `cockpit`/`openapi`/`iot`；单端项目可折叠端层）。与后端四桶（`Controllers/Manager|App|Third|Shared/`）**一一对照**——契约 `api/interfaces/{endpoint}/`、Real+工厂 `api/modules/{endpoint}/`、Mock `mock/{api,data}/{endpoint}/`、类型 `api/types/{endpoint}/`（≥2 端共用 DTO 走 `types/shared/`）。Admin 模块默认端为 `manager`
 - CRUD 页面强制复用模板基础设施（`useCrudTable` 等），禁止手写 `usePagination+useActionLoading` 样板、禁止直接用 `el-pagination`（细则见 `admin-template-setup`）
 - 权限按钮 `v-permission="['{module}:{entity}:{action}']"`（数组，支持 OR）
 

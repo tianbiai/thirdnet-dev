@@ -13,9 +13,9 @@
 | `lib-skeletons/config.py.tpl` | `config.py` | 可被环境变量覆盖的 URL/账号；身份→凭据映射；健康检查路径 |
 | `lib-skeletons/state.py` | `lib/state.py` | 跨用例 JSON 状态（原样使用） |
 | `lib-skeletons/data_factory.py.tpl` | `lib/data_factory.py` | `run_tag+idx` 确定性；派生编码（如 phone→账号/邀请码） |
-| `lib-skeletons/harness.py` | `lib/harness.py` | `Findings` 被监听器 + `expect_response`；`TestRunner` + 报告 |
+| `lib-skeletons/harness.py` | `lib/harness.py` | `Findings` 被监听器（带阶段归属）+ `expect_response`；`TestRunner`（阶段感知）+ 阶段报告 + 滚动总报告 |
 | `lib-skeletons/sessions.py` | `lib/sessions.py` | 身份缓存 web 登录；每访客移动端上下文 |
-| `lib-skeletons/run_all.py.tpl` | `run_all.py` | 带健康检查跳过的有序运行器 |
+| `lib-skeletons/run_all.py.tpl` | `run_all.py` | 分阶段交互式运行器：启动菜单（运行模式 + 起始阶段）+ `STAGES` 阶段循环 + 阶段报告 + 决策门；`--skip-ready` 跳过健康检查 |
 | `adapt-skeletons/selectors.py.tpl` | `lib/selectors.py` | 完整的菜单/路由/label/按钮登记表（web + 移动端）——唯一事实源 |
 | `adapt-skeletons/web_crud.py.tpl` | `lib/web_crud.py` | 完整的框架原子集，含菜单树角色分配 |
 | `adapt-skeletons/web_login.py.tpl` | `lib/web_login.py` | 带验证码自动探测的登录 |

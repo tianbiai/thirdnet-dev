@@ -69,7 +69,7 @@
 ### 数据来源
 
 - **数据类型**：[列表/单据/配置/...]
-- **数据源**：Mock 数据（`mock/data/{endpoint}/{模块名}.ts`）←→ API 接口（`api/modules/{endpoint}/{模块名}.ts`）
+- **数据源**：Mock 数据（`mock/data/{endpoint}/{模块名}.ts`）←→ API 接口（`api/modules/{endpoint}/{模块名}.ts`）；DTO `api/types/{endpoint}/{模块名}.ts`（共用入 `api/types/shared/`）
 - **关键字段**：`field1`: [说明], `field2`: [说明]
 
 #### API 接口规范
@@ -77,7 +77,8 @@
 > 遵循 `api-typescript-spec` 技能规范
 > - API 模块（`api/modules/{endpoint}/*.ts`）采用策略工厂模式：定义 `IXxxApi` 接口契约 + `RealXxxApi`（HTTP）+ `MockXxxApi`（本地数据）+ `createXxxApi()` 工厂函数
 > - Mock 数据（`mock/data/{endpoint}/*.ts`）使用 `import type` 保证类型一致，枚举使用 `import` 引入
-> - 路径 `/app/{模块名}/{操作}` 或 `/manager/{模块名}/{操作}`，直接返回数据或 `PaginatedResponse<T>`，禁止 `code` 字段
+> - DTO 类型 `api/types/{endpoint}/{module}.ts`，共用 DTO 入 `api/types/shared/`（`common.ts`/`enums.ts`/`{module}.ts`）；默认三端 manager/app/third，集合非封闭可扩展
+> - 路径 `/{endpoint}/{模块名}/{操作}`（如 `/manager/...`、`/app/...`、`/third/...`；shared 桶无路由前缀），直接返回数据或 `PaginatedResponse<T>`，禁止 `code` 字段
 > - **字段命名强制 snake_case**：所有 API 入参、出参、Mock 数据的字段名必须使用 `snake_case`（如 `order_id`、`created_at`、`user_name`），与后端 DTO 保持一致，禁止使用 `camelCase`
 > - 通过 `.env` 中 `VITE_MOCK_ENABLED=true/false` 无缝切换 Real/Mock，业务代码零修改
 
