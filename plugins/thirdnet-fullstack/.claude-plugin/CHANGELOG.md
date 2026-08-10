@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.41.0 - 2026-08-10
+
+### Changed
+- **端类型分层规范从 Controller 扩展到 Service / DTO（Manager / App / Third / Shared）**：原先只有 Controller 按端类型分目录 + 类名带端后缀，Service 扁平放 `Services/`、DTO 按业务模块放 `DTOs/System/`，导致同一模块多端代码混杂、字段易越权泄露。现统一为「**所有随端点变化的代码（Controller/Service/DTO）按 Manager/App/Third 分目录 + 类名带端后缀；跨端共用放 `Shared/`、类名无端后缀**」，命名、文件夹、URL 路由三者一一对齐。
+  - **net-api-developer/SKILL.md**：原「Controllers 目录组织」节重写为「端类型分层组织（Manager/App/Third/Shared）」，含三层目录树、类名后缀规则表、**命名↔文件夹↔路由统一对照表**（以 User 模块示范 Manager/App/Third/Shared 四端如何对齐）、拆分原则（何时各端一份、何时放 Shared/）；DTO 命名表加端段 `{Entity}{Action}{Endpoint}Map`（共用无端段）；Service 模板/端点模板/DI 注册/顶部 AdminControllerBase 示例均改用 `XxxManagerService` + Manager 段 DTO；审查清单「Controller 按端类型分目录」泛化为端特定类（Controller/Service/DTO）三项（分目录、命名后缀、四处一致）；frontmatter `description` 同步。
+  - **net-api-developer/references/controller-service-examples.md**：UserManagerController + SysUserService 示例整体改写为 Manager 端——命名空间 `...Controllers.Manager`/`...Services.Manager`/`...DTOs.Manager.System`、类名 `SysUserManagerService`、所有 DTO 加 Manager 段（`UserItemManagerMap` 等）、参考文件路径更新；补「缓存域端无关、不参与端划分」说明。
+  - **backend-workflow/SKILL.md**：审查清单端类型项泛化；功能开发流程步骤 4-6（DTO/Service/Controller）补端目录/后缀/Shared 归属；项目结构注释标明三层内部按端分；速查表 DTO 命名行加端段并新增「端类型分层」行。
+  - **端无关层不参与划分**：Models / EntityConfigurations / Cache 域 / Jobs / Auth 基础设施保持原目录，只有 Controller/Service/DTO 三层按端分。
+
+### 版本同步
+- `plugin.json` / 协调技能 `thirdnet-fullstack/SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.40.0 → 2.41.0`；`marketplace.json` 顶层 `metadata.version` 由 `0.64.0 → 0.65.0`（端类型分层是贯穿前后端生成代码的规范级变更，视为重大变更故 bump 顶层）。子技能 `net-api-developer` `1.1.1 → 1.2.0`、`backend-workflow` `1.1.1 → 1.2.0`。
+
+### 注意（后续）
+- 钩子 `hooks.json` 的 PostToolUse 后端规范告警**未新增**端类型目录校验（仍只查 GET/POST、Fluent API、单文件单类型、ProducesResponseType）；如需强制可在后续单独评估。
+- 若实际 ThirdNet.Vibe 模板仍生成扁平 `Services/`、`DTOs/<Module>/`，需另开 `thirdnet-template-upgrade` 任务同步模板——本次只改技能文档（生成项目组织规范的权威来源）。
+
 ## 2.40.0 - 2026-08-09
 
 ### Changed

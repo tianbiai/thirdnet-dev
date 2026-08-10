@@ -2,10 +2,12 @@
 
 本文档包含从代码库提取的完整 Controller 和 Service 代码示例，展示所有端点模式和 Service 层核心模式。
 
+> 以下为**管理端（Manager）**示例：Controller 在 `Controllers/Manager/`、Service 在 `Services/Manager/`、DTO 在 `DTOs/Manager/System/`，类名与命名空间均带 `Manager` 端段。App/Third 端把 `Manager` 换成对应端、目录与路由前缀同步即可。
+
 ## 目录
 
 1. [UserManagerController — 完整 Controller 示例](#usermanagercontroller)
-2. [SysUserService — 核心 Service 方法](#sysuserservice)
+2. [SysUserManagerService — 核心 Service 方法](#sysusermanagerservice)
 
 ---
 
@@ -18,9 +20,9 @@
 ```csharp
 using Microsoft.AspNetCore.Mvc;
 using {ProjectName}.Common.Controllers;
-using {ProjectName}.Admin.APIService.DTOs.System;
+using {ProjectName}.Admin.APIService.DTOs.Manager.System;   // 端类型优先：DTOs/Manager/System/
 using {ProjectName}.Common.OperLog;
-using {ProjectName}.Admin.APIService.Services;
+using {ProjectName}.Admin.APIService.Services.Manager;      // Services/Manager/
 using {ProjectName}.Common.DTOs;
 using ThirdNet.Vibe.WebAPI;
 
@@ -29,34 +31,34 @@ namespace {ProjectName}.Admin.APIService.Controllers.Manager
     [Route("api/manager/user")]
     public class UserManagerController : AdminControllerBase
     {
-        private readonly SysUserService _sysUserService;
-        private readonly OnlineUserService _onlineUserService;
+        private readonly SysUserManagerService _sysUserManagerService;
+        private readonly OnlineUserManagerService _onlineUserManagerService;
 
         public UserManagerController(
-            SysUserService sysUserService,
-            OnlineUserService onlineUserService)
+            SysUserManagerService sysUserManagerService,
+            OnlineUserManagerService onlineUserManagerService)
         {
-            _sysUserService = sysUserService;
-            _onlineUserService = onlineUserService;
+            _sysUserManagerService = sysUserManagerService;
+            _onlineUserManagerService = onlineUserManagerService;
         }
 
         // ====== GET: 列表查询（分页 + 条件筛选） ======
-        [ProducesResponseType(typeof(PageListInfo<List<UserItemMap>>), 200)]
+        [ProducesResponseType(typeof(PageListInfo<List<UserItemManagerMap>>), 200)]
         [PermissionAuthorize("sys:user:list")]
         [HttpGet("list")]
-        public async Task<IActionResult> GetList([FromQuery] UserQueryMap query)
+        public async Task<IActionResult> GetList([FromQuery] UserQueryManagerMap query)
         {
-            var result = await _sysUserService.GetList(query, CurrentUserId);
+            var result = await _sysUserManagerService.GetList(query, CurrentUserId);
             return Ok(result);
         }
 
         // ====== GET: 详情查询 ======
-        [ProducesResponseType(typeof(UserDetailMap), 200)]
+        [ProducesResponseType(typeof(UserDetailManagerMap), 200)]
         [PermissionAuthorize("sys:user:query")]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(long id)
         {
-            var result = await _sysUserService.GetById(id, CurrentUserId);
+            var result = await _sysUserManagerService.GetById(id, CurrentUserId);
             return Ok(result);
         }
 
@@ -65,9 +67,9 @@ namespace {ProjectName}.Admin.APIService.Controllers.Manager
         [PermissionAuthorize("sys:user:add")]
         [OperLog(Title = "用户管理", BusinessType = BusinessTypeEnum.Create)]
         [HttpPost("create")]
-        public async Task<IActionResult> Add([FromBody] UserCreateMap dto)
+        public async Task<IActionResult> Add([FromBody] UserCreateManagerMap dto)
         {
-            await _sysUserService.Add(dto, CurrentUserId, CurrentUserName);
+            await _sysUserManagerService.Add(dto, CurrentUserId, CurrentUserName);
             return Ok();
         }
 
@@ -76,9 +78,9 @@ namespace {ProjectName}.Admin.APIService.Controllers.Manager
         [PermissionAuthorize("sys:user:edit")]
         [OperLog(Title = "用户管理", BusinessType = BusinessTypeEnum.Update)]
         [HttpPost("update")]
-        public async Task<IActionResult> Update([FromBody] UserUpdateMap dto)
+        public async Task<IActionResult> Update([FromBody] UserUpdateManagerMap dto)
         {
-            var result = await _sysUserService.Update(dto, CurrentUserId, CurrentUserName);
+            var result = await _sysUserManagerService.Update(dto, CurrentUserId, CurrentUserName);
             return Ok(result);
         }
 
@@ -89,7 +91,7 @@ namespace {ProjectName}.Admin.APIService.Controllers.Manager
         [HttpPost("delete/{id}")]
         public async Task<IActionResult> Delete(long id)
         {
-            await _sysUserService.Delete(id, CurrentUserId);
+            await _sysUserManagerService.Delete(id, CurrentUserId);
             return Ok();
         }
 
@@ -100,16 +102,16 @@ namespace {ProjectName}.Admin.APIService.Controllers.Manager
         [HttpPost("delete-batch")]
         public async Task<IActionResult> DeleteBatch([FromBody] List<long> ids)
         {
-            await _sysUserService.DeleteBatch(ids, CurrentUserId);
+            await _sysUserManagerService.DeleteBatch(ids, CurrentUserId);
             return Ok();
         }
 
         // ====== POST: 仅登录即可访问（无特定权限） ======
         [ProducesResponseType(200)]
         [HttpPost("profile")]
-        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileMap dto)
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileManagerMap dto)
         {
-            await _sysUserService.UpdateProfile(CurrentUserId, dto);
+            await _sysUserManagerService.UpdateProfile(CurrentUserId, dto);
             return Ok();
         }
 
@@ -118,9 +120,9 @@ namespace {ProjectName}.Admin.APIService.Controllers.Manager
         [PermissionAuthorize("sys:user:edit")]
         [OperLog(Title = "用户管理", BusinessType = BusinessTypeEnum.Update)]
         [HttpPost("{id}/roles")]
-        public async Task<IActionResult> AssignRoles(long id, [FromBody] AssignRolesMap dto)
+        public async Task<IActionResult> AssignRoles(long id, [FromBody] AssignRolesManagerMap dto)
         {
-            await _sysUserService.AssignRoles(id, dto, CurrentUserId);
+            await _sysUserManagerService.AssignRoles(id, dto, CurrentUserId);
             return Ok();
         }
     }
@@ -139,18 +141,21 @@ namespace {ProjectName}.Admin.APIService.Controllers.Manager
 | 批量删除 | `delete-batch` | POST | List\<long\> (FromBody) | ✅ | ✅ |
 | 个人操作 | `profile` | POST | DTO (FromBody) | ❌ (仅需登录) | ❌ |
 
+> 表中 DTO 均带端段（如 `UserQueryManagerMap`），与本 Controller 所属端一致。
+
 ---
 
-## SysUserService
+## SysUserManagerService
 
-**参考文件**（生成项目）：`Admin/{ProjectName}.Admin.APIService/Services/SysUserService.cs`
+**参考文件**（生成项目）：`Admin/{ProjectName}.Admin.APIService/Services/Manager/SysUserManagerService.cs`
 
 展示 Service 层的核心模式：IDbContextFactory、缓存注入、OperatorContext、部门过滤、缓存失效、事务。
 
 ### 构造函数 — 依赖注入
 
 ```csharp
-public class SysUserService
+// 文件：Services/Manager/SysUserManagerService.cs   命名空间：...Services.Manager
+public class SysUserManagerService
 {
     private readonly IDbContextFactory<AdminDbContext> _dbFactory;
     private readonly UserCache _userCache;
@@ -161,7 +166,7 @@ public class SysUserService
     private readonly OnlineCache _onlineCache;
     private readonly OperatorContext _operatorContext;
 
-    public SysUserService(
+    public SysUserManagerService(
         IDbContextFactory<AdminDbContext> dbFactory,
         UserCache userCache,
         DeptCache deptCache,
@@ -183,10 +188,12 @@ public class SysUserService
 }
 ```
 
+> 缓存域（`UserCache` / `DeptCache` 等）属于端无关的数据层，位于 `{ProjectName}.Cache/Domain/`，**不**按端类型划分——它们被各端 Service 共用注入。
+
 ### 查询方法 — GetList
 
 ```csharp
-public async Task<PageListInfo<List<UserItemMap>>> GetList(UserQueryMap query, long currentUserId)
+public async Task<PageListInfo<List<UserItemManagerMap>>> GetList(UserQueryManagerMap query, long currentUserId)
 {
     await using var db = await _dbFactory.CreateDbContextAsync();
 
@@ -199,7 +206,7 @@ public async Task<PageListInfo<List<UserItemMap>>> GetList(UserQueryMap query, l
         queryable = queryable.Where(u => u.status == (StatusEnum)query.status.Value);
 
     // 部门筛选（含子部门）
-    // 注意：dept_id 须 > 0——真实 SysUserService.GetList 会拒绝 dept_id == 0 与 -1（返 400 BadRequest），
+    // 注意：dept_id 须 > 0——真实 SysUserManagerService.GetList 会拒绝 dept_id == 0 与 -1（返 400 BadRequest），
     // 因此前端/调用方传入前必须保证 dept_id 为正整数（前端下拉默认/未选时不要传 0 或 -1）。
     if (query.dept_id.HasValue && query.dept_id.Value > 0)
     {
@@ -211,7 +218,7 @@ public async Task<PageListInfo<List<UserItemMap>>> GetList(UserQueryMap query, l
     // 数据范围过滤（基于当前用户的部门归属）
     var currentUser = await _userCache.GetUserInfo(currentUserId);
     if (currentUser == null)
-        return new PageListInfo<List<UserItemMap>> { List = [], Total = 0, Index = query.page_index, Pages = 0 };
+        return new PageListInfo<List<UserItemManagerMap>> { List = [], Total = 0, Index = query.page_index, Pages = 0 };
 
     var visibleDeptIds = await DeptFilterHelper.GetVisibleDeptIds(
         currentUser.dept_id, currentUser.include_sub_depts,
@@ -221,7 +228,7 @@ public async Task<PageListInfo<List<UserItemMap>>> GetList(UserQueryMap query, l
     // 分页 + 投影（绝不返回实体）
     var page = await queryable
         .OrderByDescending(u => u.created_time)
-        .Select(u => new UserItemMap
+        .Select(u => new UserItemManagerMap
         {
             id = u.id,
             user_name = u.user_name,
@@ -249,7 +256,7 @@ public async Task<PageListInfo<List<UserItemMap>>> GetList(UserQueryMap query, l
 ### 新增方法 — Add
 
 ```csharp
-public async Task<IdResult> Add(UserCreateMap dto, long operatorId, string operatorName)
+public async Task<IdResult> Add(UserCreateManagerMap dto, long operatorId, string operatorName)
 {
     _operatorContext.Initialize(operatorId);
     await using var db = await _dbFactory.CreateDbContextAsync();
@@ -309,7 +316,7 @@ public async Task<IdResult> Add(UserCreateMap dto, long operatorId, string opera
 ### 更新方法 — Update（含事务）
 
 ```csharp
-public async Task<IdResult> Update(UserUpdateMap dto, long operatorId, string operatorName)
+public async Task<IdResult> Update(UserUpdateManagerMap dto, long operatorId, string operatorName)
 {
     _operatorContext.Initialize(operatorId);
 

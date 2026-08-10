@@ -7,7 +7,7 @@ description: >
   "backend"、"开发流程"时，必须使用此技能。
 license: MIT
 metadata:
-  version: "1.1.1"
+  version: "1.2.0"
   author: thirdnet
 ---
 
@@ -141,7 +141,7 @@ backend/
     ├── spec.md                                # 非模板产物——项目级规格说明书（全局唯一），同上
     ├── .mcp.json                              # 第 8 步写入——默认含真实账密→已 .gitignore；DSN 由 thirdnet-mcp-setup 从 appsettings 读出、用户确认
     ├── Admin/
-    │   ├── {ProjectName}.Admin.APIService/    # API 宿主（Controllers、Services、DTOs）
+    │   ├── {ProjectName}.Admin.APIService/    # API 宿主（Controllers、Services、DTOs；三层各自内部按 Manager/App/Third/Shared 分端）
     │   └── {ProjectName}.Admin.Database/      # AdminDbContext + 实体 + EntityConfigurations
     └── Tools/
         ├── {ProjectName}.Common/              # 常量、枚举、DI 扩展、AdminControllerBase
@@ -191,13 +191,13 @@ Admin 项目的 Program.cs 和 Startup.cs 遵循固定的启动模式和 10 步 
    └── 注册 Singleton
 
 4. DTO 层 — net-api-developer
-   └── QueryMap、CreateMap、UpdateMap、ItemMap、DetailMap
+   └── 按端类型放在 DTOs/{Manager,App,Third}/<模块>/：QueryManagerMap、CreateManagerMap、UpdateManagerMap、ItemManagerMap、DetailManagerMap（跨端共用放 DTOs/Shared/，类名无端段）
 
 5. Service 层 — net-api-developer
-   └── NoticeService（Scoped，注入 IDbContextFactory + Cache + OperatorContext）
+   └── 按端类型放在 Services/{Manager,App,Third}/：NoticeManagerService（Scoped，注入 IDbContextFactory + Cache + OperatorContext）；跨端共用逻辑抽到 Services/Shared/ 由各端注入
 
 6. Controller 层 — net-api-developer
-   └── NoticeManagerController : AdminControllerBase
+   └── 按端类型放在 Controllers/{Manager,App,Third}/：NoticeManagerController : AdminControllerBase（路由 api/manager/notice）
 
 7. 权限层 — net-auth
    └── 定义权限字符串（如 sys:notice:list/add/edit/remove）
@@ -318,7 +318,7 @@ Admin 项目的 Program.cs 和 Startup.cs 遵循固定的启动模式和 10 步 
 ### 代码规范
 
 - [ ] API 仅使用 GET/POST 方法（禁止 PUT/DELETE/PATCH）
-- [ ] Controller 按端类型分目录（Manager/App/Third）
+- [ ] 端特定类（Controller/Service/DTO）按端类型分目录（Manager/App/Third）+ 类名带端后缀，跨端共用类放 Shared/（详见 net-api-developer「端类型分层组织」）
 - [ ] EF Core 实体配置使用 Fluent API，禁止数据注解
 - [ ] 数据库字段命名遵循 snake_case，与 PostgreSQL 列名一致
 - [ ] 无占位代码或 TODO 注释残留
@@ -356,7 +356,8 @@ Admin 项目的 Program.cs 和 Startup.cs 遵循固定的启动模式和 10 步 
 | 表名 | `t_` 前缀 + snake_case → 见 net-efcore-developer |
 | 主键 | `long id`（bigint 自增） → 见 net-efcore-developer |
 | 错误处理 | `throw new WebApiException(HttpStatusCode.xxx, "msg")` → 见 net-api-developer |
-| DTO 命名 | `{Entity}{Action}Map`（CreateMap/UpdateMap/QueryMap/ItemMap/DetailMap） → 见 net-api-developer |
+| DTO 命名 | `{Entity}{Action}{Endpoint}Map`（端特定，带 Manager/App/Third 段）；跨端共用 `{Entity}{Action}Map` 放 Shared/ → 见 net-api-developer |
+| 端类型分层 | Controller/Service/DTO 统一按 Manager/App/Third 分目录 + 类名带端后缀，共用放 Shared/ → 见 net-api-developer |
 | Controller 基类 | `AdminControllerBase`（非 ControllerBase） → 见 net-api-developer |
 | Service 生命周期 | Scoped → 见 net-api-developer |
 | Cache 生命周期 | Singleton → 见 net-cache-use |
