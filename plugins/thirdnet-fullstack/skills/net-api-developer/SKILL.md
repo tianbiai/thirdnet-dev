@@ -2,14 +2,15 @@
 name: net-api-developer
 description: >
   ThirdNet API 接口开发规范：AdminControllerBase（自动 OperatorContext）、端类型分层
-  （Controller/Service/DTO 统一按 Manager/App/Third 分目录 + 类名带端后缀，跨端共用放 Shared/）、
+  （Controller/Service/DTO 统一按 Manager/App/Cockpit/Third 分目录 + 类名带端后缀，跨端共用放 Shared/；
+  官方命名端：管理端 Manager / 用户端 App / 驾驶舱 Cockpit（按需）/ 第三方 Third）、
   GET/POST-only、DTO 命名（{Entity}{Action}{Endpoint}Map）、OperLog 操作日志、
   Service 层模式（IDbContextFactory + 缓存 + 部门过滤）。禁止匿名对象与直接返回 EF Core 实体。
   当用户提到"controller"、"AdminControllerBase"、"service"、"DTO"、"OperLog"、"API"、
   "接口开发"、"写接口"、"CRUD"、"HttpGet"、"HttpPost"时，必须使用此技能。
 license: MIT
 metadata:
-  version: "1.3.0"
+  version: "1.4.0"
   author: thirdnet
 ---
 
@@ -43,9 +44,9 @@ AdminControllerBase 提供：
 
 > **例外**：当 Controller 包含不经过 JWT 认证的端点（如登录、刷新 Token 使用 Basic Auth）时，应直接继承 `ControllerBase`，而非 `AdminControllerBase`。原因是 `AdminControllerBase.OnActionExecuting` 会从 JWT Claims 提取 `user_id` 来初始化 `OperatorContext`，在 Basic Auth 请求中会导致 401 错误。典型示例：`AuthManagerController`。
 
-### 端类型分层组织（Manager / App / Third / Shared）
+### 端类型分层组织（Manager / App / Cockpit / Third / Shared）
 
-一个业务模块通常会同时面向多个调用端：管理后台（Manager）、C 端应用（App）、第三方开放接口（Third）。不同端的**权限范围、返回字段、入参校验都不一样**——管理端的 `UserItemManagerMap` 字段最全（含部门、角色、状态），而 App 端的 `UserItemAppMap` 只暴露昵称、头像等公开字段。如果 Controller / Service / DTO 混在同一目录、共用类名，同一模块的多端代码会纠缠在一起，难以隔离、难以定位、容易越权泄露字段。
+一个业务模块通常会同时面向多个调用端：管理端（Manager）、用户端（App）、驾驶舱（Cockpit，按需）、第三方（Third）。不同端的**权限范围、返回字段、入参校验都不一样**——管理端的 `UserItemManagerMap` 字段最全（含部门、角色、状态），而用户端（App）的 `UserItemAppMap` 只暴露昵称、头像等公开字段，驾驶舱（Cockpit）则只聚合大屏所需的统计/指标字段。如果 Controller / Service / DTO 混在同一目录、共用类名，同一模块的多端代码会纠缠在一起，难以隔离、难以定位、容易越权泄露字段。
 
 因此**所有随端点变化的代码**——Controller、Service、DTO(Map)——统一按端类型分目录，且类名带端后缀；**真正跨端共用**的逻辑放 `Shared/`、类名不带端后缀。命名、文件夹、URL 路由三者一一对齐，看任意一处即能定位另两处。
 
@@ -56,19 +57,23 @@ AdminControllerBase 提供：
 ├── Controllers/
 │   ├── Manager/              # 管理端（管理后台）
 │   │   └── UserManagerController.cs
-│   ├── App/                  # 应用端（C 端用户）
+│   ├── App/                  # 用户端（C 端 / 移动端用户：小程序、H5）
 │   │   └── UserAppController.cs
+│   ├── Cockpit/              # 驾驶舱（按需：数据可视化 / 大屏）
+│   │   └── ParkCockpitController.cs
 │   ├── Third/                # 第三方端（开放 API）
 │   │   └── CallbackThirdController.cs
 │   └── Shared/               # 跨端共用 Controller（少见，如多端复用的健康检查）
 ├── Services/
 │   ├── Manager/              # SysUserManagerService.cs
 │   ├── App/                  # SysUserAppService.cs
+│   ├── Cockpit/              # 驾驶舱聚合/统计逻辑（按需）
 │   ├── Third/                # 第三方回调/推送处理
 │   └── Shared/               # 跨端共用业务逻辑，类名无端后缀（如 SysUserSharedService.cs）
 └── DTOs/                     # 端类型优先，再按业务模块
     ├── Manager/System/       # UserItemManagerMap.cs / UserCreateManagerMap.cs ...
     ├── App/System/           # UserItemAppMap.cs
+    ├── Cockpit/System/       # ParkItemCockpitMap.cs（驾驶舱出入参，按需）
     ├── Third/System/         # UserItemThirdMap.cs（第三方出入参，同样带模块子层）
     └── Shared/System/        # 跨端通用 Map，类名无端后缀（如 UserItemMap.cs）
 ```
@@ -79,11 +84,11 @@ AdminControllerBase 提供：
 
 | 层 | 端特定（带后缀，放对应端目录） | 跨端共用（无后缀，放 Shared/） |
 |----|------------------------------|------------------------------|
-| Controller | `{Module}{Endpoint}Controller`：`UserManagerController` / `UserAppController` / `CallbackThirdController` | `{Module}Controller`（少见） |
-| Service | `{Module}{Endpoint}Service`：`SysUserManagerService` / `SysUserAppService` | `{Module}SharedService` 或 `{Module}Service`（如 `SysUserSharedService`） |
-| DTO(Map) | `{Entity}{Action}{Endpoint}Map`：`UserItemManagerMap` / `UserCreateAppMap` | `{Entity}{Action}Map`（如 `UserItemMap`） |
+| Controller | `{Module}{Endpoint}Controller`：`UserManagerController` / `UserAppController` / `ParkCockpitController` / `CallbackThirdController` | `{Module}Controller`（少见） |
+| Service | `{Module}{Endpoint}Service`：`SysUserManagerService` / `SysUserAppService` / `ParkCockpitService` | `{Module}SharedService` 或 `{Module}Service`（如 `SysUserSharedService`） |
+| DTO(Map) | `{Entity}{Action}{Endpoint}Map`：`UserItemManagerMap` / `UserCreateAppMap` / `ParkItemCockpitMap` | `{Entity}{Action}Map`（如 `UserItemMap`） |
 
-`{Endpoint}` 默认三选一：`Manager` / `App` / `Third`，与 URL 路由前缀、目录名、命名空间完全一致。**该集合非封闭枚举——项目可按实际新增端**（如 `Cockpit` 驾驶舱、`OpenAPI` 开放接口、`Iot` 设备端）：新增端沿用同一套目录/类名后缀/命名空间/路由规则即可——建 `Controllers/Cockpit/` 等子目录、URL 前缀 `api/cockpit/...`、DTO 插入 `Cockpit` 段。后端新增端时，前端按需新建对应工程（如 `frontend/cockpit/`，URL 用 `/api/cockpit/...`），工程内 `api/` 仍扁平（见下「前后端对照」）。
+`{Endpoint}` 取自**官方命名端**：`Manager`（管理端）/ `App`（用户端）/ `Cockpit`（驾驶舱，按需）/ `Third`（第三方），与 URL 路由前缀、目录名、命名空间完全一致。其中 Manager/App/Third 是常见默认端，Cockpit 同为官方命名端但**按需创建**（项目有数据可视化/大屏需求时才建 `Controllers/Cockpit/`）。**该集合非封闭枚举——项目可按实际新增其他端**（如 `OpenAPI` 开放接口、`Iot` 设备端）：新增端沿用同一套目录/类名后缀/命名空间/路由规则即可——建对应子目录、URL 前缀、DTO 端段。后端新增端时，前端按需新建对应工程（如 `frontend/cockpit/`，URL 用 `/api/cockpit/...`），工程内 `api/` 仍扁平（见下「前后端对照」）。
 
 #### 命名 ↔ 文件夹 ↔ 路由 统一对照
 
@@ -91,16 +96,17 @@ AdminControllerBase 提供：
 
 | 端 | URL 路由前缀 | Controller | Service | 列表 DTO |
 |----|------------|-----------|---------|---------|
-| Manager | `api/manager/user/...` | `Controllers/Manager/UserManagerController.cs` | `Services/Manager/SysUserManagerService.cs` | `DTOs/Manager/System/UserItemManagerMap.cs` |
-| App | `api/app/user/...` | `Controllers/App/UserAppController.cs` | `Services/App/SysUserAppService.cs` | `DTOs/App/System/UserItemAppMap.cs` |
-| Third | `api/third/user/...` | `Controllers/Third/UserThirdController.cs` | `Services/Third/SysUserThirdService.cs` | `DTOs/Third/System/UserItemThirdMap.cs` |
+| Manager（管理端） | `api/manager/user/...` | `Controllers/Manager/UserManagerController.cs` | `Services/Manager/SysUserManagerService.cs` | `DTOs/Manager/System/UserItemManagerMap.cs` |
+| App（用户端） | `api/app/user/...` | `Controllers/App/UserAppController.cs` | `Services/App/SysUserAppService.cs` | `DTOs/App/System/UserItemAppMap.cs` |
+| Cockpit（驾驶舱，按需） | `api/cockpit/park/...` | `Controllers/Cockpit/ParkCockpitController.cs` | `Services/Cockpit/ParkCockpitService.cs` | `DTOs/Cockpit/System/ParkItemCockpitMap.cs` |
+| Third（第三方） | `api/third/user/...` | `Controllers/Third/UserThirdController.cs` | `Services/Third/SysUserThirdService.cs` | `DTOs/Third/System/UserItemThirdMap.cs` |
 | 共用 | — | `Controllers/Shared/`（如有） | `Services/Shared/SysUserSharedService.cs` | `DTOs/Shared/System/UserItemMap.cs` |
 
 命名空间随之分层：`{ProjectName}.Admin.APIService.Controllers.Manager`、`...Services.App`、`...DTOs.Manager.System` 等。
 
 #### 前后端对照（与 api-typescript-spec 对齐）
 
-后端是**单代码库服务所有端**，Controller/Service/DTO 必须按端分目录（四桶）隔离字段与权限。前端则**按工程分端**——`frontend/web/`（管理后台）独立于 `frontend/minigram/`（小程序），工程内 `api/` 与 `mock/` 扁平、不按端再分组。因此前后端的对照关系是「**工程 ↔ 端**」，而非逐层目录镜像：管理后台工程 ↔ 后端 Manager 端，小程序工程 ↔ 后端 App 端。
+后端是**单代码库服务所有端**，Controller/Service/DTO 必须按端分目录（按官方命名端 Manager/App/Cockpit/Third 分桶 + 共用 Shared）隔离字段与权限。前端则**按工程分端**——`frontend/web/`（管理后台）独立于 `frontend/minigram/`（用户端小程序），工程内 `api/` 与 `mock/` 扁平、不按端再分组。因此前后端的对照关系是「**工程 ↔ 端**」，而非逐层目录镜像：管理后台工程 ↔ 后端 Manager 端，用户端小程序工程 ↔ 后端 App 端。
 
 | 层 | 后端（本文档，按端分目录） | 前端 api-typescript-spec（工程内扁平） |
 |----|--------------|--------------------------|
@@ -109,7 +115,7 @@ AdminControllerBase 提供：
 | DTO / types | `DTOs/Manager/System/UserItemManagerMap.cs` | `api/types/user.ts` |
 | 跨端共用 | `DTOs/Shared/System/UserItemMap.cs`、`Services/Shared/` | （前端单端工程内无跨端去重；多端工程例外时可按端分子目录） |
 
-后端新增 `Cockpit` 端时，前端按需新建对应工程（`frontend/cockpit/`），工程内目录仍扁平、URL 用 `/api/cockpit/...`。命名对照：后端 `{Module}{Endpoint}Controller` ↔ 前端 `I{Entity}Api`、后端 `{Entity}{Action}{Endpoint}Map` ↔ 前端同名 TS interface。
+后端按需启用官方命名端 `Cockpit`（驾驶舱）时，前端按需新建对应工程（`frontend/cockpit/`），工程内目录仍扁平、URL 用 `/api/cockpit/...`。命名对照：后端 `{Module}{Endpoint}Controller` ↔ 前端 `I{Entity}Api`、后端 `{Entity}{Action}{Endpoint}Map` ↔ 前端同名 TS interface。
 
 #### 拆分原则：何时放 Shared/，何时各端一份
 
@@ -129,7 +135,7 @@ AdminControllerBase 提供：
 
 ```
 格式：api/{端标识}/{模块名}/{操作}
-端标识：默认 manager / app / third；可按项目扩展（如 cockpit / openapi / iot），与目录/类名端段一致
+端标识：官方命名端 manager / app / cockpit / third（cockpit 按需）；其他端按项目扩展（如 openapi / iot），与目录/类名端段一致
 禁止在路由中包含版本号（v1、v2）
 ```
 
@@ -243,7 +249,7 @@ Controller 层**禁止直接返回 EF Core 实体**。Entity → DTO 转换必�
 
 ### 命名约定
 
-所有 DTO **必须以 `Map` 结尾**，**禁止使用 Request/Response/Dto 后缀**。端特定的 DTO 在 `{Action}` 与 `Map` 之间插入端段 `{Endpoint}`（`Manager`/`App`/`Third`），与所在目录、命名空间一致；只有放在 `DTOs/Shared/` 的跨端共用 DTO 不带端段：
+所有 DTO **必须以 `Map` 结尾**，**禁止使用 Request/Response/Dto 后缀**。端特定的 DTO 在 `{Action}` 与 `Map` 之间插入端段 `{Endpoint}`（官方命名端 `Manager`/`App`/`Cockpit`/`Third`，Cockpit 按需），与所在目录、命名空间一致；只有放在 `DTOs/Shared/` 的跨端共用 DTO 不带端段：
 
 | 类型 | 命名格式（端特定） | 示例（Manager 端） | 共用（Shared/） |
 |-----|------------------|-------------------|----------------|
@@ -288,7 +294,7 @@ throw new WebApiException(HttpStatusCode.Forbidden, "无权操作");
 
 ### Service 模板
 
-Service 按端类型命名并归档：管理端 `Services/Manager/XxxManagerService.cs`，应用端 `Services/App/XxxAppService.cs`；跨端共用逻辑放 `Services/Shared/XxxSharedService.cs`（类名无端后缀），由各端 Service 注入复用。
+Service 按端类型命名并归档：管理端 `Services/Manager/XxxManagerService.cs`，用户端 `Services/App/XxxAppService.cs`，驾驶舱（按需）`Services/Cockpit/XxxCockpitService.cs`；跨端共用逻辑放 `Services/Shared/XxxSharedService.cs`（类名无端后缀），由各端 Service 注入复用。
 
 ```csharp
 // 文件：Services/Manager/XxxManagerService.cs   命名空间：...Services.Manager
@@ -339,16 +345,16 @@ queryable = queryable.Where(x => visibleDeptIds.Contains(x.dept_id));
 
 ## DI 注册
 
-在 Startup.cs 第 9 步添加各端 Service 的注册：`services.AddScoped<XxxManagerService>();`（App/Third 端同理，各自一个 `AddScoped`；跨端共用 Service 注册 `XxxSharedService`）。
+在 Startup.cs 第 9 步添加各端 Service 的注册：`services.AddScoped<XxxManagerService>();`（App/Cockpit/Third 端同理，各自一个 `AddScoped`，Cockpit 按需；跨端共用 Service 注册 `XxxSharedService`）。
 
 ## 代码审查清单
 
 ### 路由与 HTTP 方法
 - [ ] 仅使用 GET 和 POST 方法
-- [ ] 路由以 `api/` 开头，端标识（manager/app/third）与目标端一致，无版本号
+- [ ] 路由以 `api/` 开头，端标识（官方命名端 manager/app/cockpit/third，cockpit 按需；或项目扩展端）与目标端一致，无版本号
 
 ### 端类型分层
-- [ ] 端特定类（Controller/Service/DTO）按端类型分目录（Manager/App/Third），跨端共用类放 Shared/
+- [ ] 端特定类（Controller/Service/DTO）按端类型分目录（官方命名端 Manager/App/Cockpit/Third，Cockpit 按需），跨端共用类放 Shared/
 - [ ] 端特定类类名带端后缀：`{Module}{Endpoint}Controller` / `{Module}{Endpoint}Service` / `{Entity}{Action}{Endpoint}Map`
 - [ ] 同一模块的 URL 路由前缀、目录、命名空间、类名端段四处一致
 

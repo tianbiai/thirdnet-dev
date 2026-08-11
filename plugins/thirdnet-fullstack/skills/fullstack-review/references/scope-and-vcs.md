@@ -112,7 +112,7 @@ else → 无 VCS，全项目扫描 backend/ + frontend/src/
 - `Models/{Entity}Model.cs` + `EntityConfigurations/{Entity}Configuration.cs`
 - `DTOs/` 下的 `{Entity}*Map.cs`（Query/Create/Update/Item/Detail）
 - `Services/{Entity}Service.cs`
-- `Controllers/{Manager,App,Third}/{Entity}*Controller.cs`
+- `Controllers/{Manager,App,Cockpit,Third}/{Entity}*Controller.cs`
 - 权限注解（`[PermissionAuthorize("...:{entity}:...")]`）
 - `Startup.cs` 中 `{Entity}Service` 的 DI 注册（第 9 步）
 - 菜单数据（`t_sys_menu` 中该模块的目录/页面/按钮条目，若可查）

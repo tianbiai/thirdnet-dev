@@ -125,7 +125,7 @@ backend/
         └── Models/                     # 空，待开发
 ```
 
-> 上树仅 seed 了 `Controllers/Manager/`（健康检查占位）。`Controllers/`、`Services/`、`DTOs/` 的**四端子目录**（`Manager/`、`App/`、`Third/`、`Shared/`，默认集合可扩展）由 net-api-developer「端类型分层组织」规定，**按需创建**——不要把此处仅含 Manager 的脚手架误读为完整布局。
+> 上树仅 seed 了 `Controllers/Manager/`（健康检查占位）。`Controllers/`、`Services/`、`DTOs/` 的**官方命名端子目录**（`Manager/`、`App/`、`Cockpit/`、`Third/`、`Shared/`；脚手架仅 seed Manager 占位，其余按需创建，其他端可扩展）由 net-api-developer「端类型分层组织」规定，**按需创建**——不要把此处仅含 Manager 的脚手架误读为完整布局。
 
 ## 生成后校验与修复（已知模板缺陷）
 

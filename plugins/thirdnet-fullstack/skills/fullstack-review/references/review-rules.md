@@ -15,7 +15,7 @@
 | 实体类用 `Model` 后缀（`SysUserModel`），纯 POCO | `net-efcore-developer` | `Database/Models/*.cs` 类名以 `Model` 结尾 |
 | DTO **必须** `Map` 后缀，**禁止** `Request`/`Response`/`Dto`（`{Entity}CreateMap` / `UpdateMap` / `QueryMap`(继承 `PageQueryDto`) / `ItemMap` / `DetailMap`） | `net-api-developer` | grep DTO 目录类名 `Request\|Response\|Dto$` → 命中即违例 |
 | 全链路 snake_case（C# 属性 ↔ JSON ↔ DB 列） | `backend-workflow` / `net-efcore-developer` | 实体/DTO 公共属性为小写 snake_case，无 PascalCase |
-| Controller 类名带端类型后缀：`{Module}ManagerController` / `AppController` / `ThirdController`（端集合默认 Manager/App/Third + Shared，可按项目扩展如 Cockpit/OpenApi/IoT） | `net-api-developer` | `*Controller.cs` 文件名与类名匹配 `*(Manager\|App\|Third)Controller`（扩展端按项目内一致判定） |
+| Controller 类名带端类型后缀：`{Module}ManagerController` / `AppController` / `CockpitController` / `ThirdController`（官方命名端 Manager/App/Cockpit/Third + Shared，Cockpit 按需；其他端按项目扩展如 OpenApi/IoT） | `net-api-developer` | `*Controller.cs` 文件名与类名匹配 `*(Manager\|App\|Cockpit\|Third)Controller`（扩展端按项目内一致判定） |
 | Service 类名 `{Entity}Service`，**无** `I` 前缀，DI 注入具体类型 | `net-api-developer` | `services.AddScoped<XxxService>()`，非 `IXxxService` |
 | Cache 类 `{Domain}Cache : RedisCacheManager`，置于 `{Project}.Cache/Domain/` | `net-cache-use` | 类名 `Cache` 结尾、继承 `RedisCacheManager`、命名空间无 `.Admin.` |
 | View 模型 `View` 后缀（`UserView`），无 Fluent 配置 | `net-efcore-developer` | `View/*.cs` 以 `View` 结尾，无对应 `IEntityTypeConfiguration<>` |
@@ -97,7 +97,7 @@
 |------|------|----------|
 | `.csproj` 的 `TargetFramework` 一律 `net10.0`，EF Core/Npgsql 10.x | `backend-workflow` | 所有后端 `.csproj` 有 `<TargetFramework>net10.0</TargetFramework>` |
 | Admin 目录布局（`Admin/{Project}.Admin.APIService` + `Database`、`Tools/{Project}.Common` + `Cache`），解决方案文件夹分离 | `backend-workflow` | 目录树匹配 |
-| Controller 按端分目录 `Controllers/{Manager,App,Third}/` | `net-api-developer` | `*Controller.cs` 在匹配后缀的子目录 |
+| Controller 按端分目录 `Controllers/{Manager,App,Cockpit,Third}/`（Cockpit 按需） | `net-api-developer` | `*Controller.cs` 在匹配后缀的子目录 |
 | Service 微服务引用 Admin.Common + Admin.Cache（`ProjectReference`），无 `Service/` 子层 | `net-microservice-generator` | Service `.csproj` 有两条 ProjectReference |
 | 双数据库：Admin 用 `ThirdNetDbContext`+`AdminDbContext`；Service 用 `ServiceDbContext`；appsettings 有 `DefaultConnectionString`+`ConnectionString` | `backend-workflow` / `net-microservice-generator` | 配置键齐全 |
 | 10 步 DI 注册顺序（不可调换），业务 Service 在第 9 步 | `backend-workflow` | 新 Service 注册在步骤 9 |

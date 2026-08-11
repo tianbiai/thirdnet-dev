@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.46.0 - 2026-08-11
+
+### Changed
+- **端类型命名规范收敛为「官方命名端」固定中英文对照，Cockpit 升为官方命名端**：原规范里 App 端中文叫法不统一（「C 端应用」「应用端」「用户端」混用），且 `Cockpit`（驾驶舱）只是「自定义扩展端」举例（2.43.0 明确写过「`cockpit` 不进默认集合」）、没有正式命名地位。本次把命名规范收敛为：**官方命名端 管理端 `Manager` / 用户端 `App` / 驾驶舱 `Cockpit`（按需）/ 第三方 `Third`**，跨端共用放 `Shared/`，其他端根据项目需要命名（如 `OpenAPI`、`Iot`）。其中 Manager/App/Third 仍是常见默认端，**Cockpit 同为官方命名端但保持按需创建**（项目有数据可视化/大屏需求时才建 `Controllers/Cockpit/`）——不进默认脚手架。英文端段代码（`Manager`/`App`/`Cockpit`/`Third`）不变，变的是中文叫法、Cockpit 的命名地位、以及各处对照表。
+  - **`net-api-developer`（1.3.0 → 1.4.0，权威源）**：frontmatter 描述、节标题、散文（App 统一「用户端」、Cockpit 加入并标「按需」）、目录树（Controllers/Services/DTOs 三层均加 `Cockpit/` 行）、类名后缀表（Controller/Service/DTO 示例补 `ParkCockpitController`/`ParkCockpitService`/`ParkItemCockpitMap`）、开放集合条款（Cockpit 从「扩展示例」移入「官方命名端」）、命名↔文件夹↔路由对照表（新增 Cockpit 行：`api/cockpit/...`）、路由模式（端标识加 cockpit）、DTO 命名约定、Service 模板、DI 注册、审查清单——逐处对齐。`references/controller-service-examples.md` 顶部说明同步。
+  - **后端镜像技能对齐**：`backend-workflow`（项目结构注释、功能开发流 DTOs/Services/Controllers 路径、代码规范检查项、速查表 DTO 命名 + 端类型分层两行）、`net-microservice-generator`（脚手架注释「四端子目录」→「官方命名端子目录」并列入 Cockpit）、`agents/backend-developer.md`（DTO 命名速记 `{Endpoint}` 集合）。
+  - **审查规则对齐**：`fullstack-review/references/review-rules.md`（A1 Controller 命名规则端集合 + 正则 `*(Manager\|App\|Cockpit\|Third)Controller`、Controller 分目录规则）、`scope-and-vcs.md`（后端 8 件套路径 `Controllers/{Manager,App,Cockpit,Third}/`）。
+  - **前端词汇表对齐（结构不动，仅叫法/对照表）**：`api-typescript-spec`——frontmatter 触发词补 `cockpit/驾驶舱/用户端/frontend/cockpit`；「工程↔端↔URL 前缀」对照表 App 行标「用户端」、新增 `frontend/cockpit/`（驾驶舱，按需）行；URL 命名 `{endpoint}` 说明补 `驾驶舱工程=cockpit`；各端 URL 前缀小节把 Cockpit 从「扩展端」拆为独立的「驾驶舱工程（按需）」行，「扩展端」只留 `openapi/iot` 等真正项目自定义端。前端「按工程分端、工程内 `api/` 扁平」**不变**。
+  - 不改：`thirdnet-fullstack` 协调技能、`fullstack-review/SKILL.md`、`admin-module-mapping.md`、`auth-module.md` 等仅引用权威源或纯 Manager 示例的文件（已核对无「应用端/C 端」陈旧叫法、无待补 Cockpit 的端枚举）。
+
+### 版本同步
+- `plugin.json` / 协调技能 `thirdnet-fullstack/SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.45.0 → 2.46.0`；`marketplace.json` 顶层 `metadata.version` 由 `0.69.0 → 0.70.0`（端类型命名规范是跨技能的规范级变更，bump 顶层）。
+- 子技能 bump：`net-api-developer` 1.3.0→1.4.0（权威源有实质改）；其余子技能内容无实质改不动。
+
 ## 2.45.0 - 2026-08-11
 
 ### Changed

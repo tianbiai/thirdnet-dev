@@ -6,7 +6,7 @@ description: >
   Real/Mock 可互换。当用户需要创建 API 接口、添加接口模块、编写 Mock 数据、定义请求类型、设置 API 层架构，
   或任何涉及 api/ 与 mock/ 目录的操作时，必须使用此技能。
   触发词：API、接口、Mock、请求、adapter、类型定义、DTO、策略模式、工厂模式、接口契约、IXxxApi、
-  manager、app、third、第三方对接、管理后台、小程序、frontend/web、frontend/minigram、按工程分端、URL 前缀。
+  manager、app、cockpit、third、管理端、用户端、驾驶舱、第三方对接、管理后台、小程序、frontend/web、frontend/minigram、frontend/cockpit、按工程分端、URL 前缀。
 license: MIT
 metadata:
   version: "2.4.0"
@@ -41,11 +41,12 @@ API 层采用**接口契约的策略工厂模式**——组合策略（`IXxxApi`
 
 | 前端工程 | 服务端 | URL 前缀（后端真实路由） |
 |---|---|---|
-| `frontend/web/`（管理后台） | Manager | `/api/manager/...` |
-| `frontend/minigram/`（小程序 / H5） | App | `/api/app/...` |
-| （第三方对接通常无前端工程） | Third | `/api/third/...` |
+| `frontend/web/`（管理后台） | Manager（管理端） | `/api/manager/...` |
+| `frontend/minigram/`（小程序 / H5） | App（用户端） | `/api/app/...` |
+| `frontend/cockpit/`（驾驶舱，按需） | Cockpit（驾驶舱） | `/api/cockpit/...` |
+| （第三方对接通常无前端工程） | Third（第三方） | `/api/third/...` |
 
-URL 前缀里的端段（`manager`/`app`/`third`）来自后端路由，**由工程所属端决定，是工程级常量**——同一工程内所有模块共用一个前缀，不是逐模块选择的目录维度。Real 实现里直接写死本工程的前缀即可（如 admin 工程写 `/api/manager/...`）。
+URL 前缀里的端段（官方命名端 `manager`/`app`/`cockpit`/`third`，`cockpit` 按需）来自后端路由，**由工程所属端决定，是工程级常量**——同一工程内所有模块共用一个前缀，不是逐模块选择的目录维度。Real 实现里直接写死本工程的前缀即可（如 admin 工程写 `/api/manager/...`）。
 
 ### 工程内目录（扁平）
 
@@ -160,7 +161,7 @@ interface ApiError { status: number; message: string }
 | 删除 | `/api/{endpoint}/{module}/delete` | POST |
 | 自定义 | `/api/{endpoint}/{module}/{action}` | POST |
 
-`{endpoint}` 由**工程所属端**决定（admin 工程=`manager`、小程序工程=`app`、第三方=`third`），小写、与后端路由前缀一致——是工程级常量，并非目录维度。
+`{endpoint}` 由**工程所属端**决定（admin 工程=`manager`、小程序工程=`app`、驾驶舱工程=`cockpit`、第三方=`third`），小写、与后端路由前缀一致——是工程级常量，并非目录维度。
 
 #### DTO 命名：`{Entity}QueryParams`、`{Entity}CreateParams`、`{Entity}UpdateParams`、`{Entity}Item`
 
@@ -340,8 +341,9 @@ export class MockOrderApi implements IOrderApi {
 
 - **管理后台工程（`frontend/web/`）**：URL 用 `/api/manager/...`，如 `/api/manager/notice/list`。Admin 模板整站属此工程。
 - **小程序工程（`frontend/minigram/`）**：URL 用 `/api/app/...`，如上面的 `/api/app/order/list`。
+- **驾驶舱工程（`frontend/cockpit/`，按需）**：URL 用 `/api/cockpit/...`；同一工程内目录仍扁平。
 - **第三方对接**：通常无前端工程（后端被动接收回调/推送）；若需前端调用，URL 用 `/api/third/...`。
-- **扩展端**：后端新增端（如 `cockpit` 驾驶舱）时，对应前端工程 URL 用 `/api/cockpit/...`；同一工程内目录仍扁平。
+- **其他扩展端**：后端按项目新增端（如 `openapi` 开放接口、`iot` 设备端）时，对应前端工程 URL 用对应前缀；同一工程内目录仍扁平。
 
 ### 步骤 4：配置
 

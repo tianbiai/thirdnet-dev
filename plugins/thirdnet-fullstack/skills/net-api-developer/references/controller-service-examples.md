@@ -2,7 +2,7 @@
 
 本文档包含从代码库提取的完整 Controller 和 Service 代码示例，展示所有端点模式和 Service 层核心模式。
 
-> 以下为**管理端（Manager）**示例：Controller 在 `Controllers/Manager/`、Service 在 `Services/Manager/`、DTO 在 `DTOs/Manager/System/`，类名与命名空间均带 `Manager` 端段。App/Third 端把 `Manager` 换成对应端、目录与路由前缀同步即可——端集合默认 `Manager/App/Third`，**可按项目扩展**（如 `Cockpit` 驾驶舱、`OpenAPI`、`Iot`），新增端沿用完全相同的换端规则（见 SKILL「端类型分层组织」）。
+> 以下为**管理端（Manager）**示例：Controller 在 `Controllers/Manager/`、Service 在 `Services/Manager/`、DTO 在 `DTOs/Manager/System/`，类名与命名空间均带 `Manager` 端段。App/Cockpit/Third 端把 `Manager` 换成对应端、目录与路由前缀同步即可——官方命名端为 `Manager/App/Cockpit/Third`（Cockpit 按需），其他端按项目扩展（如 `OpenAPI`、`Iot`），均沿用完全相同的换端规则（见 SKILL「端类型分层组织」）。
 
 ## 目录
 
