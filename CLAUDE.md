@@ -65,7 +65,7 @@ marketplace 还声明了若干外部插件（superpowers / supabase-postgres-bes
 - **测试（1）**：`e2e-test-generator`——纯 UI 驱动 E2E 测试套件生成（探索任意项目代码库 → 按真实选择器 / 业务流程生成 Playwright（Python）套件；多角色 + 数据范围 + 跨端一致 + 越权负向「按钮 DOM 不存在」；测试不直连后端、仅驱动 DOM）。项目无关，适用于任意 web / 移动代码库
 - **文档（1）**：`thirdnet-doc-generator`——项目交付文档生成（需求规格/系统设计/用户手册/测试用例，Markdown 可转 Word）；另可生成技术参考类「数据库表结构文档」（经 dbhub MCP 实时导出 PostgreSQL 表结构：表名/schema/表用途/字段·列名·类型·注释·备注）
 - **模板升级（1）**：`thirdnet-template-upgrade`
-- **原型同步（1）**：`proto-workflow`——原型分支同步编排（固定命名 `.Proto` 分支 + 与 main 双向 `svn merge` 同步）
+- **原型同步（1）**：`proto-workflow`——原型分支同步编排（固定命名 `.Proto` 分支 + 与 main 双向 `svn merge` 同步；支持派生 `.Proto.{Feature}` 并行功能分支、选择性合并到主干，六确认门 A/B/C/D/E/F）
 - **工具（2）**：`md-to-word`、`thirdnet-mcp-setup`——Postgres MCP 装配（Admin 创建时默认挂 `@bytebase/dbhub`，让 Claude Code 直查 PostgreSQL；连接串从 appsettings 读出、用户确认用哪个库）
 
 ## 常用命令

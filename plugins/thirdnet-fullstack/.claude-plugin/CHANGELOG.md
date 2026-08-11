@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.47.0 - 2026-08-11
+
+### Changed
+- **`skills/proto-workflow/`（1.2.0 → 1.3.0）新增「并行原型功能分支 + 选择性合并到主干」能力**：原模型是单 `.Proto` 分支 + 门 C 整体合并（`svn merge .Proto` 全量带进 main），无法支持「多个功能在原型上并行开发、一个完成合并主干、另一个暂不合并」——只要 A、B 都在同一个 `.Proto` 上提交过，门 C 一执行 A、B 必然一起进 main。本次采用**方案 A1（功能分支基于 `.Proto` 派生、完成后直接合并到 main、`.Proto` 退化为纯基线镜像）**——`svn merge .Proto.{Feature}` 到 main 只带该功能、不带其它，是 SVN 下实现选择性合并最稳妥的方式（靠物理分支隔离，而非靠人脑记 revision）。
+  - **新增三个确认门 D / E / F**：门 D（基于原型分支创建原型功能分支，技能执行 `svn copy .Proto → .Proto.{Feature}`）；门 E（原型功能分支合并到主干，选择性，技能执行 `svn merge .Proto.{Feature}` 到 main、非提交）；门 F（原型分支同步到原型功能分支，基线回灌，技能执行 `svn merge .Proto` 到 `.Proto.{Feature}`、非提交）。门 D 的 `svn copy` 经确认由技能执行（同门 A）；门 E/F 的 `svn merge` 非提交，提交交用户手动。原有门 A/B/C 单功能迭代流程**完全保留、向后兼容**。
+  - **`.Proto` 角色收敛为纯基线镜像**：自身不攒任何功能代码、永远干净，只从 main 同步进来作功能分支派生起点；功能合并走门 E 直接到 main、不经 `.Proto`，避免 `.Proto` 同时当基线+暂存区导致的三级 mergeinfo 纠缠。
+  - **分支命名约定**：原型功能分支 `{Project}.Proto.{Feature}`（`{Feature}` PascalCase，如 `Park.Proto.Alarm`、`Park.Proto.Map`）；合并进 main 并验证后可删除（与 `.Proto` 长期存在不同）。
+  - **新增「并行功能分支生命周期」工作流**（SKILL.md）：以用户验证过的 7 步流程为骨架——① 门 B 建/刷新基线 → ② 门 D 派生 .Proto.Alarm / .Proto.Map → ③ 各分支做 Mock 原型 → ④ 门 E 合并 Alarm 到 main（只带 Alarm）→ ⑤ main 上做 Alarm 真实实现 → ⑥ 门 B 回灌基线 + 门 F 把基线喂给 Map（**关键纪律：Map 合并主干前必走此步，否则共享脚手架冲突**）→ ⑦ 门 E 合并 Map 到 main。
+  - **关键规则补三条**：功能分支是选择性合并的单位；功能分支合并主干前必须先经门 F 同步基线（否则 `src/router/index.ts` 路由表、`src/api/modules/index.ts` 工厂注册必冲突）；功能分支可删除、`.Proto` 不可。
+  - **`references/svn-commands.md`**：路径约定补 `.Proto.{Feature}` 仓库路径与 `{wcProtoFeat}` 工作副本；命令总表补三行（建功能分支门 D / 合并功能分支→main 门 E / 同步 .Proto→功能分支 门 F）；新增三节执行细节（确切命令 + 冲突检测 + 用户手动 commit 模板）；提交信息模板补三行。
+  - **`references/checklists.md`**：新增「功能分支预检清单」——门 F 前（`.Proto` 已先经门 B 新鲜、`{wcProtoFeat}` 干净、预警共享脚手架冲突）、门 E 前（已先经门 F 同步基线且冲突已解决、选择性正确只带目标功能）；冲突处理清单补门 F 必查项（路由表 + 工厂注册）与门 E/F 的 commit 命令。
+  - **`SKILL.md` frontmatter `description`** 补并行功能分支与选择性合并能力 + 触发词（基于原型分支创建原型功能分支 / 原型功能分支合并到主干 / 把原型分支同步到原型功能分支 / 并行原型 / 选择性合并）；迭代参数表补 `{Feature}` / `{wcProtoFeat}`；分支模型表补原型功能分支行；确认门清单由三道扩为六道（A/B/C + D/E/F）；交付校验清单补并行场景两条（门 E 前已先经门 F、门 E 选择性正确）。
+  - **协调技能 `thirdnet-fullstack/SKILL.md`** 路由表触发场景与自包含说明同步：`proto-workflow` 描述由「三确认门」改为「六确认门」、补「支持 `.Proto.{Feature}` 并行功能分支与选择性合并」。
+- **设计决策对比（备查）**：评估过方案 B（单一 .Proto + `svn merge -c` 按 revision 摘选，revision 归属易错、共享脚手架提交难拆分）、方案 C（功能分支直接从 main 派生，颠覆 `.Proto` 原型主阵地设计）、方案 A2（featA→.Proto→main 两段合并，`.Proto` 角色混乱 + 三级 mergeinfo 纠缠），均否决；方案 A1（featA→main 直接合并、`.Proto` 纯基线）以「角色最内聚、mergeinfo 最简单、选择性最可靠」胜出。
+
+### 版本同步
+- `plugin.json` / 协调技能 `thirdnet-fullstack/SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.46.0 → 2.47.0`；`marketplace.json` 顶层 `metadata.version` 由 `0.70.0 → 0.71.0`（proto-workflow 分支模型从两层扩为三层、新增并行功能分支选择性合并，是分支模型的规范级扩展，视为重大变更故 bump 顶层）。
+- 子技能 bump：`proto-workflow` `1.2.0 → 1.3.0`。
+- `hooks.json` 不变——proto-workflow 走 Bash 执行 SVN，不落 Pre/PostToolUse 合规门（与历次 proto-workflow 变更一致）。
+
 ## 2.46.0 - 2026-08-11
 
 ### Changed
