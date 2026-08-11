@@ -1,5 +1,36 @@
 # Changelog
 
+## 2.45.0 - 2026-08-11
+
+### Changed
+- **端类型目录分组回归后端专属——前端按工程分端、`api/` 与 `mock/` 扁平化**：2.43.0 把「端类型目录分组（manager/app/third/shared）」从前端贯穿到后端，使前端 `api/`、`mock/` 也按端建子文件夹。但前端本就**按工程分端**（`frontend/web/` = 管理后台、`frontend/minigram/` = 小程序），工程本身即端，工程内再按端建 `{endpoint}/` 子层等于二次分端、属冗余。事实上 admin 模板真实产物本就是扁平的，2.43.0 反而把它标成「待对齐历史遗留」——技能与模板脱节。本次让技能回归现实：**端类型目录命名规范只属于后端（单库多端、按端分目录做字段越权隔离）；前端工程内 `api/` 与 `mock/` 扁平，不再按端分组**。URL 前缀（`/api/manager/...`、`/api/app/...`）仍保留，成为**工程级常量**（由工程所属端决定），而非模块级变量。极少数「单前端工程承载多端」的案例（如 protohub = app+manager）作为**例外**可选按端建子文件夹，但规范默认扁平。
+  - **`api-typescript-spec`（2.3.0 → 2.4.0，主重写）**：删除整节「端类型与目录映射」，替换为「前端按工程分端（目录扁平）」——工程↔端对照（web=manager、minigram=app）、URL 前缀由工程决定、多端工程为例外；删除前端 `Endpoint` TS 类型与「DTO 归属规则」「单端项目可折叠」两节；5 文件示例全部扁平化（`api/types/app/order.ts`→`api/types/order.ts` 等，import 同步）、`types/shared/{common,enums}` 提到 `types/` 根；URL 示例保留 `/api/app/order/list`（注明 app 段是工程所属端、非目录）。references：`adapter-implementation.md` `shared/common`→`common`；`mock-stripping.md` 删「与端类型正交」表述改为「工程内扁平、任何模块放 mock/data/ 即覆盖」；`auth-module.md` 路径去 manager 段、删「待对齐历史遗留」措辞。
+  - **`net-api-developer`（保留后端分组、重映射对照）**：后端 Controller/Service/DTO 按 Manager/App/Third/Shared 分目录的整套逻辑**完全保留**（单库多端的字段越权隔离不能丢）；重写「前后端对照」表——前端列去端段（`api/interfaces/manager/user.ts`→`api/interfaces/user.ts`）、删「跨端共用」行，表头改为「后端单库按端分目录 vs 前端按工程分端，对照关系是工程↔端而非逐层目录镜像」。
+  - **前端下游全面扁平化**：`thirdnet-fullstack` 协调技能前端阶段步骤表 5 文件去端段、对齐说明改为「前端按工程分端、工程内扁平」；`frontend-workflow` 目录树 + 检查项扁平；`admin-template-setup` + `frontend-template-structure`/`crud-page-development-guide` 两 references 反转「扁平=待对齐历史遗留」为正面陈述（扁平是标准）；`fullstack-review` SKILL.md 模块推断 + `scope-and-vcs.md` 路径表/5 类契约清单 + `review-rules.md` B1 5 文件检查扁平化、删「DTO 端归属不重复」检查；`proto-workflow` SKILL.md + `svn-commands`/`checklists` 冲突热点改为「默认扁平、多端工程例外」。
+  - **数字孪生资产迁移**：`thirdnet-digital-twin`（2.31.0 → 2.32.0）移动 3 个打包资产出 manager/ 子层（`assets/api/{interfaces,modules,mock/api}/manager/digital-twin.ts`→去 manager 段），内部相互 import 同步；`GlobalTwin.vue` import、`generate_data.py` 输出路径（`src/mock/data/manager/digital-twin.ts`→`src/mock/data/digital-twin.ts`）、SKILL.md 与 dynamic-data-api/park-scene-impl/park-spec 三 references 路径同步。
+  - **钩子**：`hooks.json` PostToolUse「API 策略工厂架构检查」第 4 条 Mock 数据路径 `src/mock/data/{endpoint}/{module}.ts` → `src/mock/data/{module}.ts`；三件检查（IXxxApi/Real+Mock/createXxxApi）端无关、保持；PreToolUse 触发匹配不变。
+  - **遗留清理**：`vue-enum-dict`（1.0.0 → 1.0.1）两处示例 import `@/api/modules/manager/dict` → `@/api/modules/dict`（2.43.0 端类型扫描遗漏的陈旧路径，本次一并修正）。
+
+### 版本同步
+- `plugin.json` / 协调技能 `thirdnet-fullstack/SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.44.0 → 2.45.0`；`marketplace.json` 顶层 `metadata.version` 由 `0.68.0 → 0.69.0`（端类型目录分组回归后端专属是贯穿前后端生成代码的规范级变更，视为重大变更故 bump 顶层）。
+- 子技能 bump：`api-typescript-spec` 2.3.0→2.4.0、`thirdnet-digital-twin` 2.31.0→2.32.0、`vue-enum-dict` 1.0.0→1.0.1。
+
+## 2.44.0 - 2026-08-11
+
+### Changed
+- **`skills/e2e-test-generator/`（0.3.0 → 0.4.0）修复「生成的测试与真实 UI 对不上、跑不过、要反复手工调数据」**：根因是技能被刻意设计成「生成机只读源码、绝不碰真实 UI」——selector/label 全从 `.vue` 源码推断，唯一会碰 DOM 的「可选冒烟」是 opt-in 且默认关闭，技能甚至把首次真跑的失败预先命名为「校准点」甩给执行者。同时 Phase 0 明确不问 URL/账密，`config.py` 用编造的占位值 `admin/admin@123`。两处叠加导致交付的套件从未对真实 DOM 验证过。本次翻转默认行为为「可达就连、连上就强制自检自修；不可达才显式降级标注 UNVERIFIED」，并把环境信息列为 Phase 0 必问项。
+  - **`SKILL.md` 阶段 0**：问题清单从 4 项扩到含「测试环境地址（Web/移动端 URL）」「各角色账密（超管 + 每个 scoped 角色，未提供则主动追问、绝不编造）」「环境此刻是否可达」；改写根因文案「默认不连接…真实 URL 留到运行阶段」→「默认尝试连接做活校准；不可达才降级并显式标注 UNVERIFIED」。
+  - **`SKILL.md` 两个阶段节**：把「生成 vs 运行 / 生成阶段绝不连接」改写为「生成阶段默认就连真实 UI 自检；源码推断只是草稿，真实 DOM 才是 selector/label 的最终事实来源」。
+  - **`SKILL.md` 阶段 4 重构为「静态(4a) → 活校准门(4b) → 降级分支(4c) → 交付(4d)」**：4b 环境可达时**强制**跑 `lib/calibrate.py` 比对真实 DOM、据 `reports/calibration.md` 修 `selectors.py`（修代码不削弱测试）、循环至全绿，给出最小通过线（登录/菜单进模块/弹窗打开/label 命中/列头读到）；4c 不可达时在 README 与 TEST_PLAN 顶部贴 `⚠️ UNVERIFIED` 标注 + 复验步骤。
+  - **`references/verification.md` 大改**：原「§2 可选冒烟（默认不做）」→「§2 活校准门（可达即强制）」，含探针用法、修代码 vs 削弱测试的纪律、最小通过线、§2.3 降级分支的 UNVERIFIED 标注规范；§3 校准点语气从「首次会坏，认了」改为「换环境复跑时优先关注」；输出形态树与参考索引同步。
+  - **新增 `assets/lib-skeletons/calibrate.py.tpl` 活校准探针**（通用层，按原样拷贝）：复用 `harness.Harness` + `sessions.get_web` + `web_crud`/`web_login` 原子，纯 UI 守铁律；逐项验登录页 placeholder/按钮文案、侧边栏菜单导航、新增弹窗 + 表单 label、列表列头；产出 `reports/calibration.md`（每条 ✅/❌ + 未命中项的 DOM 最近似文本）；退出码 0=全命中 / 1=有未命中。`selectors.py.tpl` 同步新增 `CALIBRATION_PLAN`（每模块期望 label/列头，留空退化为发现辅助）。
+  - **`assets/lib-skeletons/config.py.tpl`**：注释从「localhost 惰性占位，真实地址由执行者提供」→「默认值来自阶段 0 用户输入；账密必须用真实值覆盖、绝不编造」。
+  - **`references/discovery.md`**：反模式段新增首条「把源码读到的 selector/label 当最终事实」——明确源码推断是待 4b 校准的草稿，运行时现实只能靠真实 DOM 抓到。
+
+### 版本同步
+- `plugin.json` / 协调技能 `thirdnet-fullstack/SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.43.0 → 2.44.0`；`marketplace.json` 顶层 `metadata.version` 由 `0.67.0 → 0.68.0`（e2e 技能工作模型翻转：生成阶段默认连真实 UI 自检，属生成行为规范级变更，视为重大变更故 bump 顶层）。
+- 子技能 bump：`e2e-test-generator` 0.3.0→0.4.0。
+
 ## 2.43.0 - 2026-08-10
 
 ### Changed

@@ -7,7 +7,7 @@
 
 本文件是「动态数据」层的唯一事实来源：定义接口契约、Mock/Real 切换、组件水合时序、宿主自适应、后端端点契约（**前端先行**）。规范细节（5 文件契约层、`IXxxApi`+Real/Mock+工厂、`VITE_MOCK_ENABLED`、GET-only、snake_case、响应无信封）**严格遵循 `api-typescript-spec` 技能**——本文件只补数字孪生特有的内容。编写契约层前若有疑问，先读 `api-typescript-spec`。
 
-> **核心约定**：5 个契约文件中，**4 个静态样板已固化为 `assets/api/` 可拷贝模板**（`types/`、`interfaces/manager/`、`modules/manager/`、`mock/api/manager/` + 独立项目的 `request.ts`/`config/index.ts`）。生成器**逐字拷贝**这些模板（仅按宿主对齐 import 路径），不再照下文代码块手写。下文代码块是「输出形状」的事实来源，与模板逐字一致，仅供理解；真正落地时拷模板即可。只有第 ⑤ 个 `mock/data/manager/digital-twin.ts` 由 `generate_data.py` 从 spec 派生（非模板）。
+> **核心约定**：5 个契约文件中，**4 个静态样板已固化为 `assets/api/` 可拷贝模板**（`types/`、`interfaces/`、`modules/`、`mock/api/` + 独立项目的 `request.ts`/`config/index.ts`）。生成器**逐字拷贝**这些模板（仅按宿主对齐 import 路径），不再照下文代码块手写。下文代码块是「输出形状」的事实来源，与模板逐字一致，仅供理解；真正落地时拷模板即可。只有第 ⑤ 个 `mock/data/digital-twin.ts` 由 `generate_data.py` 从 spec 派生（非模板）。
 
 ## 1. 数据分层总表
 
@@ -58,21 +58,21 @@ src/
 ├── config/index.ts                          # MOCK_ENABLED、API_BASE_URL（自适应宿主，见 §10）
 ├── api/
 │   ├── request.ts                           # 统一 request<T>()（自适应宿主，见 §10）
-│   ├── types/manager/digital-twin.ts        # ① 类型 + 枚举（按端分层，端=manager）
-│   ├── interfaces/manager/digital-twin.ts   # ② IDigitalTwinApi 接口契约
-│   └── modules/manager/digital-twin.ts      # ③ RealDigitalTwinApi + createDigitalTwinApi() + 单例
+│   ├── types/digital-twin.ts                # ① 类型 + 枚举
+│   ├── interfaces/digital-twin.ts           # ② IDigitalTwinApi 接口契约
+│   └── modules/digital-twin.ts              # ③ RealDigitalTwinApi + createDigitalTwinApi() + 单例
 └── mock/
-    ├── api/manager/digital-twin.ts          # ④ MockDigitalTwinApi
-    └── data/manager/digital-twin.ts         # ⑤ 纯 Mock 数据（generate_data.py 派生）
+    ├── api/digital-twin.ts                  # ④ MockDigitalTwinApi
+    └── data/digital-twin.ts                 # ⑤ 纯 Mock 数据（generate_data.py 派生）
 ```
 
 > **Admin 模板宿主**（`create-thirdnet-admin`）的 `api/interfaces/` 是**扁平**结构（无 `manager/` 子目录）——此时把 ② 放 `src/api/interfaces/digital-twin.ts`，③④⑤ 仍按 `manager/` 嵌套。详见 §10。
 
 **①–④ 从 `assets/api/` 模板逐字拷贝**（仅对齐 import 路径）；⑤ 由 `generate_data.py` 生成。下文给出各文件的**字段形状**（与模板逐字一致，供理解 + 后端对齐字段，不需手写）。
 
-## 4. 类型定义（`api/types/manager/digital-twin.ts`）
+## 4. 类型定义（`api/types/digital-twin.ts`）
 
-字段全 snake_case，与后端 `*Map` DTO 一致。**逐字拷贝 `assets/api/types/digital-twin.ts`** 到 `src/api/types/manager/digital-twin.ts`（按端分层、端=manager，对齐 import 路径）。
+字段全 snake_case，与后端 `*Map` DTO 一致。**逐字拷贝 `assets/api/types/digital-twin.ts`** 到 `src/api/types/digital-twin.ts`（工程内扁平，对齐 import 路径）。
 
 关键类型形状（字段名即契约，勿改）：
 - `BuildingRuntimeItem { building_id, name, floors, floor_ids[], header? }` —— `building_id` 与静态脚手架 `buildings[].id` 对应（join key）。
@@ -86,7 +86,7 @@ src/
 
 ## 5. 接口契约（`IDigitalTwinApi`）
 
-**逐字拷贝 `assets/api/interfaces/manager/digital-twin.ts`**。数字孪生动态数据全是**只读聚合查询**，一个接口承载四方法（GET-only、响应**无 `{code,message,data}` 信封**——列表直接返回数组、详情直接返回对象）：
+**逐字拷贝 `assets/api/interfaces/digital-twin.ts`**。数字孪生动态数据全是**只读聚合查询**，一个接口承载四方法（GET-only、响应**无 `{code,message,data}` 信封**——列表直接返回数组、详情直接返回对象）：
 
 ```ts
 export interface DigitalTwinRequestOptions { signal?: AbortSignal }   // 透传 AbortSignal（防快速切换楼层/POI race）
@@ -111,13 +111,13 @@ python scripts/generate_data.py spec.json --out-dir <项目根> --mock-only
 
 产出四个导出：`mockBuildings: BuildingRuntimeItem[]`（从 `spec.buildings[]` 派生 name/floors/floor_ids）、`mockFloorDetails: FloorDetail[]`（每层 1–3 个单位，含 v2.15 叙事档案块 `subtitle/scope/intro_title/intro_body/duties[]/closing`，确定性生成）、`mockPois: PoiRuntimeItem[]`（从 `spec.pois[]` 派生，status 给合理初值 ~85% online，停车场 POI 带 occupancy）、`mockPoiDetails: Record<string, PoiDetail>`（v2.15，键=`poi_id`，按 type 套档案模板：camera/gate 给设备编码/IP/厂家 + 实时抓拍/通行，其余给点位档案）。`building_id` 必须与静态脚手架 `buildings[].id` 一致。
 
-## 7. Mock 实现（`mock/api/manager/digital-twin.ts`）
+## 7. Mock 实现（`mock/api/digital-twin.ts`）
 
-**逐字拷贝 `assets/api/mock/api/manager/digital-twin.ts`**。`async` 方法直接返回派生数据；`getFloorDetail` 按 `building_id + floor_id` 查找、`getPoiDetail` 按 `poi_id` 查 `mockPoiDetails` 表，未命中抛 `ApiError(404)`，响应 `signal.aborted` 抛 `ApiError(0, 'aborted')`（Mock 也尊重取消，便于测试 race）。Mock 抛 `ApiError` 与 Real 一致——组件 `instanceof ApiError` 可判 status。
+**逐字拷贝 `assets/api/mock/api/digital-twin.ts`**。`async` 方法直接返回派生数据；`getFloorDetail` 按 `building_id + floor_id` 查找、`getPoiDetail` 按 `poi_id` 查 `mockPoiDetails` 表，未命中抛 `ApiError(404)`，响应 `signal.aborted` 抛 `ApiError(0, 'aborted')`（Mock 也尊重取消，便于测试 race）。Mock 抛 `ApiError` 与 Real 一致——组件 `instanceof ApiError` 可判 status。
 
-## 8. Real 实现 + 工厂（`api/modules/manager/digital-twin.ts`）
+## 8. Real 实现 + 工厂（`api/modules/digital-twin.ts`）
 
-**逐字拷贝 `assets/api/modules/manager/digital-twin.ts`**。Real 适配 HTTP，工厂按 `MOCK_ENABLED` 选实例，模块级单例：
+**逐字拷贝 `assets/api/modules/digital-twin.ts`**。Real 适配 HTTP，工厂按 `MOCK_ENABLED` 选实例，模块级单例：
 
 ```ts
 class RealDigitalTwinApi implements IDigitalTwinApi {
@@ -144,7 +144,7 @@ export const digitalTwinApi = createDigitalTwinApi()   // 模块级单例
 - 点击 POI → `watch(openPoiId, …, onCleanup)` + `AbortController` 取 `getPoiDetail({poi_id})`（v2.15，同款防 race）；详情按 `poi_id === openPoiId` 防串显；失败时 `PoiOverlay` 降级读列表 inline tooltip，不阻断。
 - 统一用 `ApiError`（§10），Mock 与 Real 抛同型错误，组件 `instanceof ApiError` 可区分 401/404/5xx/0。
 
-**调用约定**（对齐 `api-typescript-spec`）：从 `@/api/modules/manager/digital-twin` 导入 `digitalTwinApi` 单例；类型/枚举从 `@/api/types/manager/digital-twin` 导入；不在页面里引用 `IDigitalTwinApi`（实现细节）。`BuildingSwitcher` 标签与 `UnitDetail` 数据源来自 `getBuildings()` / `getFloorDetail()`（详见 `references/shell.md`）。
+**调用约定**（对齐 `api-typescript-spec`）：从 `@/api/modules/digital-twin` 导入 `digitalTwinApi` 单例；类型/枚举从 `@/api/types/digital-twin` 导入；不在页面里引用 `IDigitalTwinApi`（实现细节）。`BuildingSwitcher` 标签与 `UnitDetail` 数据源来自 `getBuildings()` / `getFloorDetail()`（详见 `references/shell.md`）。
 
 ## 10. 自适应宿主（请求基础设施）
 

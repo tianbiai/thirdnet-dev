@@ -1,7 +1,7 @@
-// 本文件为 thirdnet-digital-twin 技能提供的可拷贝模板（assets/api/mock/api/manager/digital-twin.ts），
+// 本文件为 thirdnet-digital-twin 技能提供的可拷贝模板（assets/api/mock/api/digital-twin.ts），
 // 生成时照搬、仅按需对齐 import 路径；勿手写改动字段。源：references/dynamic-data-api.md §7。
 
-import type { IDigitalTwinApi, DigitalTwinRequestOptions } from '@/api/interfaces/manager/digital-twin'
+import type { IDigitalTwinApi, DigitalTwinRequestOptions } from '@/api/interfaces/digital-twin'
 import type {
   BuildingQueryParams, BuildingRuntimeItem,
   FloorDetail, FloorDetailQueryParams,
@@ -9,7 +9,7 @@ import type {
   PoiDetail, PoiDetailQueryParams,
 } from '@/api/types/digital-twin'
 import { ApiError } from '@/api/request'   // v1.8: Mock 也抛 ApiError，与 Real 错误类型一致
-import { mockBuildings, mockFloorDetails, mockPois, mockPoiDetails } from '@/mock/data/manager/digital-twin'
+import { mockBuildings, mockFloorDetails, mockPois, mockPoiDetails } from '@/mock/data/digital-twin'
 
 export class MockDigitalTwinApi implements IDigitalTwinApi {
   async getBuildings(_params?: BuildingQueryParams, _opts?: DigitalTwinRequestOptions): Promise<BuildingRuntimeItem[]> {

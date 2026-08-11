@@ -1,6 +1,6 @@
 # 生产构建 Mock 数据剥离机制
 
-> 何时需要读：当你要修改 `vite.config.ts` 中的 `mockDataStripPlugin`、排查生产包是否真正不含 Mock 数据、为新前端工程（Web / 小程序 minigram——这些是**构建目标/工程目录**，与端类型 manager/app/third 正交）配备该插件，或排查 tree-shaking 失效问题时再读。日常切换 Mock 开关无需读。
+> 何时需要读：当你要修改 `vite.config.ts` 中的 `mockDataStripPlugin`、排查生产包是否真正不含 Mock 数据、为新前端工程（Web / 小程序 minigram——这些是**构建目标/工程目录**，与端无关；前端按工程分端、工程内 `api/` 与 `mock/` 扁平）配备该插件，或排查 tree-shaking 失效问题时再读。日常切换 Mock 开关无需读。
 
 生产构建（`vite build`）**且 Mock 关闭**时，通过自定义 Vite 插件 `mockDataStripPlugin()`（`vite.config.ts`）剥离 Mock 数据，配合 `MOCK_ENABLED` 静态为 `false` 让 Mock 分支成为死代码被 tree-shaking 移除。Mock 开启的生产构建（原型/演示）不剥离。
 
@@ -155,7 +155,7 @@ const helpContent = '本页面用于管理订单，支持筛选、导出和批�
 
 该实现完全通用，不绑定具体项目或模块：
 
-- `source.includes('/mock/data/')` 按路径子串拦截——任何模块、任何端类型（manager/app/third，及 shared 桶）只要数据放在 `mock/data/` 下都自动覆盖，**新增模块、新增端类型均无需改插件**。
+- `source.includes('/mock/data/')` 按路径子串拦截——任何模块只要数据放在 `mock/data/` 下都自动覆盖，**新增模块无需改插件**。
 - `srcDir = path.resolve(__dirname, 'src')` 中 `__dirname` 是 vite.config.ts 自身位置，`src` 是 ThirdNet 全前端统一的源码目录约定——约定依赖，非硬编码。
 - `@/`→`src/` 是所有 ThirdNet 前端标准别名；`.ts`/`.js` 候选扩展名不限定文件名。
 

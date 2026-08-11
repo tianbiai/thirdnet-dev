@@ -92,7 +92,7 @@ npm run dev
 ```
 my-admin/
 ├── src/
-│   ├── api/              # 19 个 API 模块（策略工厂模式，端=manager）
+│   ├── api/              # 19 个 API 模块（策略工厂模式，工程内扁平，URL 走 /api/manager/...）
 │   ├── views/            # 页面：系统管理 + API 管理 + 登录 + 欢迎页
 │   ├── stores/           # 5 个 Pinia Store（auth / app / dict / theme / tagsView）
 │   ├── layouts/          # 布局：AdminLayout / Navbar / Sidebar / TagsView

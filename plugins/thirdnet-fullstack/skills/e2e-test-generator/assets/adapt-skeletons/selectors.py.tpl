@@ -66,6 +66,14 @@ WEB_MENU = {
     # "entity_a": ("业务目录", "实体A"),
 }
 
+# ============ 活校准计划（阶段 4b 用，lib/calibrate.py 读它）============
+# 每个模块期望的表单 label 列表 + 列表列头列表。{{ADAPT}} 按 Phase 1 探索笔记填。
+# 留空也能跑 calibrate.py——退化为「如实报告 DOM 里真实的 label/列头」作发现辅助。
+# 这里的 label/列头必须和真实 DOM 文本一致（不是后端字段名）；填好它，活校准才能给你精确的 ✅/❌。
+CALIBRATION_PLAN = {
+    # "user": {"labels": ["用户名", "姓名", "部门", "角色"], "columns": ["用户名", "姓名", "部门", "状态"]},
+}
+
 # 已知稳定的直接路由（page.goto 用，导航更快/更稳）；与 WEB_MENU 互为备选。
 # {{ADAPT}} 按前端 router 真实 path 填（仅放确实稳定的）。
 WEB_ROUTE = {

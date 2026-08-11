@@ -3,7 +3,7 @@ name: e2e-test-generator
 description: 为任意既有项目代码库生成一套完整的、可入库的、**纯 UI 驱动**的 Playwright（Python）端到端（E2E）测试套件——覆盖 Web 后台、移动端（H5/小程序）、大屏/驾驶舱，或其任意组合；通过探索代码库来生成。测试会打开真实弹窗、按 label/placeholder 填表、提交、再从表格/列表 DOM 文本断言结果；用多个权限不同的账号登录，验证每条业务流（含数据范围、跨端一致性、越权负向用例），**且绝不从测试代码直连后端**。本技能会按目标项目**自身的前端框架**适配——Element Plus、uni-app 或任何其它框架——因为每个选择器/label/流程都是从目标项目的真实源码里读出来的，而不是假设的，所以它适用于任意 web/移动代码库。当用户想为某个项目创建 / 生成 / 搭建 / 编写 E2E 测试套件、集成测试或 Playwright 测试时，务必使用本技能——例如「请生成项目的完整UI测试」「为这个后台写一套E2E测试，要用不同权限账号验证越权」「generate the complete UI tests for this project」「write an E2E suite for this codebase」「add Playwright tests covering all business flows」。**不要**用于一次性运行时检查或快速浏览器验证（那是另一个独立的 `webapp-testing` 技能），也不要用于单元/组件测试。
 license: MIT
 metadata:
-  version: "0.3.0"
+  version: "0.4.0"
   author: thirdnet
 ---
 
@@ -11,14 +11,14 @@ metadata:
 
 通过探索**用户指定的**既有项目代码库，为其生成一套**完整的、可入库的、纯 UI 驱动**的 Playwright（Python）E2E 测试套件。这套件会提交进仓库（放在 `testing/` 下），与项目自身的构建钩子隔离。方法是项目无关的：适用于任意 web/移动代码库，因为每个选择器、label、流程都是从目标项目的真实源码里读出来的，而非凭空假设。
 
-## 两个阶段，两台机器（生成 vs 运行）
+## 两个阶段（生成 vs 运行），但生成阶段默认就连真实 UI 自检
 
-本技能的工作分两个阶段，发生在两台不同的机器上：
+本技能的工作分两个阶段：
 
-- **生成阶段（这台机器）**——只读你指给我的代码库。从源码里提取真实的 selector/label/流程/权限，生成 `testing/` 套件。**不连接、不启动、不探活**待测系统；真实 URL/账号/密码在这一阶段**未知**，一律留作环境变量占位。这台机器不需要能连通待测环境。
-- **运行阶段（一台能连通的机器）**——把 `testing/` 拿到能访问待测环境的人那里。由执行者用环境变量提供真实 URL/账号/密码、启动目标服务；`run_all.py` 先做健康检查轮询，再驱动真实 UI。真正的 pass/fail 在这里发生。
+- **生成阶段（这台机器）**——读用户指给的代码库，从源码里提取 selector/label/流程/权限，生成 `testing/` 套件。**与旧版不同：只要用户在阶段 0 提供了可达的测试地址 + 账密，生成阶段就会驱动真实 UI 做活校准**（阶段 4b），把源码推断与真实 DOM 对不上的地方在交付前修掉。地址不可达时才降级为纯离线生成（并显式标注未验证）。源码推断只是**草稿**，真实 DOM 才是 selector/label 的最终事实来源——从源码读不到运行时现实：动态 class、`v-if`/`v-show` 分支、异步加载组件、库覆写、权限指令是「禁用」还是「移除」。
+- **运行阶段（任意一台能连通的机器）**——把 `testing/` 拿到能访问待测环境的人那里复跑。由执行者用环境变量提供真实 URL/账号/密码；`run_all.py` 先做健康检查轮询，再驱动真实 UI。完整的回归 pass/fail 在这里发生。
 
-换句话说：**交付的是一套可入库、可在任何可连通环境里跑起来的套件**，不是在生成这台机器上证明它跑得通。
+换句话说：**交付的是一套已对真实 DOM 校准过、可入库、可在任何可连通环境里复跑的套件**；离线降级时则是一套明确标注「待复验」的套件。
 
 ## 「纯 UI 驱动」是什么意思（定义本技能的那一条铁律）
 
@@ -47,14 +47,17 @@ metadata:
 
 ## 工作流——按以下 4 个阶段顺序执行
 
-### 阶段 0——范围确认（问清楚，别猜）
-生成前用 `AskUserQuestion` 确认 2–3 件事：
-- **用户指定的代码库在哪**：确认待测项目的根目录路径（生成只读这里的源码，见上方「两个阶段」）。
+### 阶段 0——范围确认（问清楚，别猜；环境信息是必问项）
+生成前用 `AskUserQuestion` 确认以下几件事。**测试地址与各角色账密必须由用户提供——未提供就主动追问，绝不自行编造账号密码**（编造的账密会让生成的套件在真实环境里连登录都过不了，这是过去测试「跑不过」的首要原因）。
+
+- **用户指定的代码库在哪**：确认待测项目的根目录路径（生成只读这里的源码）。
 - **存在哪些端**：B 端 web 后台？C 端移动（H5/小程序）？整屏大屏/驾驶舱？（决定你要建哪些登录层与 UI 原子层。）
 - **要测哪些角色**：存在哪些权限有别的账号，或需要自动开通哪些？（如超管 + 范围受限的角色 A/B。）
+- **测试环境地址**：Web URL（必要）、移动端 URL（如有移动端）。问清这是不是「生成机能直接访问的真实地址」——这决定阶段 4 走「可达强制活校准」还是「不可达降级」。
+- **各角色账号/密码**：超管账密 + 上一问每个 scoped 角色的账密。逐个问清楚；用户只给用户名不给密码、或只说「用现成的」时，追问到拿到能登录的完整凭据为止。
 - 确认输出位置（默认 `<project>/testing/`）。
 
-**生成阶段默认不连接待测系统**——所以这里*不问*「后端可不可达」。真实 URL/账号/密码都留到运行阶段，由执行者用环境变量填。若用户碰巧在这台机器上跑着开发栈、并主动要求做一次本地冒烟，按阶段 4 的「可选冒烟」处理；否则默认就是离线生成 + 交付。
+**默认尝试连接做活校准**：用户提供了可达地址 → 生成阶段就驱动真实 UI 自检自修（阶段 4b），把 selector/label 对不上的问题在交付前消化掉，而不是甩给执行者。地址此刻不可达（如 CI、或环境在另一台机器）→ 降级为离线生成，但必须在 README 与 `TEST_PLAN.md` 顶部显式标注 `UNVERIFIED — 需在可连通环境复验`，并附复验步骤。**不要**默认走离线、也不要默默跳过校准——达没达到校准条件，要让用户清楚知道。
 
 ### 阶段 1——探索代码库（这是引擎）
 按 `references/discovery.md` 派发**并行 Explore 子代理**（每个盯一个维度——组件/UI 原子、字段 label/placeholder/按钮文案/表头、业务流与状态机、认证与权限/数据范围、移动端）。目标：从真实代码里提取*真实的* selector/label/placeholder/按钮文案/表头/列表卡片 class/状态机/权限指令/数据范围机制——绝不猜。产出两份东西：
@@ -77,7 +80,7 @@ metadata:
 你可以推荐其中一种作默认（视项目特点），但**最终由用户拍板**，用户也能要求组合（如「先按依赖层打底，再按业务模块分」）。评判候选方案好不好用这四条：(a) 每个阶段是可独立报告、有意义的单元；(b) 阶段顺序尊重数据依赖——早期阶段产出的主数据由 `state.py` 的 `run_state.json` 跨阶段携带；(c) 阶段是合理的「失败隔离边界」，一类问题集中在一阶段方便排查；(d) 阶段数适中（太少=粒度粗报告没意义，太多=决策门打断频繁），通常 3–7 个。
 
 ### 阶段 3——生成套件
-- 从 `assets/lib-skeletons/` 拷贝**通用 lib 骨架**（config/state/data_factory/harness/sessions/run_all）——这些几乎不用改；URL/账号留作环境变量占位（见 config.py.tpl 的 `E2E_*` 契约），生成阶段不填真实值。
+- 从 `assets/lib-skeletons/` 拷贝**通用 lib 骨架**（config/state/data_factory/harness/sessions/calibrate/run_all）——这些几乎不用改；**把阶段 0 用户给的测试地址与各角色账密填进 `config.py` 的默认值**（环境变量优先级仍最高，便于运行机覆盖），别留 `admin/admin@123` 这类编造占位。
 - 通过阅读对应的**变体参考**来生成**适配层**：
   - **Element Plus** 的 web 后台 → `references/web-element-plus.md`（首选快速通道），
   - **uni-app（H5）** 的移动端 → `references/mobile-uniapp.md`（首选快速通道），
@@ -86,11 +89,15 @@ metadata:
 - **每条业务流写一个测试文件**，每个都纯 UI、只断言 DOM。用 `assets/adapt-skeletons/test_template.py.tpl` 当模板。文件名带阶段前缀 `test_s<N>_*`（如 `test_s2_10_module_a_admin.py`），便于按阶段归类。
 - **把用例按阶段 2 商定的方案填入 `run_all.py` 的 `STAGES`**（替换骨架里的示例），每个元素是 `{"name": 阶段名, "modules": [用例模块路径...]}`，顺序即执行顺序。这是阶段编排的唯一事实源。
 
-### 阶段 4——验证
-- 对**每个**生成的 `.py` 跑 `python -m py_compile`——必须全过。（读 `references/verification.md`。）
-- **可选冒烟**（仅在用户主动要求、且这台机器上正好跑着可访问的开发栈时）：启动前端 → 跑 2–3 条导航 + 选择器断言，验证原子层对真实 DOM 是准的。这是离线生成之外的**额外**检查，不是主流程的一环——默认不做。
-- 写 `testing/README.md`，包含：怎么跑、**校准点**（像原生 picker/文件上传这种首次真跑要在真实 DOM 上微调的脆弱交互）、已知边界。
-- 交付：套件产出完成；真正的 pass/fail 运行在可连通测试环境里发生（见「两个阶段」）。
+### 阶段 4——验证（静态 → 活校准门 → 交付）
+
+按三层顺序，前一层过了才进下一层。读 `references/verification.md`。
+
+- **4a 静态检查**：对**每个**生成的 `.py` 跑 `python -m py_compile`——必须全过。这能抓拼写/缩进/import 语法错，但**抓不到** selector/label/路由/按钮文案对不上真实 UI 的问题——那是 4b 的活。
+- **4b 活校准门（环境可达时强制）**：用户在阶段 0 提供了可达地址 + 账密时，**必须做**，不是可选。跑生成的 `lib/calibrate.py` 探针：用 admin 登录 → 对 `selectors.py` 里**每一条** selector/label/placeholder/按钮文案/菜单名/列头，驱活 UI 验证它真的解析命中；产出 `reports/calibration.md`，列出 ❌未命中项 + DOM 里实际找到的最近似文本。然后**修生成代码而非削弱测试**：把 `selectors.py`/实体构造器里对不上的 selector/label/路由/按钮文案改成真实 DOM 的值，重跑探针，循环直到全命中（退出码 0）。代表性的最小通过线：登录能过、侧边栏菜单名能点进每个被测模块、新增弹窗能打开、至少一个表单 label 命中、列表表头读得到。
+  - **为什么强制**：源码推断出来的 selector 会因为动态 class、`v-if` 分支、库覆写等在真实 DOM 里失效；过去把这类首次失败叫「校准点」甩给执行者，就是用户反复手工调数据的根因。现在技能自己在生成阶段就消化掉。
+- **4c 降级分支（环境不可达时）**：地址此刻连不上 → 跳过 4b，但在 README **顶部**与 `TEST_PLAN.md` 显式标注 `⚠️ UNVERIFIED — 套件未对真实 DOM 校准，需在可连通环境跑 lib/calibrate.py 复验并据 reports/calibration.md 修正`，附复验命令。不要默默跳过、也不要装作验过。
+- **4d 交付**：写 `testing/README.md`，写清——怎么跑、**校准状态**（4b 跑了就写明覆盖了哪些模块/交互；降级则贴上面的 UNVERIFIED 标注）、复验步骤、已知边界。
 
 ## 分阶段执行（生成的套件如何跑）
 
@@ -125,7 +132,7 @@ metadata:
 - `references/web-element-plus.md`——Element Plus 原子 + 易踩的坑（状态是 radio 不是 select；角色-菜单树按可见 label 勾选而非权限串；mock 下按路由前缀投票；等等）。
 - `references/mobile-uniapp.md`——uni-app H5 的 UI 原子 + 原生 `<picker>`（#1 校准风险）+ toast/弹窗/卡片回验。
 - `references/negative-testing.md`——权限按钮/菜单不存在；冲突 toast + `expect_response` 兜底。
-- `references/verification.md`——py_compile、可选冒烟、异地运行交付、记录校准点。
+- `references/verification.md`——py_compile 静态检查、**活校准门（可达即强制，跑 lib/calibrate.py 比对真实 DOM 并修生成代码）**、不可达降级标注 UNVERIFIED、真实环境交付、复验校准点。
 - `examples/worked-example.md`——一套完整建好的参考套件（13 个用例 + 12 个 lib）作为工作示例；不确定某层长啥样时翻它。
 
 ## 输出形态（你必须产出什么）
@@ -139,6 +146,7 @@ metadata:
 ├── lib/
 │   ├── harness.py       # Playwright 引擎 + Findings 被动监听器 + expect_response（来自 lib-skeletons）
 │   ├── sessions.py      # 身份缓存登录 + 每访客独立移动端上下文（来自 lib-skeletons）
+│   ├── calibrate.py     # 活校准探针：驱活 UI 逐条比对 selectors.py，产出 calibration.md（来自 lib-skeletons，阶段 4b 用）
 │   ├── selectors.py     # 项目的选择器/路由登记表（适配）
 │   ├── web_crud.py      # web UI 原子（按框架适配）
 │   ├── web_login.py     # web 登录驱动（适配）
@@ -149,8 +157,8 @@ metadata:
 │   └── [verify.py]      # 大屏/驾驶舱 DOM 校验器（适配，如有大屏）
 ├── tests/               # 每条业务流一个文件（TC-00..TC-NN）
 ├── fixtures/            # 二进制测试素材（如上传测试用的 sample.jpg）
-├── TEST_PLAN.md         # 业务流 → 用例 + 阶段划分（阶段 2 产出）
-├── reports/             # 运行时产出：stage_NN.md 阶段报告 + TEST_REPORT.md 滚动总报告 + findings.json（运行后生成）
+├── TEST_PLAN.md         # 业务流 → 用例 + 阶段划分（阶段 2 产出；降级时顶部标 UNVERIFIED）
+├── reports/             # 运行时产出：stage_NN.md 阶段报告 + TEST_REPORT.md 滚动总报告 + findings.json + calibration.md（活校准报告）
 ├── artifacts/           # 运行时产出：screenshots/ 失败截图（运行后生成）
 └── README.md            # 运行说明 + 校准点 + 已知边界
 ```

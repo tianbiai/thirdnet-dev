@@ -7,7 +7,7 @@ v1.5–v2.0 里「spec → 静态脚手架 / Mock 数据」由生成器手工编
 AI 现编——同一份 spec 两次生成内容不同、字段形状漂移。本脚本把派生规则固化：
 
   spec.json ──┬─→ src/data/<park>.ts                      （静态脚手架：占地几何 + 环境驱动）
-              └─→ src/mock/data/manager/digital-twin.ts   （Mock 数据：楼幢业务/楼层详情/POI）
+              └─→ src/mock/data/digital-twin.ts   （Mock 数据：楼幢业务/楼层详情/POI）
 
 确定性保证：全部随机选择（行业/公司名/负责人/电话/POI 状态）由种子 = FNV-1a(spec.title)
 的 mulberry32 驱动——与 assets/park-scene.impl.ts 视觉装饰同款伪随机，同一 spec 重跑
@@ -443,7 +443,7 @@ def render_scaffold(spec: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
-# 生成 Mock 数据 src/mock/data/manager/digital-twin.ts
+# 生成 Mock 数据 src/mock/data/digital-twin.ts
 # ---------------------------------------------------------------------------
 
 def render_mock(spec: dict, rnd) -> str:
@@ -728,7 +728,7 @@ def main(argv=None) -> int:
 
     if not args.scaffold_only:
         mock_ts = render_mock(spec, rnd)
-        mock_path = out_root / "src" / "mock" / "data" / "manager" / "digital-twin.ts"
+        mock_path = out_root / "src" / "mock" / "data" / "digital-twin.ts"
         mock_path.parent.mkdir(parents=True, exist_ok=True)
         mock_path.write_text(mock_ts, encoding="utf-8")
         wrote.append(mock_path)

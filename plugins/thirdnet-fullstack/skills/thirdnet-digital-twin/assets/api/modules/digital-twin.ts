@@ -1,16 +1,16 @@
-// 本文件为 thirdnet-digital-twin 技能提供的可拷贝模板（assets/api/modules/manager/digital-twin.ts），
+// 本文件为 thirdnet-digital-twin 技能提供的可拷贝模板（assets/api/modules/digital-twin.ts），
 // 生成时照搬、仅按需对齐 import 路径；勿手写改动字段。源：references/dynamic-data-api.md §8。
 
 import { request } from '@/api/request'        // 自适应宿主：admin 模板复用其自带 request；独立项目用 §10 最小封装
 import { MOCK_ENABLED } from '@/config'
-import type { IDigitalTwinApi, DigitalTwinRequestOptions } from '@/api/interfaces/manager/digital-twin'
+import type { IDigitalTwinApi, DigitalTwinRequestOptions } from '@/api/interfaces/digital-twin'
 import type {
   BuildingQueryParams, BuildingRuntimeItem,
   FloorDetail, FloorDetailQueryParams,
   PoiQueryParams, PoiRuntimeItem,
   PoiDetail, PoiDetailQueryParams,
 } from '@/api/types/digital-twin'
-import { MockDigitalTwinApi } from '@/mock/api/manager/digital-twin'
+import { MockDigitalTwinApi } from '@/mock/api/digital-twin'
 
 class RealDigitalTwinApi implements IDigitalTwinApi {
   async getBuildings(params?: BuildingQueryParams, opts?: DigitalTwinRequestOptions): Promise<BuildingRuntimeItem[]> {

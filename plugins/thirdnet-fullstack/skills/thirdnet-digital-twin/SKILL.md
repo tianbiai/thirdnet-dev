@@ -17,7 +17,7 @@ description: >
   增加地下场景/连廊等。
 license: MIT
 metadata:
-  version: "2.31.0"
+  version: "2.32.0"
   author: park-cockpit
 compatibility: Vue 3 + TypeScript + Vite + Three.js 项目；赛博风格消费 WebGL 片段着色器（`gridGround.glsl` 网格地面）。动态数据契约层遵循 `api-typescript-spec`（`IDigitalTwinApi` + Real/Mock 工厂，`VITE_MOCK_ENABLED` 切换）。可在范例仓库、create-thirdnet-admin 项目或任何最小化的 Vite+Vue+Three 脚手架中运行。
 ---
@@ -59,11 +59,11 @@ python scripts/validate_spec.py spec.json
 ### 4. 生成数据层
 数据分两层（详见 `references/dynamic-data-api.md`）：**基础信息静态内联**，**动态数据 API 化**。两个数据产物都由脚本确定性生成：
 ```bash
-python scripts/generate_data.py spec.json --out-dir <项目根>      # → src/data/<park>.ts + src/mock/data/manager/digital-twin.ts
+python scripts/generate_data.py spec.json --out-dir <项目根>      # → src/data/<park>.ts + src/mock/data/digital-twin.ts
 python scripts/generate_theme.py <style> --out <项目根>/src/styles/tokens.css
 ```
 - **静态脚手架** `src/data/<park>.ts`：占地几何（id/w/d/x/z/category/facing）+ 环境驱动 + style + legend。**不含** name/floors/POI。
-- **动态数据契约层**（5 文件，按端分层、端=`manager`）：types/interfaces/modules/mock-api **逐字拷贝 `assets/api/` 模板**（仅对齐 import 路径）；Mock 数据文件由 `generate_data.py` 从 spec 派生。
+- **动态数据契约层**（5 文件，工程内扁平，URL 走 `/api/manager/...`）：types/interfaces/modules/mock-api **逐字拷贝 `assets/api/` 模板**（仅对齐 import 路径）；Mock 数据文件由 `generate_data.py` 从 spec 派生。
 - **主题 CSS 变量** `src/styles/tokens.css`：`main.ts` 顶部 import；per-park 的 `spec.tokens` 覆盖在 `GlobalTwin` onMounted 里 `applyCssVars()` 注入。
 
 ### 5. 生成 3D 场景
@@ -128,7 +128,7 @@ v2.17 起**程序化发光窗流水线覆盖全部 2 个深色风格**（cyber/n
 
 - `extract_pen.py <file.pen> --out spec.json` —— `.pen` → Park Spec 草稿。仅对明文 JSON 的 `.pen` 生效；加密 `.pen` exit 3，改走 pencil MCP（见 `references/design-source.md`）。Windows 用 `--out`。
 - `validate_spec.py spec.json` —— schema + 业务规则校验（楼栋出界/重叠/POI 越界 FAIL、cameraTour/underground 字段校验、token 结构校验、`spec.tokens` 覆盖白名单 WARN）。退出码 0=通过。可选 `pip install -r scripts/requirements.txt` 启用全量 token 校验。
-- `generate_data.py spec.json --out-dir <项目根>` —— spec → `src/data/<park>.ts` 静态脚手架 + `src/mock/data/manager/digital-twin.ts` Mock 数据（确定性；`--scaffold-only`/`--mock-only` 可单独生成）。
+- `generate_data.py spec.json --out-dir <项目根>` —— spec → `src/data/<park>.ts` 静态脚手架 + `src/mock/data/digital-twin.ts` Mock 数据（确定性；`--scaffold-only`/`--mock-only` 可单独生成）。
 - `generate_theme.py <style> --out <项目根>/src/styles/tokens.css` —— 主题 token → `:root` `--twin-*` CSS 变量（含 `ui` 块）。`--brand <hex>` 单品牌色按 HSL 派生整套强调色族。
 - `layout_park.py spec.json [--in-place]` —— 楼栋自动行式布局（文字访谈模式下楼栋无坐标时用）。
 

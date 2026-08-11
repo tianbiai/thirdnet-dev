@@ -5,7 +5,7 @@
 
 **标准参考实现**：`src/views/api/blacklist/index.vue` — 展示了 useCrudTable + PaginationBar + useDialogFocus + validators + confirmAction 的完整组合。开发新页面时，参考此文件的代码结构。
 
-> **端类型分组（待对齐历史遗留）**：Admin 模块端类型为 `manager`。模板现有的 `api/interfaces/{module}.ts`、`api/types/{module}.ts` 为**扁平**结构（历史遗留），下文示例里的 `@/api/interfaces/blacklist` 即此扁平路径。**新建模块一律按端分层**（对齐 `api-typescript-spec` v2.3.0）：契约走 `api/interfaces/manager/{module}.ts`、类型走 `api/types/manager/{module}.ts`，跨端共用 DTO 走 `api/types/shared/`。
+> **目录结构（扁平）**：Admin 模板属管理后台工程，`api/` 与 `mock/` 工程内一律扁平，不按端建子目录（对齐 `api-typescript-spec` v2.4.0「前端按工程分端」）。下文示例里的 `@/api/interfaces/blacklist`、`@/api/modules/blacklist`、`@/api/types/blacklist`、`@/mock/data/blacklist` 即此扁平路径；URL 前缀固定 `/api/manager/...`（由工程所属端决定）。
 
 ---
 
@@ -110,7 +110,7 @@ CRUD 列表页核心 Composable，组合 `usePagination` + `useActionLoading`，
 ```typescript
 import { useCrudTable } from '@/composables/useCrudTable'
 import type { BlacklistItem } from '@/api/interfaces/blacklist'
-import { blacklistApi } from '@/api/modules/manager/blacklist'
+import { blacklistApi } from '@/api/modules/blacklist'
 
 const {
   loading, tableData, queryParams, pagination,

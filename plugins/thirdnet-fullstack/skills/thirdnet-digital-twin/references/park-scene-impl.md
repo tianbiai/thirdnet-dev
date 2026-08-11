@@ -42,7 +42,7 @@ v2.2 以前选中楼层只有一圈亮金描边（`selectionOverlay` 线框）�
 ## 怎么用（生成器工作流）
 
 1. **拷贝两个文件**：`cp assets/park-scene.impl.ts <目标项目>/src/scene/ParkScene.ts` **和** `cp assets/building-geometry.ts <目标项目>/src/scene/building-geometry.ts`（缺一不可——后者是楼栋几何装配的单一事实来源）。
-2. **改数据源**：把脚手架类型（`ParkScaffold`、`ScaffoldBuilding`、`BuildingRuntimeItem`、`PoiRuntimeItem`）对齐到本项目的 `src/data/<park>.ts` 与 `src/api/types/manager/digital-twin.ts`（见 `dynamic-data-api.md`）。这些是结构契约，字段名不要改。v2.1 起 `src/data/<park>.ts` 由 `scripts/generate_data.py` 生成（含 `ParkScaffold` 接口定义），通常无需再改。
+2. **改数据源**：把脚手架类型（`ParkScaffold`、`ScaffoldBuilding`、`BuildingRuntimeItem`、`PoiRuntimeItem`）对齐到本项目的 `src/data/<park>.ts` 与 `src/api/types/digital-twin.ts`（见 `dynamic-data-api.md`）。这些是结构契约，字段名不要改。v2.1 起 `src/data/<park>.ts` 由 `scripts/generate_data.py` 生成（含 `ParkScaffold` 接口定义），通常无需再改。
 3. **选风格**：`spec.style` 决定 `PROFILES` 的取值——**不要手改 profile 表**；要调某个风格的观感，改 `assets/themes/<style>.tokens.json` 的 `realism` 块（见下）。
 4. **校验**：`npm run typecheck` 干净 + `python scripts/validate_spec.py spec.json` OK（v2.0 起含 token schema 校验，v2.1 起含布局重叠/出界检测）。
 

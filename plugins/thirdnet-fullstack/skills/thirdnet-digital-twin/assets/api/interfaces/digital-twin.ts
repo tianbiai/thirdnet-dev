@@ -1,4 +1,4 @@
-// 本文件为 thirdnet-digital-twin 技能提供的可拷贝模板（assets/api/interfaces/manager/digital-twin.ts），
+// 本文件为 thirdnet-digital-twin 技能提供的可拷贝模板（assets/api/interfaces/digital-twin.ts），
 // 生成时照搬、仅按需对齐 import 路径；勿手写改动字段。源：references/dynamic-data-api.md §5。
 
 import type {

@@ -6,14 +6,14 @@ description: >
   Real/Mock 可互换。当用户需要创建 API 接口、添加接口模块、编写 Mock 数据、定义请求类型、设置 API 层架构，
   或任何涉及 api/ 与 mock/ 目录的操作时，必须使用此技能。
   触发词：API、接口、Mock、请求、adapter、类型定义、DTO、策略模式、工厂模式、接口契约、IXxxApi、
-  端类型、terminal、按端分组、manager、app、third、第三方对接、shared、跨端、驾驶舱、cockpit。
+  manager、app、third、第三方对接、管理后台、小程序、frontend/web、frontend/minigram、按工程分端、URL 前缀。
 license: MIT
 metadata:
-  version: "2.3.0"
+  version: "2.4.0"
   author: thirdnet
 ---
 
-> **兼容性**：Vue 3 + TypeScript + Vite 项目，支持 Web（Element Plus）和移动端（uniapp + Vant，发布为微信小程序 mp-weixin）。API 层按**端类型**（`manager` / `app` / `third` / `shared`）组织目录，与**构建目标**（web / mp-weixin）是两个正交维度——详见「端类型与目录映射」。
+> **兼容性**：Vue 3 + TypeScript + Vite 项目，支持 Web（Element Plus）和移动端（uniapp + Vant，发布为微信小程序 mp-weixin）。**前端按工程分端**（`frontend/web/` 管理后台、`frontend/minigram/` 小程序是独立工程），工程内 `api/` 与 `mock/` 扁平、不再按端建子目录——详见「前端按工程分端（目录扁平）」。
 
 # 前端 API 接口 TypeScript 规范（策略工厂模式）
 
@@ -27,115 +27,94 @@ API 层采用**接口契约的策略工厂模式**——组合策略（`IXxxApi`
 2. **字段名强制 snake_case**：所有 API 入参、出参、Mock 数据的字段名必须使用 `snake_case`（如 `order_id`、`created_at`、`user_name`），与后端 DTO 保持一致，**禁止使用 camelCase**
 3. **响应无包装**：成功直接返回实体 JSON 或 `PaginatedResponse<T>`，不用 `{ code, message, data }` 包装
 4. **错误走 HTTP 状态码**：通过 401/403/404/500 等区分错误
-5. **API 与 Mock 文件对应**：`api/modules/{endpoint}/{module}.ts` 对应 `mock/api/{endpoint}/{module}.ts` + `mock/data/{endpoint}/{module}.ts`。`{endpoint}` 为端类型（`manager`/`app`/`third`，跨端共用走 `shared`），见「端类型与目录映射」
+5. **API 与 Mock 文件对应**：`api/modules/{module}.ts` 对应 `mock/api/{module}.ts` + `mock/data/{module}.ts`（工程内扁平，不按端分组；端由工程本身决定，见「前端按工程分端」）
 6. **全面 TypeScript**：所有前端代码必须使用 `.ts` 扩展名，Vue 组件必须使用 `<script setup lang="ts">`
 7. **TS 枚举仅用于纯前端常量**：仅当某选项集是**纯前端常量**（不来自后端字典、不会由运营改动）时，才定义 TS `enum`（每个成员加 JSDoc，禁止 union type / const object 替代）。**后端字典驱动字段不定义 TS enum**：枚举字典（`dict_source=0`，int）下拉走 `useDict(dictType)`、显示走后端 `*_label`、提交 number；自定义字典（`dict_source=1`，string）走 `dictApi.getDictDataByType`、提交 string。这类字段的 TS 类型直接用 `number` 或 `string`。详见 `vue-enum-dict` 技能
 
-## 端类型与目录映射
+## 前端按工程分端（目录扁平）
 
-API 层按**端类型（terminal）**组织目录——与后端 `net-api-developer`「端类型分层组织（Manager / App / Third / Shared）」**一一对照**。不同端的权限范围、返回字段、入参校验不同：混在同一目录会让多端代码纠缠、难定位、易越权泄露字段。因此**随端变化的代码统一按端分目录**：接口契约（≈后端 Controller）、Real/Mock 实现（≈后端 Service）、类型定义（≈后端 DTO）三层都按端归类。
+前端工程本身就按端拆分：`frontend/web/` 是管理后台工程、`frontend/minigram/` 是小程序工程，各自只服务一个端。**工程即端**——因此工程内的 `api/` 与 `mock/` 不再按端建子目录，文件直接扁平铺开。
 
-### 端类型集合（默认 + 可扩展）
+这与后端不同：后端是**单代码库服务所有端**，必须用 `Controllers/Manager/`、`Controllers/App/` 分目录隔离不同端的权限与字段（防止越权泄露，见 `net-api-developer`「端类型分层组织」）。前端既已按工程物理隔离，工程内二次按端分组就是冗余。
 
-| 端 endpoint | 含义 | 对应后端目录 | URL 前缀 |
-|---|---|---|---|
-| `manager` | 管理后台（Web Admin） | `Controllers/Manager/` `Services/Manager/` `DTOs/Manager/` | `/api/manager/...` |
-| `app` | C 端用户应用（小程序 / H5 / 移动端） | `Controllers/App/` `Services/App/` `DTOs/App/` | `/api/app/...` |
-| `third` | 第三方对接（开放 API / 回调推送） | `Controllers/Third/` `Services/Third/` `DTOs/Third/` | `/api/third/...` |
-| `shared` | 跨端共用（**组织桶**，无端后缀、无独立 URL） | `.../Shared/` | — |
+### 工程 ↔ 端 ↔ URL 前缀 对照
 
-```typescript
-// src/api/types/shared/common.ts
-type Endpoint = 'manager' | 'app' | 'third'   // 用于 URL/工厂；shared 是纯组织桶、不占路由前缀（对齐后端 Shared/）
-```
-
-> **默认集合非封闭**：`manager` / `app` / `third` 是开箱即用的默认端。项目可按实际**扩展**新端（如 `cockpit` 驾驶舱、`openapi` 开放平台、`iot` 物联网）或**精简**（单端项目折叠端层，见下）。扩展端只需在 `Endpoint` 类型追加字面量并建 `{endpoint}/` 子目录，沿用完全相同的目录 / 命名 / URL 规则——无需改动策略工厂三件套、URL 模式、命名规范。新增端时**前后端同步**（后端 `net-api-developer` 同样新增对应 `Controllers/{Endpoint}/` 等目录）。
-
-### 三层按端映射（前后端对照）
-
-| 前端层 | ≈ 后端层 | 前端路径（按端） |
+| 前端工程 | 服务端 | URL 前缀（后端真实路由） |
 |---|---|---|
-| 接口契约 `I{Entity}Api` | Controller 契约 | `api/interfaces/{endpoint}/{module}.ts` |
-| Real 实现 + 工厂 + 单例 | Service | `api/modules/{endpoint}/{module}.ts` |
-| Mock 实现 | （前端独有） | `mock/api/{endpoint}/{module}.ts` |
-| Mock 数据 | （前端独有） | `mock/data/{endpoint}/{module}.ts` |
-| 类型定义（DTO/枚举） | DTO(Map) | `api/types/{endpoint}/{module}.ts` 或 `api/types/shared/{module}.ts` |
+| `frontend/web/`（管理后台） | Manager | `/api/manager/...` |
+| `frontend/minigram/`（小程序 / H5） | App | `/api/app/...` |
+| （第三方对接通常无前端工程） | Third | `/api/third/...` |
 
-### DTO 归属规则
+URL 前缀里的端段（`manager`/`app`/`third`）来自后端路由，**由工程所属端决定，是工程级常量**——同一工程内所有模块共用一个前缀，不是逐模块选择的目录维度。Real 实现里直接写死本工程的前缀即可（如 admin 工程写 `/api/manager/...`）。
 
-类型定义也按端分组（对齐后端 `DTOs/{Endpoint}/{Module}/` + `Shared/`）：
+### 工程内目录（扁平）
 
-- 某 DTO 仅一个端使用 → `api/types/{endpoint}/{module}.ts`
-- 某 DTO 被 **≥2 端共用** → `api/types/shared/{module}.ts`（**不复制**，shared 就是去重桶）
-- 通用基础类型 / 跨模块枚举 → `api/types/shared/common.ts`、`api/types/shared/enums.ts`
+| 前端层 | ≈ 后端层 | 前端路径（扁平） |
+|---|---|---|
+| 接口契约 `I{Entity}Api` | Controller 契约 | `api/interfaces/{module}.ts` |
+| Real 实现 + 工厂 + 单例 | Service | `api/modules/{module}.ts` |
+| Mock 实现 | （前端独有） | `mock/api/{module}.ts` |
+| Mock 数据 | （前端独有） | `mock/data/{module}.ts` |
+| 类型定义（DTO/枚举） | DTO(Map) | `api/types/{module}.ts` |
+| 通用基础类型 / 跨模块枚举 | — | `api/types/common.ts`、`api/types/enums.ts` |
 
-> 实例：`OrderItem` 若仅用户端用 → `types/app/order.ts`；若管理端与用户端都用 → `types/shared/order.ts`。归属随业务变化时在 `{endpoint}/` 与 `shared/` 间迁移并同步 import。
+### 例外：单工程承载多端
 
-### 单端项目可折叠（兼容现实）
+极少数前端工程同时承载多个端（如原型中心 `protohub` 同时含 app+manager 模块）。此时**可选**地在 `api/`、`mock/` 下按端建子文件夹作为例外分组（`api/modules/manager/...`、`api/modules/app/...`），但这是例外而非默认——常规单端工程一律扁平。
 
-单一终端的项目（如纯管理后台、纯小程序）**可省略** `{endpoint}/` 子层，文件直接平铺：`modules/{module}.ts`、`interfaces/{module}.ts`、`types/{module}.ts`，端隐式为唯一端。多端项目**推荐显式分层**，让归属一目了然。（真实示例：`河北燃气/frontend/adminvue2` 单端折叠、`thirdnet-protohub` 多端 app+manager 显式分层。）
-
-> **端类型 ≠ 构建目标**：端类型描述「这段 API 服务谁」（目录分组维度）；构建目标描述「跑在什么平台」（`adapter.web.ts` 跑 Web / `adapter.uni.ts` 跑小程序发布为 `mp-weixin`，适配器选择维度）。两者正交：一个 `app` 端模块既能跑 H5 也能跑小程序，靠适配器切换，与端类型无关。
+> **端 ≠ 构建目标**：「端」描述这段 API 服务谁（由工程决定）；「构建目标」描述跑在什么平台（`adapter.web.ts` 跑 Web / `adapter.uni.ts` 跑小程序发布为 `mp-weixin`，靠适配器切换）。两者正交：小程序工程（App 端）的模块既能跑 H5 也能跑小程序，与端无关。
 
 ## 文件职责分离
 
-每个 API 模块由 5 个文件组成，各司其职：
+每个 API 模块由 5 个文件组成，各司其职（工程内扁平，不按端分组）：
 
 | 文件 | 职责 | 内容 |
 |------|------|------|
-| `api/types/{endpoint}/{module}.ts`（或 `shared/`） | 类型定义 | 枚举 + 出入参 interface |
-| `api/interfaces/{endpoint}/{module}.ts` | 接口契约 | `IXxxApi` 接口定义 |
-| `api/modules/{endpoint}/{module}.ts` | 真实实现 | `RealXxxApi` + 工厂函数 + 单例 |
-| `mock/api/{endpoint}/{module}.ts` | Mock 实现 | `MockXxxApi` 类（从 mock/data/ 取数据） |
-| `mock/data/{endpoint}/{module}.ts` | Mock 数据 | 纯数据导出 |
-
-> 单端项目可省略 `{endpoint}/` 层，5 个文件直接平铺到对应顶层目录（见「单端项目可折叠」）。
+| `api/types/{module}.ts` | 类型定义 | 枚举 + 出入参 interface |
+| `api/interfaces/{module}.ts` | 接口契约 | `IXxxApi` 接口定义 |
+| `api/modules/{module}.ts` | 真实实现 | `RealXxxApi` + 工厂函数 + 单例 |
+| `mock/api/{module}.ts` | Mock 实现 | `MockXxxApi` 类（从 mock/data/ 取数据） |
+| `mock/data/{module}.ts` | Mock 数据 | 纯数据导出 |
 
 ## 目录结构
 
-**多端项目（推荐显式分层）**：
+**工程内扁平**（前端按工程分端，工程内不再按端分组）：
 
 ```
 src/
 ├── config/index.ts                    # MOCK_ENABLED、API_BASE_URL
 ├── api/
 │   ├── types/
-│   │   ├── shared/
-│   │   │   ├── common.ts             # 基础类型（Endpoint、PaginationParams、PaginatedResponse<T>、RequestConfig 等）
-│   │   │   ├── enums.ts              # 跨模块通用枚举
-│   │   │   └── {module}.ts           # ≥2 端共用 DTO（去重桶）
-│   │   ├── manager/{module}.ts       # 仅管理端：枚举 + 出入参类型
-│   │   ├── app/{module}.ts           # 仅用户端
-│   │   └── third/{module}.ts         # 仅第三方端
-│   ├── interfaces/{manager|app|third}/
-│   │   └── {module}.ts               # I{Entity}Api 接口契约
+│   │   ├── common.ts                  # 基础类型（PaginationParams、PaginatedResponse<T>、RequestConfig 等）
+│   │   ├── enums.ts                   # 通用枚举
+│   │   └── {module}.ts                # 模块专属：枚举 + 出入参类型
+│   ├── interfaces/
+│   │   └── {module}.ts                # I{Entity}Api 接口契约
 │   ├── adapter.ts                     # RequestAdapter 接口
 │   ├── adapter.web.ts                 # Axios 实现
 │   ├── adapter.uni.ts                 # uni.request 实现
 │   ├── request.ts                     # 统一 request<T>() 导出
-│   └── modules/{manager|app|third}/
-│       └── {module}.ts               # RealXxxApi + 工厂函数 + 模块单例
+│   └── modules/
+│       └── {module}.ts                # RealXxxApi + 工厂函数 + 模块单例
 ├── mock/
-│   ├── api/{manager|app|third}/
-│   │   └── {module}.ts               # MockXxxApi 实现（引用 mock/data/ 数据）
-│   └── data/{manager|app|third}/
-│       └── {module}.ts               # 纯 Mock 数据导出
+│   ├── api/
+│   │   └── {module}.ts                # MockXxxApi 实现（引用 mock/data/ 数据）
+│   └── data/
+│       └── {module}.ts                # 纯 Mock 数据导出
 ├── utils/token.ts                     # Token 存取（双平台适配）
 ```
 
-**单端项目（折叠端层）**：省略 `{endpoint}/`，文件直接放 `api/types/{module}.ts`、`api/interfaces/{module}.ts`、`api/modules/{module}.ts`、`mock/api/{module}.ts`、`mock/data/{module}.ts`。
+> **多端工程例外**：若一个前端工程确属多端（如原型中心同时含 app+manager），可选地在 `api/`、`mock/` 下按端建子文件夹（`api/modules/manager/...`），但这是例外。常规单端工程一律用上面的扁平结构。
 
-端标识（默认集合）：`manager`（管理后台）、`app`（C 端用户应用）、`third`（第三方对接），对应后端 Controller 目录；`shared` 为跨端共用桶。可按项目扩展（如 `cockpit`），见「端类型与目录映射」。
+URL 前缀由工程所属端决定（admin 工程用 `/api/manager/...`、小程序工程用 `/api/app/...`），在 Real 实现里写死，不体现在目录结构上。
 
 ## 创建步骤
 
 ### 步骤 1：基础类型 + 枚举
 
-**基础类型**（`src/api/types/shared/common.ts`）：
+**基础类型**（`src/api/types/common.ts`）：
 
 ```typescript
-type Endpoint = 'manager' | 'app' | 'third'
-
 interface PaginationParams { page_index: number; page_size: number }
 
 interface PaginatedResponse<T> { total: number; list: T[]; index?: number; pages?: number }
@@ -158,7 +137,7 @@ interface RequestConfig<TData = unknown> {
 interface ApiError { status: number; message: string }
 ```
 
-**枚举规范**：命名格式 `{Entity}{Property}Enum`，每个成员加 JSDoc。何时用 enum 见核心约定 #7（仅纯前端常量；后端字典驱动字段直接 `number`/`string`，详见 `vue-enum-dict`）。通用枚举放 `api/types/shared/enums.ts`，模块专属放 `api/types/{endpoint}/{module}.ts`（跨端共用放 `types/shared/{module}.ts`）。完整枚举示例见下方 3.1。
+**枚举规范**：命名格式 `{Entity}{Property}Enum`，每个成员加 JSDoc。何时用 enum 见核心约定 #7（仅纯前端常量；后端字典驱动字段直接 `number`/`string`，详见 `vue-enum-dict`）。通用枚举放 `api/types/enums.ts`，模块专属放 `api/types/{module}.ts`。完整枚举示例见下方 3.1。
 
 ### 步骤 2：请求适配器
 
@@ -168,7 +147,7 @@ interface ApiError { status: number; message: string }
 
 ### 步骤 3：创建模块文件（5 个文件）
 
-以用户端 `order` 模块为例（端 = `app`，DTO 归属 `app`），按顺序创建 5 个文件。换端只改 `{endpoint}` 段：管理端用 `manager/`、第三方用 `third/`，URL 与目录同步。
+以小程序工程（App 端）的 `order` 模块为例，按顺序创建 5 个文件（工程内扁平，不按端分组）。换工程时文件路径不变，只改 Real 实现里的 URL 前缀（admin 工程用 `/api/manager/...`、小程序工程用 `/api/app/...`）。
 
 #### URL 命名规范
 
@@ -181,14 +160,14 @@ interface ApiError { status: number; message: string }
 | 删除 | `/api/{endpoint}/{module}/delete` | POST |
 | 自定义 | `/api/{endpoint}/{module}/{action}` | POST |
 
-`{endpoint}` 取默认集合 `{ manager, app, third }`（小写，与后端路由前缀一致；`shared` 无路由前缀故不在此列）——**该默认集合非封闭、可扩展**（见「端类型与目录映射」）。
+`{endpoint}` 由**工程所属端**决定（admin 工程=`manager`、小程序工程=`app`、第三方=`third`），小写、与后端路由前缀一致——是工程级常量，并非目录维度。
 
 #### DTO 命名：`{Entity}QueryParams`、`{Entity}CreateParams`、`{Entity}UpdateParams`、`{Entity}Item`
 
-#### 3.1 类型定义 — `api/types/app/order.ts`
+#### 3.1 类型定义 — `api/types/order.ts`
 
 ```typescript
-import type { PaginationParams } from '../shared/common'
+import type { PaginationParams } from './common'
 
 // ---- 枚举 ----
 // 纯前端常量枚举（不依赖后端字典）；字典字段见 #7 用 number + useDict。
@@ -232,13 +211,13 @@ export interface OrderItem {
 **要点**：
 - 枚举和出入参类型集中在此文件，全部 `export`
 - `import type` 引入基础类型，`import` 引入其他模块的 enum（enum 是值）
-- 文件位置反映 DTO 归属：仅用户端用 → `types/app/order.ts`；若管理端也用 → `types/shared/order.ts`（去重，不复制）
+- 模块专属类型放 `api/types/{module}.ts`，通用基础类型放 `api/types/common.ts`
 
-#### 3.2 接口契约 — `api/interfaces/app/order.ts`
+#### 3.2 接口契约 — `api/interfaces/order.ts`
 
 ```typescript
-import type { OrderQueryParams, OrderCreateParams, OrderItem } from '@/api/types/app/order'
-import type { PaginatedResponse } from '@/api/types/shared/common'
+import type { OrderQueryParams, OrderCreateParams, OrderItem } from '@/api/types/order'
+import type { PaginatedResponse } from '@/api/types/common'
 
 export interface IOrderApi {
   getOrderList(params: OrderQueryParams): Promise<PaginatedResponse<OrderItem>>
@@ -252,15 +231,15 @@ export interface IOrderApi {
 - 所有方法签名中的参数和返回值类型都引用 `api/types/` 中的类型
 - 导出接口供 Real 实现、Mock 实现、页面组件引用
 
-#### 3.3 Real 实现 + 工厂 — `api/modules/app/order.ts`
+#### 3.3 Real 实现 + 工厂 — `api/modules/order.ts`
 
 ```typescript
 import { request } from '@/api/request'
 import { MOCK_ENABLED } from '@/config'
-import type { IOrderApi } from '@/api/interfaces/app/order'
-import type { OrderQueryParams, OrderCreateParams, OrderItem } from '@/api/types/app/order'
-import type { PaginatedResponse } from '@/api/types/shared/common'
-import { MockOrderApi } from '@/mock/api/app/order'
+import type { IOrderApi } from '@/api/interfaces/order'
+import type { OrderQueryParams, OrderCreateParams, OrderItem } from '@/api/types/order'
+import type { PaginatedResponse } from '@/api/types/common'
+import { MockOrderApi } from '@/mock/api/order'
 
 // ---- Real 实现（适配 HTTP）----
 
@@ -295,11 +274,11 @@ export const orderApi = createOrderApi()
 - 模块实例是单例：`export const orderApi = createOrderApi()` 模块加载时执行一次
 - Mock 实现通过 `import { MockOrderApi } from '@/mock/api/...'` 引入
 
-#### 3.4 Mock 数据 — `mock/data/app/order.ts`
+#### 3.4 Mock 数据 — `mock/data/order.ts`
 
 ```typescript
-import type { OrderItem } from '@/api/types/app/order'
-import { OrderStatusEnum } from '@/api/types/app/order'
+import type { OrderItem } from '@/api/types/order'
+import { OrderStatusEnum } from '@/api/types/order'
 
 export const mockOrderList: OrderItem[] = [
   {
@@ -321,14 +300,14 @@ export const mockOrderList: OrderItem[] = [
 - 枚举字段必须使用 enum 值（如 `OrderStatusEnum.Paid`），禁止硬编码字符串
 - 从 `@/api/types/` 导入类型和枚举（不依赖 api/modules 或 api/interfaces）
 
-#### 3.5 Mock 实现 — `mock/api/app/order.ts`
+#### 3.5 Mock 实现 — `mock/api/order.ts`
 
 ```typescript
-import type { IOrderApi } from '@/api/interfaces/app/order'
-import type { OrderQueryParams, OrderCreateParams, OrderItem } from '@/api/types/app/order'
-import type { PaginatedResponse } from '@/api/types/shared/common'
-import { OrderStatusEnum } from '@/api/types/app/order'
-import { mockOrderList } from '@/mock/data/app/order'
+import type { IOrderApi } from '@/api/interfaces/order'
+import type { OrderQueryParams, OrderCreateParams, OrderItem } from '@/api/types/order'
+import type { PaginatedResponse } from '@/api/types/common'
+import { OrderStatusEnum } from '@/api/types/order'
+import { mockOrderList } from '@/mock/data/order'
 
 export class MockOrderApi implements IOrderApi {
   async getOrderList(params: OrderQueryParams): Promise<PaginatedResponse<OrderItem>> {
@@ -355,11 +334,14 @@ export class MockOrderApi implements IOrderApi {
 - 实现 `IXxxApi` 接口，方法签名与接口契约一致
 - 使用 `export class` 导出，供 `api/modules/` 中的工厂函数引用
 
-#### 其它端示例
+#### 不同工程的 URL 前缀
 
-- **管理端 `manager`**：与 `app` 完全同构，仅把 5 个文件的 `{endpoint}` 段与 URL 前缀换成 `manager`（如 `api/modules/manager/notice.ts`、`/api/manager/notice/list`）。Admin 模板默认整站走 `manager` 端。
-- **第三方端 `third`**（回调/推送）：契约常以被动接收为主，例如 `api/interfaces/third/callback.ts` 定义 `ICallbackApi { handleNotify(data: NotifyParams): Promise<NotifyResult> }`，POST `/api/third/callback/notify`，DTO 放 `api/types/third/callback.ts`。
-- **跨端共用 `shared`**：极少数多端复用的契约/模块可放 `interfaces/shared/`、`modules/shared/`（罕见）；DTO 共用更常见，直接 `types/shared/{module}.ts`。
+5 个文件的目录路径在各工程里完全一致（扁平），唯一随工程变化的是 Real 实现里的 **URL 前缀**：
+
+- **管理后台工程（`frontend/web/`）**：URL 用 `/api/manager/...`，如 `/api/manager/notice/list`。Admin 模板整站属此工程。
+- **小程序工程（`frontend/minigram/`）**：URL 用 `/api/app/...`，如上面的 `/api/app/order/list`。
+- **第三方对接**：通常无前端工程（后端被动接收回调/推送）；若需前端调用，URL 用 `/api/third/...`。
+- **扩展端**：后端新增端（如 `cockpit` 驾驶舱）时，对应前端工程 URL 用 `/api/cockpit/...`；同一工程内目录仍扁平。
 
 ### 步骤 4：配置
 
@@ -395,7 +377,7 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 
 ## 认证模块（`auth.ts`）
 
-认证模块同样采用策略工厂模式和文件拆分，归属 `manager` 端（接口契约 `api/interfaces/manager/auth.ts`、实现 `api/modules/manager/auth.ts`、Mock `mock/api/manager/auth.ts` + `mock/data/manager/auth.ts`）。Admin 模板的特殊点：登录/刷新端点必须用 `signBasicAuth(urlPath)`（HMAC-SM3，国密）生成 `Authorization: Basic ...` 头、请求体是普通 JSON（非 form-urlencoded、无 `grant_type`）、`login`/`refreshToken` 必须设 `skipAuthRefresh: true` 否则 401 死循环；`getCurrentUser` 走 `/api/manager/auth/info` 普通 Bearer。这是 ThirdNet 应用加密认证，不是 IdentityServer `/connect/token`。
+认证模块同样采用策略工厂模式和文件拆分，归属管理后台工程（接口契约 `api/interfaces/auth.ts`、实现 `api/modules/auth.ts`、Mock `mock/api/auth.ts` + `mock/data/auth.ts`）。Admin 模板的特殊点：登录/刷新端点必须用 `signBasicAuth(urlPath)`（HMAC-SM3，国密）生成 `Authorization: Basic ...` 头、请求体是普通 JSON（非 form-urlencoded、无 `grant_type`）、`login`/`refreshToken` 必须设 `skipAuthRefresh: true` 否则 401 死循环；`getCurrentUser` 走 `/api/manager/auth/info` 普通 Bearer。这是 ThirdNet 应用加密认证，不是 IdentityServer `/connect/token`。
 
 完整 `RealAuthApi` / `MockAuthApi` / `mockCurrentUser` / `signBasicAuth` 实现与 `token.ts` 双平台适配见 [auth-module.md](references/auth-module.md)，当新增/修改 Admin 认证、排查 Basic 签名或 refresh 死循环时再读。
 
@@ -406,9 +388,9 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
 ### 非 Admin 模板项目：手动调用
 
 ```typescript
-import { orderApi } from '@/api/modules/app/order'
-import { OrderStatusEnum } from '@/api/types/app/order'
-import type { OrderItem } from '@/api/types/app/order'
+import { orderApi } from '@/api/modules/order'
+import { OrderStatusEnum } from '@/api/types/order'
+import type { OrderItem } from '@/api/types/order'
 
 const loading = ref(false)
 const orderList = ref<OrderItem[]>([])

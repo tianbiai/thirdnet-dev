@@ -126,8 +126,7 @@
 
 | 规则 | 来源 | 检查方法 |
 |------|------|----------|
-| 每模块 5 文件齐全：`api/types/{endpoint|shared}/{module}.ts`、`api/interfaces/{endpoint}/{module}.ts`、`api/modules/{endpoint}/{module}.ts`、`mock/api/{endpoint}/{module}.ts`、`mock/data/{endpoint}/{module}.ts`（端 ∈ manager/app/third/shared，`manager` 为 Admin 默认端、可换） | `api-typescript-spec` | 对每个 `api/modules/{endpoint}/{m}.ts`，4 个兄弟文件存在 |
-| DTO 端归属正确：单端用 `types/{endpoint}/`、≥2 端共用放 `types/shared/`，同一 DTO 不重复出现在多个端目录 | `api-typescript-spec` | grep DTO 类型名，确认仅出现在单一端目录或 `shared/` |
+| 每模块 5 文件齐全：`api/types/{module}.ts`、`api/interfaces/{module}.ts`、`api/modules/{module}.ts`、`mock/api/{module}.ts`、`mock/data/{module}.ts`（工程内扁平，端由工程决定） | `api-typescript-spec` | 对每个 `api/modules/{m}.ts`，4 个兄弟文件存在 |
 | 接口名 `I{Entity}Api`，仅接口定义无实现 | `api-typescript-spec` | 文件含 `export interface I{Entity}Api` |
 | `api/modules/{m}.ts` 含三件：`class Real{Entity}Api implements I{Entity}Api` + `export function create{Entity}Api(): I{Entity}Api` + `export const {entity}Api` 单例 | `api-typescript-spec` | 三件齐全，工厂返回类型为接口 |
 | Mock 类数据取自 `@/mock/data/`，非硬编码；方法签名与接口一致 | `api-typescript-spec` | Mock 类无内联数据字面量 |

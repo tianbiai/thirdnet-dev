@@ -9,7 +9,7 @@ description: >
   "加个下拉"时，必须使用此技能。
 license: MIT
 metadata:
-  version: "1.0.0"
+  version: "1.0.1"
   author: thirdnet
 ---
 
@@ -87,7 +87,7 @@ const PRIORITY_OPTIONS = [
 ```vue
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { dictApi } from '@/api/modules/manager/dict'
+import { dictApi } from '@/api/modules/dict'
 import type { DictDataItem } from '@/api/types/dict'
 
 const sourceOptions = ref<DictDataItem[]>([])
@@ -170,7 +170,7 @@ const queryParams = reactive({ business_type: undefined as number | undefined })
 ```vue
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
-import { dictApi } from '@/api/modules/manager/dict'
+import { dictApi } from '@/api/modules/dict'
 import type { DictDataItem } from '@/api/types/dict'
 
 const sourceOptions = ref<DictDataItem[]>([])

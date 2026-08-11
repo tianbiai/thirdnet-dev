@@ -78,10 +78,10 @@ else → 无 VCS，全项目扫描 backend/ + frontend/src/
 | 文件路径模式 | 模块 | 实体（PascalCase） |
 |--------------|------|--------------------|
 | `frontend/.../src/views/{module}/index.vue` | `{module}` | 首字母大写 `{Module}` |
-| `frontend/.../src/api/types/{endpoint|shared}/{module}.ts` | `{module}` | `{Module}` |
-| `frontend/.../src/api/interfaces/{endpoint}/{module}.ts` | `{module}` | `{Module}` |
-| `frontend/.../src/api/modules/{endpoint}/{module}.ts` | `{module}` | `{Module}` |
-| `frontend/.../src/mock/{api,data}/{endpoint}/{module}.ts` | `{module}` | `{Module}` |
+| `frontend/.../src/api/types/{module}.ts` | `{module}` | `{Module}` |
+| `frontend/.../src/api/interfaces/{module}.ts` | `{module}` | `{Module}` |
+| `frontend/.../src/api/modules/{module}.ts` | `{module}` | `{Module}` |
+| `frontend/.../src/mock/{api,data}/{module}.ts` | `{module}` | `{Module}` |
 | `backend/.../Controllers/Manager/{Entity}ManagerController.cs` | 小写 `{entity}` | `{Entity}` |
 | `backend/.../Models/{Entity}Model.cs` | 小写 `{entity}` | `{Entity}` |
 | `backend/.../EntityConfigurations/{Entity}Configuration.cs` | 小写 `{entity}` | `{Entity}` |
@@ -100,12 +100,12 @@ else → 无 VCS，全项目扫描 backend/ + frontend/src/
 
 确定受影响模块 `{module}` / `{Entity}` 后，定位其完整产物一并审查：
 
-**前端 5 类契约 + 页面**（`{endpoint}` 为模块归属端，默认 manager/app/third；跨端共用 types 走 `shared/`）：
-- `api/types/{endpoint}/{module}.ts`（或 `api/types/shared/{module}.ts`）
-- `api/interfaces/{endpoint}/{module}.ts`
-- `mock/data/{endpoint}/{module}.ts`
-- `mock/api/{endpoint}/{module}.ts`
-- `api/modules/{endpoint}/{module}.ts`
+**前端 5 类契约 + 页面**（工程内扁平，不按端分组；端由工程决定）：
+- `api/types/{module}.ts`
+- `api/interfaces/{module}.ts`
+- `mock/data/{module}.ts`
+- `mock/api/{module}.ts`
+- `api/modules/{module}.ts`
 - `src/views/{module}/index.vue`（及该目录下其他组件）
 
 **后端 8 件套**：

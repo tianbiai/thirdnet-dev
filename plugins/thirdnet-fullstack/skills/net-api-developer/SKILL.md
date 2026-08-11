@@ -83,7 +83,7 @@ AdminControllerBase 提供：
 | Service | `{Module}{Endpoint}Service`：`SysUserManagerService` / `SysUserAppService` | `{Module}SharedService` 或 `{Module}Service`（如 `SysUserSharedService`） |
 | DTO(Map) | `{Entity}{Action}{Endpoint}Map`：`UserItemManagerMap` / `UserCreateAppMap` | `{Entity}{Action}Map`（如 `UserItemMap`） |
 
-`{Endpoint}` 默认三选一：`Manager` / `App` / `Third`，与 URL 路由前缀、目录名、命名空间完全一致。**该集合非封闭枚举——项目可按实际新增端**（如 `Cockpit` 驾驶舱、`OpenAPI` 开放接口、`Iot` 设备端）：新增端沿用同一套目录/类名后缀/命名空间/路由规则即可——建 `Controllers/Cockpit/` 等子目录、URL 前缀 `api/cockpit/...`、DTO 插入 `Cockpit` 段，并同步前端 `api-typescript-spec` 的端类型集合（见下「前后端四桶对照」）。
+`{Endpoint}` 默认三选一：`Manager` / `App` / `Third`，与 URL 路由前缀、目录名、命名空间完全一致。**该集合非封闭枚举——项目可按实际新增端**（如 `Cockpit` 驾驶舱、`OpenAPI` 开放接口、`Iot` 设备端）：新增端沿用同一套目录/类名后缀/命名空间/路由规则即可——建 `Controllers/Cockpit/` 等子目录、URL 前缀 `api/cockpit/...`、DTO 插入 `Cockpit` 段。后端新增端时，前端按需新建对应工程（如 `frontend/cockpit/`，URL 用 `/api/cockpit/...`），工程内 `api/` 仍扁平（见下「前后端对照」）。
 
 #### 命名 ↔ 文件夹 ↔ 路由 统一对照
 
@@ -98,18 +98,18 @@ AdminControllerBase 提供：
 
 命名空间随之分层：`{ProjectName}.Admin.APIService.Controllers.Manager`、`...Services.App`、`...DTOs.Manager.System` 等。
 
-#### 前后端四桶对照（与 api-typescript-spec 对齐）
+#### 前后端对照（与 api-typescript-spec 对齐）
 
-本规则的「端类型 + Shared 桶」是全栈权威源，前端 `api-typescript-spec` 已对齐同一套四桶——前后端目录、命名一一可对照，看一端即能定位另一端：
+后端是**单代码库服务所有端**，Controller/Service/DTO 必须按端分目录（四桶）隔离字段与权限。前端则**按工程分端**——`frontend/web/`（管理后台）独立于 `frontend/minigram/`（小程序），工程内 `api/` 与 `mock/` 扁平、不按端再分组。因此前后端的对照关系是「**工程 ↔ 端**」，而非逐层目录镜像：管理后台工程 ↔ 后端 Manager 端，小程序工程 ↔ 后端 App 端。
 
-| 层 | 后端（本文档） | 前端 api-typescript-spec |
+| 层 | 后端（本文档，按端分目录） | 前端 api-typescript-spec（工程内扁平） |
 |----|--------------|--------------------------|
-| Controller / 契约 | `Controllers/Manager/UserManagerController.cs` | `api/interfaces/manager/user.ts`（`IUserApi`） |
-| Service / Real+Mock | `Services/Manager/SysUserManagerService.cs` | `api/modules/manager/user.ts`（`RealUserApi` + `MockUserApi` + `createUserApi`） |
-| DTO / types | `DTOs/Manager/System/UserItemManagerMap.cs` | `api/types/manager/user.ts` |
-| 跨端共用 | `DTOs/Shared/System/UserItemMap.cs`、`Services/Shared/` | `api/types/shared/user.ts`（≥2 端共用 DTO 去重桶） |
+| Controller / 契约 | `Controllers/Manager/UserManagerController.cs` | `api/interfaces/user.ts`（`IUserApi`，位于管理后台工程） |
+| Service / Real+Mock | `Services/Manager/SysUserManagerService.cs` | `api/modules/user.ts`（`RealUserApi` + `MockUserApi` + `createUserApi`） |
+| DTO / types | `DTOs/Manager/System/UserItemManagerMap.cs` | `api/types/user.ts` |
+| 跨端共用 | `DTOs/Shared/System/UserItemMap.cs`、`Services/Shared/` | （前端单端工程内无跨端去重；多端工程例外时可按端分子目录） |
 
-端类型集合前后端必须一致：后端新增 `Cockpit` 端时，前端 `api/{types,interfaces,modules}/cockpit/` 与 `mock/{api,data}/cockpit/` 同步建目录。命名对照：后端 `{Module}{Endpoint}Controller` ↔ 前端 `I{Entity}Api`、后端 `{Entity}{Action}{Endpoint}Map` ↔ 前端同名 TS interface。
+后端新增 `Cockpit` 端时，前端按需新建对应工程（`frontend/cockpit/`），工程内目录仍扁平、URL 用 `/api/cockpit/...`。命名对照：后端 `{Module}{Endpoint}Controller` ↔ 前端 `I{Entity}Api`、后端 `{Entity}{Action}{Endpoint}Map` ↔ 前端同名 TS interface。
 
 #### 拆分原则：何时放 Shared/，何时各端一份
 

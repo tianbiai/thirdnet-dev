@@ -53,7 +53,7 @@ metadata:
 
 无 `.svn` 时回退到 git（`git status --porcelain` / `git diff` / `git log`）；二者皆无则全项目扫描。用户也可直接指定模块名（如 `notice`）或路径列表覆盖自动检测。
 
-**模块推断**：从改动文件路径反推 `{module}` / `{Entity}`，据此把「受影响文件」聚合到「受影响模块」，并定位该模块的完整产物——前端 5 类契约（`api/types/{endpoint|shared}/`、`api/interfaces/{endpoint}/`、`mock/data/{endpoint}/`、`mock/api/{endpoint}/`、`api/modules/{endpoint}/`；端 ∈ manager/app/third/shared，`manager` 为 Admin 默认端、可换）+ 页面 `src/views/{module}/index.vue`；后端 8 件套（Model / EntityConfiguration / DTO(Map) / Service / Controller / 权限注解 / DI 注册 / 菜单数据）。审查对象是**模块**，不是孤立文件。
+**模块推断**：从改动文件路径反推 `{module}` / `{Entity}`，据此把「受影响文件」聚合到「受影响模块」，并定位该模块的完整产物——前端 5 类契约（`api/types/{module}.ts`、`api/interfaces/{module}.ts`、`mock/data/{module}.ts`、`mock/api/{module}.ts`、`api/modules/{module}.ts`；工程内扁平，端由工程决定）+ 页面 `src/views/{module}/index.vue`；后端 8 件套（Model / EntityConfiguration / DTO(Map) / Service / Controller / 权限注解 / DI 注册 / 菜单数据）。审查对象是**模块**，不是孤立文件。
 
 ## 审查维度总览
 

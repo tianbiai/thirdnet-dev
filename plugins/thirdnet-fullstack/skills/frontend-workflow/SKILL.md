@@ -40,7 +40,7 @@ metadata:
 - **简单优先** —— 最少代码、无推测设计，不为假设的未来需求预留扩展
 - **精准修改** —— 只改必须改的，匹配现有风格，不做附带清理
 - **目标驱动执行** —— 定义成功标准，每步验证是否向目标推进
-- **模板功能代码保护** —— → 模板内置模块（`src/views/system/`、`src/views/api/`、`src/api/modules/manager/`、`src/mock/data/manager/`、`src/router/`、`src/stores/auth.ts`、`src/utils/token.ts`、`src/api/adapter.web.ts` 等）业务逻辑受保护、不可修改，仅允许 `<style scoped>` 视觉调整；扩展业务应新建独立模块。详见 `admin-template-setup`「核心原则」。
+- **模板功能代码保护** —— → 模板内置模块（`src/views/system/`、`src/views/api/`、`src/api/modules/`、`src/mock/data/`、`src/router/`、`src/stores/auth.ts`、`src/utils/token.ts`、`src/api/adapter.web.ts` 等）业务逻辑受保护、不可修改，仅允许 `<style scoped>` 视觉调整；扩展业务应新建独立模块。详见 `admin-template-setup`「核心原则」。
 
 ## 代码注释规范
 
@@ -292,11 +292,14 @@ frontend/
 │       ├── composables/
 │       ├── utils/token.ts
 │       ├── api/
-│       │   ├── types/{manager,app,third,shared}/   # shared 桶：common/enums + ≥2 端共用 DTO 去重
+│       │   ├── types/               # common.ts/enums.ts + {module}.ts（工程内扁平）
+│       │   ├── interfaces/{module}.ts
 │       │   ├── adapter.ts / adapter.web.ts / adapter.uni.ts
 │       │   ├── request.ts
-│       │   └── modules/{manager,app,third,shared}/
-│       ├── mock/data/{manager,app,third,shared}/
+│       │   └── modules/{module}.ts
+│       ├── mock/
+│       │   ├── api/{module}.ts
+│       │   └── data/{module}.ts
 │       ├── stores/
 │       ├── router/
 │       └── styles/
@@ -349,7 +352,7 @@ frontend/
 ### 文件结构
 
 - [ ] 页面组件在 `src/views/`（Web）或 `src/pages/`（移动端）
-- [ ] API 模块在 `src/api/modules/` 下按端分类（默认三端 manager/app/third + shared 跨端去重桶，集合非封闭可扩展）
+- [ ] API 模块在 `src/api/modules/` 下扁平组织（前端按工程分端，工程内不按端分组）
 - [ ] Mock 数据在 `src/mock/data/` 下与 API 模块一一对应
 - [ ] Store 在 `src/stores/`，路由在 `src/router/`
 
