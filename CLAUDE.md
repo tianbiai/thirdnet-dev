@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 thirdnet-dev/
 ├── .claude-plugin/marketplace.json          # 插件集合注册清单（顶层 metadata.version + 各 plugin 条目）
-└── plugins/thirdnet-fullstack/               # 唯一的自包含插件（v2.55.4）
+└── plugins/thirdnet-fullstack/               # 唯一的自包含插件（v2.55.6）
     ├── .claude-plugin/plugin.json            # 插件清单（.claude-plugin/ 只放清单，其余组件都在插件根）
     ├── hooks/hooks.json                      # 1 Stop + 3 PreToolUse + 1 PostToolUse（2 prompt + 3 command）——必须在插件根，Claude Code 只认 <插件根>/hooks/hooks.json
     ├── hooks/skill-gate.mjs                  # Write|Edit 合规门与软规范告警脚本（command 型钩子）
@@ -72,7 +72,7 @@ marketplace 还声明了若干外部插件（superpowers / supabase-postgres-bes
 - **文档（1）**：`thirdnet-doc-generator`——项目交付文档生成（需求规格/系统设计/用户手册/测试用例，Markdown 可转 Word）；另可生成技术参考类「数据库表结构文档」（经 dbhub MCP 实时导出 PostgreSQL 表结构：表名/schema/表用途/字段·列名·类型·注释·备注）
 - **模板升级（1）**：`thirdnet-template-upgrade`
 - **原型同步（1）**：`proto-workflow`——原型分支同步编排（固定命名 `.Proto` 分支 + 与 main 双向 `svn merge` 同步；支持派生 `.Proto.{Feature}` 并行功能分支、选择性合并到主干，六确认门 A/B/C/D/E/F）
-- **工具（3）**：`md-to-word`、`thirdnet-mcp-setup`——Postgres MCP 装配（Admin 创建时默认挂 `@bytebase/dbhub`，让 Claude Code 直查 PostgreSQL；连接串从 appsettings 读出、用户确认用哪个库）、`token-usage-analysis`——当前会话 Token 消耗统计分析（解析 ZCode 会话日志 / /context 报告：上下文窗口分类占比 + 子代理消耗汇总 + 原因诊断 + 节省优化建议）
+- **工具（3）**：`md-to-word`、`thirdnet-mcp-setup`——Postgres MCP 装配（Admin 创建时默认挂 `@bytebase/dbhub`，让 Claude Code 直查 PostgreSQL；连接串从 appsettings 读出、用户确认用哪个库）、`token-usage-analysis`——当前会话 Token 消耗统计分析（数据源：ZCode 会话日志 / Claude Code·WorkBuddy(CodeBuddy) CLI 的 /context 与 transcript：消耗正常性体检【是否正常/异常过大识别】 + 上下文窗口分类占比 + 子代理消耗汇总 + 原因诊断 + 节省优化建议）
 
 ## 常用命令
 

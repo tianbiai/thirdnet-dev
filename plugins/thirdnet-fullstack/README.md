@@ -4,7 +4,7 @@ ThirdNet 全栈 Admin 开发插件（自包含）—— Claude Code 插件，为
 
 是 ThirdNet 前后端开发技能的**唯一来源**：后端 .NET 微服务与前端 Vue 3 的全部技能均收录于此，统一 `thirdnet-fullstack:` 命名空间，开箱即用。
 
-- **版本**：2.55.4（目录清单 `thirdnet-plugins` v0.82.0）
+- **版本**：2.55.6（目录清单 `thirdnet-plugins` v0.84.0）
 - **许可**：MIT
 
 ## 技术栈
@@ -84,7 +84,7 @@ ThirdNet 全栈 Admin 开发插件（自包含）—— Claude Code 插件，为
 |------|------|
 | `md-to-word` | Markdown 转 Word（.docx）转换工具 |
 | `thirdnet-mcp-setup` | Postgres MCP 装配（Admin 创建时默认挂 `@bytebase/dbhub`，连接串从 appsettings 读取） |
-| `token-usage-analysis` | 当前会话 Token 消耗统计分析（解析 ZCode 会话日志 / /context 输出，分类占比 + 子代理汇总 + 节省优化建议） |
+| `token-usage-analysis` | 当前会话 Token 消耗统计分析（解析 ZCode 会话日志 / Claude Code·WorkBuddy(CLI) 的 /context 与 transcript，先给消耗是否正常的体检总评与异常过大项识别，再给分类占比 + 子代理汇总 + 节省优化建议） |
 
 ## 子代理（2 个 · `agents/`）
 

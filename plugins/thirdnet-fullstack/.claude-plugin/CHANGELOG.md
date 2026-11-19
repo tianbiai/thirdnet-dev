@@ -1,5 +1,30 @@
 # Changelog
 
+## 2.55.6 - 2026-11-19
+
+### Added
+**`token-usage-analysis` 新增 WorkBuddy/CodeBuddy CLI 数据源支持（技能版本 1.1.0 → 1.2.0）**：
+
+- **`/context` 粘贴路径**（级联 b 档）：WorkBuddy CLI（CodeBuddy Code，Claude Code 系衍生）原生支持 `/context`（另有 `/cost`、`/stats` 补累计口径），输出与 Claude Code 同源同构，按 context-report-guide §2.1 同一映射归一化
+- **本地日志回退发现**（级联 d 档）：`resolve_claude_transcript` 在 `~/.claude/projects/` 缺失或为空时自动回退 `~/.codebuddy/projects/`（递归 glob 最新 jsonl，Claude 兼容格式解析；字段不匹配时明确报错并提示改走 /context 粘贴）；报告数据来源行标注 WorkBuddy 来源
+- SKILL.md 注意事项补版本差异：WorkBuddy **IDE 版无 `/context`**（压缩用 `/summarize`、用量看账号页），与 Trae 等 IDE 类工具同样只能走手动提供数字路径（级联 e 档）
+
+### 版本同步
+`plugin.json` 与 `marketplace.json` 条目 2.55.5 → 2.55.6；marketplace `metadata.version` 0.83.0 → 0.84.0；协调技能 frontmatter → 2.55.6；`README.md` 版本行与技能表 `token-usage-analysis` 行、根 `CLAUDE.md` 版本引用与技能体系一句话定位同步。
+
+## 2.55.5 - 2026-11-19
+
+### Optimized
+**`token-usage-analysis` 报告前置「消耗正常性体检」（技能版本 1.0.0 → 1.1.0）**——报告先回答「消耗是否正常」并识别异常（消耗过大）项，数据与建议随后展开：
+
+- **脚本内置确定性体检**：`analyze_token_usage.py` 新增 `THRESHOLDS` 常量与 `health_checks()`，输出开头一行总评横幅（🟢 正常 / 🟡 轻度偏离 / 🔴 异常 / ℹ️ 数据不足 + 异常项点名）+ 新增「二、消耗正常性体检」判定表（检查项 × 数值 × ✅/⚠️/❌ × 阈值说明；内置工具定义 ➖ 基线不判级；累计输入/窗口占用倍数 ➖ 白名单参考项）；原分类占比 / 累计消耗 / 子代理三节重编号为三 / 四 / 五；Claude transcript 路径追加降级体检（仅缓存读占比可判，窗口项标不可得并提示 /context 补充）
+- **阈值显式化消除双源**：`references/optimization-guide.md` 新增 §1「正常性判定阈值表」（System prompt ≤10% / MCP ≤10% / Messages ≤50% / 剩余空间 ≥40% / 缓存读 ≥80% / 子代理 ≤1×，两级偏高/异常边界）+ 总评规则 + 正常机制白名单（累计输入数十倍于窗口占用、缓存读数值巨大等不报警），原隐式散落阈值并入；Free space 诊断起点由 <20% 对齐为 <40%（<20% 才需立即行动）；原 §1–3 重编号为 §2–4
+- **SKILL.md 报告模板重构**：标题下第一行总评横幅 + 七节结构（新增「2. 消耗正常性体检」示例表；原因分析改为聚焦 ❌/⚠️ 项；优化建议逐条对应异常项）；执行步骤插入「正常性体检与异常识别」（ZCode 路径照抄脚本判定，非脚本来源按 optimization-guide §1 人工判定，可补上下文注记但不得无据翻转判定）；description 触发词补「消耗是否正常 / 消耗过大 / 异常消耗」
+- `references/context-report-guide.md`：脚本输出结构描述更新为「横幅 + 五节」；降级矩阵补「数据不足项标不可得不判级」行
+
+### 版本同步
+`plugin.json` 与 `marketplace.json` 条目 2.55.4 → 2.55.5；marketplace `metadata.version` 0.82.0 → 0.83.0；协调技能 frontmatter → 2.55.5；`README.md` 版本行与技能表 `token-usage-analysis` 行、根 `CLAUDE.md` 版本引用与技能体系一句话定位同步。
+
 ## 2.55.4 - 2026-11-19
 
 ### Fixed

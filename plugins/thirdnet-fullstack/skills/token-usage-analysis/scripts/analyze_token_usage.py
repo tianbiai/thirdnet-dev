@@ -6,7 +6,8 @@
 - zcode（默认）：~/.zcode/cli/rollout/model-io-<sessionId>.jsonl
   每行一次完整模型调用：usage（精确数值）+ request.body（system / tools / messages
   全量快照）。末行请求体即当前上下文窗口全量，可做 /context 级分类占比。
-- claude：Claude Code transcript（~/.claude/projects/**/*.jsonl）
+- claude：Claude Code transcript（~/.claude/projects/**/*.jsonl；目录不存在时
+  回退 WorkBuddy/CodeBuddy 日志目录 ~/.codebuddy/projects/，格式与 Claude 兼容）
   逐条 assistant 消息的 message.usage 基础统计；transcript 不含 system/tools
   明细，分类占比缺项需由 /context 输出补充。
 
@@ -15,8 +16,9 @@
   注：inputTokens 已含缓存读部分（= 非缓存输入 + cacheReadTokens）。
 - 累计消耗：全部调用逐行累加（配额/计费口径），缓存读单列。
 
-仅用 Python 标准库。输出 markdown 原始统计到 stdout；原因分析与优化建议
-由代理续写（见技能 SKILL.md 与 references/optimization-guide.md）。
+仅用 Python 标准库。输出 markdown 原始统计与「正常性体检」判定（是否正常、
+异常=消耗过大项识别）到 stdout，报告开头即给总评横幅；原因分析与优化建议
+由代理续写，聚焦体检 ❌/⚠️ 项（见技能 SKILL.md 与 references/optimization-guide.md）。
 """
 
 import argparse
@@ -31,6 +33,9 @@ from datetime import datetime
 ROLLOUT_DIR = os.path.join(os.path.expanduser("~"), ".zcode", "cli", "rollout")
 AGENTS_DIR = os.path.join(os.path.expanduser("~"), ".zcode", "cli", "agents")
 CLAUDE_PROJECTS_DIR = os.path.join(os.path.expanduser("~"), ".claude", "projects")
+# WorkBuddy / CodeBuddy Code CLI（Claude Code 系衍生）的会话日志目录，结构同构：
+# ~/.codebuddy/projects/<project-hash>/<session-id>/…；作为 claude 数据源的回退目录
+CODEBUDDY_PROJECTS_DIR = os.path.join(os.path.expanduser("~"), ".codebuddy", "projects")
 
 # 常见模型上下文窗口（token），仅用于展示「剩余空间」；未知模型不显示，
 # 可用 --window N 显式指定。数值随官方口径变化，不保证实时准确。
@@ -40,6 +45,19 @@ MODEL_WINDOWS = {
     "claude-sonnet-4-5": 200000,
     "claude-sonnet-4-5-20250929": 200000,
     "claude-opus-4-1": 200000,
+}
+
+# 正常性体检阈值（占比单位 %，倍数单位 ×）。与 references/optimization-guide.md §1
+# 「正常性判定阈值表」保持同步——两处改动必须一起改。
+# 方向：low_ok = 值越低越好（占比型）；high_ok = 值越高越好（余量/命中型）。
+# 分级：✅ 正常 / ⚠️ 偏高 / ❌ 异常（消耗过大）；➖ 不判级（基线/白名单参考项）；ℹ️ 不可得。
+THRESHOLDS = {
+    "system_prompt":   (10.0, 20.0, "low_ok",  "正常 ≤10%；10–20% 偏高；>20% 异常"),
+    "mcp_tools":       (10.0, 20.0, "low_ok",  "正常 ≤10%；10–20% 偏高；>20% 异常"),
+    "messages":        (50.0, 70.0, "low_ok",  "正常 ≤50%；50–70% 偏高；>70% 异常"),
+    "free_space":      (40.0, 20.0, "high_ok", "正常 ≥40%；20–40% 偏低；<20% 异常（接近 autocompact）"),
+    "cache_read":      (80.0, 60.0, "high_ok", "正常 ≥80%；60–80% 偏低；<60% 异常（缓存频繁失效）"),
+    "subagent_ratio":  (1.0,  3.0,  "low_ok",  "正常 ≤1×；1–3× 偏高；>3× 异常"),
 }
 
 CJK_RE = re.compile(r"[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]")
@@ -336,10 +354,20 @@ def resolve_claude_transcript(args):
             raise SystemExit(f"[token-usage-analysis] 文件不存在：{p}")
         return p, "file"
     if not os.path.isdir(CLAUDE_PROJECTS_DIR):
+        # Claude 目录不存在 → 回退 WorkBuddy/CodeBuddy 日志目录（格式兼容）
+        if os.path.isdir(CODEBUDDY_PROJECTS_DIR):
+            files = glob.glob(os.path.join(CODEBUDDY_PROJECTS_DIR, "**", "*.jsonl"), recursive=True)
+            if files:
+                return max(files, key=os.path.getmtime), "auto-codebuddy"
         raise SystemExit(
-            f"[token-usage-analysis] 未发现 Claude projects 目录 {CLAUDE_PROJECTS_DIR}；"
+            f"[token-usage-analysis] 未发现 Claude projects 目录 {CLAUDE_PROJECTS_DIR}"
+            f"（也未发现 WorkBuddy/CodeBuddy 目录 {CODEBUDDY_PROJECTS_DIR}）；"
             "请用 --transcript 指定 jsonl 路径，或让用户提供 /context 报告。")
     files = glob.glob(os.path.join(CLAUDE_PROJECTS_DIR, "**", "*.jsonl"), recursive=True)
+    if not files and os.path.isdir(CODEBUDDY_PROJECTS_DIR):
+        files = glob.glob(os.path.join(CODEBUDDY_PROJECTS_DIR, "**", "*.jsonl"), recursive=True)
+        if files:
+            return max(files, key=os.path.getmtime), "auto-codebuddy"
     if not files:
         raise SystemExit(f"[token-usage-analysis] {CLAUDE_PROJECTS_DIR} 下未找到 transcript。")
     return max(files, key=os.path.getmtime), "auto"
@@ -380,6 +408,133 @@ def analyze_claude(path):
     return totals, sizes, count_usage, first_ts, last_ts
 
 
+# ---------- 正常性体检（是否正常 / 异常=消耗过大 识别） ----------
+
+def category_tokens(items, prefix):
+    """按标签前缀汇总分类体量（如全部 MCP 服务器、全部消息分类）。"""
+    return sum(tok for label, tok, _ in items if label.startswith(prefix))
+
+
+def grade(value, spec):
+    """按阈值分级：spec = (ok 边界, warn 边界, 方向, 说明)，返回 ✅/⚠️/❌。"""
+    ok, warn, direction = spec[0], spec[1], spec[2]
+    if direction == "high_ok":
+        return "✅" if value >= ok else ("⚠️" if value >= warn else "❌")
+    return "✅" if value <= ok else ("⚠️" if value <= warn else "❌")
+
+
+def health_checks(items, window, window_used, totals, sub_in, sub_count):
+    """对窗口构成 / 累计消耗 / 子代理三口径做正常性体检。
+
+    返回 {"rows": [(检查项, 数值, 判定, 说明)], "overall": 总评,
+    "abnormal": 异常项名列表（❌ 在前 ⚠️ 在后）, "n_bad": n, "n_warn": n}。
+    窗口未知时窗口类检查项标 ℹ️ 不可得（阈值以完整窗口为分母，不降级换算）。
+    """
+    rows = []
+
+    sys_tok = category_tokens(items, "System prompt")
+    builtin_tok = category_tokens(items, "内置工具定义")
+    mcp_tok, mcp_top = 0.0, None
+    for label, tok, _ in items:
+        if label.startswith("MCP 工具："):
+            mcp_tok += tok
+            if mcp_top is None or tok > mcp_top[1]:
+                mcp_top = (label, tok)
+    msg_tok = category_tokens(items, "消息：")
+
+    if window:
+        d = pct(sys_tok, window)
+        rows.append(("System prompt 占窗口", f"{d:.1f}%（~{fmt(sys_tok)}）",
+                     grade(d, THRESHOLDS["system_prompt"]), THRESHOLDS["system_prompt"][3]))
+        d = pct(builtin_tok, window)
+        rows.append(("内置工具定义占窗口", f"{d:.1f}%（~{fmt(builtin_tok)}）", "➖",
+                     "客户端注入的固定基线，不可优化——仅展示，不判级"))
+        d = pct(mcp_tok, window)
+        mcp_val = f"{d:.1f}%（~{fmt(mcp_tok)}）"
+        if mcp_top:
+            mcp_val += f"，最大 {mcp_top[0][len('MCP 工具：'):]}"
+        rows.append(("MCP 工具定义占窗口", mcp_val,
+                     grade(d, THRESHOLDS["mcp_tools"]), THRESHOLDS["mcp_tools"][3]))
+        d = pct(msg_tok, window)
+        rows.append(("消息历史占窗口", f"{d:.1f}%（~{fmt(msg_tok)}）",
+                     grade(d, THRESHOLDS["messages"]), THRESHOLDS["messages"][3]))
+        free = max(0, window - window_used)
+        d = pct(free, window)
+        rows.append(("剩余空间", f"{d:.1f}%（{fmt(free)}）",
+                     grade(d, THRESHOLDS["free_space"]), THRESHOLDS["free_space"][3]))
+        if window_used > 0:
+            rows.append(("累计输入 / 窗口占用", f"{totals['input'] / window_used:.1f}×", "➖",
+                         "参考项不判级：数十倍属正常机制（每轮全量重发 + 缓存读降费），见白名单"))
+    else:
+        rows.append(("窗口构成（System prompt / 工具 / 消息 / 剩余空间）", "不可得", "ℹ️",
+                     "窗口大小未知，占比无法计算——可用 --window N 指定后复跑"))
+
+    if totals["input"] > 0:
+        d = pct(totals["cache_read"], totals["input"])
+        rows.append(("缓存读 / 累计输入",
+                     f"{d:.1f}%（{fmt(totals['cache_read'])} / {fmt(totals['input'])}）",
+                     grade(d, THRESHOLDS["cache_read"]), THRESHOLDS["cache_read"][3]))
+    else:
+        rows.append(("缓存读 / 累计输入", "不可得", "ℹ️", "累计输入为 0 或缺失"))
+
+    if sub_count == 0:
+        rows.append(("子代理累计输入 / 主会话累计输入", "无子代理", "✅", "本会话未派发子代理"))
+    elif totals["input"] > 0:
+        r = sub_in / totals["input"]
+        rows.append(("子代理累计输入 / 主会话累计输入",
+                     f"{r:.1f}×（{fmt(sub_in)} / {fmt(totals['input'])}）",
+                     grade(r, THRESHOLDS["subagent_ratio"]), THRESHOLDS["subagent_ratio"][3]))
+    else:
+        rows.append(("子代理累计输入 / 主会话累计输入", "不可得", "ℹ️",
+                     "主会话累计输入缺失，无法计算倍数"))
+
+    graded = [r for r in rows if r[2] in ("✅", "⚠️", "❌")]
+    bad = [r[0] for r in graded if r[2] == "❌"]
+    warn = [r[0] for r in graded if r[2] == "⚠️"]
+    if not graded:
+        overall = "ℹ️ 数据不足"
+    elif bad:
+        overall = "🔴 异常"
+    elif warn:
+        overall = "🟡 轻度偏离"
+    else:
+        overall = "🟢 正常"
+    return {"rows": rows, "overall": overall, "abnormal": bad + warn,
+            "n_bad": len(bad), "n_warn": len(warn)}
+
+
+def health_banner(health):
+    """报告开头的总评横幅：先给「是否正常」结论，数据与明细在后续节展开。"""
+    if health["overall"] == "ℹ️ 数据不足":
+        return ("> **体检总评：ℹ️ 数据不足** —— 可判检查项不足，无法下正常性结论"
+                "（缺窗口数据时可用 `--window N` 指定后复跑）")
+    head = f"> **体检总评：{health['overall']}**（{health['n_bad']} ❌ / {health['n_warn']} ⚠️）"
+    if health["abnormal"]:
+        return head + " —— 异常（消耗过大）项：" + "、".join(health["abnormal"])
+    return head + " —— 全部检查项在阈值内"
+
+
+def render_health_section(health):
+    """「消耗正常性体检」节：判定表 + 异常项点名。"""
+    lines = [
+        "## 二、消耗正常性体检（阈值与 references/optimization-guide.md §1 保持一致）",
+        "",
+        "| 检查项 | 数值 | 判定 | 阈值与说明 |",
+        "|--------|------|:----:|------------|",
+    ]
+    for name, value, verdict, note in health["rows"]:
+        lines.append(f"| {name} | {value} | {verdict} | {note} |")
+    lines.append("")
+    if health["abnormal"]:
+        lines.append("**异常项（消耗过大）**：" + "；".join(health["abnormal"])
+                     + " —— 原因分析与优化建议优先针对这些项。")
+        lines.append("")
+    lines.append("> 判定基于统一阈值；分类数值为估算口径（已校准，占比可信）。代理可结合会话上下文补充注记"
+                 "（如长会话消息占比偏高属预期），但不得无数据依据翻转 ❌/⚠️ 判定。")
+    lines.append("")
+    return lines
+
+
 # ---------- 报告渲染 ----------
 
 def render_zcode_report(path, how, top_n, window_override):
@@ -396,12 +551,35 @@ def render_zcode_report(path, how, top_n, window_override):
 
     window = window_override or MODEL_WINDOWS.get(model.lower())
 
+    # 分类占比与子代理汇总先行算好——第二节「正常性体检」要引用它们的数值
+    items, msg_items = window_breakdown(last, messages)
+    items, total_est, scale = calibrate(items, last_input)
+    items = [it for it in items if it[1] >= 1]
+    subs = find_subagents(session_id)
+    sub_rows = []
+    sum_in = sum_out = sum_cr = 0
+    for s in subs:
+        child_file = None
+        if s["child"]:
+            child_file = os.path.join(ROLLOUT_DIR, f"model-io-{s['child']}.jsonl")
+        if child_file and os.path.isfile(child_file):
+            t, _, _, _, _ = read_rollout(child_file)
+        else:
+            t = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
+        sum_in += t["input"]
+        sum_out += t["output"]
+        sum_cr += t["cache_read"]
+        sub_rows.append((s, t))
+    health = health_checks(items, window, window_used, totals, sum_in, len(subs))
+
     out = []
     out.append("# Token 消耗统计（原始数据）")
     out.append("")
     out.append(f"- 数据来源：ZCode rollout 日志 `{path}`"
                + ("（自动选取最新主会话）" if how == "auto" else ""))
     out.append(f"- 统计边界：仅统计磁盘上留存的日志（留存策略可能已清理更早记录）")
+    out.append("")
+    out.append(health_banner(health))
     out.append("")
     out.append("## 一、会话概况")
     out.append("")
@@ -424,12 +602,10 @@ def render_zcode_report(path, how, top_n, window_override):
     out.append(f"| 末次调用明细 | 输入 {fmt(last_input)}（含缓存读 {fmt(last_usage.get('cacheReadTokens') or 0)}）+ 输出 {fmt(last_output)} |")
     out.append("")
 
-    out.append("## 二、当前上下文窗口分类占比（估算，已按精确 usage 校准，合计 = 末次输入）")
+    out.extend(render_health_section(health))
+
+    out.append("## 三、当前上下文窗口分类占比（估算，已按精确 usage 校准，合计 = 末次输入）")
     out.append("")
-    items, msg_items = window_breakdown(last, messages)
-    items, total_est, scale = calibrate(items, last_input)
-    items = [it for it in items if it[1] >= 1]
-    exact_sum = sum(t for _, t, _ in items)
     out.append(f"> 字符启发式估算（CJK ÷1.5、其他 ÷4）后按末次精确输入 {fmt(last_input)} 等比校准"
                f"（原始估算 {fmt(total_est)}，缩放系数 ×{scale:.2f}）。绝对数值为近似，占比结构可信。")
     out.append("")
@@ -448,7 +624,7 @@ def render_zcode_report(path, how, top_n, window_override):
             out.append(f"- ~{fmt(tok)} · {key} · `{pv}`")
         out.append("")
 
-    out.append("## 三、累计消耗（配额口径，全部调用逐行累加）")
+    out.append("## 四、累计消耗（配额口径，全部调用逐行累加）")
     out.append("")
     out.append("| 指标 | 数值 |")
     out.append("|------|------|")
@@ -461,26 +637,14 @@ def render_zcode_report(path, how, top_n, window_override):
         out.append(f"| 辅助调用（{'、'.join(aux['kinds'].keys())}） | {aux['count']} 次，输入 {fmt(aux['input'])} + 输出 {fmt(aux['output'])}（独立小上下文，已单列不计入上方分类） |")
     out.append("")
 
-    out.append("## 四、子代理消耗（独立上下文，不计入上方窗口占用）")
+    out.append("## 五、子代理消耗（独立上下文，不计入上方窗口占用）")
     out.append("")
-    subs = find_subagents(session_id)
     if not subs:
         out.append(f"未发现本会话派发的子代理记录（查找目录：`{os.path.join(AGENTS_DIR, session_id)}`）。")
     else:
         out.append("| 子代理 | 状态 | 累计输入(含缓存读) | 缓存读 | 累计输出 | 任务书预览 |")
         out.append("|--------|------|-------------------:|-------:|---------:|------------|")
-        sum_in = sum_out = sum_cr = 0
-        for s in subs:
-            child_file = None
-            if s["child"]:
-                child_file = os.path.join(ROLLOUT_DIR, f"model-io-{s['child']}.jsonl")
-            if child_file and os.path.isfile(child_file):
-                t, _, _, _, _ = read_rollout(child_file)
-            else:
-                t = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
-            sum_in += t["input"]
-            sum_out += t["output"]
-            sum_cr += t["cache_read"]
+        for s, t in sub_rows:
             out.append(f"| {s['profile']}（{s['agentId'][:20]}…） | {s['status']} | "
                        f"{fmt(t['input'])} | {fmt(t['cache_read'])} | {fmt(t['output'])} | "
                        f"`{preview(s['prompt'], 40)}` |")
@@ -488,21 +652,25 @@ def render_zcode_report(path, how, top_n, window_override):
         out.append("")
 
     out.append("---")
-    out.append("以下由代理基于以上数据续写：**原因分析**（定位最大分类，见 references/optimization-guide.md 的「现象→原因」清单）"
-               "与**优化建议**（绑定具体偏大分类，按预期节省排序）。")
+    out.append("以下由代理基于以上数据续写：**原因分析**（聚焦体检 ❌/⚠️ 异常项，见 references/optimization-guide.md 的「现象→原因」清单）"
+               "与**优化建议**（逐条对应异常项，按预期节省排序）。")
     return "\n".join(out)
 
 
-def render_claude_report(path, top_n):
+def render_claude_report(path, top_n, how=""):
     totals, sizes, count_usage, first_ts, last_ts = analyze_claude(path)
     if count_usage == 0:
-        raise SystemExit(f"[token-usage-analysis] transcript 中未找到 usage 记录：{path}")
+        raise SystemExit(f"[token-usage-analysis] transcript 中未找到 usage 记录：{path}"
+                         "（WorkBuddy/CodeBuddy 日志若与 Claude 格式不兼容会在此报错，"
+                         "此时请改用 /context 粘贴路径）")
     span = (last_ts - first_ts).total_seconds() if (first_ts and last_ts) else None
 
     out = []
     out.append("# Token 消耗统计（原始数据 · Claude transcript 基础统计）")
     out.append("")
-    out.append(f"- 数据来源：`{path}`")
+    src_note = ("（自动选取最新，来自 `~/.codebuddy/projects/`——WorkBuddy/CodeBuddy 日志，"
+                "按 Claude 兼容格式解析）" if how == "auto-codebuddy" else "")
+    out.append(f"- 数据来源：`{path}`{src_note}")
     out.append("- **局限**：transcript 不含 system prompt / 工具定义，无法给出分类占比明细；"
                "分类明细请在 Claude Code 中执行 `/context` 后将输出提供给代理分析。")
     out.append("")
@@ -518,6 +686,29 @@ def render_claude_report(path, top_n):
     out.append("")
     out.append("> 注：Claude transcript 的 `input_tokens` 不含缓存部分（与 ZCode 的 inputTokens 口径不同），各项分开列示、不重复计算。")
     out.append("")
+
+    # 降级体检：transcript 无请求体，窗口构成项不可判，仅累计口径可判
+    input_side = totals["input"] + totals["cache_read"]
+    if input_side > 0:
+        d = pct(totals["cache_read"], input_side)
+        cache_row = (f"| 缓存读 / 输入侧合计（非缓存 + 缓存读） | {d:.1f}%（{fmt(totals['cache_read'])} / {fmt(input_side)}） | "
+                     f"{grade(d, THRESHOLDS['cache_read'])} | {THRESHOLDS['cache_read'][3]} |")
+        cache_verdict = grade(d, THRESHOLDS["cache_read"])
+    else:
+        cache_row = "| 缓存读 / 输入侧合计（非缓存 + 缓存读） | 不可得 | ℹ️ | 输入侧合计为 0 |"
+        cache_verdict = "ℹ️"
+    overall = ("ℹ️ 数据不足" if cache_verdict == "ℹ️" else
+               ("🔴 异常" if cache_verdict == "❌" else "🟡 轻度偏离" if cache_verdict == "⚠️" else "🟢 正常"))
+    out.append(f"> **体检总评：{overall}**（降级口径：仅累计消耗可判，窗口构成需 /context 补充）")
+    out.append("")
+    out.append("## 消耗正常性体检（降级：仅累计口径可判）")
+    out.append("")
+    out.append("| 检查项 | 数值 | 判定 | 阈值与说明 |")
+    out.append("|--------|------|:----:|------------|")
+    out.append(cache_row)
+    out.append("| 窗口构成（System prompt / 工具 / 消息 / 剩余空间） | 不可得 | ℹ️ | transcript 不含请求体——在 Claude Code 执行 /context 后交代理按 optimization-guide §1 补判 |")
+    out.append("")
+
     out.append("消息体量分布（估算，仅结构参考）：")
     out.append("")
     out.append("| 角色 | 体量估算 |")
@@ -526,7 +717,7 @@ def render_claude_report(path, top_n):
         out.append(f"| {role} | ~{fmt(sizes[role])} |")
     out.append("")
     out.append("---")
-    out.append("以下由代理基于以上数据续写：原因分析与优化建议（分类明细需 /context 输出补充）。")
+    out.append("以下由代理基于以上数据续写：**原因分析**（聚焦体检 ❌/⚠️ 项）与**优化建议**（逐条对应异常项；分类明细需 /context 输出补充）。")
     return "\n".join(out)
 
 
@@ -548,8 +739,8 @@ def main():
             pass
 
     if args.source == "claude":
-        path, _ = resolve_claude_transcript(args)
-        print(render_claude_report(path, args.top))
+        path, how = resolve_claude_transcript(args)
+        print(render_claude_report(path, args.top, how))
     else:
         path, how = resolve_zcode_file(args)
         print(render_zcode_report(path, how, args.top, args.window))

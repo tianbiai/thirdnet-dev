@@ -16,7 +16,7 @@
 
 ## 2. 各来源格式
 
-### 2.1 Claude Code `/context` 输出（粘贴文本）
+### 2.1 `/context` 输出（粘贴文本，Claude Code / WorkBuddy·CodeBuddy Code CLI 通用）
 
 典型结构（版本间措辞略有差异，字段语义一致）：
 
@@ -39,11 +39,12 @@ Free space                    44,749      37.1%
 解析要点：
 - 优先取**绝对 token 数**；只有百分数时按总量（Context Left 括号内或 `of N`）折算；
 - 二级条目（缩进行）是父分类的构成明细，归一化时**取父级、不重复计**；
-- 「until auto-compact」说明剩余空间按自动压缩阈值计，非完整窗口，如实转述。
+- 「until auto-compact」说明剩余空间按自动压缩阈值计，非完整窗口，如实转述；
+- WorkBuddy/CodeBuddy Code CLI 的 `/context` 输出同源同构，按同一映射归一化；其 `/cost`（成本与 Token 使用）、`/stats`（Token 用量/调用次数/时长）可作为**累计口径**补充来源，按 §2.4 其他格式处理。
 
 ### 2.2 ZCode 脚本输出（`analyze_token_usage.py` 默认模式）
 
-已归一化的 markdown 报告，四节结构：会话概况（含当前窗口占用）、分类占比（估算已按精确 usage 校准）、累计消耗（缓存读单列）、子代理消耗表。续写分析时直接用其数值与 Top-N 消耗项。
+已归一化的 markdown 报告，开头一行**体检总评横幅**（🟢/🟡/🔴/ℹ️ + 异常项点名），五节结构：一、会话概况（含当前窗口占用）；二、**消耗正常性体检**（逐项 ✅/⚠️/❌ 判定表，阈值见 optimization-guide §1）；三、分类占比（估算已按精确 usage 校准）；四、累计消耗（缓存读单列）；五、子代理消耗表。续写分析时直接用其数值、判定与 Top-N 消耗项。
 
 注意脚本输出的 ZCode 特有分类：
 - **消息：assistant / reasoning** —— 助手推理（thinking）块，会随对话累积；
@@ -52,7 +53,7 @@ Free space                    44,749      37.1%
 
 ### 2.3 Claude transcript 基础统计（`--source claude`）
 
-只有累计消耗与消息体量分布，**无 System prompt / 工具定义明细**（transcript 不记录请求体）。缺分类明细时如实告知局限，并建议用户在 Claude Code 执行 `/context` 补充。
+只有累计消耗与消息体量分布，**无 System prompt / 工具定义明细**（transcript 不记录请求体）。缺分类明细时如实告知局限，并建议用户在 Claude Code 执行 `/context` 补充。数据目录自动发现：`~/.claude/projects/`（Claude Code）优先，缺失时回退 `~/.codebuddy/projects/`（WorkBuddy/CodeBuddy Code CLI，Claude 兼容格式；字段不匹配时脚本明确报错，退回 /context 粘贴路径）。
 
 ### 2.4 其他格式（状态栏 / 桌面端显示 / 手动数字）
 
@@ -86,3 +87,4 @@ Free space                    44,749      37.1%
 | 累计消耗 | 省略累计节，只做窗口构成分析 |
 | 子代理数据 | 标注「不可得」，不估算 |
 | 只有百分比无绝对值 | 按已知总量折算；总量也未知则只呈现相对占比 |
+| 窗口/分类数据不足以支撑判定 | 体检表对应项标「不可得」（ℹ️），不判级、不臆造阈值结论；可判项照常判 |
