@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "Thirdnet 全栈开发插件集",
-    "version": "0.74.0"
+    "version": "0.75.0"
   },
   "plugins": [
     {
@@ -46,22 +46,26 @@
     },
     {
       "name": "supabase-postgres-best-practices",
-      "description": "PostgreSQL 数据库最佳实践 — 涵盖 8 大类 30 条规则，包括架构设计、索引优化、查询调优、连接池配置等，帮助 AI 编写更高质量的 SQL",
+      "description": "PostgreSQL 数据库最佳实践 — 涵盖架构设计、索引优化、查询调优、连接池配置、RLS 安全等 31 篇专项参考，帮助 AI 编写更高质量的 SQL",
       "author": {
         "name": "Supabase",
         "url": "https://github.com/supabase"
       },
       "category": "database",
+      "version": "1.1.1",
+      "strict": false,
       "source": {
-        "source": "url",
+        "source": "git-subdir",
         "url": "https://github.com/supabase/agent-skills.git",
+        "path": "skills/supabase-postgres-best-practices",
         "ref": "main"
       },
+      "skills": ["./"],
       "homepage": "https://github.com/supabase/agent-skills/tree/main/skills/supabase-postgres-best-practices"
     },
     {
       "name": "ui-ux-pro-max",
-      "description": "Web 和移动端 UI/UX 设计智能助手 — 50+ 设计风格、161 套配色方案、57 组字体搭配、99 条 UX 准则，覆盖 10 大技术栈（React、Vue、Svelte、Flutter、Tailwind、shadcn/ui 等）",
+      "description": "Web 和移动端 UI/UX 设计智能助手 — 可检索的本地设计数据库：80 种设计风格、194 套配色方案、74 组字体搭配、25 类图表，覆盖 22 大技术栈（React、Next.js、Vue、Nuxt.js、Svelte、Astro、SwiftUI、Flutter、Tailwind、shadcn/ui 等）；适用于设计、构建或评审 UI：页面、组件、配色、字体排印、布局、无障碍、动画与数据可视化",
       "author": {
         "name": "NextLevelBuilder",
         "url": "https://github.com/nextlevelbuilder"
@@ -82,11 +86,15 @@
         "url": "https://github.com/anthropics"
       },
       "category": "testing",
+      "version": "1.0.0",
+      "strict": false,
       "source": {
-        "source": "url",
+        "source": "git-subdir",
         "url": "https://github.com/anthropics/skills.git",
+        "path": "skills/webapp-testing",
         "ref": "main"
       },
+      "skills": ["./"],
       "homepage": "https://github.com/anthropics/skills/tree/main/skills/webapp-testing"
     }
   ]

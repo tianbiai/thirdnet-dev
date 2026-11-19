@@ -16,7 +16,7 @@ thirdnet-dev/
     └── skills/                               # 29 个技能（见下「技能体系」）
 ```
 
-marketplace 还声明了若干外部插件（superpowers / supabase-postgres-best-practices / ui-ux-pro-max / webapp-testing），通过 URL source 引用，不在本仓库内。
+marketplace 还声明了若干外部插件（superpowers / supabase-postgres-best-practices / ui-ux-pro-max / webapp-testing），不在本仓库内。其中 superpowers / ui-ux-pro-max 按仓库根 URL source 引用（跟随上游插件名）；supabase-postgres-best-practices / webapp-testing 使用 git-subdir source 直指上游仓库的技能子目录（上游已将它们并入插件集合、不再单独暴露插件名，git-subdir + strict:false + 内联 skills 可绕过上游清单按名解析）。
 
 ## 核心架构（需读多文件才能理解的大图）
 
