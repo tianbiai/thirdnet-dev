@@ -7,7 +7,7 @@ description: >
   "backend"、"开发流程"时，必须使用此技能。
 license: MIT
 metadata:
-  version: "1.3.1"
+  version: "1.4.0"
   author: thirdnet
 ---
 
@@ -79,90 +79,15 @@ metadata:
 
 ### 创建 Admin 管理后台项目
 
-```bash
-# 1. 配置 NuGet 源（一次性；地址唯一来源见 references/internal-registry.md，勿在正文写死）
-dotnet nuget add source <NUGET_REGISTRY_URL> -n ThirdNet
+前提：配置 NuGet 源（地址唯一来源见 [internal-registry](references/internal-registry.md)）；模板**每次必须取最新**——清 http-cache → 卸载 → `--force` 安装 → `list` 核对（四步作用见 [template-install](references/template-install.md)）。
 
-# 2. 安装最新模板（强制流程：清 http-cache → 卸载 → --force 安装 → list 核对；
-#    四步作用与"为何要清 http-cache"见 references/template-install.md）
-dotnet nuget locals http-cache clear
-dotnet new uninstall ThirdNet.Admin.Template 2>/dev/null || true
-dotnet new install ThirdNet.Admin.Template --force
-dotnet new list thirdnet-admin
+核心命令：`dotnet new thirdnet-admin -n {ProjectName} -o {ProjectName}.Admin`（在 `backend/` 目录内执行），随后按解决方案文件夹归集 `.slnx`（Admin 层 / Tools 层，`--include-references:false`）、配置双库连接串、执行 EF 迁移、运行、（默认开启可跳过）装配 Postgres MCP。**完整 8 步命令、slnx 归集参数与生成产物结构树见 [project-creation](references/project-creation.md)（用 Read 打开）。**
 
-# 3. 创建项目（在 backend/ 目录内）
-mkdir -p backend
-cd backend
-dotnet new thirdnet-admin -n {ProjectName} -o {ProjectName}.Admin
-
-# 4. 进入解决方案根目录，创建 .slnx 并按解决方案文件夹归集项目
-#    （cwd = backend/{ProjectName}.Admin/，步骤 4–7 所有相对路径以此为准）
-cd {ProjectName}.Admin
-dotnet new sln -n {ProjectName}.Admin
-# Admin 层项目 → "Admin" 解决方案文件夹：
-#   -s 用裸名字（不是 /src/Admin/）；--include-references:false 防止把 Common/Cache 递归拖进 Admin
-dotnet sln {ProjectName}.Admin.slnx add \
-  Admin/{ProjectName}.Admin.APIService/{ProjectName}.Admin.APIService.csproj \
-  Admin/{ProjectName}.Admin.Database/{ProjectName}.Admin.Database.csproj \
-  -s Admin --include-references:false
-# Tools 层项目 → "Tools" 解决方案文件夹
-dotnet sln {ProjectName}.Admin.slnx add \
-  Tools/{ProjectName}.Common/{ProjectName}.Common.csproj \
-  Tools/{ProjectName}.Cache/{ProjectName}.Cache.csproj \
-  -s Tools --include-references:false
-
-# 5. 配置数据库连接字符串
-#    编辑 backend/{ProjectName}.Admin/Admin/{ProjectName}.Admin.APIService/appsettings.json
-#    ConnectionString — Admin 业务数据库
-#    DefaultConnectionString — 框架数据库（ThirdNetDbContext）
-
-# 6. 执行 EF Core 迁移（首次，cwd 仍为 backend/{ProjectName}.Admin/）
-dotnet ef database update \
-  --project Admin/{ProjectName}.Admin.Database \
-  --startup-project Admin/{ProjectName}.Admin.APIService
-
-# 7. 运行
-dotnet run --project Admin/{ProjectName}.Admin.APIService
-
-# 8.（默认开启，可跳过）配置 Postgres MCP —— 让 Claude Code 能在本工程内直查 PostgreSQL
-#    调用技能 thirdnet-fullstack:thirdnet-mcp-setup：读取第 5 步配好的 appsettings 连接串、
-#    AskUserQuestion 让你确认暴露框架库(DefaultConnectionString) 还是业务库(ConnectionString)，
-#    把选中的真实 DSN 写入 backend/{ProjectName}.Admin/.mcp.json，并把 .mcp.json 加入工程 .gitignore
-#    （与 appsettings.Development.json 同约定，真实账密不入库）。不想用就跳过；后续随时用同技能补装。
-```
-
-生成结果（`dotnet new thirdnet-admin` 模板产物 = `{ProjectName}.Admin.slnx`、`Admin/`、`Tools/`；`plan.md`/`changelog.md`/`spec.md` **不是模板产物**，由后续「文档先行」阶段生成，Admin 模板创建例外流程暂不生成）：
-
-```
-backend/
-└── {ProjectName}.Admin/                       # 解决方案根（dotnet new thirdnet-admin -o 产物）
-    ├── {ProjectName}.Admin.slnx
-    ├── plan.md                                # 非模板产物——backend-workflow「文档先行」生成（Admin 创建例外暂不生成）
-    ├── changelog.md                           # 非模板产物——同上
-    ├── spec.md                                # 非模板产物——项目级规格说明书（全局唯一），同上
-    ├── .mcp.json                              # 第 8 步写入——默认含真实账密→已 .gitignore；DSN 由 thirdnet-mcp-setup 从 appsettings 读出、用户确认
-    ├── Admin/
-    │   ├── {ProjectName}.Admin.APIService/    # API 宿主（Controllers、Services、DTOs；三层各自内部按 Manager/App/Cockpit/Third/Shared 分端，Cockpit 按需）
-    │   └── {ProjectName}.Admin.Database/      # AdminDbContext + 实体 + EntityConfigurations
-    └── Tools/
-        ├── {ProjectName}.Common/              # 常量、枚举、DI 扩展、AdminControllerBase
-        └── {ProjectName}.Cache/               # Redis 缓存域
-```
+> ⚠️ 模板生成的 `appsettings.json` 仅含占位符、无可运行默认值：执行 `dotnet ef database update` / `dotnet run` 前，需由用户在 `backend/{ProjectName}.Admin/Admin/{ProjectName}.Admin.APIService/appsettings.json` 填入真实 PostgreSQL / Redis / SM2 配置（完整警示见「需求澄清 → Admin 模板项目创建」）。
 
 ### 创建 Service 微服务项目
 
-参考 `net-microservice-generator` 技能获取完整指南。
-
-```bash
-# 前提：已有 Admin 项目
-# 安装最新模板（强制流程与四步作用见 references/template-install.md）
-dotnet nuget locals http-cache clear
-dotnet new uninstall ThirdNet.Service.Template 2>/dev/null || true
-dotnet new install ThirdNet.Service.Template --force
-dotnet new list thirdnet-service
-cd backend
-# 完整创建命令（含 --AdminName 说明）见 net-microservice-generator
-```
+见 `thirdnet-fullstack:net-microservice-generator` 技能（含 `--AdminName` 完整说明；模板安装四步强制流程同 [template-install](references/template-install.md)）。
 
 ## 双数据库架构
 
@@ -281,7 +206,7 @@ Admin 项目的 Program.cs 和 Startup.cs 遵循固定的启动模式和 10 步 
 
 ### 强制规则
 
-1. **编码前必须先生成项目级 plan.md 和 changelog.md**（全栈布局下位于 `backend/{ProjectName}.Admin/` 内，见『项目创建』的生成结果结构树）
+1. **编码前必须先生成项目级 plan.md 和 changelog.md**（全栈布局下位于 `backend/{ProjectName}.Admin/` 内，结构树见 [project-creation](references/project-creation.md)）
 2. **编码前，`backend/{ProjectName}.Admin/spec.md` 必须存在且已完整阅读**
 3. **代码必须与 spec 保持一致**；大变更须更新 changelog.md
 4. **需求变更时先更新 spec 再改代码**
