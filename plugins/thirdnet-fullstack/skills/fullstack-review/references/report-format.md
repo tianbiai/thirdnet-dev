@@ -183,7 +183,7 @@
 3. 高优先扫：5 文件契约齐全性、策略工厂三件、useCrudTable/PaginationBar/useDialogFocus/validators、
    el-pagination 违禁、v-permission 数组与 action 混用、MOCK_ENABLED 守卫、按钮防抖、
    字典 useDict/getDictDataByType 不混、表列 *_label、.js 违禁、Pinia 解构、Router next() 违禁。
-4. 已知例外：/add vs /create 以模块内一致为准；模板内置模块业务逻辑不应被改。
+4. 已知例外：创建端点统一 /create（存量模块 /add 前后端一致视为历史遗留不判错，同项目混用报 Minor）；模板内置模块业务逻辑不应被改。
 
 【返回】按上述 schema 返回 findings 数组 + notes。客观、可执行、抓大放小。
 ```

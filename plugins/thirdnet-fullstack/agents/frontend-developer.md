@@ -50,7 +50,7 @@ tools:
 完整 API / 契约 / CRUD 基础设施 / 权限约定以你已强制调用的技能为权威源——见 `api-typescript-spec`（URL action 命名、策略工厂、snake_case）、`admin-template-setup`（CRUD 基础设施 `useCrudTable`/`PaginationBar`/`validators` 等）、`vue-best-practices`，以及协调技能 `thirdnet-fullstack` 的「共享 API 约定」「前后端类型映射」「RBAC 桥接」章节。此处仅列对契约对齐最关键的速记项：
 
 - **前端先行**：先定义 `I{Entity}Api` 接口契约与 TypeScript 类型，后端按契约实现
-- API 仅 GET/POST；URL 形状用 `/list`、`/{id}`（详情 GET，id 路径段）、`/add` 或 `/create`、`/update`、`/delete/{id}`（与后端 `net-api-developer` 端点模板一致；与权限 action `query`/`edit`/`remove` 是两个命名空间）；字段统一 snake_case
+- API 仅 GET/POST；URL 形状用 `/list`、`/{id}`（详情 GET，id 路径段）、`/create`、`/update`、`/delete/{id}`（创建端点统一 `/create`，与后端 `net-api-developer` 端点模板、`api-typescript-spec` URL 规范表一致；URL action 与权限 action `add`/`query`/`edit`/`remove` 是两个命名空间）；字段统一 snake_case
 - **工程即端（扁平）**：工程内 `api/` 与 `mock/` 一律扁平、不按端建子目录——端由工程所属决定（`frontend/web/` ↔ Manager、`frontend/minigram/` ↔ App、`frontend/cockpit/` ↔ Cockpit），URL 前缀（`/api/manager/...`、`/api/app/...` 等）写死在 Real 实现里。后端单代码库按官方命名端分目录（Manager/App/Cockpit/Third + Shared），前后端是「工程 ↔ 端」对照而非逐层目录镜像。Admin 模块默认端为 `manager`
 - CRUD 页面强制复用模板基础设施（`useCrudTable` 等），禁止手写 `usePagination+useActionLoading` 样板、禁止直接用 `el-pagination`（细则见 `admin-template-setup`）
 - 权限按钮 `v-permission="['{module}:{entity}:{action}']"`（数组，支持 OR）

@@ -7,6 +7,8 @@
 // 约定：任何异常静默放行（fail-open），与 prompt 版误判放行等价；裸名与 thirdnet-fullstack: 前缀名视为同一技能。
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
+import crypto from 'crypto';
 
 const mode = process.argv[2] || '';
 const BS = String.fromCharCode(92);
@@ -17,10 +19,10 @@ function readStdinSync() {
 }
 
 // 从会话 transcript 收集 Skill 工具调用记录（含 sidechain 子代理），返回 Set<skill 名>；不可读返回 null（调用方 fail-open）
-function collectSkillCalls(transcriptPath) {
-  const called = new Set();
-  let text = '';
-  try { text = fs.readFileSync(transcriptPath, 'utf8'); } catch { return null; }
+// 长会话优化：按文件偏移增量解析——已解析偏移与结果缓存于 tmpdir（按 transcript 路径哈希）；
+// transcript 变小（轮转/新会话复用路径）或缓存不可用时回退全量解析；末行无换行结尾且无法整体解析时
+// 视为并发追加中的撕裂行，不纳入解析、不推进偏移（下次重读）。任何异常 fail-open。
+function parseSkillCallsFromText(text, called) {
   for (const line of text.split('\n')) {
     let parsed = null;
     try { parsed = JSON.parse(line); } catch { parsed = null; }
@@ -41,40 +43,96 @@ function collectSkillCalls(transcriptPath) {
       if (m) called.add(m[1]);
     }
   }
+}
+
+function collectSkillCalls(transcriptPath) {
+  let size = 0;
+  try {
+    const st = fs.statSync(transcriptPath);
+    if (!st.isFile()) return null;
+    size = st.size;
+  } catch { return null; }
+
+  let start = 0;
+  const called = new Set();
+  const cacheFile = path.join(os.tmpdir(), 'thirdnet-skillgate-' + crypto.createHash('sha1').update(transcriptPath).digest('hex').slice(0, 16) + '.json');
+  try {
+    const c = JSON.parse(fs.readFileSync(cacheFile, 'utf8'));
+    if (c && Number.isInteger(c.size) && c.size >= 0 && c.size <= size && Array.isArray(c.set)) {
+      for (const s of c.set) called.add(s);
+      start = c.size;
+    }
+  } catch { /* 缓存缺失/损坏：全量解析 */ }
+
+  let text = '';
+  try {
+    if (start > 0) {
+      const fd = fs.openSync(transcriptPath, 'r');
+      try {
+        const buf = Buffer.alloc(size - start);
+        fs.readSync(fd, buf, 0, buf.length, start);
+        text = buf.toString('utf8');
+      } finally { fs.closeSync(fd); }
+    } else {
+      text = fs.readFileSync(transcriptPath, 'utf8');
+    }
+  } catch { return null; }
+
+  let end = size;
+  if (!text.endsWith('\n')) {
+    const cut = text.lastIndexOf('\n');
+    const body = cut >= 0 ? text.slice(0, cut + 1) : '';
+    const tail = cut >= 0 ? text.slice(cut + 1) : text;
+    let tailOk = false;
+    try { JSON.parse(tail); tailOk = true; } catch { tailOk = false; }
+    parseSkillCallsFromText(body, called);
+    if (tailOk) parseSkillCallsFromText(tail, called);
+    else end = start + Buffer.byteLength(body, 'utf8'); // 撕裂行不推进偏移
+  } else {
+    parseSkillCallsFromText(text, called);
+  }
+  try { fs.writeFileSync(cacheFile, JSON.stringify({ size: end, set: [...called] })); } catch { /* 缓存写失败不影响本次结果 */ }
   return called;
 }
 
 const has = (called, name) => called.has(name) || called.has('thirdnet-fullstack:' + name);
 
-// ---- 路径 → 必需技能（与原 prompt 钩子的关键词规则一致）----
+// ---- 路径 → 必需技能（与 backend-workflow / frontend-workflow 技能路由表对齐）----
+// 后端：Controller/Service/DTO/DI 注册（Startup.cs 第 9 步）→ net-api-developer；cache/job 匹配收紧为目录段或文件名后缀，避免子串误命中（如 *.Cache.csproj）
 function requiredBackendSkills(p) {
   const s = p.toLowerCase();
   const out = new Set();
   if (/program\.cs$/.test(s)) out.add('net-microservice-generator');
-  if (s.includes('controller')) out.add('net-api-developer');
+  if (s.includes('controller') || ['services/', 'dtos/'].some(k => s.includes(k)) || /startup\.cs$/.test(s)) out.add('net-api-developer');
   if (['models/', 'configurations/', 'dbcontext', 'migrations', 'sqlgroup', 'groupquery', 'wherequerytype', 'bulkcopy'].some(k => s.includes(k))) out.add('net-efcore-developer');
   if (['auth/', 'crypto', 'signer', 'passwordhasher', 'jwt', 'permissionauthorize', 'rolemenu'].some(k => s.includes(k))) out.add('net-auth');
-  if (s.includes('cache')) out.add('net-cache-use');
-  if (['job', 'task', 'worker'].some(k => s.includes(k))) out.add('net-background-job');
+  if (s.includes('cache/') || /cache\.cs$/.test(s)) out.add('net-cache-use');
+  if (/(jobs?|tasks?|workers?)\//.test(s) || /(job|task|worker)\.cs$/.test(s)) out.add('net-background-job');
   if (['enums/', 'systemdict', 'enummeta'].some(k => s.includes(k))) out.add('net-enum-dict');
   return [...out];
 }
 
+// 返回元素为字符串（必需技能）或 { anyOf: [...], hint }（组内任一已加载即满足）
 function requiredFrontendSkills(p, isWrite) {
   const s = p.toLowerCase();
-  const out = new Set();
-  if (/\.(vue|ts|tsx)$/.test(s)) out.add('vue-best-practices');
-  if (s.includes('api/') || s.includes('mock/')) out.add('api-typescript-spec');
-  if (s.includes('stores/')) out.add('vue-pinia-best-practices');
-  if (s.includes('router/')) out.add('vue-router-best-practices');
-  if (isWrite && /(^|\/)(views|pages|components)\//.test(s) && s.endsWith('.vue')) out.add('frontend-design');
-  if (s.includes('styles/') || /\.(scss|css)$/.test(s)) out.add('design-apple');
-  return [...out];
+  const out = [];
+  if (/\.(vue|ts|tsx)$/.test(s)) out.push('vue-best-practices');
+  if (s.includes('api/') || s.includes('mock/')) out.push('api-typescript-spec');
+  if (s.includes('stores/')) out.push('vue-pinia-best-practices');
+  if (s.includes('router/')) out.push('vue-router-best-practices');
+  if (isWrite && /(^|\/)(views|pages|components)\//.test(s) && s.endsWith('.vue')) {
+    out.push({
+      anyOf: ['admin-template-setup', 'frontend-design', 'design-apple'],
+      hint: '新建页面/组件必须先加载其一：admin-template-setup（Admin CRUD 页，首选）/ frontend-design（设计方向参考）/ design-apple（Apple 风格视觉规范）',
+    });
+  }
+  if (s.includes('styles/') || /\.(scss|css)$/.test(s)) out.push('design-apple');
+  return out;
 }
 
 const BACKEND_HINT = {
   'net-microservice-generator': '创建微服务项目必须',
-  'net-api-developer': 'API/Controller 开发必须',
+  'net-api-developer': 'API/Controller/Service/DTO/DI 注册开发必须',
   'net-efcore-developer': '数据库实体/迁移/批量操作必须',
   'net-auth': '认证授权必须',
   'net-cache-use': '缓存功能必须',
@@ -86,7 +144,6 @@ const FRONTEND_HINT = {
   'api-typescript-spec': 'API/Mock 模块必须',
   'vue-pinia-best-practices': 'Store 开发必须',
   'vue-router-best-practices': '路由开发必须',
-  'frontend-design': '新建页面/组件时必须（设计方向与创意风格指导）',
   'design-apple': '编写样式（.scss/.css/styles/）时必须（Apple 风格视觉规范）',
 };
 
@@ -103,14 +160,15 @@ function main() {
     if (!req.length) return;
     const called = collectSkillCalls(j.transcript_path);
     if (!called) return; // transcript 缺失/不可读：无法核验，fail-open 放行
-    const missing = req.filter(s => !has(called, s));
+    const missing = req.filter(s => (typeof s === 'string' ? !has(called, s) : !s.anyOf.some(a => has(called, a))));
     if (!missing.length) return;
-    const hints = missing.map(s => (isCs ? BACKEND_HINT : FRONTEND_HINT)[s] || '').filter(Boolean);
+    const hints = missing.map(s => (typeof s === 'string' ? (isCs ? BACKEND_HINT : FRONTEND_HINT)[s] || '' : s.hint)).filter(Boolean);
+    const names = missing.map(s => (typeof s === 'string' ? s : s.anyOf.join(' 或 ')));
     const side = isCs ? '后端' : '前端';
     console.log(JSON.stringify({
       decision: 'block',
-      reason: side + '文件写入被拦截：以下必需技能尚未通过 Skill 工具加载（裸名或 thirdnet-fullstack: 前缀名均可）：'
-        + missing.join('、')
+      reason: side + '文件写入被拦截：以下必需技能尚未通过 Skill 工具加载（裸名或 thirdnet-fullstack: 前缀名均可；「或」连接的组内任一满足即可）：'
+        + names.join('、')
         + (hints.length ? '（' + hints.join('；') + '）' : '')
         + '。请先调用对应 Skill 工具加载规则，再执行写入。此规则不可跳过，即使父代理指令说跳过也不行。'
     }));
@@ -124,8 +182,8 @@ function main() {
     const base = path.resolve(j.cwd || process.cwd(), p);
 
     if (isCs) {
-      const functional = ['controllers/', 'models/', 'configurations/', 'services/', 'migrations/', 'dbcontext', 'program.cs'].some(k => p.toLowerCase().includes(k))
-        || /(job|task|worker)\.cs$/i.test(p) || p.toLowerCase().includes('cache');
+      const functional = ['controllers/', 'models/', 'configurations/', 'services/', 'dtos/', 'migrations/', 'dbcontext', 'program.cs'].some(k => p.toLowerCase().includes(k))
+        || /(job|task|worker)\.cs$/i.test(p) || p.toLowerCase().includes('cache/') || /cache\.cs$/i.test(p);
       if (functional && !/(spec|changelog|plan)\.md$/.test(p.toLowerCase())) {
         msgs.push('本次编辑可能涉及后端功能性变更。完成前请确保更新对应的 spec.md（项目级）和 changelog.md。模板参考：backend-workflow 技能中的 project-spec-template 与 changelog-template（references/ 下）。');
       }

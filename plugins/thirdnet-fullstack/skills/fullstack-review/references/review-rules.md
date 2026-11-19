@@ -134,7 +134,7 @@
 | **仅** GET/POST，`request.ts` **禁**导出 PUT/DELETE/PATCH 便捷方法 | `api-typescript-spec` | grep `export.*put\|delete\|patch` → 命中即违例 |
 | 字段全 snake_case，**禁** camelCase | `api-typescript-spec` | 接口/mock 字段为 snake_case |
 | 成功响应直接返回实体或 `PaginatedResponse<T>`，**禁** `{code,message,data}` 信封 | `api-typescript-spec` | 无信封包装 |
-| URL 模式 `/api/{endpoint}/{module}/{action}`（action 项目内一致；`/add` vs `/create` 见已知歧义） | `api-typescript-spec` | URL 与项目既有约定一致 |
+| URL 模式 `/api/{endpoint}/{module}/{action}`（创建端点统一 `/create`，存量 `/add` 见已知歧义） | `api-typescript-spec` | URL 与项目既有约定一致 |
 | TS `enum` **仅**用于纯前端常量（每成员 JSDoc）；后端字典字段用 `number`/`string`，**禁** union/const object 替代 | `api-typescript-spec` | 字典驱动字段未用 enum；无非 enum 替代 |
 
 ### B2. CRUD 页面（Admin 模板）
@@ -187,7 +187,7 @@
 | 权限串逐字比对：前端 `v-permission`/`usePermission` 串 ↔ 后端 `[PermissionAuthorize]` 串 | `thirdnet-fullstack` | 两侧串逐字一致，无遗漏 |
 | URL 路由 action（`/detail`/`/update`/`/delete`）≠ 权限 action（`query`/`edit`/`remove`），不混用 | `thirdnet-fullstack` | 详情权限非 `*:detail` |
 | `约定同步检查清单` 7 项：HTTP 方法、字段命名、响应格式、DTO 后缀、认证流程、权限串格式、API 路由格式 | `thirdnet-fullstack` | 7 项逐一核验 |
-| 创建端点 URL `/add` vs `/create`：被审模块**自身前后端一致**即可（见已知歧义） | `api-typescript-spec` vs `thirdnet-fullstack` | 模块内一致；不一致才报 Major |
+| 创建端点 URL 统一 `/create`：存量模块**自身前后端一致**即可不判错，同项目混用报 Minor（见已知歧义） | `api-typescript-spec` | 新代码 `/create`；存量模块内一致 |
 
 ---
 

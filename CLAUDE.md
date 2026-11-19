@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 thirdnet-dev/
 ├── .claude-plugin/marketplace.json          # 插件集合注册清单（顶层 metadata.version + 各 plugin 条目）
-└── plugins/thirdnet-fullstack/               # 唯一的自包含插件（v2.55.2）
+└── plugins/thirdnet-fullstack/               # 唯一的自包含插件（v2.55.4）
     ├── .claude-plugin/plugin.json            # 插件清单（.claude-plugin/ 只放清单，其余组件都在插件根）
     ├── hooks/hooks.json                      # 1 Stop + 3 PreToolUse + 1 PostToolUse（2 prompt + 3 command）——必须在插件根，Claude Code 只认 <插件根>/hooks/hooks.json
     ├── hooks/skill-gate.mjs                  # Write|Edit 合规门与软规范告警脚本（command 型钩子）
@@ -42,28 +42,30 @@ marketplace 还声明了若干外部插件（superpowers / supabase-postgres-bes
 
 - **PreToolUse × 3**：
   - `Write|Edit`（command 型，`hooks/skill-gate.mjs --pre`）— **技能合规门**：编辑后端 `*.cs/*.csproj` 或前端 `src/**/*.{vue,ts,tsx,scss,css}` 前，按会话 transcript 核验是否已用 Skill 工具加载对应技能（裸名与 `thirdnet-fullstack:` 前缀名均认）；未加载则 `block`；transcript 不可读时 fail-open 放行。路由表：
-    - 后端：`net-microservice-generator`（Program.cs）、`net-api-developer`（Controller）、`net-efcore-developer`（Models/Configurations/DbContext/Migrations/批量/分组查询）、`net-auth`（认证/加密/权限）、`net-cache-use`（缓存）、`net-background-job`（Job/Task/Worker）、`net-enum-dict`（Enums/SystemDict）。
-    - 前端：`vue-best-practices`（所有 .vue/.ts）、`api-typescript-spec`（api/mock/）、`vue-pinia-best-practices`（stores/）、`vue-router-best-practices`（router/）、`frontend-design`（新建 views/pages/components 文件）、`design-apple`（styles/scss/css）。
+    - 后端：`net-microservice-generator`（Program.cs）、`net-api-developer`（Controller/Service/DTO/Startup.cs）、`net-efcore-developer`（Models/Configurations/DbContext/Migrations/批量/分组查询）、`net-auth`（认证/加密/权限）、`net-cache-use`（cache/ 目录或 *Cache.cs）、`net-background-job`（jobs/tasks/workers 目录或 *Job|Task|Worker.cs）、`net-enum-dict`（Enums/SystemDict）。
+    - 前端：`vue-best-practices`（所有 .vue/.ts）、`api-typescript-spec`（api/mock/）、`vue-pinia-best-practices`（stores/）、`vue-router-best-practices`（router/）、新建 views/pages/components 的 .vue（`admin-template-setup`/`frontend-design`/`design-apple` 任一满足）、`design-apple`（styles/scss/css）。
     - **因此编辑前后端代码前，必须先 Skill 调用对应技能**——否则写入被拦截，即使父代理指令说跳过也不行。
   - `Skill`（prompt 型）— **重复调用守卫**：技能正文仍完整可见时阻断重复注入（防等量重复占用上下文）；已被压缩/摘要化则放行重调。
   - `Read`（command 型，内联 node 脚本）— **技能正文读取拦截**：工作区外 `skills/*/SKILL.md` 禁止 Read（引导改用 Skill 工具）；工作区内放行（插件源码维护）；`references/*.md` 不受限。
 - **PostToolUse × 1**（command 型，`skill-gate.mjs --post`）— **规范告警**（systemMessage，不阻断）：编辑后端功能性文件检查「仅 GET/POST、Fluent API（禁数据注解）、单文件单类型、`[ProducesResponseType]`、路由格式、DbContext ApplyConfiguration」等；编辑前端 `src/api/modules/**/*.ts` 检查策略工厂配套文件存在性（内容级完整性检查仅对 Write 生效）。
 - **Stop × 1**（prompt 型）— **收尾门（三门合一）**：文档门（功能性变更须同步前后端 spec/changelog，脚手架产物与纯 Bug 修复/重构豁免）+ 注释门（中文注释完整性）+ 审查门（功能性变更须经 `thirdnet-fullstack:fullstack-review` 审查且 review-report.md 无 Critical/Major，用户明确说「跳过审查」方可放行）。
+- 已知差异：2 个 prompt 型钩子（Skill 重复守卫、Stop 收尾门）依赖 prompt 型钩子能力，ZCode 不支持、不加载——仅 Claude Code 生效；ZCode 会话收尾需人工补跑 `fullstack-review` 并核对文档三件套。
 
-### 版本号三处同步（修改插件内容时必做）
+### 版本号多处同步（修改插件内容时必做）
 
-修改插件内容后，以下三处版本号必须保持一致：
+修改插件内容后，以下版本号必须保持一致：
 1. `plugins/thirdnet-fullstack/.claude-plugin/plugin.json` 的 `version`
 2. 协调技能 `skills/thirdnet-fullstack/SKILL.md` 的 `metadata.version`
 3. `.claude-plugin/marketplace.json` 中 `thirdnet-fullstack` 条目的 `version`（重大变更还需同步顶层 `metadata.version`）
+4. `plugins/thirdnet-fullstack/README.md` 版本行与仓库根 `CLAUDE.md` 的版本引用（发版断言会检查）
 
-每次同步在 `plugins/thirdnet-fullstack/.claude-plugin/CHANGELOG.md` 记录条目。发版前运行 `node scripts/check-layout.mjs`：断言各本地插件的钩子位于插件根 `hooks/hooks.json`——Claude Code 不读取 `.claude-plugin/hooks/`（thirdnet-fullstack ≤2.55.1 曾因此整组钩子静默失效）。
+每次同步在 `plugins/thirdnet-fullstack/.claude-plugin/CHANGELOG.md` 记录条目。发版前运行 `node scripts/check-layout.mjs`：断言各本地插件的钩子位于插件根 `hooks/hooks.json`——Claude Code 不读取 `.claude-plugin/hooks/`（thirdnet-fullstack ≤2.55.1 曾因此整组钩子静默失效）；并断言 thirdnet-fullstack 版本号在 plugin.json / marketplace 条目 / 协调技能 frontmatter / README / 仓库根 CLAUDE.md 五处一致。
 
 ## 技能体系（29 个，统一 thirdnet-fullstack: 命名空间）
 
 - **后端（8）**：`backend-workflow`（后端总工作流，含框架/模板目录）、`net-microservice-generator`、`net-api-developer`、`net-efcore-developer`（含批量操作）、`net-auth`、`net-cache-use`、`net-background-job`、`net-enum-dict`
 - **前端（11）**：`frontend-workflow`、`vue-best-practices`、`api-typescript-spec`（策略工厂 Real/Mock 切换）、`frontend-design`、`design-apple`、`admin-template-setup`、`create-adaptable-composable`、`vue-pinia-best-practices`、`vue-router-best-practices`、`vue-jsx-best-practices`、`vue-enum-dict`
-- **数字孪生（1）**：`thirdnet-digital-twin`——园区 3D 模块生成（Vue 3 + Three.js，1920×1080 舞台 + 楼栋切换器 + POI 打点 + 地下车库多层剖面，6 种视觉风格：cyber/holographic/isometric/nebula/realistic/night-realistic）。数据分层：基础信息静态内联（含地下车库 `garages[]` 几何+占用），动态数据走 `IDigitalTwinApi` 契约层（Mock/Real 工厂，`VITE_MOCK_ENABLED` 切换）。随包发布完整范式 `assets/park-scene.impl.ts` + `building-geometry.ts` + 2D 组件范式 + 6 个 API 契约层模板，生成器「拷贝-改」。详见技能内 `SKILL.md` 与 `references/`。
+- **数字孪生（1）**：`thirdnet-digital-twin`——园区 3D 模块生成（Vue 3 + Three.js，1920×1080 舞台 + 楼栋切换器 + POI 打点 + 地下车库多层剖面，3 种视觉风格：cyber / night-realistic / realistic）。数据分层：基础信息静态内联（含地下车库 `garages[]` 几何+占用），动态数据走 `IDigitalTwinApi` 契约层（Mock/Real 工厂，`VITE_MOCK_ENABLED` 切换）。随包发布完整范式 `assets/park-scene.impl.ts` + `building-geometry.ts` + 2D 组件范式 + 6 个 API 契约层模板，生成器「拷贝-改」。详见技能内 `SKILL.md` 与 `references/`。
 - **协调（1）**：`thirdnet-fullstack`——全栈协调（前端先行、Admin CRUD 模式、前后端类型映射、RBAC 桥接、子代理调度）
 - **质量（1）**：`fullstack-review`——全栈代码审查（前后端规范、API、数据库、跨端契约、业务正确性、性能、安全、文档），产出 review-report.md
 - **测试（1）**：`e2e-test-generator`——纯 UI 驱动 E2E 测试套件生成（探索任意项目代码库 → 按真实选择器 / 业务流程生成 Playwright（Python）套件；多角色 + 数据范围 + 跨端一致 + 越权负向「按钮 DOM 不存在」；测试不直连后端、仅驱动 DOM）。项目无关，适用于任意 web / 移动代码库
@@ -99,7 +101,7 @@ pip install -r plugins/thirdnet-fullstack/skills/thirdnet-digital-twin/scripts/r
 
 ## 技术栈（生成项目使用，非本仓库）
 
-- **后端**：.NET 10 + PostgreSQL + EF Core；ThirdNet.Vibe 框架；Redis 三层缓存 + JWT（国密）认证；网关仅允许 GET/POST。
+- **后端**：.NET 10 + PostgreSQL + EF Core；ThirdNet.Vibe 框架；Redis 缓存域（Read-Through + DB 回退）+ JWT（国密）认证；网关仅允许 GET/POST。
 - **前端**：Vue 3 + Element Plus + Vite（Web）；uniapp + Vant（移动端，发布为微信小程序 mp-weixin）。
 
 ## 开发约定

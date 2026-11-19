@@ -7,11 +7,11 @@ description: >
   全新项目创建路径，以及子代理调度（backend-developer / frontend-developer，Task 派发重型阶段）。
 license: MIT
 metadata:
-  version: "2.55.3"
+  version: "2.55.4"
   author: thirdnet
 ---
 
-> **结构约定**：本技能位于 `plugins/thirdnet-fullstack/` 插件包内（`skills/thirdnet-fullstack/`），由 `marketplace.json` 的 `thirdnet-fullstack` 条目以 `source: ./plugins/thirdnet-fullstack` 加载。插件同时提供两个瘦封装子代理（`agents/backend-developer.md`、`agents/frontend-developer.md`），用于重型阶段的隔离派发（见下文「子代理调度（推荐）」）。版本号以 `.claude-plugin/plugin.json`、本文件 frontmatter `metadata.version` 与 `.claude-plugin/marketplace.json` 三处为准，三者保持一致。
+> **结构约定**：本技能位于 `plugins/thirdnet-fullstack/` 插件包内（`skills/thirdnet-fullstack/`），由 `marketplace.json` 的 `thirdnet-fullstack` 条目以 `source: ./plugins/thirdnet-fullstack` 加载。插件同时提供两个瘦封装子代理（`agents/backend-developer.md`、`agents/frontend-developer.md`），用于重型阶段的隔离派发（见下文「子代理调度（推荐）」）。版本号以 `.claude-plugin/plugin.json`、本文件 frontmatter `metadata.version` 与 `.claude-plugin/marketplace.json` 三处为准，三者保持一致（`README.md` 版本行与仓库根 `CLAUDE.md` 的版本引用须同步更新，`scripts/check-layout.mjs` 发版断言）。
 
 ---
 
@@ -126,8 +126,8 @@ Task(
   prompt: """
     模块：通知管理（notice / Notice），权限前缀 sys:notice。布局：backend/{ProjectName}.Admin/。
     前端已定义契约（前端先行，按此实现）：
-      INoticeApi: getNoticeList(POST /api/manager/notice/list)、getNoticeDetail(GET /api/manager/notice/{id})、
-                  addNotice(POST /api/manager/notice/add)、updateNotice(POST /api/manager/notice/update)、
+      INoticeApi: getNoticeList(GET /api/manager/notice/list)、getNoticeDetail(GET /api/manager/notice/{id})、
+                  createNotice(POST /api/manager/notice/create)、updateNotice(POST /api/manager/notice/update)、
                   removeNotice(POST /api/manager/notice/delete/{id})
       类型字段：（同前端子代理返回的类型清单）
     要求：1) 按 thirdnet-fullstack:backend-workflow 实现 Notice 实体→(缓存按需)→DTO/Service/NoticeManagerController→

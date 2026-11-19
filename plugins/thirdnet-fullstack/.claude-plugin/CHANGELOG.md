@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.55.4 - 2026-11-19
+
+### Fixed
+**插件整体流程自查发现的「规范文本 ↔ 门禁脚本 ↔ 仓库文档」三方不同步**：
+
+- **创建端点 URL 统一为 `/create`**：协调技能 `thirdnet-fullstack` 派发示例原用 `POST .../add` 且列表端点误标 POST，与 `net-api-developer` 端点模板、`api-typescript-spec` URL 规范表矛盾——改为 `GET .../list`、`POST .../create`；`frontend-developer` 子代理速记「/add 或 /create 二选一」收敛为 `/create`；`fullstack-review` 已知歧义 #1 及 review-rules / report-format 同步改为「存量 /add 前后端一致视为历史遗留不判错、新代码一律 /create、同项目混用报 Minor」
+- **skill-gate.mjs --pre 路由缺口**：backend-workflow 路由表声称「Controller/Service/DTO → net-api-developer」，但钩子仅匹配 controller 关键词——`Services/`、`DTOs/`、`Startup.cs`（DI 第 9 步注册）此前零技能强制；补齐关键词。同时收紧过宽匹配：`cache` 由子串改为 `cache/` 目录段或 `*Cache.cs` 文件名（不再误命中 `*.Cache.csproj`），`job/task/worker` 由子串改为目录段或文件名后缀
+- **新建 views/pages/components 的 .vue 技能门改为一组任一满足**（admin-template-setup / frontend-design / design-apple）——原单一强制 frontend-design 与其 ThirdNet 注记「创意手法不适用于 thirdnet 工程、落地以 design-apple 为准」自相矛盾，Admin CRUD 页首选 admin-template-setup；--pre 阻断文案相应支持「或」连接的任一满足组
+- **--post 软告警功能性文件清单补 `dtos/`**，cache 判定与 --pre 同步收紧
+- **CLAUDE.md 四处失实/滞后**：版本引用 v2.55.2 滞后两版、数字孪生「6 种视觉风格」实为 3 种（cyber / night-realistic / realistic）、「Redis 三层缓存」术语漂移（实为缓存域三区域结构 Reader/Remove/Query + Read-Through 回退）；补记 ZCode 不加载 prompt 型钩子的已知差异与人工补偿动作
+
+### Optimized
+- **skill-gate.mjs transcript 增量解析**：按文件偏移缓存已解析的 Skill 调用集合（tmpdir 按路径哈希缓存；transcript 变小或缓存不可用回退全量；并发追加中的撕裂行不纳入解析、不推进偏移），长会话下每次 Write/Edit 不再全量重读 transcript
+- **Stop 文档门补独立 Service 微服务判据**：无同级 Admin 解决方案时，以该 Service 解决方案根目录的 spec.md / changelog.md 为判据（原硬编码 `backend/{ProjectName}.Admin/` 路径）
+- **review-report.md 归档约定**：覆盖写入前先归档既有报告至同目录 `review/` 子目录（review-report-{YYYYMMDD-HHmm}.md），原名文件始终只保留最新一份（Stop 门仍按原名字面校验）
+- **check-layout.mjs 增加版本同步断言**：plugin.json / marketplace 条目 / 协调技能 frontmatter / README / 仓库根 CLAUDE.md 五处一致，防止再次滞后
+
+### 版本同步
+`plugin.json` 与 `marketplace.json` 条目 2.55.3 → 2.55.4；marketplace `metadata.version` 0.81.0 → 0.82.0；协调技能 frontmatter → 2.55.4；`README.md` 版本行与根 `CLAUDE.md` 版本引用同步。
+
 ## 2.55.3 - 2026-11-19
 
 ### Fixed

@@ -95,7 +95,7 @@ metadata:
 
 ## 报告输出
 
-- 写入 `review-report.md`：默认放被审模块的 docs 目录（如 `backend/{Project}.Admin/docs/review-report.md` 或 `frontend/web/docs/review-report.md`）；跨模块/全项目审查放仓库根 `review-report.md`。多次审查覆盖上一次（或按日期归档，由用户定）；无论是否归档，固定保留一份原名 `review-report.md` 在输出目录（Stop Hook 按此文件名字面校验）。
+- 写入 `review-report.md`：默认放被审模块的 docs 目录（如 `backend/{Project}.Admin/docs/review-report.md` 或 `frontend/web/docs/review-report.md`）；跨模块/全项目审查放仓库根 `review-report.md`。覆盖写入前，先将既有 `review-report.md` 归档至同目录 `review/` 子目录（文件名 `review-report-{YYYYMMDD-HHmm}.md`，目录不存在则创建），原名文件始终只保留最新一份（Stop Hook 按此文件名字面校验）。
 - 对话内摘要：审查范围、各级别问题数、最严重的 3-5 条、阻断结论（pass/fail）、下一步建议。
 - 报告必须含 7 段：①审查概要 ②严重级别统计 ③问题清单（按维度分组）④整体优缺点 ⑤歧义与待确认 ⑥修改方案汇总（优先级排序 action list）⑦阻断结论。完整模板见 [references/report-format](references/report-format.md)。
 
@@ -113,7 +113,7 @@ metadata:
 
 审查按**项目内一致性**判定，而非把技能里的某处写法当作全局铁律。以下已知分歧，**只 flag 项目内不一致**，不要判 Critical：
 
-1. **`/add` vs `/create` 创建端点 URL**——`api-typescript-spec` 的 URL 表写 `/create`，而 `thirdnet-fullstack` 协调技能派发示例用 `/add`；`frontend-developer` 允许 `/add` 或 `/create`（二选一，模块内一致，与后端 `net-api-developer` 端点模板对齐）。被审模块只要**自身前后端一致**即可（前端调 `/add`、后端路由也是 `/add`）；不一致才是 Major。
+1. **创建端点 URL 已统一为 `/create`**——`api-typescript-spec` URL 规范表、`net-api-developer` 端点模板与 `thirdnet-fullstack` 协调技能示例三处一致（2.55.4 收敛；历史版本协调技能示例曾用 `/add`）。存量项目/早期模块若整体用 `/add` 且前后端一致，视为历史遗留**不判错**；但**同项目内 `/add` 与 `/create` 混用**应报 Minor 提示收敛，新代码一律 `/create`。
 2. **`IAuthApi` 字段**——以 `api/interfaces/auth.ts` 实际契约为准，不按 reference 文档的形状判错。
 3. **`online-user` 无独立后端 Controller**——前端 `online-user` 模块只管心跳，list/kick 走 `user.ts`。不要报“缺失 `OnlineUserManagerController`”。
 4. **Controller 的 `Sys` 前缀**——多数 Controller 是 `{Entity}ManagerController`（无 `Sys`），仅 `SysConfigManagerController` 等少数带前缀。读实际类名判定，不要假设必须带或不带 `Sys`。
