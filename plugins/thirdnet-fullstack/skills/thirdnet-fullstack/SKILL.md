@@ -7,7 +7,7 @@ description: >
   全新项目创建路径，以及子代理调度（backend-developer / frontend-developer，Task 派发重型阶段）。
 license: MIT
 metadata:
-  version: "2.51.0"
+  version: "2.52.0"
   author: thirdnet
 ---
 
@@ -31,7 +31,7 @@ metadata:
 - **E2E 测试生成**：`e2e-test-generator`——纯 UI 驱动的 Playwright（Python）E2E 测试套件生成；探索任意项目代码库后按真实选择器 / 业务流程生成测试（多角色 + 数据范围 + 跨端一致 + 越权负向「按钮 DOM 不存在」），测试不直连后端、仅驱动 DOM。项目无关，适用于任意 web / 移动代码库
 - **文档交付**：`thirdnet-doc-generator`——功能开发完成后基于代码库功能模块生成项目交付文档（需求规格说明书、系统设计文档、用户手册、测试用例文档等，每类有专属模板），输出 Markdown 并可转 Word；与 `fullstack-review` 同级，属交付类技能
 - **原型分支同步编排**：`proto-workflow`——维护固定命名原型分支 `{Project}.Proto`，与 main 双向 `svn merge` 同步（main→.Proto 拉取基线 / .Proto→main 合并回）；支持派生原型功能分支 `{Project}.Proto.{Feature}` 并行开发、选择性合并到主干（一个合并、另一个留分支），六确认门；编码委托前后端工作流；属流程编排类技能
-- **工具与资产**：`thirdnet-template-upgrade`（前后端模板版本升级检测与同步）、`thirdnet-mcp-setup`（Postgres MCP 装配，Admin 创建时默认挂 `@bytebase/dbhub`）、`md-to-word`（Markdown 转 Word 文档转换）、`thirdnet-digital-twin`（园区 3D 数字孪生模块生成，Vue 3 + Three.js 完整范式资产）
+- **工具与资产**：`thirdnet-template-upgrade`（前后端模板版本升级检测与同步）、`thirdnet-mcp-setup`（Postgres MCP 装配，Admin 创建时默认挂 `@bytebase/dbhub`）、`md-to-word`（Markdown 转 Word 文档转换）、`token-usage-analysis`（当前会话 Token 消耗统计分析：解析会话日志 / /context 报告，分类占比 + 子代理汇总 + 节省优化建议）、`thirdnet-digital-twin`（园区 3D 数字孪生模块生成，Vue 3 + Three.js 完整范式资产）
 
 ## 任务路由（何时用本技能）
 

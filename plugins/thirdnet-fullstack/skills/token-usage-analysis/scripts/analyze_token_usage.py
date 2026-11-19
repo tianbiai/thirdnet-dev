@@ -1,0 +1,559 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Token 消耗统计分析脚本（token-usage-analysis 技能专用）。
+
+数据源（按 --source 选择）：
+- zcode（默认）：~/.zcode/cli/rollout/model-io-<sessionId>.jsonl
+  每行一次完整模型调用：usage（精确数值）+ request.body（system / tools / messages
+  全量快照）。末行请求体即当前上下文窗口全量，可做 /context 级分类占比。
+- claude：Claude Code transcript（~/.claude/projects/**/*.jsonl）
+  逐条 assistant 消息的 message.usage 基础统计；transcript 不含 system/tools
+  明细，分类占比缺项需由 /context 输出补充。
+
+统计口径（两个维度，报告中分开呈现，不得混用）：
+- 当前窗口占用：末次调用 inputTokens + outputTokens（/context 等价口径）。
+  注：inputTokens 已含缓存读部分（= 非缓存输入 + cacheReadTokens）。
+- 累计消耗：全部调用逐行累加（配额/计费口径），缓存读单列。
+
+仅用 Python 标准库。输出 markdown 原始统计到 stdout；原因分析与优化建议
+由代理续写（见技能 SKILL.md 与 references/optimization-guide.md）。
+"""
+
+import argparse
+import glob
+import json
+import os
+import re
+import sys
+from collections import Counter
+from datetime import datetime
+
+ROLLOUT_DIR = os.path.join(os.path.expanduser("~"), ".zcode", "cli", "rollout")
+AGENTS_DIR = os.path.join(os.path.expanduser("~"), ".zcode", "cli", "agents")
+CLAUDE_PROJECTS_DIR = os.path.join(os.path.expanduser("~"), ".claude", "projects")
+
+# 常见模型上下文窗口（token），仅用于展示「剩余空间」；未知模型不显示，
+# 可用 --window N 显式指定。数值随官方口径变化，不保证实时准确。
+MODEL_WINDOWS = {
+    "glm-4.5": 128000,
+    "glm-4.6": 200000,
+    "claude-sonnet-4-5": 200000,
+    "claude-sonnet-4-5-20250929": 200000,
+    "claude-opus-4-1": 200000,
+}
+
+CJK_RE = re.compile(r"[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]")
+QUERY_SOURCE_RE = re.compile(r'"querySource"\s*:\s*"([^"]+)"')
+
+
+# ---------- 基础工具 ----------
+
+def est_tokens_by_chars(text):
+    """字符启发式估算：CJK ÷1.5、其他 ÷4。仅为相对占比服务，最终按精确 usage 校准。"""
+    if not text:
+        return 0.0
+    cjk = len(CJK_RE.findall(text))
+    other = len(text) - cjk
+    return cjk / 1.5 + other / 4.0
+
+
+def obj_tokens(obj):
+    """任意 JSON 对象的体量估算（序列化后按字符启发式）。"""
+    if obj is None:
+        return 0.0
+    if isinstance(obj, str):
+        return est_tokens_by_chars(obj)
+    try:
+        s = json.dumps(obj, ensure_ascii=False)
+    except (TypeError, ValueError):
+        s = str(obj)
+    return est_tokens_by_chars(s)
+
+
+def preview(text, limit=70):
+    if not isinstance(text, str):
+        try:
+            text = json.dumps(text, ensure_ascii=False)
+        except (TypeError, ValueError):
+            text = str(text)
+    text = text.replace("\n", " ").replace("\r", " ").replace("\t", " ").strip()
+    return (text[:limit] + "…") if len(text) > limit else text
+
+
+def fmt(n):
+    return f"{int(round(n)):,}"
+
+
+def pct(part, whole):
+    return (part / whole * 100.0) if whole else 0.0
+
+
+def bar(fraction, width=24):
+    fraction = max(0.0, min(1.0, fraction))
+    filled = int(round(fraction * width))
+    return "█" * filled + "░" * (width - filled)
+
+
+def parse_ts(value):
+    if not value or not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def human_duration(seconds):
+    if seconds is None:
+        return "未知"
+    seconds = int(seconds)
+    if seconds < 60:
+        return f"{seconds}s"
+    if seconds < 3600:
+        return f"{seconds // 60}m{seconds % 60}s"
+    return f"{seconds // 3600}h{(seconds % 3600) // 60}m"
+
+
+# ---------- ZCode rollout 解析 ----------
+
+def extract_usage(rec):
+    """usage 位于 rec.response.usage（部分版本为顶层 rec.usage），两处兼容。"""
+    usage = (rec.get("response") or {}).get("usage") or rec.get("usage") or {}
+    return usage if isinstance(usage, dict) else {}
+
+
+def read_rollout(path):
+    """流式读取 rollout jsonl。
+
+    文件内可能混有辅助调用（如 querySource=session_title 的会话标题生成，
+    自带独立的小上下文 full 快照）——先按 querySource 众数判定主流对话流，
+    消息重组与「末次调用」快照仅采用主流记录，辅助调用的消耗单列累计。
+    主流请求中的消息为增量记录（messagesKind=full 全量快照 / delta 仅新增，
+    messageOffset 为起始下标），按偏移跨行重组出末次调用时的完整对话历史。
+    返回 (totals, calls, last, messages, aux)。
+    """
+    # 第一遍（轻量正则）：统计 querySource 众数 = 主流对话流
+    sources = Counter()
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            m = QUERY_SOURCE_RE.search(line)
+            if m:
+                sources[m.group(1)] += 1
+    main_source = sources.most_common(1)[0][0] if sources else None
+
+    # 第二遍：主流行进重组；非主流行只累计消耗（aux）
+    totals = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
+    aux = {"count": 0, "input": 0, "output": 0, "kinds": Counter()}
+    calls = []
+    last = None
+    messages_map = {}
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except ValueError:
+                continue
+            usage = extract_usage(rec)
+            if main_source is not None and rec.get("querySource") != main_source:
+                aux["count"] += 1
+                aux["input"] += usage.get("inputTokens") or 0
+                aux["output"] += usage.get("outputTokens") or 0
+                aux["kinds"][rec.get("querySource") or "?"] += 1
+                continue
+            req = rec.get("request") or {}
+            kind = req.get("messagesKind")
+            off = req.get("messageOffset")
+            msgs = req.get("messages") or []
+            if not isinstance(off, int) or off < 0:
+                off = len(messages_map)
+            if kind == "full" or (kind is None and off == 0):
+                messages_map.clear()
+            for j, m in enumerate(msgs):
+                if isinstance(m, dict):
+                    messages_map[off + j] = m
+            inp = usage.get("inputTokens") or 0
+            out = usage.get("outputTokens") or 0
+            totals["input"] += inp
+            totals["output"] += out
+            totals["cache_read"] += usage.get("cacheReadTokens") or 0
+            totals["cache_write"] += usage.get("cacheWriteTokens") or 0
+            calls.append({
+                "startedAt": rec.get("startedAt"),
+                "completedAt": rec.get("completedAt"),
+                "querySource": rec.get("querySource"),
+                "input": inp,
+                "output": out,
+                "cache_read": usage.get("cacheReadTokens") or 0,
+            })
+            last = rec
+    messages = [messages_map[k] for k in sorted(messages_map)]
+    return totals, calls, last, messages, aux
+
+
+def resolve_zcode_file(args):
+    """定位主会话日志文件。--file > --session > 最新修改的非 subagent 文件。"""
+    if args.file:
+        if not os.path.isfile(args.file):
+            raise SystemExit(f"[token-usage-analysis] 文件不存在：{args.file}")
+        return args.file, "file"
+    if args.session:
+        ident = args.session
+        for cand in (ident, f"model-io-{ident}", f"model-io-{ident}.jsonl"):
+            p = os.path.join(ROLLOUT_DIR, cand if cand.endswith(".jsonl") else cand + ".jsonl")
+            if os.path.isfile(p):
+                return p, "session"
+        raise SystemExit(
+            f"[token-usage-analysis] 未找到会话 {ident} 对应的日志（rollout 目录：{ROLLOUT_DIR}）。"
+            "注意：留存策略可能已清理旧日志；也可用 --file 直接指定 jsonl 路径。")
+    if not os.path.isdir(ROLLOUT_DIR):
+        raise SystemExit(
+            f"[token-usage-analysis] 未发现 ZCode rollout 目录 {ROLLOUT_DIR}，"
+            "当前环境可能不是 ZCode；请改用 --source claude 或让用户提供报告。")
+    files = [f for f in glob.glob(os.path.join(ROLLOUT_DIR, "model-io-sess_*.jsonl"))
+             if "sess_subagent_" not in os.path.basename(f)]
+    if not files:
+        raise SystemExit(
+            f"[token-usage-analysis] rollout 目录无主会话日志（{ROLLOUT_DIR}），"
+            "可能已被留存策略清理。")
+    return max(files, key=os.path.getmtime), "auto"
+
+
+def window_breakdown(last, messages):
+    """末行请求 → 分类体量估算列表 [(label, tokens_est, note)]。
+
+    覆盖窗口全量：system 全部分段 + tools 全部定义（内置 / MCP 按服务器）+
+    messages 全部历史（按角色 × 内容类型，由 read_rollout 跨行重组）。
+    注意：system / tools 位于 request.body，对话消息位于 request.messages。
+    """
+    body = ((last or {}).get("request") or {}).get("body") or {}
+    system = body.get("system") or []
+    tools = body.get("tools") or []
+
+    items = []
+
+    sys_total = 0.0
+    sys_prev = []
+    for seg in system:
+        text = seg.get("text") if isinstance(seg, dict) else (seg if isinstance(seg, str) else "")
+        tok = est_tokens_by_chars(text or "")
+        sys_total += tok
+        if tok > 500:
+            sys_prev.append(preview(text, 50))
+    items.append((f"System prompt（{len(system)} 段）", sys_total,
+                  "；".join(sys_prev[:3]) if sys_prev else ""))
+
+    builtin_total = 0.0
+    mcp_servers = {}
+    mcp_tool_counts = {}
+    for t in tools:
+        if not isinstance(t, dict):
+            continue
+        name = t.get("name") or "?"
+        tok = obj_tokens(t)
+        if name.startswith("mcp__"):
+            parts = name.split("__")
+            server = parts[1] if len(parts) > 2 else name
+            mcp_servers[server] = mcp_servers.get(server, 0.0) + tok
+            mcp_tool_counts[server] = mcp_tool_counts.get(server, 0) + 1
+        else:
+            builtin_total += tok
+    builtin_count = len(tools) - sum(mcp_tool_counts.values())
+    items.append((f"内置工具定义（{builtin_count} 个）", builtin_total, ""))
+    for server in sorted(mcp_servers, key=mcp_servers.get, reverse=True):
+        items.append((f"MCP 工具：{server}（{mcp_tool_counts[server]} 个）",
+                      mcp_servers[server], ""))
+
+    msg_stats = {}
+    msg_items = []
+    for m in messages:
+        if not isinstance(m, dict):
+            continue
+        role = m.get("role") or "?"
+        content = m.get("content")
+        if isinstance(content, list):
+            for b in content:
+                btype = b.get("type") if isinstance(b, dict) else "?"
+                tok = obj_tokens(b)
+                key = f"消息：{role} / {btype}"
+                msg_stats[key] = msg_stats.get(key, 0.0) + tok
+                pv = None
+                if isinstance(b, dict):
+                    pv = b.get("text") or b.get("content") or b.get("name") or b.get("id") or b
+                msg_items.append((tok, key, preview(pv)))
+        else:
+            tok = obj_tokens(content)
+            key = f"消息：{role} / text"
+            msg_stats[key] = msg_stats.get(key, 0.0) + tok
+            msg_items.append((tok, key, preview(content)))
+    for key in sorted(msg_stats, key=msg_stats.get, reverse=True):
+        items.append((key, msg_stats[key], ""))
+
+    return items, msg_items
+
+
+def calibrate(items, exact_total):
+    """按精确 inputTokens 等比校准估算值，使合计与精确值一致。"""
+    total_est = sum(t for _, t, _ in items)
+    scale = (exact_total / total_est) if total_est > 0 else 1.0
+    return [(label, tok * scale, note) for label, tok, note in items], total_est, scale
+
+
+# ---------- 子代理关联 ----------
+
+def find_subagents(session_id):
+    """经 agents/<sessionId>/agent_*/metadata.json 关联当前会话派发的全部子代理。"""
+    if not session_id:
+        return []
+    metas = []
+    pattern = os.path.join(AGENTS_DIR, session_id, "agent_*", "metadata.json")
+    for p in sorted(glob.glob(pattern)):
+        try:
+            with open(p, "r", encoding="utf-8", errors="replace") as f:
+                meta = json.load(f)
+        except (OSError, ValueError):
+            continue
+        metas.append({
+            "agentId": meta.get("agentId") or os.path.basename(os.path.dirname(p)),
+            "profile": meta.get("profileId") or "?",
+            "child": meta.get("childSessionId"),
+            "prompt": meta.get("prompt"),
+            "status": meta.get("status") or "?",
+        })
+    return metas
+
+
+# ---------- Claude transcript 解析 ----------
+
+def resolve_claude_transcript(args):
+    if args.transcript or args.file:
+        p = args.transcript or args.file
+        if not os.path.isfile(p):
+            raise SystemExit(f"[token-usage-analysis] 文件不存在：{p}")
+        return p, "file"
+    if not os.path.isdir(CLAUDE_PROJECTS_DIR):
+        raise SystemExit(
+            f"[token-usage-analysis] 未发现 Claude projects 目录 {CLAUDE_PROJECTS_DIR}；"
+            "请用 --transcript 指定 jsonl 路径，或让用户提供 /context 报告。")
+    files = glob.glob(os.path.join(CLAUDE_PROJECTS_DIR, "**", "*.jsonl"), recursive=True)
+    if not files:
+        raise SystemExit(f"[token-usage-analysis] {CLAUDE_PROJECTS_DIR} 下未找到 transcript。")
+    return max(files, key=os.path.getmtime), "auto"
+
+
+def analyze_claude(path):
+    """Claude Code transcript：逐条 usage 基础统计 + 消息体量分布。
+
+    transcript 不含 system prompt / 工具定义，分类明细缺项需 /context 补充。
+    """
+    totals = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
+    sizes = {}
+    count_usage = 0
+    first_ts = last_ts = None
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except ValueError:
+                continue
+            ts = parse_ts(rec.get("timestamp"))
+            if ts:
+                first_ts = first_ts or ts
+                last_ts = ts
+            msg = rec.get("message") or {}
+            usage = msg.get("usage") or {}
+            if usage:
+                count_usage += 1
+                totals["input"] += usage.get("input_tokens") or 0
+                totals["output"] += usage.get("output_tokens") or 0
+                totals["cache_read"] += usage.get("cache_read_input_tokens") or 0
+                totals["cache_write"] += usage.get("cache_creation_input_tokens") or 0
+            role = msg.get("role") or rec.get("type") or "?"
+            sizes[role] = sizes.get(role, 0.0) + obj_tokens(msg.get("content"))
+    return totals, sizes, count_usage, first_ts, last_ts
+
+
+# ---------- 报告渲染 ----------
+
+def render_zcode_report(path, how, top_n, window_override):
+    totals, calls, last, messages, aux = read_rollout(path)
+    if not calls:
+        raise SystemExit(f"[token-usage-analysis] 文件无有效记录：{path}")
+
+    session_id = (last or {}).get("sessionId") or os.path.basename(path)[len("model-io-"):-len(".jsonl")]
+    model = ((last or {}).get("model") or {}).get("modelId") or "未知模型"
+    last_usage = extract_usage(last or {})
+    last_input = last_usage.get("inputTokens") or 0
+    last_output = last_usage.get("outputTokens") or 0
+    window_used = last_input + last_output
+
+    window = window_override or MODEL_WINDOWS.get(model.lower())
+
+    out = []
+    out.append("# Token 消耗统计（原始数据）")
+    out.append("")
+    out.append(f"- 数据来源：ZCode rollout 日志 `{path}`"
+               + ("（自动选取最新主会话）" if how == "auto" else ""))
+    out.append(f"- 统计边界：仅统计磁盘上留存的日志（留存策略可能已清理更早记录）")
+    out.append("")
+    out.append("## 一、会话概况")
+    out.append("")
+    out.append("| 指标 | 数值 |")
+    out.append("|------|------|")
+    out.append(f"| 会话 ID | `{session_id}` |")
+    out.append(f"| 模型 | {model} |")
+    out.append(f"| 模型调用次数 | {len(calls)}" +
+               (f"（另有辅助调用 {aux['count']} 次：{'、'.join(f'{k}×{v}' for k, v in aux['kinds'].most_common())}）"
+                if aux["count"] else "") + " |")
+    first_ts = parse_ts(calls[0]["startedAt"])
+    last_ts = parse_ts(calls[-1]["completedAt"] or calls[-1]["startedAt"])
+    span = (last_ts - first_ts).total_seconds() if (first_ts and last_ts) else None
+    out.append(f"| 首次调用 / 末次调用 | {calls[0]['startedAt'] or '?'} / {calls[-1]['completedAt'] or '?'}（跨度 {human_duration(span)}） |")
+    if window:
+        out.append(f"| 上下文窗口 | {fmt(window)} |")
+        out.append(f"| **当前窗口占用** | **{fmt(window_used)}（{pct(window_used, window):.1f}%），剩余 {fmt(window - window_used)}** |")
+    else:
+        out.append(f"| **当前窗口占用** | **{fmt(window_used)}**（窗口大小未知，可用 `--window N` 指定） |")
+    out.append(f"| 末次调用明细 | 输入 {fmt(last_input)}（含缓存读 {fmt(last_usage.get('cacheReadTokens') or 0)}）+ 输出 {fmt(last_output)} |")
+    out.append("")
+
+    out.append("## 二、当前上下文窗口分类占比（估算，已按精确 usage 校准，合计 = 末次输入）")
+    out.append("")
+    items, msg_items = window_breakdown(last, messages)
+    items, total_est, scale = calibrate(items, last_input)
+    items = [it for it in items if it[1] >= 1]
+    exact_sum = sum(t for _, t, _ in items)
+    out.append(f"> 字符启发式估算（CJK ÷1.5、其他 ÷4）后按末次精确输入 {fmt(last_input)} 等比校准"
+               f"（原始估算 {fmt(total_est)}，缩放系数 ×{scale:.2f}）。绝对数值为近似，占比结构可信。")
+    out.append("")
+    out.append("| 分类 | 估算 token | 占窗口 |")
+    out.append("|------|-----------:|-------:|")
+    for label, tok, note in sorted(items, key=lambda x: -x[1]):
+        note_s = f"（{note}）" if note else ""
+        out.append(f"| {label}{note_s} | ~{fmt(tok)} | {pct(tok, window_used if not window else window):.1f}% |")
+    out.append("")
+
+    top_items = sorted(msg_items, key=lambda x: -x[0])[:top_n]
+    if top_items:
+        out.append(f"### Top {len(top_items)} 最大消息 / 内容块")
+        out.append("")
+        for tok, key, pv in top_items:
+            out.append(f"- ~{fmt(tok)} · {key} · `{pv}`")
+        out.append("")
+
+    out.append("## 三、累计消耗（配额口径，全部调用逐行累加）")
+    out.append("")
+    out.append("| 指标 | 数值 |")
+    out.append("|------|------|")
+    out.append(f"| 累计输入（含缓存读） | {fmt(totals['input'])} |")
+    out.append(f"| — 其中缓存读（价格更低） | {fmt(totals['cache_read'])} |")
+    out.append(f"| — 其中非缓存输入 | {fmt(totals['input'] - totals['cache_read'])} |")
+    out.append(f"| 累计输出 | {fmt(totals['output'])} |")
+    out.append(f"| 缓存写 | {fmt(totals['cache_write'])} |")
+    if aux["count"]:
+        out.append(f"| 辅助调用（{'、'.join(aux['kinds'].keys())}） | {aux['count']} 次，输入 {fmt(aux['input'])} + 输出 {fmt(aux['output'])}（独立小上下文，已单列不计入上方分类） |")
+    out.append("")
+
+    out.append("## 四、子代理消耗（独立上下文，不计入上方窗口占用）")
+    out.append("")
+    subs = find_subagents(session_id)
+    if not subs:
+        out.append(f"未发现本会话派发的子代理记录（查找目录：`{os.path.join(AGENTS_DIR, session_id)}`）。")
+    else:
+        out.append("| 子代理 | 状态 | 累计输入(含缓存读) | 缓存读 | 累计输出 | 任务书预览 |")
+        out.append("|--------|------|-------------------:|-------:|---------:|------------|")
+        sum_in = sum_out = sum_cr = 0
+        for s in subs:
+            child_file = None
+            if s["child"]:
+                child_file = os.path.join(ROLLOUT_DIR, f"model-io-{s['child']}.jsonl")
+            if child_file and os.path.isfile(child_file):
+                t, _, _, _, _ = read_rollout(child_file)
+            else:
+                t = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
+            sum_in += t["input"]
+            sum_out += t["output"]
+            sum_cr += t["cache_read"]
+            out.append(f"| {s['profile']}（{s['agentId'][:20]}…） | {s['status']} | "
+                       f"{fmt(t['input'])} | {fmt(t['cache_read'])} | {fmt(t['output'])} | "
+                       f"`{preview(s['prompt'], 40)}` |")
+        out.append(f"| **合计（{len(subs)} 个）** | — | **{fmt(sum_in)}** | **{fmt(sum_cr)}** | **{fmt(sum_out)}** | |")
+        out.append("")
+
+    out.append("---")
+    out.append("以下由代理基于以上数据续写：**原因分析**（定位最大分类，见 references/optimization-guide.md 的「现象→原因」清单）"
+               "与**优化建议**（绑定具体偏大分类，按预期节省排序）。")
+    return "\n".join(out)
+
+
+def render_claude_report(path, top_n):
+    totals, sizes, count_usage, first_ts, last_ts = analyze_claude(path)
+    if count_usage == 0:
+        raise SystemExit(f"[token-usage-analysis] transcript 中未找到 usage 记录：{path}")
+    span = (last_ts - first_ts).total_seconds() if (first_ts and last_ts) else None
+
+    out = []
+    out.append("# Token 消耗统计（原始数据 · Claude transcript 基础统计）")
+    out.append("")
+    out.append(f"- 数据来源：`{path}`")
+    out.append("- **局限**：transcript 不含 system prompt / 工具定义，无法给出分类占比明细；"
+               "分类明细请在 Claude Code 中执行 `/context` 后将输出提供给代理分析。")
+    out.append("")
+    out.append("| 指标 | 数值 |")
+    out.append("|------|------|")
+    out.append(f"| 含 usage 的响应条数 | {count_usage} |")
+    out.append(f"| 时间跨度 | {human_duration(span)} |")
+    out.append(f"| 累计非缓存输入 | {fmt(totals['input'])} |")
+    out.append(f"| 累计缓存读（价格更低） | {fmt(totals['cache_read'])} |")
+    out.append(f"| 累计缓存写 | {fmt(totals['cache_write'])} |")
+    out.append(f"| 合计输入（非缓存 + 缓存读 + 缓存写） | {fmt(totals['input'] + totals['cache_read'] + totals['cache_write'])} |")
+    out.append(f"| 累计输出 | {fmt(totals['output'])} |")
+    out.append("")
+    out.append("> 注：Claude transcript 的 `input_tokens` 不含缓存部分（与 ZCode 的 inputTokens 口径不同），各项分开列示、不重复计算。")
+    out.append("")
+    out.append("消息体量分布（估算，仅结构参考）：")
+    out.append("")
+    out.append("| 角色 | 体量估算 |")
+    out.append("|------|---------:|")
+    for role in sorted(sizes, key=sizes.get, reverse=True)[:top_n]:
+        out.append(f"| {role} | ~{fmt(sizes[role])} |")
+    out.append("")
+    out.append("---")
+    out.append("以下由代理基于以上数据续写：原因分析与优化建议（分类明细需 /context 输出补充）。")
+    return "\n".join(out)
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Token 消耗统计分析（token-usage-analysis 技能脚本）")
+    ap.add_argument("--source", choices=["zcode", "claude"], default="zcode",
+                    help="数据源：zcode rollout 日志（默认）/ claude transcript")
+    ap.add_argument("--session", help="ZCode 会话 ID（如 sess_xxx；缺省自动取最新主会话）")
+    ap.add_argument("--file", help="直接指定 ZCode rollout jsonl 路径")
+    ap.add_argument("--transcript", help="直接指定 Claude transcript jsonl 路径")
+    ap.add_argument("--window", type=int, help="上下文窗口大小（token），缺省按模型映射或省略")
+    ap.add_argument("--top", type=int, default=8, help="Top-N 最大消息条数（默认 8）")
+    args = ap.parse_args()
+
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+    if args.source == "claude":
+        path, _ = resolve_claude_transcript(args)
+        print(render_claude_report(path, args.top))
+    else:
+        path, how = resolve_zcode_file(args)
+        print(render_zcode_report(path, how, args.top, args.window))
+
+
+if __name__ == "__main__":
+    main()

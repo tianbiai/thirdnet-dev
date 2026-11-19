@@ -4,7 +4,7 @@ ThirdNet 全栈 Admin 开发插件（自包含）—— Claude Code 插件，为
 
 是 ThirdNet 前后端开发技能的**唯一来源**：后端 .NET 微服务与前端 Vue 3 的全部技能均收录于此，统一 `thirdnet-fullstack:` 命名空间，开箱即用。
 
-- **版本**：2.51.0（目录清单 `thirdnet-plugins` v0.73.0）
+- **版本**：2.52.0（目录清单 `thirdnet-plugins` v0.74.0）
 - **许可**：MIT
 
 ## 技术栈
@@ -13,7 +13,7 @@ ThirdNet 全栈 Admin 开发插件（自包含）—— Claude Code 插件，为
 - **前端**：Vue 3 + Element Plus + Vite（Web 端）；uniapp + Vant 4（H5）/ @vant/weapp（微信小程序，发布为 mp-weixin）
 - **全栈协调**：前端先行、Admin CRUD 页面模式、前后端类型映射、RBAC 权限桥接、共享 API 约定同步；含 `backend-developer` / `frontend-developer` 两个子代理隔离重型阶段
 
-## 技能清单（28 个）
+## 技能清单（29 个）
 
 ### 后端（8 个 · `.NET`）
 | 技能 | 用途 |
@@ -79,11 +79,12 @@ ThirdNet 全栈 Admin 开发插件（自包含）—— Claude Code 插件，为
 |------|------|
 | `proto-workflow` | 原型分支同步编排（固定命名 `.Proto` 分支 + `svn merge` 双向同步；支持 `.Proto.{Feature}` 并行功能分支与选择性合并，六确认门 A–F） |
 
-### 工具（2 个）
+### 工具（3 个）
 | 技能 | 用途 |
 |------|------|
 | `md-to-word` | Markdown 转 Word（.docx）转换工具 |
 | `thirdnet-mcp-setup` | Postgres MCP 装配（Admin 创建时默认挂 `@bytebase/dbhub`，连接串从 appsettings 读取） |
+| `token-usage-analysis` | 当前会话 Token 消耗统计分析（解析 ZCode 会话日志 / /context 输出，分类占比 + 子代理汇总 + 节省优化建议） |
 
 ## 子代理（2 个 · `agents/`）
 
@@ -111,6 +112,7 @@ claude --plugin-dir /path/to/thirdnet-dev/plugins/thirdnet-fullstack
 - **后端**：.NET 10 SDK（`net10.0`）、EF Core CLI（`dotnet ef`）；可访问内部 NuGet 源（地址见 `backend-workflow/references/internal-registry.md`）
 - **前端**：Node.js（Vite 8 / Vue 3.5）；可访问内部 npm 源（同上）
 - **md-to-word**：Python 3 + `python-docx` / `markdown` / `Pillow`（`pip install python-docx markdown Pillow`）
+- **token-usage-analysis**：Python 3（仅标准库，无需安装依赖）
 
 ## 使用方式
 

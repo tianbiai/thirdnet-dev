@@ -8,3 +8,6 @@ park-digital-twin/
 # Python 字节码缓存
 __pycache__/
 *.py[cod]
+
+# ZCode 本地会话数据
+.zcode/

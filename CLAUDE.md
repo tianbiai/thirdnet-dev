@@ -9,11 +9,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 thirdnet-dev/
 ├── .claude-plugin/marketplace.json          # 插件集合注册清单（顶层 metadata.version + 各 plugin 条目）
-└── plugins/thirdnet-fullstack/               # 唯一的自包含插件（v2.49.0）
+└── plugins/thirdnet-fullstack/               # 唯一的自包含插件（v2.52.0）
     ├── .claude-plugin/plugin.json            # 插件元数据（version 权威来源之一）
     ├── .claude-plugin/hooks/hooks.json       # 3 个 Stop + 2 个 PreToolUse + 2 个 PostToolUse 钩子
     ├── agents/                               # 子代理：backend-developer.md / frontend-developer.md
-    └── skills/                               # 28 个技能（见下「技能体系」）
+    └── skills/                               # 29 个技能（见下「技能体系」）
 ```
 
 marketplace 还声明了若干外部插件（superpowers / supabase-postgres-best-practices / ui-ux-pro-max / webapp-testing），通过 URL source 引用，不在本仓库内。
@@ -55,7 +55,7 @@ marketplace 还声明了若干外部插件（superpowers / supabase-postgres-bes
 
 每次同步在 `plugins/thirdnet-fullstack/.claude-plugin/CHANGELOG.md` 记录条目。
 
-## 技能体系（28 个，统一 thirdnet-fullstack: 命名空间）
+## 技能体系（29 个，统一 thirdnet-fullstack: 命名空间）
 
 - **后端（8）**：`backend-workflow`（后端总工作流，含框架/模板目录）、`net-microservice-generator`、`net-api-developer`、`net-efcore-developer`（含批量操作）、`net-auth`、`net-cache-use`、`net-background-job`、`net-enum-dict`
 - **前端（11）**：`frontend-workflow`、`vue-best-practices`、`api-typescript-spec`（策略工厂 Real/Mock 切换）、`frontend-design`、`design-apple`、`admin-template-setup`、`create-adaptable-composable`、`vue-pinia-best-practices`、`vue-router-best-practices`、`vue-jsx-best-practices`、`vue-enum-dict`
@@ -66,11 +66,11 @@ marketplace 还声明了若干外部插件（superpowers / supabase-postgres-bes
 - **文档（1）**：`thirdnet-doc-generator`——项目交付文档生成（需求规格/系统设计/用户手册/测试用例，Markdown 可转 Word）；另可生成技术参考类「数据库表结构文档」（经 dbhub MCP 实时导出 PostgreSQL 表结构：表名/schema/表用途/字段·列名·类型·注释·备注）
 - **模板升级（1）**：`thirdnet-template-upgrade`
 - **原型同步（1）**：`proto-workflow`——原型分支同步编排（固定命名 `.Proto` 分支 + 与 main 双向 `svn merge` 同步；支持派生 `.Proto.{Feature}` 并行功能分支、选择性合并到主干，六确认门 A/B/C/D/E/F）
-- **工具（2）**：`md-to-word`、`thirdnet-mcp-setup`——Postgres MCP 装配（Admin 创建时默认挂 `@bytebase/dbhub`，让 Claude Code 直查 PostgreSQL；连接串从 appsettings 读出、用户确认用哪个库）
+- **工具（3）**：`md-to-word`、`thirdnet-mcp-setup`——Postgres MCP 装配（Admin 创建时默认挂 `@bytebase/dbhub`，让 Claude Code 直查 PostgreSQL；连接串从 appsettings 读出、用户确认用哪个库）、`token-usage-analysis`——当前会话 Token 消耗统计分析（解析 ZCode 会话日志 / /context 报告：上下文窗口分类占比 + 子代理消耗汇总 + 原因诊断 + 节省优化建议）
 
 ## 常用命令
 
-本仓库无构建系统。唯一可执行脚本是数字孪生技能下的 Python 工具（位于 `plugins/thirdnet-fullstack/skills/thirdnet-digital-twin/scripts/`）：
+本仓库无构建系统。可执行脚本有两处：数字孪生技能下的 Python 工具（位于 `plugins/thirdnet-fullstack/skills/thirdnet-digital-twin/scripts/`）与 Token 统计脚本（`plugins/thirdnet-fullstack/skills/token-usage-analysis/scripts/analyze_token_usage.py`，仅标准库）。数字孪生工具：
 
 ```bash
 # 校验 Park Spec JSON（结构 + 业务规则：楼栋出界/重叠、POI 越界 FAIL；token 覆盖白名单、车位密度 WARN）

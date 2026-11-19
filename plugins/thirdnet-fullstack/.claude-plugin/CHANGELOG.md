@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.52.0 - 2026-11-19
+
+### Added
+**新技能 `skills/token-usage-analysis/`（v1.0.0，工具组）**：当前会话 Token 消耗统计分析——查询整个上下文窗口全部上下文的分类占比、子代理全部消耗，诊断消耗原因并给出节省 Token 的优化建议：
+
+- **报告获取降级级联**（用户决策）：a) 用户已附报告直接分析 → b) 支持 `/context` 的环境（Claude Code 等）请用户执行并粘贴 → c) ZCode 备选自动路径（解析 `~/.zcode/cli/rollout/model-io-<sessionId>.jsonl`，自动定位当前会话）→ d) 其他环境本地日志同理（Claude `~/.claude/projects/` transcript 基础统计）→ e) 均不可得时询问用户提供（附最小数据要素）
+- **统计脚本 `scripts/analyze_token_usage.py`**（仅 Python 标准库，无 pip 依赖）：流式解析 rollout 增量日志——按 `messageOffset`/`messagesKind`（full/delta）跨行重组完整对话历史，并按 `querySource` 众数识别主流对话流、把辅助调用（如 `session_title` 会话标题生成，自带独立小上下文快照）单列不污染主对话重组；usage 取 `response.usage`（精确数值）；分类占比（System prompt / 内置工具 / MCP 按服务器分组 / 消息按角色×类型含 reasoning 块）以字符启发式估算后按精确 `inputTokens` 等比校准（合计 100%）；子代理经 `~/.zcode/cli/agents/<sessionId>/agent_*/metadata.json` 全量关联并逐个 + 合计
+- **两个统计口径分开呈现**：当前窗口占用（末次调用 input+output，/context 等价）与累计消耗（全部调用逐行累加，缓存读单列）；ZCode `inputTokens` 含缓存读、Claude `input_tokens` 不含，脚本分口径处理并在报告中警告不要交叉换算
+- **知识库 `references/`**：`context-report-guide.md`（统一分类框架 + /context 输出结构 + 各来源归一化映射 + 最小数据要素与降级矩阵）、`optimization-guide.md`（六大分类「现象→原因→建议→预期节省」映射 + 累计/子代理诊断 + 建议绑定数据原则）
+- 边界处理：rollout 留存策略（旧日志可能被清理）如实注明统计边界；会话/文件不存在给出可读提示；`--session`/`--file`/`--window`/`--top`/`--source`/`--transcript` 参数
+
+### 版本同步
+`plugin.json` 与 `marketplace.json` 条目 2.51.0 → 2.52.0（描述「28 个技能」→「29 个技能」并补「Token 统计分析」）；marketplace `metadata.version` 0.73.0 → 0.74.0；协调技能 `thirdnet-fullstack/SKILL.md` frontmatter `metadata.version` → 2.52.0，「自包含说明·工具与资产」补 `token-usage-analysis` 条目；`README.md` 版本行、技能清单 28→29、「工具」分组 2→3 个表格行、前置条件补 Python 3（仅标准库）；仓库根 `CLAUDE.md`「28 个」两处 → 29、「技能体系」标题与「工具（2）」→「工具（3）」追加技能名。
+
 ## 2.51.0 - 2026-11-19
 
 ### Changed
