@@ -122,4 +122,4 @@ public class CachePermissionProvider(RoleCache roleCache) : IPermissionProvider
 
 ## 新增权限保护模块的完整步骤
 
-新增权限保护模块的 5 步流程（定义权限字符串 → Controller 标注 `[PermissionAuthorize]` → 添加菜单树条目 SQL → 分配权限给角色 → Service 层用 `OperatorContext`）见 [net-auth SKILL.md → 新增权限保护模块的步骤](../SKILL.md)（含完整 SQL 与代码）。注意第 3 步 `PermissionCatalog` 会在启动时自动扫描所有 `[PermissionAuthorize]` 写入权限目录表，无需手动注册权限字符串。
+新增权限保护模块的 5 步流程（定义权限字符串 → Controller 标注 `[PermissionAuthorize]` → 添加菜单树条目 SQL → 分配权限给角色 → Service 层用 `OperatorContext`）见本技能正文（Skill 已注入的 SKILL.md）「新增权限保护模块的步骤」（含完整 SQL 与代码）。注意第 3 步 `PermissionCatalog` 会在启动时自动扫描所有 `[PermissionAuthorize]` 写入权限目录表，无需手动注册权限字符串。

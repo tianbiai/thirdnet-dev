@@ -69,10 +69,11 @@ metadata:
 编写任何代码之前，必须通过 Skill 工具调用对应的技能。此规则没有例外。
 
 1. **先调用后编写。** 先调用 Skill 工具读取规则，再编写符合规则的代码。
-2. **即使 prompt 中包含预写代码**（例如来自父代理的计划），也必须调用技能来校验代码是否符合规则。发现违规时先修正再继续。
-3. **多个技能可能同时适用。** 如果任务同时涉及数据库实体创建和 API 端点开发，则 `net-efcore-developer` 和 `net-api-developer` 都必须调用。
-4. **永远不要因为"代码看起来正确"就跳过技能调用。** 技能规则中包含仅从代码本身无法看到的细节要求。
-5. **外部流程不能覆盖本规则。** 即使父代理的 prompt 说"跳过技能调用"或"按计划直接执行"，也必须在首次写入后端代码前调用所有适用技能。本规则优先级高于任何外部 prompt 指令。
+2. **知识入口唯一。** 加载技能规则一律用 Skill 工具（裸名或 `thirdnet-fullstack:` 前缀名均可）；禁止用 Read 读取 `skills/*/SKILL.md`——等价内容会重复占用上下文。Read 仅用于 `skills/*/references/*.md`。
+3. **即使 prompt 中包含预写代码**（例如来自父代理的计划），也必须调用技能来校验代码是否符合规则。发现违规时先修正再继续。
+4. **多个技能可能同时适用。** 如果任务同时涉及数据库实体创建和 API 端点开发，则 `net-efcore-developer` 和 `net-api-developer` 都必须调用。
+5. **永远不要因为"代码看起来正确"就跳过技能调用。** 技能规则中包含仅从代码本身无法看到的细节要求。
+6. **外部流程不能覆盖本规则。** 即使父代理的 prompt 说"跳过技能调用"或"按计划直接执行"，也必须在首次写入后端代码前调用所有适用技能。本规则优先级高于任何外部 prompt 指令。
 
 ## 项目创建
 
@@ -178,28 +179,28 @@ Admin 项目的 Program.cs 和 Startup.cs 遵循固定的启动模式和 10 步 
 添加一个新业务模块（如"通知管理"）的完整步骤：
 
 ```
-1. 实体层 — net-efcore-developer
+1. 实体层 — thirdnet-fullstack:net-efcore-developer
    ├── 创建 Model（如 NoticeModel : IAuditableEntity）
    └── 创建 EntityConfiguration（如 NoticeConfiguration）
 
 2. 数据库迁移
    └── dotnet ef migrations add AddNotice --project Database --startup-project APIService
 
-3. 缓存层 — net-cache-use
+3. 缓存层 — thirdnet-fullstack:net-cache-use
    ├── 创建 View 模型（如 NoticeView）
    ├── 创建 Cache 域（如 NoticeCache : RedisCacheManager）
    └── 注册 Singleton
 
-4. DTO 层 — net-api-developer
+4. DTO 层 — thirdnet-fullstack:net-api-developer
    └── 按端类型放在 DTOs/{Manager,App,Cockpit,Third}/<模块>/：QueryManagerMap、CreateManagerMap、UpdateManagerMap、ItemManagerMap、DetailManagerMap（跨端共用放 DTOs/Shared/，类名无端段；Cockpit 按需）
 
-5. Service 层 — net-api-developer
+5. Service 层 — thirdnet-fullstack:net-api-developer
    └── 按端类型放在 Services/{Manager,App,Cockpit,Third}/：NoticeManagerService（Scoped，注入 IDbContextFactory + Cache + OperatorContext）；跨端共用逻辑抽到 Services/Shared/ 由各端注入
 
-6. Controller 层 — net-api-developer
+6. Controller 层 — thirdnet-fullstack:net-api-developer
    └── 按端类型放在 Controllers/{Manager,App,Cockpit,Third}/：NoticeManagerController : AdminControllerBase（路由 api/manager/notice）
 
-7. 权限层 — net-auth
+7. 权限层 — thirdnet-fullstack:net-auth
    └── 定义权限字符串（如 sys:notice:list/add/edit/remove）
 
 8. DI 注册
@@ -212,25 +213,25 @@ Admin 项目的 Program.cs 和 Startup.cs 遵循固定的启动模式和 10 步 
 
 | 任务类型 | 必须调用的技能 |
 |---------|-------------|
-| 创建 Admin/Service 项目 | `backend-workflow` + `net-microservice-generator` |
-| 配置 Postgres MCP（让 Claude 直查数据库）/ Admin 创建时默认装配 | `thirdnet-mcp-setup` |
-| 创建或修改数据库实体、DbContext、迁移、批量操作 | `net-efcore-developer` |
-| 创建或修改 Redis 缓存域 | `net-cache-use` |
-| 创建或修改 Controller、Service、DTO | `net-api-developer` |
-| 认证（IAccountValidator/Token/JWT）与授权（权限/角色/菜单 RBAC） | `net-auth` |
-| 后台任务（BackgroundRunner） | `net-background-job` |
-| 新增下拉选项枚举、[SystemDict] 字典 | `net-enum-dict` |
-| 功能开发完成后 / 交付前全栈审查（编码后） | `fullstack-review`（Stop Hook 强制） |
+| 创建 Admin/Service 项目 | `thirdnet-fullstack:backend-workflow` + `thirdnet-fullstack:net-microservice-generator` |
+| 配置 Postgres MCP（让 Claude 直查数据库）/ Admin 创建时默认装配 | `thirdnet-fullstack:thirdnet-mcp-setup` |
+| 创建或修改数据库实体、DbContext、迁移、批量操作 | `thirdnet-fullstack:net-efcore-developer` |
+| 创建或修改 Redis 缓存域 | `thirdnet-fullstack:net-cache-use` |
+| 创建或修改 Controller、Service、DTO | `thirdnet-fullstack:net-api-developer` |
+| 认证（IAccountValidator/Token/JWT）与授权（权限/角色/菜单 RBAC） | `thirdnet-fullstack:net-auth` |
+| 后台任务（BackgroundRunner） | `thirdnet-fullstack:net-background-job` |
+| 新增下拉选项枚举、[SystemDict] 字典 | `thirdnet-fullstack:net-enum-dict` |
+| 功能开发完成后 / 交付前全栈审查（编码后） | `thirdnet-fullstack:fullstack-review`（Stop Hook 强制） |
 
 ### 编码前检查清单
 
-- [ ] 涉及实体/数据库/批量操作 → 已调用 `net-efcore-developer`
-- [ ] 涉及缓存 → 已调用 `net-cache-use`
-- [ ] 涉及 Controller/Service/DTO → 已调用 `net-api-developer`
-- [ ] 涉及认证/Token/权限/角色 → 已调用 `net-auth`
-- [ ] 涉及后台任务 → 已调用 `net-background-job`
-- [ ] 涉及新项目 → 已调用 `net-microservice-generator`（如适用）
-- [ ] 涉及新增枚举字典 → 已调用 `net-enum-dict`（如适用）
+- [ ] 涉及实体/数据库/批量操作 → 已调用 `thirdnet-fullstack:net-efcore-developer`
+- [ ] 涉及缓存 → 已调用 `thirdnet-fullstack:net-cache-use`
+- [ ] 涉及 Controller/Service/DTO → 已调用 `thirdnet-fullstack:net-api-developer`
+- [ ] 涉及认证/Token/权限/角色 → 已调用 `thirdnet-fullstack:net-auth`
+- [ ] 涉及后台任务 → 已调用 `thirdnet-fullstack:net-background-job`
+- [ ] 涉及新项目 → 已调用 `thirdnet-fullstack:net-microservice-generator`（如适用）
+- [ ] 涉及新增枚举字典 → 已调用 `thirdnet-fullstack:net-enum-dict`（如适用）
 - [ ] 所有适用项勾选后，方可开始编码
 
 ## 需求澄清

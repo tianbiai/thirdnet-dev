@@ -1,6 +1,6 @@
 # Apple 设计规范 · 组件样式与 Token 集成
 
-> 本文件是 `design-apple` 技能的组件 CSS、CSS 变量集成与 Admin 模板主题覆盖参考资料。核心设计原则见 [SKILL.md](../SKILL.md) §1 视觉主题；色板色值见 [color.md](color.md)。
+> 本文件是 `design-apple` 技能的组件 CSS、CSS 变量集成与 Admin 模板主题覆盖参考资料。核心设计原则见本技能正文（Skill 已注入的 SKILL.md）§1 视觉主题；色板色值见 [color.md](color.md)。
 
 ## 组件样式
 

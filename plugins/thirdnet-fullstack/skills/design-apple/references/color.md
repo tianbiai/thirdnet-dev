@@ -1,6 +1,6 @@
 # Apple 设计规范 · 色板与阴影
 
-> 本文件是 `design-apple` 技能的色板与深度参考资料。核心设计原则见 [SKILL.md](../SKILL.md) §1 视觉主题；在 Admin 模板中写样式时，真实 token 映射见 [components.md](components.md) 的「Vue 3 CSS 变量集成 / Element Plus 主题覆盖」。
+> 本文件是 `design-apple` 技能的色板与深度参考资料。核心设计原则见本技能正文（Skill 已注入的 SKILL.md）§1 视觉主题；在 Admin 模板中写样式时，真实 token 映射见 [components.md](components.md) 的「Vue 3 CSS 变量集成 / Element Plus 主题覆盖」。
 
 ## 主色
 

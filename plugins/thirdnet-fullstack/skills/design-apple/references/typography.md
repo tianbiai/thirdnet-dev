@@ -1,6 +1,6 @@
 # Apple 设计规范 · 排版
 
-> 本文件是 `design-apple` 技能的排版参考资料。核心设计原则见 [SKILL.md](../SKILL.md) §1 视觉主题。
+> 本文件是 `design-apple` 技能的排版参考资料。核心设计原则见本技能正文（Skill 已注入的 SKILL.md）§1 视觉主题。
 
 ## 字体
 

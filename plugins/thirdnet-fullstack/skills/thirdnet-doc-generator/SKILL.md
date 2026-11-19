@@ -195,10 +195,10 @@ metadata:
 
 | 技能                                                          | 关系                                                                                                             |
 | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| [fullstack-review](../fullstack-review/SKILL.md)               | 同级交付技能：功能完成后做全栈审查，产出审查报告；本技能产出项目文档                                             |
-| [backend-workflow](../backend-workflow/SKILL.md)               | 其`references/project-spec-template.md` 是系统设计文档的数据/接口表结构参考来源                                |
-| [frontend-workflow](../frontend-workflow/SKILL.md)             | 其`references/page-spec-template.md` 是用户手册功能点梳理的参考                                                |
-| [md-to-word](../md-to-word/SKILL.md)                           | Step 5 Word 转换执行者                                                                                           |
+| `thirdnet-fullstack:fullstack-review` | 同级交付技能：功能完成后做全栈审查，产出审查报告；本技能产出项目文档（用 Skill 工具加载） |
+| `thirdnet-fullstack:backend-workflow` | 其`references/project-spec-template.md` 是系统设计文档的数据/接口表结构参考来源 |
+| `thirdnet-fullstack:frontend-workflow` | 其`references/page-spec-template.md` 是用户手册功能点梳理的参考 |
+| `thirdnet-fullstack:md-to-word` | Step 5 Word 转换执行者（用 Skill 工具加载） |
 | Playwright MCP（`playwright@claude-plugins-official` 插件） | 用户手册 Step 3.5 截图执行者：`browser_navigate` / `browser_snapshot` / `browser_take_screenshot` 逐页截图 |
-| [thirdnet-mcp-setup](../thirdnet-mcp-setup/SKILL.md)           | 数据库表结构文档 Step 3.7 的前置：装配 `@bytebase/dbhub` Postgres MCP，让本技能经 `execute_sql` / `search_objects` 直查实时库 |
-| [thirdnet-fullstack](../thirdnet-fullstack/SKILL.md)           | 协调技能，全栈开发完成后可串联本技能做文档交付                                                                   |
+| `thirdnet-fullstack:thirdnet-mcp-setup` | 数据库表结构文档 Step 3.7 的前置：装配 `@bytebase/dbhub` Postgres MCP，让本技能经 `execute_sql` / `search_objects` 直查实时库 |
+| `thirdnet-fullstack:thirdnet-fullstack` | 协调技能，全栈开发完成后可串联本技能做文档交付（用 Skill 工具加载） |

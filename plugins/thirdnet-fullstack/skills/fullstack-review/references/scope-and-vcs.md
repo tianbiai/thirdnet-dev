@@ -144,4 +144,4 @@ else → 无 VCS，全项目扫描 backend/ + frontend/*/src/
 是否继续？或指定其他范围。
 ```
 
-然后进入 [SKILL.md「审查执行流程」](../SKILL.md) 第 2 步（加载规范）。
+然后进入本技能正文（Skill 已注入的 SKILL.md）「审查执行流程」第 2 步（加载规范）。

@@ -7,7 +7,7 @@ description: >
   全新项目创建路径，以及子代理调度（backend-developer / frontend-developer，Task 派发重型阶段）。
 license: MIT
 metadata:
-  version: "2.52.0"
+  version: "2.53.0"
   author: thirdnet
 ---
 
@@ -32,6 +32,13 @@ metadata:
 - **文档交付**：`thirdnet-doc-generator`——功能开发完成后基于代码库功能模块生成项目交付文档（需求规格说明书、系统设计文档、用户手册、测试用例文档等，每类有专属模板），输出 Markdown 并可转 Word；与 `fullstack-review` 同级，属交付类技能
 - **原型分支同步编排**：`proto-workflow`——维护固定命名原型分支 `{Project}.Proto`，与 main 双向 `svn merge` 同步（main→.Proto 拉取基线 / .Proto→main 合并回）；支持派生原型功能分支 `{Project}.Proto.{Feature}` 并行开发、选择性合并到主干（一个合并、另一个留分支），六确认门；编码委托前后端工作流；属流程编排类技能
 - **工具与资产**：`thirdnet-template-upgrade`（前后端模板版本升级检测与同步）、`thirdnet-mcp-setup`（Postgres MCP 装配，Admin 创建时默认挂 `@bytebase/dbhub`）、`md-to-word`（Markdown 转 Word 文档转换）、`token-usage-analysis`（当前会话 Token 消耗统计分析：解析会话日志 / /context 报告，分类占比 + 子代理汇总 + 节省优化建议）、`thirdnet-digital-twin`（园区 3D 数字孪生模块生成，Vue 3 + Three.js 完整范式资产）
+
+## 技能加载纪律（强制）
+
+- 需要某技能的规则、命令、目录约定时，**唯一正确动作是调用 Skill 工具**（其返回正文即该技能 SKILL.md 全文，并会激活写代码前的合规检查状态）。裸名与 `thirdnet-fullstack:` 前缀名等价，任一形式均可。
+- **禁止用 Read 读取任何技能入口正文（`skills/*/SKILL.md`）**——会以完全相同的内容重复占用上下文，且不会激活合规检查状态；工作区外（插件缓存/用户级技能目录）的技能正文还会被 Read 拦截钩子直接阻断。
+- 只有 `skills/*/references/*.md` 这类附属参考文档才用 Read / Grep 打开。
+- 本文件及其他技能中出现的「详见 X 技能」「完整命令见 X」「以 X 为权威源」等表述，一律理解为「调用 Skill 工具加载 X 技能」。
 
 ## 任务路由（何时用本技能）
 
@@ -103,8 +110,8 @@ Task(
           status:enum(0=正常,1=停用)、created_by:string?、created_time:string(ISO 8601)
     分页/查询：page_index,page_size；title(模糊)、notice_type、status、date_range
     权限按钮：sys:notice:list/add/edit/remove/query
-    要求：1) 按 api-typescript-spec 产出 api/types/notice.ts、api/interfaces/notice.ts(INoticeApi)、mock、api/modules/notice.ts(Real+工厂)
-          2) 按 admin-template-setup+vue-best-practices 产出 src/views/notice/index.vue(复用 useCrudTable/PaginationBar/validators)
+    要求：1) 按 thirdnet-fullstack:api-typescript-spec 产出 api/types/notice.ts、api/interfaces/notice.ts(INoticeApi)、mock、api/modules/notice.ts(Real+工厂)
+          2) 按 thirdnet-fullstack:admin-template-setup+thirdnet-fullstack:vue-best-practices 产出 src/views/notice/index.vue(复用 useCrudTable/PaginationBar/validators)
           3) 用 Mock 验证页面可独立运行  4) 返回文件清单 + INoticeApi 方法签名/URL + 类型清单(供后端实现)
   """
 )
@@ -123,7 +130,7 @@ Task(
                   addNotice(POST /api/manager/notice/add)、updateNotice(POST /api/manager/notice/update)、
                   removeNotice(POST /api/manager/notice/delete/{id})
       类型字段：（同前端子代理返回的类型清单）
-    要求：1) 按 backend-workflow 实现 Notice 实体→(缓存按需)→DTO/Service/NoticeManagerController→
+    要求：1) 按 thirdnet-fullstack:backend-workflow 实现 Notice 实体→(缓存按需)→DTO/Service/NoticeManagerController→
           [PermissionAuthorize]→Startup.cs DI→t_sys_menu 数据
           2) DTO 字段与前端类型一一对应(snake_case + Map 后缀，端特定带端段如 NoticeItemManagerMap)，
              权限串 sys:notice:list/add/edit/remove/query
@@ -139,7 +146,7 @@ Task(
 
 - 整段后端工作 → 委派 `thirdnet-fullstack:backend-workflow`
 - 整段前端工作 → 委派 `thirdnet-fullstack:frontend-workflow`
-- 具体子技能（如仅加权限注解、仅改一个 DTO 字段）→ 直接委派对应子技能（`net-api-developer` / `net-efcore-developer` / `api-typescript-spec` / `vue-best-practices` 等）
+- 具体子技能（如仅加权限注解、仅改一个 DTO 字段）→ 直接委派对应子技能（`thirdnet-fullstack:net-api-developer` / `thirdnet-fullstack:net-efcore-developer` / `thirdnet-fullstack:api-typescript-spec` / `thirdnet-fullstack:vue-best-practices` 等）
 
 详见下文「全栈功能开发流程」各步骤表中的「调用技能」列。子代理派发与 prose 委派产出的代码一致——区别仅在执行上下文与摘要回报方式。
 
@@ -167,17 +174,17 @@ Task(
 
 1. **建顶层目录**：在工作区根目录创建 `backend/` 与 `frontend/` 两个文件夹（小程序按需再建 `frontend/minigram/`）。
 
-2. **后端**（`backend-workflow` 例外流程）：用一次 `AskUserQuestion` 确认项目名 `{ProjectName}`，然后**在工作区根目录执行** `dotnet new thirdnet-admin -n {ProjectName} -o {ProjectName}.Admin`（backend-workflow 自带 `mkdir -p backend; cd backend`，产出 `backend/{ProjectName}.Admin/`；`-n` 传裸 `{ProjectName}` 作为命名空间前缀，`-o` 保留 `.Admin` 文件夹名）。跳过需求澄清直接进入项目框架阶段（NuGet 源用默认内网/外网地址）。**模板每次必须取最新**：安装前先 `dotnet nuget locals http-cache clear` 再 `--force` 安装，并 `dotnet new list` 核对版本（`--force` 只为避免"模板已注册"报错，取最新真正靠清 http-cache；完整命令见 backend-workflow）。注意：模板仅生成连接串/Redis/SM2 占位符、无可运行默认值；EF 迁移与运行前需由用户在 `appsettings.json` 填真实值（细节见 backend-workflow）。
+2. **后端**（`backend-workflow` 例外流程）：用一次 `AskUserQuestion` 确认项目名 `{ProjectName}`，然后**在工作区根目录执行** `dotnet new thirdnet-admin -n {ProjectName} -o {ProjectName}.Admin`（backend-workflow 自带 `mkdir -p backend; cd backend`，产出 `backend/{ProjectName}.Admin/`；`-n` 传裸 `{ProjectName}` 作为命名空间前缀，`-o` 保留 `.Admin` 文件夹名）。跳过需求澄清直接进入项目框架阶段（NuGet 源用默认内网/外网地址）。**模板每次必须取最新**：安装前先 `dotnet nuget locals http-cache clear` 再 `--force` 安装，并 `dotnet new list` 核对版本（`--force` 只为避免"模板已注册"报错，取最新真正靠清 http-cache；完整命令见 backend-workflow——用 Skill 工具加载 `thirdnet-fullstack:backend-workflow`）。注意：模板仅生成连接串/Redis/SM2 占位符、无可运行默认值；EF 迁移与运行前需由用户在 `appsettings.json` 填真实值（细节见 backend-workflow）。
 
 3. **前端 Admin**（`frontend-workflow` + `admin-template-setup` 例外流程）：确认品牌参数（`--brand`、`--initial`、`--abbr`，可用默认值），然后**在 `frontend/` 目录内执行** `npm exec --registry <NPM_REGISTRY> -- create-thirdnet-admin web --brand …`（registry 地址唯一来源见 [internal-registry](../backend-workflow/references/internal-registry.md)，默认内网），项目名传 `web`（落地为 `frontend/web/`，npm 包名为 `web`）。后端 API 地址默认 `http://localhost:5000`。
 
    > `create-thirdnet-admin` 的项目名即目录名，无 `--out-dir`/`--parent` 参数，故必须用 cwd 控制落点。
 
-4. **用户端小程序（按需）**：若用户同时要 C 端小程序，按 `frontend-workflow` 的手动初始化流程在 `frontend/minigram/` 创建 **uniapp 工程（强制框架，用官方 `uni-preset-vue#vite-ts` 模板，禁止原生小程序/Taro——见 frontend-workflow「平台技术栈分工总则」）+ Vant**；无此需求则跳过。
+4. **用户端小程序（按需）**：若用户同时要 C 端小程序，按 `thirdnet-fullstack:frontend-workflow` 的手动初始化流程在 `frontend/minigram/` 创建 **uniapp 工程（强制框架，用官方 `uni-preset-vue#vite-ts` 模板，禁止原生小程序/Taro——见 frontend-workflow「平台技术栈分工总则」）+ Vant**；无此需求则跳过。
 
 5. **README.md**：在项目根创建 `README.md`，记录三端协调说明与目录布局（指向 `backend/` 与 `frontend/{web,minigram}/`）。
 
-模板内置约 19 个管理端模块（以模板实际为准，模块清单见 `admin-template-setup` 技能；前后端 Controller↔API 模块映射见本技能的 [admin-module-mapping](references/admin-module-mapping.md)），功能固定无需澄清。创建后如需新增**业务模块**，再进入下面的全栈功能开发流程。
+模板内置约 19 个管理端模块（以模板实际为准，模块清单见 `thirdnet-fullstack:admin-template-setup` 技能（用 Skill 工具加载）；前后端 Controller↔API 模块映射见本技能的 [admin-module-mapping](references/admin-module-mapping.md)），功能固定无需澄清。创建后如需新增**业务模块**，再进入下面的全栈功能开发流程。
 
 ## 全栈功能开发流程
 
@@ -191,20 +198,20 @@ Task(
 
 | 步骤 | 内容 | 调用技能 | 产出文件 |
 |------|------|---------|---------|
-| 1 | TypeScript 类型定义 | `api-typescript-spec` | `src/api/types/{module}.ts`（枚举 + 出入参接口） |
-| 2 | 接口契约 | `api-typescript-spec` | `src/api/interfaces/{module}.ts`（`I{Entity}Api`） |
-| 3 | Mock 数据 | `api-typescript-spec` | `src/mock/data/{module}.ts` |
-| 4 | Mock 实现 | `api-typescript-spec` | `src/mock/api/{module}.ts` |
-| 5 | Real 实现 + 工厂函数 | `api-typescript-spec` | `src/api/modules/{module}.ts` |
-| 6 | CRUD 页面开发 | `admin-template-setup`（CRUD 指南） + `vue-best-practices` | `src/views/{module}/index.vue` 等 |
+| 1 | TypeScript 类型定义 | `thirdnet-fullstack:api-typescript-spec` | `src/api/types/{module}.ts`（枚举 + 出入参接口） |
+| 2 | 接口契约 | `thirdnet-fullstack:api-typescript-spec` | `src/api/interfaces/{module}.ts`（`I{Entity}Api`） |
+| 3 | Mock 数据 | `thirdnet-fullstack:api-typescript-spec` | `src/mock/data/{module}.ts` |
+| 4 | Mock 实现 | `thirdnet-fullstack:api-typescript-spec` | `src/mock/api/{module}.ts` |
+| 5 | Real 实现 + 工厂函数 | `thirdnet-fullstack:api-typescript-spec` | `src/api/modules/{module}.ts` |
+| 6 | CRUD 页面开发 | `thirdnet-fullstack:admin-template-setup`（CRUD 指南） + `thirdnet-fullstack:vue-best-practices` | `src/views/{module}/index.vue` 等 |
 
 前端阶段完成后，页面已可通过 Mock 数据独立运行和验证交互。
 
-> 上表产出文件位于**管理后台工程**（`frontend/web/`，对应后端 Manager 端）。前端按工程分端、工程内 `src/api/` 与 `src/mock/` 扁平（不按端建子目录）；URL 前缀由工程所属端决定（admin 工程用 `/api/manager/...`、小程序工程 `frontend/minigram/` 用 `/api/app/...`）。后端 Controller/Service/DTO 仍按端分目录（见 `net-api-developer`）。详见 `api-typescript-spec`「前端按工程分端」与 `net-api-developer`「前后端对照」。
+> 上表产出文件位于**管理后台工程**（`frontend/web/`，对应后端 Manager 端）。前端按工程分端、工程内 `src/api/` 与 `src/mock/` 扁平（不按端建子目录）；URL 前缀由工程所属端决定（admin 工程用 `/api/manager/...`、小程序工程 `frontend/minigram/` 用 `/api/app/...`）。后端 Controller/Service/DTO 仍按端分目录（见 `net-api-developer`）。详见 `thirdnet-fullstack:api-typescript-spec`「前端按工程分端」与 `thirdnet-fullstack:net-api-developer`「前后端对照」（用 Skill 工具加载）。
 
 **步骤 6 详细指引**：Admin 模板提供了完整的 CRUD 页面开发基础设施，新增页面时复用既有 composables / 组件（`useCrudTable`、`PaginationBar`、`useDialogFocus`、`validators`、`confirmAction`、`formatDateTime` 等，并遵守「禁止手写 `usePagination + useActionLoading` 样板」「禁止直接使用 `el-pagination`」等约束）。
 
-具体清单与使用方式以 `admin-template-setup` 为权威源，参见 [crud-page-development-guide](../admin-template-setup/references/crud-page-development-guide.md)。
+具体清单与使用方式以 `thirdnet-fullstack:admin-template-setup` 为权威源（用 Skill 工具加载），其附属参考 [crud-page-development-guide](../admin-template-setup/references/crud-page-development-guide.md) 可用 Read 打开。
 
 **标准参考实现**：`src/views/api/blacklist/index.vue`
 
@@ -212,13 +219,13 @@ Task(
 
 > 下方整套后端实现可作为一整段通过 Task 工具派发给 `backend-developer` 子代理（见上文「子代理调度（推荐）」），派发时附上前端已定义的 `I{Entity}Api` 契约与类型清单。下文要点用于 prose 委派或主上下文协调时的对照。
 
-后端阶段的完整步骤（实体 → 缓存 → DTO/Service/Controller → 权限 → DI 注册 → 菜单/路由数据配置）委派给 `backend-workflow` 的「功能开发流程」执行，本技能不复述。要点：
+后端阶段的完整步骤（实体 → 缓存 → DTO/Service/Controller → 权限 → DI 注册 → 菜单/路由数据配置）委派给 `thirdnet-fullstack:backend-workflow` 的「功能开发流程」执行，本技能不复述。要点：
 
 - 前端先定义的接口契约（`I{Entity}Api`）和数据类型是后端实现依据，DTO 字段须与前端类型一一对应
 - 权限字符串格式 `{module}:{entity}:{action}`（如 `sys:notice:list/add/edit/remove`），DI 注册位于 `Startup.cs`
 - 菜单/路由为**数据配置**（非技能）：在 `t_sys_menu` 插入目录/页面/按钮三级菜单条目（含 `permission`），启动后经 `PermissionCatalog` 自动同步
 
-详细步骤表见 [backend-workflow 功能开发流程](../backend-workflow/SKILL.md)。
+详细步骤表见 backend-workflow「功能开发流程」——用 Skill 工具加载 `thirdnet-fullstack:backend-workflow`，不要 Read 其 SKILL.md。
 
 后端 API 开发完成后，前端切换 `VITE_MOCK_ENABLED=false` 即可对接真实 API。
 
@@ -306,7 +313,7 @@ const canModify = computed(() => hasPermiOr(['sys:notice:edit', 'sys:notice:remo
 
 两端工作流各自独立描述这些契约，此处仅作协调要点提示：API 仅允许 GET/POST（网关限制）、字段统一 snake_case、成功响应直接返回 JSON 不做包装、认证采用 JWT（国密 SM2）+ HMAC-SM3 Basic Auth + API-Key 三 scheme（登录/刷新走 `/api/manager/auth/login`、`/api/manager/auth/refresh`，非 IdentityServer）。
 
-完整约定（响应包装细节、HTTP 状态码语义、DTO `Map` 后缀规则、路由格式 `/api/{endpoint}/{module}/{action}`、认证流程等）以两端工作流为权威源：[`backend-workflow`](../backend-workflow/SKILL.md) 与 [`frontend-workflow`](../frontend-workflow/SKILL.md)（及 `net-api-developer`、`net-auth`、`api-typescript-spec` 子技能）。
+完整约定（响应包装细节、HTTP 状态码语义、DTO `Map` 后缀规则、路由格式 `/api/{endpoint}/{module}/{action}`、认证流程等）以两端工作流为权威源：`thirdnet-fullstack:backend-workflow` 与 `thirdnet-fullstack:frontend-workflow`（及 `net-api-developer`、`net-auth`、`api-typescript-spec` 子技能）——一律用 Skill 工具加载，不要 Read 其 SKILL.md。
 
 ## 约定同步检查清单
 
