@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PLUGIN_ROOT/hooks/skill-gate.mjs\" --pre",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/skill-gate.mjs\" --pre",
             "timeout": 10
           }
         ]
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node -e \"var s='';process.stdin.on('data',function(d){s+=d});process.stdin.on('end',function(){try{var j=JSON.parse(s);var p=(j.tool_input&&j.tool_input.file_path)||'';var BS=String.fromCharCode(92);var q=p.split(BS).join('/').toLowerCase().split('/');var hit=q.length>=3&&q[q.length-3]==='skills'&&q[q.length-2]!==''&&q[q.length-1]==='skill.md';if(!hit){return}var path=require('path');var rp=path.resolve(p).toLowerCase();var rc=path.resolve(j.cwd||process.cwd()).toLowerCase();if(rp===rc||(rp.indexOf(rc)===0&&(rp.charAt(rc.length)===BS||rp.charAt(rc.length)==='/'))){return}console.log(JSON.stringify({decision:'block',reason:'禁止用 Read 读取工作区外的技能入口正文（SKILL.md）。请改用 Skill 工具加载该技能（裸名或 thirdnet-fullstack: 前缀名均可），其返回正文即该 SKILL.md 全文，并会激活写代码前的合规检查状态。技能目录下的 references/*.md 不受限制，仍可用 Read/Grep；若该技能确无法用 Skill 加载，请改用 Grep 定位所需段落并在会话中说明。'}));}catch(e){}});\"",
+            "command": "node -e \"var s='';process.stdin.on('data',function(d){s+=d});process.stdin.on('end',function(){try{var j=JSON.parse(s);var p=(j.tool_input&&j.tool_input.file_path)||'';var BS=String.fromCharCode(92);var q=p.split(BS).join('/').toLowerCase().split('/');var hit=q.length>=3&&q[q.length-3]==='skills'&&q[q.length-2]!==''&&q[q.length-1]==='skill.md';if(!hit){return}var path=require('path');var rp=path.resolve(p).toLowerCase();var rc=path.resolve(j.cwd||process.cwd()).toLowerCase();if(rp===rc||(rp.indexOf(rc)===0&&(rp.charAt(rc.length)===BS||rp.charAt(rc.length)==='/'))){return}console.log(JSON.stringify({decision:'block',reason:'禁止用 Read 读取工作区外的技能入口正文（SKILL.md）。请改用 Skill 工具加载该技能（裸名或 thirdnet-fullstack: 前缀名均可），其返回正文即该 SKILL.md 全文，并会激活写代码前的合规检查状态。技能目录下的 references/*.md 不受限制，仍可用 Read/Grep；若该技能确无法用 Skill 加载，请改用 Grep 定位所需段落并在会话中说明。'}));process.exit(2);}catch(e){}});\"",
             "timeout": 10
           }
         ]
@@ -51,7 +51,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PLUGIN_ROOT/hooks/skill-gate.mjs\" --post",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/skill-gate.mjs\" --post",
             "timeout": 15
           }
         ]

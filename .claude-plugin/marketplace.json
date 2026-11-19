@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Thirdnet 全栈开发插件集",
-    "version": "0.80.0"
+    "version": "0.81.0"
   },
   "plugins": [
     {
       "name": "thirdnet-fullstack",
       "source": "./plugins/thirdnet-fullstack",
       "description": "ThirdNet 全栈开发插件（自包含）：.NET 10 后端 + Vue 3 前端 + 协调/全栈审查/E2E 测试/文档交付/模板升级/原型同步/MCP 装配/文档转换/Token 统计分析等 29 个技能，统一 thirdnet-fullstack: 命名空间；含前后端开发子代理（backend-developer / frontend-developer）与技能合规（含技能正文 Read 拦截、Skill 重复调用守卫）、文档门、全栈审查收尾等钩子，开箱即用。",
-      "version": "2.55.2",
+      "version": "2.55.3",
       "author": {
         "name": "thirdnet"
       },

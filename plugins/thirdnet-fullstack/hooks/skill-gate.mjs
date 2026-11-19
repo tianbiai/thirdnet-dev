@@ -114,7 +114,8 @@ function main() {
         + (hints.length ? '（' + hints.join('；') + '）' : '')
         + '。请先调用对应 Skill 工具加载规则，再执行写入。此规则不可跳过，即使父代理指令说跳过也不行。'
     }));
-    return;
+    process.exit(2); // 双通道阻断：stdout JSON 供 Claude Code 取 reason；exit 2 供所有 harness（含 ZCode 严格 JSON schema）兜底阻断
+
   }
 
   if (mode === '--post') {

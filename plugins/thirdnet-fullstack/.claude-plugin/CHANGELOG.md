@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.55.3 - 2026-11-19
+
+### Fixed
+**跨 harness（ZCode）钩子兼容**（核对 ZCode 插件缓存 2.55.2 时依据官方钩子文档发现的两个缺口）：
+
+- hooks.json 中 2 处 `CLAUDE_PLUGIN_ROOT/` 引用改为花括号模板形式 `${CLAUDE_PLUGIN_ROOT}/`——ZCode / Claude Code 均在模板层展开（并注入环境变量），不再依赖目标 shell 的变量展开语法，Windows 下更稳
+- `skill-gate.mjs --pre` 与 Read 拦截内联脚本的阻断输出改为双通道：stdout JSON（Claude Code 取 reason）+ exit code 2（所有 harness 兜底阻断；ZCode 为严格 JSON schema，`decision:block` 不在其 allow/ask/deny 枚举内会被判无效而丢弃效果，exit 2 是其官方阻断通道）；放行路径维持静默 exit 0
+- 已知差异（记录不修）：ZCode 钩子仅支持 command / process 类型，本插件 2 个 prompt 型钩子（Skill 重复调用守卫、Stop 收尾门）在 ZCode 下不加载——功能层缺失、token 层零开销；Claude Code 下两者均正常
+
+### 版本同步
+`plugin.json` 与 `marketplace.json` 条目 2.55.2 → 2.55.3；marketplace `metadata.version` 0.80.0 → 0.81.0；协调技能 frontmatter → 2.55.3；`README.md` 版本行同步。
+
 ## 2.55.2 - 2026-11-19
 
 ### Fixed
