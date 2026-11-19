@@ -4,7 +4,7 @@ ThirdNet 全栈 Admin 开发插件（自包含）—— Claude Code 插件，为
 
 是 ThirdNet 前后端开发技能的**唯一来源**：后端 .NET 微服务与前端 Vue 3 的全部技能均收录于此，统一 `thirdnet-fullstack:` 命名空间，开箱即用。
 
-- **版本**：2.53.0（目录清单 `thirdnet-plugins` v0.76.0）
+- **版本**：2.54.0（目录清单 `thirdnet-plugins` v0.77.0）
 - **许可**：MIT
 
 ## 技术栈
@@ -93,9 +93,11 @@ ThirdNet 全栈 Admin 开发插件（自包含）—— Claude Code 插件，为
 | `backend-developer` | 由协调技能在「后端阶段」派发，按前端契约实现后端模块（强制先调后端技能） |
 | `frontend-developer` | 由协调技能在「前端阶段」派发，前端先行产出契约 + CRUD 页面 |
 
-## 钩子（`.claude-plugin/hooks/hooks.json`，8 个 prompt 钩子 + 1 个 command 钩子，全可移植）
+## 钩子（`.claude-plugin/hooks/hooks.json`，4 个 prompt 钩子 + 2 个 command 钩子）
 
-- **PreToolUse**（4 个）：①②编辑后端 `*.cs` / 前端 `src/*.{vue,ts}` 前，强制对应技能已加载（技能合规门，裸名/`thirdnet-fullstack:` 前缀名均认）；③Skill 重复调用守卫（技能正文仍完整可见时阻断重复注入，防上下文等量重复占用）；④Read 拦截（command 型，零模型 token：工作区外 `skills/*/SKILL.md` 禁止 Read，改走 Skill 工具；工作区内放行以支持插件源码维护）。
+- **PreToolUse**：①`Write|Edit` 技能合规门（command 型 `hooks/skill-gate.mjs --pre`，零模型 token：按会话 transcript 核验必需技能的 Skill 调用记录，裸名/`thirdnet-fullstack:` 前缀名均认，缺失则阻断；transcript 不可读时 fail-open）；②`Skill` 重复调用守卫（prompt 型：技能正文仍完整可见时阻断重复注入，防上下文等量重复占用；已被压缩/摘要化则放行重调）；③`Read` 拦截（command 型，零模型 token：工作区外 `skills/*/SKILL.md` 禁止 Read，改走 Skill 工具；工作区内放行以支持插件源码维护）。
+- **PostToolUse**（command 型 `--post`，零模型 token）：编辑功能性代码后输出软规范告警（仅 GET/POST、类型化 DTO、Fluent API、单文件单类型、API 工厂四件套配套检查、文档同步提醒），不阻断。
+- **Stop**（3 个 prompt 型）：①后端文档门、②前端文档门（功能性变更须同步文档）、③全栈质量收尾门（功能性变更须通过 `fullstack-review` 且无 Critical/Major）。
 - **PostToolUse**（2 个）：编辑功能性代码后，提醒更新 spec.md / changelog 并做软规范告警。
 - **Stop**（3 个）：①后端文档门、②前端文档门（功能性变更须同步文档）、③全栈质量收尾门（功能性变更须通过 `fullstack-review` 且无 Critical/Major）——三者皆在会话结束时阻断。
 
