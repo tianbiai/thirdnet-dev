@@ -5,7 +5,7 @@
 ## 文件存放位置
 
 - **Web应用**：`public/changelog.md`
-- **小程序应用**：`static/changelog.md`
+- **小程序应用**：`src/static/changelog.md`
 
 ## 配套渲染页面
 

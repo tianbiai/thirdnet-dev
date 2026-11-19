@@ -1,19 +1,14 @@
 ---
 name: net-efcore-developer
 description: >
-  ThirdNet 数据库开发规范（实体 + 查询 + 批量）：DbContext 约定（schema、t_ 前缀、long id、
-  xmin 乐观并发）、IAuditableEntity 审计字段、EntityConfiguration 模式、Pooled DbContextFactory、
-  迁移命令、双数据库上下文、Fluent API（禁止 Data Annotations）、CTE 与原生 SQL 查询、复杂类型配置，
-  时间字段统一映射为 timestamptz（应用层写入用 DateTime.UtcNow，禁止 DateTime.Now），
-  以及批量数据操作（PostgresqlAsyncBulk：CopyToServer/MergeToServer/UpdateToServer，含 BulkCopy-vs-CTE 决策）。
-  当用户提到"实体"、"数据库"、"DbContext"、"migration"、"xmin"、"schema"、
-  "创建实体"、"建张表"、"加个字段"、"数据库迁移"、"EF Core"、"CTE"、"批量"、"导入"、
-  "同步"、"大数据量"、"Excel 导入"、"数据迁移"、"Upsert"、"Merge"、"CopyToServer"、"BulkCopy"、
-  "时间字段"、"时间类型"、"时区"、"timestamptz"、"timestamp with time zone"、"DateTime.UtcNow"、"UtcNow"时，
-  必须使用此技能。
+  ThirdNet 数据库开发规范（实体 + 查询 + 批量）：EF Core/Fluent API 实体约定、迁移、timestamptz
+  时间字段、PostgresqlAsyncBulk 批量（CopyToServer 等）。当用户提到"实体/数据库/DbContext/
+  migration/xmin/schema/创建实体/建张表/加个字段/数据库迁移/EF Core/CTE/批量/导入/同步/大数据量/
+  Excel 导入/数据迁移/Upsert/Merge/CopyToServer/BulkCopy/时间字段/时间类型/时区/timestamptz/
+  timestamp with time zone/DateTime.UtcNow/UtcNow"等时，必须使用此技能。
 license: MIT
 metadata:
-  version: "1.2.1"
+  version: "1.2.2"
   author: thirdnet
 ---
 
@@ -103,7 +98,7 @@ builder.Property(x => x.last_active_time).HasColumnType("timestamptz");
 ### 其他
 
 - **不创建外键**，通过对应 id 关联（理由与边界见文末「设计取舍说明」）
-- 迁移文件仅在用户明确要求时创建；生产迁移须遵循 expand/contract，见 [postgres-best-practices.md](references/postgres-best-practices.md)「七、迁移安全性」
+- 新模块新增实体时按 backend-workflow 功能开发流程默认创建迁移文件（migrations add）；未经用户确认不擅自生成破坏性迁移（expand/contract 场景，如删列/改类型需两阶段）；生产迁移须遵循 expand/contract，见 [postgres-best-practices.md](references/postgres-best-practices.md)「七、迁移安全性」
 - **每个 .cs 文件只定义一个类型**（Model、Configuration、View 各自独立成文件）
 
 ### Schema 隔离
@@ -308,6 +303,8 @@ public long parent_id { get; set; }  // 顶级节点 parent_id = 0
 
 ## 迁移命令
 
+> `dotnet ef migrations add` 需手动执行以生成迁移文件；`dotnet ef database update` 无需手动执行——框架在应用启动时通过 InitializeDatabasesAsync() 自动应用（本地调试显式回滚除外）。见 [dbcontext-and-queries](references/dbcontext-and-queries.md)『迁移自动应用』。
+
 在生成项目根目录下执行（路径相对生成项目根）：
 
 ```bash
@@ -415,9 +412,9 @@ await db.Database.ExecuteSqlInterpolatedAsync($@"WITH ... DELETE ...");
 注入方式与连接串（业务库 `ConnectionString` / 框架库 `DefaultConnectionString`）见 [bulk-operations.md](references/bulk-operations.md)「依赖注入」。
 
 ```csharp
-// 批量插入
-await _bulkCopy.InitDefaultMappings<User>();
-await _bulkCopy.CopyToServer(_connectionString, "users", users);
+// 批量插入（实体带 Model 后缀、表名 t_ 前缀 + snake_case，与实体命名规范一致）
+await _bulkCopy.InitDefaultMappings<UserModel>();
+await _bulkCopy.CopyToServer(_connectionString, "t_sys_user", users);
 ```
 
 `[DbBulk]` 字段映射特性的完整配置（`Ignore` / `ColumnName` / `Type` / `UnknownType`）与 `MergeToServer` / `MergeAndDeleteToServer` 等方法示例见 [bulk-operations.md](references/bulk-operations.md)。

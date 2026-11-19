@@ -54,34 +54,34 @@
 ### 维度 B——前端规范遵守
 
 **【B-1 / Minor / 已修复】不必要的 `computed` 返回函数**
-- 位置：[useTwinData.ts:34-37](assets/components/useTwinData.ts#L34-L40)（原）
+- 位置：[useTwinData.ts:34-37](../assets/components/useTwinData.ts#L34-L40)（原）
 - 现象：`buildingName` / `poiById` 写成 `computed(() => (id) => …)`。内层函数已闭包响应式 ref，`computed` 外壳无收益，反而在每次依赖变化时重建闭包。
 - 依据：`vue-best-practices`「MUST derive values with computed rather than watch-assigned refs」「computed getter 应派生纯值」；属 computed 反模式。
-- 修复：改为模块级命名导出函数 `export function buildingName(id)` / `export function poiById(id)`，从 `useTwinData()` 返回对象移除（与 `errMsg` 同纪律）。同步更新消费方 [PoiOverlay.vue:68-69](assets/components/PoiOverlay.vue#L68-L69)、[UnitDetail.vue:75](assets/components/UnitDetail.vue#L75)。响应性不损（函数内即时访问 `buildings.value` / `pois.value`）。
+- 修复：改为模块级命名导出函数 `export function buildingName(id)` / `export function poiById(id)`，从 `useTwinData()` 返回对象移除（与 `errMsg` 同纪律）。同步更新消费方 [PoiOverlay.vue:68-69](../assets/components/PoiOverlay.vue#L68-L69)、[UnitDetail.vue:75](../assets/components/UnitDetail.vue#L75)。响应性不损（函数内即时访问 `buildings.value` / `pois.value`）。
 
 **【B-2 / Minor / 已修复】`request.ts` 两处 `any`**
-- 位置：[request.ts:33](assets/api/request.ts#L33)（`(signal as any).reason`）、[request.ts:48](assets/api/request.ts#L48)（`catch (e: any)`）
+- 位置：[request.ts:33](../assets/api/request.ts#L33)（`(signal as any).reason`）、[request.ts:48](../assets/api/request.ts#L48)（`catch (e: any)`）
 - 依据：`api-typescript-spec` 要求严格 TS；`frontend-workflow` 代码规范禁止滥用 `any`。
 - 修复：前者改 `(signal as AbortSignal & { reason?: unknown }).reason`；后者改 `catch (e: unknown)` + 属性收窄（`name` / `message`）。
 
 **【B-3 / Info / 已修复】`PoiOverlay.vue` 在 setup 顶层启动 `requestAnimationFrame`**
-- 位置：[PoiOverlay.vue:110](assets/components/PoiOverlay.vue#L110)（原）
+- 位置：[PoiOverlay.vue:110](../assets/components/PoiOverlay.vue#L110)（原）
 - 现象：`rafId = requestAnimationFrame(tick)` 写在 `<script setup>` 顶层而非 `onMounted`，耦合 DOM 时序。本技能纯 CSR 可运行，但偏离生命周期规范。
 - 依据：`vue-best-practices` 副作用应在生命周期钩子内启动。
 - 修复：移入 `onMounted(() => { rafId = requestAnimationFrame(tick) })`，保留 `onBeforeUnmount(cancelAnimationFrame)`。
 
 **【B-4 / Info / 已修复】`UnitDetail.vue` 模板非空断言**
-- 位置：[UnitDetail.vue:47-48](assets/components/UnitDetail.vue#L47-L48)（原 `detail!.units.length` ×2）
+- 位置：[UnitDetail.vue:47-48](../assets/components/UnitDetail.vue#L47-L48)（原 `detail!.units.length` ×2）
 - 现象：靠上游 `v-if` 链保证安全，但非空断言略脆、对模板重构不友好。
 - 修复：新增 `units` / `unitCount` computed，模板改用 `unitCount`，消除两处 `!` 并顺手收紧 `v-if`。
 
 **【B-5 / Info / 已修复（局部）】`GarageCard.vue` 可选字段**
-- 位置：[GarageCard.vue:26](assets/components/GarageCard.vue#L26) 模板 `{{ garage.occupied }}`、[GarageCard.vue:71-76](assets/components/GarageCard.vue#L71-L76) 脚本算术
+- 位置：[GarageCard.vue:26](../assets/components/GarageCard.vue#L26) 模板 `{{ garage.occupied }}`、[GarageCard.vue:71-76](../assets/components/GarageCard.vue#L71-L76) 脚本算术
 - 现象：初判「`capacity - occupied` 算术在可选字段上不安全」。**核验后降级**：脚本侧 `empty` / `rate` 已用 `(garage.value.capacity ?? 0)` / `(garage.value.occupied ?? 0)` 守卫，算术安全；唯一未守卫处是模板展示 `{{ garage.occupied }}`（`isParking` 只保证 `capacity != null`，`occupied` 仍可能为空 → 渲染空白）。
 - 修复：模板改 `{{ garage.occupied ?? 0 }}`，与脚本侧守卫对齐（「已占用」缺数据时显 0 而非空白）。
 
 **【B-6 / Info / 已修复】`TourToggleButton.vue` 在 setup 顶层读 `window.matchMedia`**
-- 位置：[TourToggleButton.vue:31](assets/components/TourToggleButton.vue#L31)（原）
+- 位置：[TourToggleButton.vue:31](../assets/components/TourToggleButton.vue#L31)（原）
 - 现象：`const reducedMotion = window.matchMedia(...).matches` 顶层读取，SSR 下会炸；且不监听运行时变化。
 - 依据：`vue-best-practices` 浏览器 API 应在生命周期内访问。
 - 修复：改 `ref(false)` + `onMounted` 读取并 `addEventListener('change')` + `onBeforeUnmount` 清理；顺带支持运行时切换减少动态效果时实时更新禁用态。
@@ -89,12 +89,12 @@
 ### 维度 G——文档与流程
 
 **【G-1 / Minor / 已修复】陈旧文档注释引用已删分支**
-- 位置：[park-scene.impl.ts:1494](assets/park-scene.impl.ts#L1494)
+- 位置：[park-scene.impl.ts:1494](../assets/park-scene.impl.ts#L1494)
 - 现象：`undergroundMaterials` 上方注释写「按 profile.building 分支：emissive/pbr/flat/wire/white」，但实现只分支 `flat` / `pbr` / 默认 emissive（`pbr-night`/`holo` 经 `emissiveIntensity` 区分）。`wire`/`white` 分支 v2.8 已删，注释未同步——文档与代码漂移。
 - 依据：SKILL.md v2.8 变更历史明确「清扫 v2.4 遗留 wire/white 死代码」；注释须与代码一致。
 - 修复：注释改为「flat / pbr / emissive，pbr-night 与 holo 经 emissiveIntensity 区分」。
 
-> grep 复核：剩余 `wire` 命中（[park-scene.impl.ts:1439](assets/park-scene.impl.ts#L1439)、[building-geometry.ts:380](assets/building-geometry.ts#L380)）均为**真实在用**的边缘高亮变量（`THREE.LineSegments`），非死代码；剩余 `white` 均为 CSS `white-space` 属性。无残留死分支。
+> grep 复核：剩余 `wire` 命中（[park-scene.impl.ts:1439](../assets/park-scene.impl.ts#L1439)、[building-geometry.ts:380](../assets/building-geometry.ts#L380)）均为**真实在用**的边缘高亮变量（`THREE.LineSegments`），非死代码；剩余 `white` 均为 CSS `white-space` 属性。无残留死分支。
 
 ---
 
@@ -102,7 +102,7 @@
 
 ### 优点（值得作为范式保留）
 
-1. **Three.js 完全游离于 Vue 响应式之外**——[GlobalTwin.vue:69](assets/components/GlobalTwin.vue#L69) 用 `let scene: ParkScene | null = null`（非 `ref`/`shallowRef`/`reactive`），`park-scene.impl.ts` 与 `building-geometry.ts` 全程零 Vue 响应式 API、零 `any`。从根上规避了「Vue 代理 Three.js → modelViewMatrix 错 → 黑屏」陷阱，是本项目记忆里那条教训的最佳实践范本。
+1. **Three.js 完全游离于 Vue 响应式之外**——[GlobalTwin.vue:69](../assets/components/GlobalTwin.vue#L69) 用 `let scene: ParkScene | null = null`（非 `ref`/`shallowRef`/`reactive`），`park-scene.impl.ts` 与 `building-geometry.ts` 全程零 Vue 响应式 API、零 `any`。从根上规避了「Vue 代理 Three.js → modelViewMatrix 错 → 黑屏」陷阱，是本项目记忆里那条教训的最佳实践范本。
 2. **5 文件契约层完整且纪律严明**——`IDigitalTwinApi` + `Real` + `Mock` + 工厂 + 单例；`MOCK_ENABLED = VITE_MOCK_ENABLED === 'true'`；Mock/Real 都抛 `ApiError`、`AbortSignal` 端到端打通。
 3. **数据分层 + 三态兜底到位**——脚手架先行 → `Promise.allSettled` → 楼层 `watch` 带 `onCleanup` + `AbortController`；`webglcontextlost/restored` + 全量 `dispose()`。
 4. **样式纪律过硬**——8 个 `.vue` 全部 `<style scoped>`、type-only `defineProps` + `withDefaults`、组件内**零 hex 字面量**（全走 `var(--twin-*)`）。
@@ -127,13 +127,13 @@
 
 | # | 级别 | 文件 | 改法 | 状态 |
 |---|------|------|------|------|
-| 1 | Minor | [park-scene.impl.ts:1494](assets/park-scene.impl.ts#L1494) | 注释去掉 `wire/white`，对齐实际分支 | ✅ 已修复 |
-| 2 | Minor | [useTwinData.ts](assets/components/useTwinData.ts) + PoiOverlay + UnitDetail | `buildingName`/`poiById` 由 computed 改命名导出函数；消费方同步 | ✅ 已修复 |
-| 3 | Minor | [request.ts:33,48](assets/api/request.ts#L33) | 两处 `any` → 严格类型（`AbortSignal & {reason?}` / `unknown` + 收窄） | ✅ 已修复 |
-| 4 | Info | [PoiOverlay.vue](assets/components/PoiOverlay.vue) | rAF 启动移入 `onMounted` | ✅ 已修复 |
-| 5 | Info | [UnitDetail.vue](assets/components/UnitDetail.vue) | 新增 `unitCount` computed，去两处 `!` | ✅ 已修复 |
-| 6 | Info | [GarageCard.vue:26](assets/components/GarageCard.vue#L26) | 模板 `occupied` 显式 `?? 0`（脚本侧本已守卫） | ✅ 已修复 |
-| 7 | Info | [TourToggleButton.vue](assets/components/TourToggleButton.vue) | `matchMedia` 移入 `onMounted` + 监听变化 + 清理 | ✅ 已修复 |
+| 1 | Minor | [park-scene.impl.ts:1494](../assets/park-scene.impl.ts#L1494) | 注释去掉 `wire/white`，对齐实际分支 | ✅ 已修复 |
+| 2 | Minor | [useTwinData.ts](../assets/components/useTwinData.ts) + PoiOverlay + UnitDetail | `buildingName`/`poiById` 由 computed 改命名导出函数；消费方同步 | ✅ 已修复 |
+| 3 | Minor | [request.ts:33,48](../assets/api/request.ts#L33) | 两处 `any` → 严格类型（`AbortSignal & {reason?}` / `unknown` + 收窄） | ✅ 已修复 |
+| 4 | Info | [PoiOverlay.vue](../assets/components/PoiOverlay.vue) | rAF 启动移入 `onMounted` | ✅ 已修复 |
+| 5 | Info | [UnitDetail.vue](../assets/components/UnitDetail.vue) | 新增 `unitCount` computed，去两处 `!` | ✅ 已修复 |
+| 6 | Info | [GarageCard.vue:26](../assets/components/GarageCard.vue#L26) | 模板 `occupied` 显式 `?? 0`（脚本侧本已守卫） | ✅ 已修复 |
+| 7 | Info | [TourToggleButton.vue](../assets/components/TourToggleButton.vue) | `matchMedia` 移入 `onMounted` + 监听变化 + 清理 | ✅ 已修复 |
 
 **自检结果（grep 复核）**：
 - `(buildingName|poiById).value` → 0 命中（消费方全迁移）

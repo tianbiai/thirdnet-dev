@@ -4,16 +4,16 @@ ThirdNet 全栈 Admin 开发插件（自包含）—— Claude Code 插件，为
 
 是 ThirdNet 前后端开发技能的**唯一来源**：后端 .NET 微服务与前端 Vue 3 的全部技能均收录于此，统一 `thirdnet-fullstack:` 命名空间，开箱即用。
 
-- **版本**：2.16.0（目录清单 `thirdnet-plugins` v0.53.0）
+- **版本**：2.51.0（目录清单 `thirdnet-plugins` v0.73.0）
 - **许可**：MIT
 
 ## 技术栈
 
 - **后端**：.NET 10 + PostgreSQL + EF Core；ThirdNet.Vibe 框架（自定义模板）；Redis 缓存 + JWT（国密 SM2）认证；仅允许 GET/POST 方法（网关限制）
-- **前端**：Vue 3 + Element Plus + Vite（Web 端）；uniapp + Vant（移动端，发布为微信小程序 mp-weixin）
+- **前端**：Vue 3 + Element Plus + Vite（Web 端）；uniapp + Vant 4（H5）/ @vant/weapp（微信小程序，发布为 mp-weixin）
 - **全栈协调**：前端先行、Admin CRUD 页面模式、前后端类型映射、RBAC 权限桥接、共享 API 约定同步；含 `backend-developer` / `frontend-developer` 两个子代理隔离重型阶段
 
-## 技能清单（24 个）
+## 技能清单（28 个）
 
 ### 后端（8 个 · `.NET`）
 | 技能 | 用途 |
@@ -54,20 +54,36 @@ ThirdNet 全栈 Admin 开发插件（自包含）—— Claude Code 插件，为
 |------|------|
 | `fullstack-review` | 功能开发完成后的全栈代码审查与验证（7 维度），产出 `review-report.md` |
 
+### E2E 测试（1 个）
+| 技能 | 用途 |
+|------|------|
+| `e2e-test-generator` | 纯 UI 驱动 Playwright（Python）E2E 测试套件生成——探索任意项目代码库，按真实选择器/业务流程生成测试（多角色 + 数据范围 + 越权负向），不直连后端 |
+
 ### 文档交付（1 个）
 | 技能 | 用途 |
 |------|------|
 | `thirdnet-doc-generator` | 基于代码库生成项目交付文档（需求规格 / 系统设计 / 用户手册 / 测试用例，输出 Markdown 可转 Word） |
+
+### 数字孪生（1 个）
+| 技能 | 用途 |
+|------|------|
+| `thirdnet-digital-twin` | 园区 3D 数字孪生模块生成（Vue 3 + Three.js，1920×1080 舞台 + 楼栋切换器 + POI 打点 + 地下车库剖面，多视觉风格 token） |
 
 ### 模板升级（1 个）
 | 技能 | 用途 |
 |------|------|
 | `thirdnet-template-upgrade` | 前后端模板升级（`thirdnet-migrate` / `create-thirdnet-admin`），工具出 diff、AI 全量判定并直接升级 |
 
-### 工具（1 个）
+### 原型同步（1 个）
+| 技能 | 用途 |
+|------|------|
+| `proto-workflow` | 原型分支同步编排（固定命名 `.Proto` 分支 + `svn merge` 双向同步；支持 `.Proto.{Feature}` 并行功能分支与选择性合并，六确认门 A–F） |
+
+### 工具（2 个）
 | 技能 | 用途 |
 |------|------|
 | `md-to-word` | Markdown 转 Word（.docx）转换工具 |
+| `thirdnet-mcp-setup` | Postgres MCP 装配（Admin 创建时默认挂 `@bytebase/dbhub`，连接串从 appsettings 读取） |
 
 ## 子代理（2 个 · `agents/`）
 

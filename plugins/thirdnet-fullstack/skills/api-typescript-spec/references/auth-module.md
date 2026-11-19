@@ -18,7 +18,7 @@ export interface CurrentUserResponse {
 }
 ```
 
-**`api/interfaces/auth.ts`**（auth 归属 `manager` 端，与 `modules/auth.ts`、`mock/{api,data}/manager/auth.ts` 同端；与后端 `Controllers/Manager/AuthController` 对齐）：
+**`api/interfaces/auth.ts`**（auth 归属 `manager` 端，与 `modules/auth.ts`、`mock/{api,data}/auth.ts` 同端；与后端 `Controllers/Manager/AuthController` 对齐）：
 ```typescript
 import type { LoginParams, TokenResponse, CurrentUserResponse } from '@/api/types/auth'
 

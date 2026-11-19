@@ -1,6 +1,6 @@
 ---
 name: e2e-test-generator
-description: 为任意既有项目代码库生成一套完整的、可入库的、**纯 UI 驱动**的 Playwright（Python）端到端（E2E）测试套件——覆盖 Web 后台、移动端（H5/小程序）、大屏/驾驶舱，或其任意组合；通过探索代码库来生成。测试会打开真实弹窗、按 label/placeholder 填表、提交、再从表格/列表 DOM 文本断言结果；用多个权限不同的账号登录，验证每条业务流（含数据范围、跨端一致性、越权负向用例），**且绝不从测试代码直连后端**。本技能会按目标项目**自身的前端框架**适配——Element Plus、uni-app 或任何其它框架——因为每个选择器/label/流程都是从目标项目的真实源码里读出来的，而不是假设的，所以它适用于任意 web/移动代码库。当用户想为某个项目创建 / 生成 / 搭建 / 编写 E2E 测试套件、集成测试或 Playwright 测试时，务必使用本技能——例如「请生成项目的完整UI测试」「为这个后台写一套E2E测试，要用不同权限账号验证越权」「generate the complete UI tests for this project」「write an E2E suite for this codebase」「add Playwright tests covering all business flows」。**不要**用于一次性运行时检查或快速浏览器验证（那是另一个独立的 `webapp-testing` 技能），也不要用于单元/组件测试。
+description: 为既有代码库生成可入库、**纯 UI 驱动**的 Playwright（Python）端到端（E2E）测试套件——覆盖 Web 后台、移动端（H5/小程序——移动端指 uni-app 编译到 H5 的形态，小程序原生容器不在 Playwright 范围内）、大屏/驾驶舱；打开真实弹窗按 label/placeholder 填表、断言 DOM 文本，多角色账号验证业务流（数据范围、跨端一致、越权负向用例），测试绝不直连后端；按项目框架（Element Plus/uni-app）适配。当用户想创建/生成/编写 E2E 测试套件、集成测试或 Playwright 测试时必须使用（"generate UI tests"）；勿用于一次性浏览器验证（`webapp-testing`）或单元/组件测试。
 license: MIT
 metadata:
   version: "0.4.0"
@@ -80,7 +80,7 @@ metadata:
 你可以推荐其中一种作默认（视项目特点），但**最终由用户拍板**，用户也能要求组合（如「先按依赖层打底，再按业务模块分」）。评判候选方案好不好用这四条：(a) 每个阶段是可独立报告、有意义的单元；(b) 阶段顺序尊重数据依赖——早期阶段产出的主数据由 `state.py` 的 `run_state.json` 跨阶段携带；(c) 阶段是合理的「失败隔离边界」，一类问题集中在一阶段方便排查；(d) 阶段数适中（太少=粒度粗报告没意义，太多=决策门打断频繁），通常 3–7 个。
 
 ### 阶段 3——生成套件
-- 从 `assets/lib-skeletons/` 拷贝**通用 lib 骨架**（config/state/data_factory/harness/sessions/calibrate/run_all）——这些几乎不用改；**把阶段 0 用户给的测试地址与各角色账密填进 `config.py` 的默认值**（环境变量优先级仍最高，便于运行机覆盖），别留 `admin/admin@123` 这类编造占位。
+- 从 `assets/lib-skeletons/` 拷贝**通用 lib 骨架**（config/state/data_factory/harness/sessions/calibrate/run_all）——这些几乎不用改；**把阶段 0 用户给的测试地址与各角色账密填进 `config.py` 的默认值**（环境变量优先级仍最高，便于运行机覆盖），别留 `admin/admin@123` 这类编造占位。若仓库多人可见：`config.py` 默认值留空或用占位符，凭据仅通过环境变量注入，README 注明凭据不入库。
 - 通过阅读对应的**变体参考**来生成**适配层**：
   - **Element Plus** 的 web 后台 → `references/web-element-plus.md`（首选快速通道），
   - **uni-app（H5）** 的移动端 → `references/mobile-uniapp.md`（首选快速通道），
@@ -116,7 +116,7 @@ metadata:
 | 目标前端 | 读这份参考 | 用这些骨架 |
 |---|---|---|
 | Vue3 + Element Plus 后台 | `references/web-element-plus.md` | `web_crud.py.tpl`、`web_login.py.tpl`、`selectors.py.tpl` |
-| uni-app H5 移动端 | `references/mobile-uniapp.md` | `minigram_ui.py.tpl`、`minigram_login.py.tpl` |
+| uni-app H5 移动端（移动端指 uni-app 编译到 H5 的形态；小程序原生容器不在 Playwright 驱动范围内） | `references/mobile-uniapp.md` | `minigram_ui.py.tpl`、`minigram_login.py.tpl` |
 | 大屏 / 驾驶舱 | （探索驱动） | `web_crud.py.tpl` + 自定义校验器 |
 | 其它任何框架 | `references/discovery.md`（从零搭原子） | 仅 `test_template.py.tpl` |
 
@@ -155,7 +155,7 @@ metadata:
 │   ├── web_entities.py  # 实体构造器：开→填→提交→断言→返回（适配）
 │   ├── [role_builder.py]# 角色/用户的 UI 准备（适配，如多角色）
 │   └── [verify.py]      # 大屏/驾驶舱 DOM 校验器（适配，如有大屏）
-├── tests/               # 每条业务流一个文件（TC-00..TC-NN）
+├── tests/               # 每条业务流一个文件，文件名统一为 test_s<N>_*.py（TC-NN 是文件内声明的用例 ID，不是文件名）
 ├── fixtures/            # 二进制测试素材（如上传测试用的 sample.jpg）
 ├── TEST_PLAN.md         # 业务流 → 用例 + 阶段划分（阶段 2 产出；降级时顶部标 UNVERIFIED）
 ├── reports/             # 运行时产出：stage_NN.md 阶段报告 + TEST_REPORT.md 滚动总报告 + findings.json + calibration.md（活校准报告）

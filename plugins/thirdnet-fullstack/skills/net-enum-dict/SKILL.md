@@ -254,7 +254,7 @@ foreach (var m in list)
 | 6 | 查询 DTO + Service | `XxxQuery{Endpoint}Map.cs` + `Services/{Endpoint}/Xxx{Endpoint}Service.cs` | 加 `int? priority`，Service 按 int 精确匹配 |
 | 7 | 前端页面 | `views/**/*.vue` | `useDict('priority')` 取下拉；表格列用 `priority_label`；表单提交 number（详见 **`vue-enum-dict`** 技能） |
 
-> 行 4–6 的 `{Endpoint}` ∈ `Manager` / `App` / `Third`（默认集合，可按项目扩展，详见 net-api-developer「端类型分层组织」）；该模块归属哪个端，DTO/Service 就放哪个端目录、类名带对应端段。枚举字典本身（`[SystemDict]` 定义、`EnumHelper`、`DictCache`）属**端无关基础设施**，不按端划分。
+> 行 4–6 的 `{Endpoint}` ∈ `Manager` / `App` / `Cockpit`（按需）/ `Third`，跨端共用的枚举放 Common 无端段（见 net-api-developer「端类型分层组织」）；该模块归属哪个端，DTO/Service 就放哪个端目录、类名带对应端段。枚举字典本身（`[SystemDict]` 定义、`EnumHelper`、`DictCache`）属**端无关基础设施**，不按端划分。
 
 ## §8 禁止事项（后端相关）
 

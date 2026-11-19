@@ -1,5 +1,85 @@
 # Changelog
 
+## 2.51.0 - 2026-11-19
+
+### Changed
+**全插件描述精简（去冗余，路由质量优先）**：对 description 层做统一瘦身——description 是技能路由的触发依据，只保留「何时用 + 全部触发关键词 + 一句权威定位」，砍掉实现细节枚举（目录/文件/参数/步骤清单，正文首节均已覆盖）；**全部触发词逐字保留，零丢失**（每个技能精简前后均盘点核对触发词清单）：
+
+- **13 个技能 frontmatter description 精简**：thirdnet-digital-twin 946→347、e2e-test-generator 710→349、thirdnet-doc-generator 677→349、proto-workflow 671→331、net-auth 656→338、net-efcore-developer 655→341、net-api-developer 463→260、frontend-workflow 419→267、api-typescript-spec 397→280、thirdnet-mcp-setup 397→279、design-apple 351→276、vue-enum-dict 310→278、thirdnet-fullstack（协调技能）339→约 250（砍掉与正文「自包含说明」重复的自包含句与 CRUD 细节枚举，合并触发场景句）
+- **plugin.json / marketplace.json 巨型描述 484→约 160 字符**：28 个技能逐一点名的堆砌清单改为按类别一句概括（定位 + 构成 + 子代理 + 三道钩子），语义无损
+- **协调技能正文去重**：删除「派发前必须留在主上下文的工作」中冗余的「自包含确认」条目（4→3 条，对派发动作无指导意义）与「Prose 委派」节末重复的「自包含说明仍适用」引用块（「自包含说明」节为唯一权威定义，保留）
+- **README.md**：版本号补齐至 2.51.0（上轮 2.50.0 漏更）
+- 各技能 SKILL.md 正文一律未动（正文中句子级重复经扫描确认均为代码示例的正常复现，非冗余；子代理 agents/*.md 的自包含性为隔离上下文设计要求，不做精简）
+
+## 2.50.0 - 2026-11-19
+
+### Changed
+**全插件深度一致性审查修复（1 项 P0 + 7 项 P1 + 14 项 P2 + 若干 P3）**：六个并行审查组对照协调技能基线核查全部 28 技能 + 2 子代理 + hooks，按严重度分级修复，消除最终用户在各主路径（新建项目/新增模块/新建微服务/数字孪生/收尾交付）上的执行卡点：
+
+- **P0 `skills/admin-template-setup/`**：Admin 模板安装落点失控修复——新增「必须在 `frontend/` 目录内执行、项目名固定传 `web`（落地 `frontend/web/`）」落点约束（原 `my-admin` 示例与协调技能嵌套布局字面组合必然产出错误目录布局，且脱离 Stop 钩子 `frontend/` 检查范围）；`cd my-admin` → `cd frontend/web`；registry 硬编码占位化（唯一来源 internal-registry.md）；frontend-workflow 初始化表格同步传递落点约束
+- **P1 DTO 端段命名统一（原三方分裂）**：协调技能类型映射表/代码示例、fullstack-review SKILL+review-rules 由无端段（`NoticeQueryMap`）改为权威源 net-api-developer 端段口径（`{Entity}{Action}{Endpoint}Map`，仅 DTOs/Shared 无端段），消除「按 net-api-developer 开发、按协调技能/审查规则打回」死循环；fullstack-review「已知歧义」补第 6 条；协调技能字段映射 `[JsonPropertyName]` 表述修正为「C# 属性直接 snake_case」
+- **P1 `.claude-plugin/hooks/hooks.json`**：PostToolUse 前端策略工厂检查改五文件分离口径（原单文件 IXxxApi+Real+Mock 检查对每个合规新模块误报并诱导破坏文件分离）；Stop 后端门补模板/脚手架豁免 + block 文案路径全栈布局化；Stop 前端门小程序三件套改 `src/static/`；PostToolUse 后端门补 xmin/timestamptz 框架级循环与 `[DbBulk]` 白名单；PreToolUse 前端门补 design-apple（.scss/.css/styles/ 时必须）
+- **P1 EF 迁移口径统一**：net-efcore「迁移命令」与 dbcontext-and-queries「迁移自动应用」统一为「`migrations add` 手动执行、`database update` 由启动 InitializeDatabasesAsync 自动应用」；「迁移文件仅用户要求时创建」改「新模块新增实体默认创建、破坏性迁移（expand/contract）须确认」
+- **P1 CacheDbContext 连接串**：net-microservice-generator 由框架库 DefaultConnectionString 改为 Admin 业务库连接串（与 ServiceDbContext 共用 ConnectionString——原口径使 Service 内 admin.* 缓存回退查询不可达）；Startup 示例补 IOperatorContext 接口转发与 AddRedisExtensionService 先序注册；连接串表格拆分；「与 Admin 的区别」同步修正
+- **P1 CRUD 页面拆分规则冲突**：vue-best-practices 补 ThirdNet 适用范围注记（Admin 模板 CRUD 页以 admin-template-setup 单文件 + useCrudTable 模式为准，拆分规则适用于非模板项目/复杂自研页面）
+- **P1 digital-twin 扁平残留**：dynamic-data-api.md Admin 宿主场景「③④⑤ 按 manager/ 嵌套」改全扁平（含 §10a）；evals.json 同步 5 处旧路径；SKILL.md 补 PreToolUse 钩子前置技能调用提示 + 端口括注（独立 3000/宿主 3009）
+- **P2/P3（择要）**：小程序 changelog 三件套 `src/static/` 全线统一（frontend-workflow 三个 references + hooks）；project-spec-template 移动端版本表删 Vue Router/Axios（改 pages.json + uni.request）；net-auth 补 admin_roles claim 映射说明 + 权限特例四项（kick/info/clear/view-key）+ 加密触发词；framework-pipeline「双层认证」→ 三层（含 API Key）；net-background-job 缓存域 Singleton 澄清 + Task/Job/Worker 命名约定对齐钩子；backend-workflow `.Admin.Cache` → `Tools/{ProjectName}.Cache`、`NoticeService` → `NoticeManagerService`、plan.md 模板说明；di-pipeline SysUserManagerService 统一 + ApiKey 注册行 + Redis 注册顺序注记；net-enum-dict 端集合补 Cockpit/Shared；spec/changelog 模板路由示例四段式补端段；bulk-operations 示例命名规范化（UserModel/t_sys_user/snake_case）；postgres 保留字 `order` → `order_`；fullstack-review 权限 action 补 list/add + module 口径统一 + postgres-best-practices 来源断链修复 + scope 扫描路径 `frontend/*/src/` + Stop Hook 触发条件转述更正；e2e verification py_compile 命令修正 + discovery 移动端组件库中性化 + 测试文件名统一 test_s<N>_* + __pycache__ 清理 + config.py 凭据入库提醒；api-typescript-spec auth-module.md 删 manager/ 分组残留；crud 指南导入路径改 `@/api/types`；frontend-design React/Motion 残留清理 + 与 design-apple 分工话术统一（design-apple=强制落地规范）+ 移动端（uni-app+Vant）适配注记；vue-jsx reference/ → references/ + 触发边界注记；create-adaptable-composable 改用 Vue 内置 MaybeRef 导出；thirdnet-mcp-setup 补 SVN svn:ignore 分支；template-upgrade references 版本口径修正；md-to-word 补 thirdnet-doc-generator 上游引用；frontend-workflow e2e-test-index 重排 + 引用 e2e-test-generator + Three.js 豁免注记 + 保护目录表述修正；协调技能 marketplace.json 路径措辞、产出文件表补 src/ 前缀、后端派发示例项目名参数化 + URL 全前缀；子代理速记修正（backend 权限 action 全集、frontend src/api 路径）
+
+## 2.49.0 - 2026-11-19
+
+### Changed
+**全库一致性审查修复（29 项）**：对全部 28 个技能、子代理、hooks、README/CLAUDE.md 做机械检查（链接/引用/版本/行尾）+ 双组语义审查（描述准确性、跨技能规则冲突、正文内部矛盾），按批准清单修复：
+
+- **`skills/frontend-workflow/`（2.5.0 → 2.6.0）**
+  - 修正 uniapp 官方模板产物结构认知：`uni-preset-vue#vite-ts` 的 `manifest.json`/`pages.json`/`static/` 均在 **`src/` 下**——工程骨架硬门槛、项目结构图、强制文件路径表（`src/static/...`）全部改 src/ 口径（原"项目根"口径会误杀合规工程、陷入重建死循环）
+  - 新增**组件双端策略**（用户决策）：**Vant 4 仅支持 H5、无法编译进微信小程序**——H5 端 Vant 4（`#ifdef H5`）、小程序端 `@vant/weapp`（easycom + `#ifdef MP-WEIXIN`）、跨端 UI 优先 uni 内置组件；初始化命令补双端组件安装与 easycom 配置；HelpBubble 移动端改 `uni.showModal` 跨端实现
+  - "19 个模块"口径修正为"19 个 API 模块（页面清单见 admin-template-setup）"；registry 地址占位化（唯一来源 internal-registry.md）
+- **`skills/api-typescript-spec/`（2.4.0 → 2.5.0）**
+  - **URL 命名统一为后端端点模板口径（用户决策）**：详情 `GET /{module}/{id}`、删除 `POST /{module}/delete/{id}`（原 `/detail`、`/delete` 与后端 `[HttpGet("{id}")]`/`[HttpPost("delete/{id}")]` 形状不一致会 404），补 `delete-batch` 行；order 示例（契约签名/Real/Mock）同步
+  - `API_BASE_URL` 默认 `'/api'` → `''`（消除 baseURL+url 双前缀 `/api/api/...` 隐患，与 digital-twin 范例 config 一致）
+  - 触发词删裸 `manager/app/cockpit/third`（过宽误触发）
+  - `adapter-implementation.md`：UniAdapter 401 直跳登录标注为**简化示例**（生产走 refreshToken + `skipAuthRefresh`，以 auth-module.md 为准）；场景 B 标注为特殊场景（默认 uniapp 工程一律场景 A 双端 UniAdapter）
+- **`agents/frontend-developer.md`**：删除与权威规范矛盾的"API 层按端分目录"速记（会导致子代理产出错误目录），改为"工程即端（扁平）"+ 官方五端（Manager/App/Cockpit/Third + Shared）；URL 速记同步 /{id} 口径
+- **协调技能 `thirdnet-fullstack/SKILL.md`**：字典动态获取 URL 修正为权威口径 `GET /api/manager/dict/options/{dict_type}`（原 `/dict/type/{dict_type}/data` 为虚构路径）；派发示例与 RBAC 桥接表述同步 /{id} 口径；自包含说明补漏 4 技能（thirdnet-template-upgrade/thirdnet-mcp-setup/md-to-word/thirdnet-digital-twin）；npm registry 地址占位化
+- **`skills/fullstack-review/`（1.2.0 → 1.2.1）**：URL 路由表述同步 /{id} 口径；全量扫描路径 `frontend/src/` → `frontend/*/src/`
+- **`skills/backend-workflow/`（1.3.0 → 1.3.1）**：plan/changelog/spec 路径统一为 `backend/{ProjectName}.Admin/` 内（原"开发阶段"表 `backend/` 直下写法与结构树、Stop Hook 检测路径矛盾）；NuGet registry 地址占位化
+- **`skills/admin-template-setup/`（1.3.0 → 1.3.1）**：保护范围枚举补 API Key/动作列表（原"接口列表"与页面清单术语不一致）；`frontend-template-structure.md` 的 `mock/api/manager/`、`mock/data/manager/` 改扁平（与全插件"工程内扁平"口径一致）
+- **`skills/frontend-design/`（补 version 1.0.0，license 改 MIT）+ `skills/design-apple/`（1.1.0 → 1.1.1）**：新增视觉规则**冲突裁决**——design-apple 为所有工程强制默认视觉规范，frontend-design 仅作创意探索参考（偏离须记录 spec 并经用户确认）；frontend-design 触发示例 React → Vue（与插件"前端统一 Vue 栈"总则一致）
+- **`skills/net-auth/`（1.0.1 → 1.0.2）**：JWT 角色 claim 统一为 `admin_roles`（SKILL.md 一处 + rbac-flow.md 三处原用 `role_keys`，与 Claims 构造矛盾）
+- **`skills/net-cache-use/`（1.0.1 → 1.0.2）**：TTL 参数组移除 `RemoveSingle`（其签名无 TTL 参数）；`admin-cache-domains.md` 相对链接层级修正（`../` → `../../`）
+- **`skills/net-efcore-developer/`（1.2.1 → 1.2.2）**：批量操作示例 `User`→`UserModel`、`"users"`→`"t_sys_user"`（符自身命名规范）
+- **`skills/proto-workflow/`（1.3.0 → 1.3.1）**：交付校验"三个确认门（A/B/C）"改"六个确认门（A–F）中涉及项"（与六门模型一致）
+- **`skills/vue-enum-dict/`（1.0.1 → 1.0.2）**：两处标签内部 HTML 注释移到标签外（原写法为非法 Vue 模板语法，照抄会编译报错）
+- **`skills/thirdnet-digital-twin/`（2.32.0 → 2.32.1）**：主题 token 文件计数 4 → 3（实际 cyber/night-realistic/realistic）
+- **`skills/md-to-word/`（0.1.0 → 0.1.1）**：依赖安装命令补 Pillow（与前置条件三依赖一致）
+- **`README.md`**：版本 2.16.0 → 2.49.0、marketplace v0.53.0 → v0.71.0；技能清单 24 → 28（补 e2e-test-generator / thirdnet-digital-twin / proto-workflow / thirdnet-mcp-setup 条目与"测试/数字孪生/原型同步"分组）；前端技术栈补双端组件库表述
+- **`CLAUDE.md`（仓库根）**：插件版本 v2.26.0 → v2.49.0
+- **`.gitattributes`（仓库根，新增）**：`* text=auto eol=lf` 统一行尾——根治源码（CRLF 为主）与安装缓存（LF）的全量假差异；存量文件需单独执行一次 `git add --renormalize .` 提交
+
+### 版本同步
+- `plugin.json` / 协调技能 `thirdnet-fullstack/SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.48.0 → 2.49.0`；marketplace 顶层 `metadata.version` 不变（`0.71.0`，本次为技能内容修正、非 marketplace 级变更）。
+- 子技能 bump：`frontend-workflow` `2.5.0 → 2.6.0`、`api-typescript-spec` `2.4.0 → 2.5.0`（行为口径变化，minor）；`fullstack-review`/`backend-workflow`/`admin-template-setup`/`design-apple`/`net-auth`/`net-cache-use`/`proto-workflow`/`net-efcore-developer`/`vue-enum-dict`/`thirdnet-digital-twin`/`md-to-word` patch +1；`frontend-design` 补 `version: 1.0.0`。
+- `hooks.json` 不变。
+
+## 2.48.0 - 2026-11-19
+
+### Changed
+- **`skills/frontend-workflow/`（2.4.0 → 2.5.0）新增「平台技术栈分工总则（强制）」并修复小程序初始化流程缺口**：此前「小程序 = uniapp」仅出现在前置判断表的说明列与技术栈表中（描述性），而可执行的初始化步骤 3 写的是"使用 Vite 创建 Vue 3 + TypeScript 项目"，且无 uniapp 专属创建命令、路由表含误导性的 vue-router 行、校验清单无骨架硬门槛——实际执行中会生成非 uniapp 的普通 Vue 工程。本次修复：
+  - **新增「平台技术栈分工总则（强制）」章节**：三端固定映射（微信小程序/C 端移动 → **uniapp + Vant**；管理后台/用户 Web → **thirdnet Vue 栈**（create-thirdnet-admin 模板 + Element Plus）；后端 API → **.NET 10** 由 backend-workflow 负责），框架不进入需求澄清议题；禁止项明确（小程序禁原生/Taro/mpvue/Remax、Admin 禁 `npm create vite` 手动搭建、所有前端工程禁 React/Angular）。frontmatter `description` 同步写入该分工（强化触发信号）。
+  - **初始化步骤 3 指令化**：小程序工程写死 `npx degit dcloudio/uni-preset-vue#vite-ts frontend/minigram`（degit 不可达退回 `git clone -b vite-ts`；团队私有 uniapp 模板优先）+ `npm i vant`，明确禁止 `npm create vite` 建普通 Vue 工程再改造；Admin/Web 工程显式改走 `admin-template-setup`。
+  - **技能路由表**：vue-router 行标注"仅 Web 工程"，表后新增「小程序路由例外」注（uniapp 无 `src/router/`、禁 vue-router、路由走 `pages.json` + `uni.navigateTo`）；技能调用检查清单同步。
+  - **澄清规则**新增第 6 条：框架选型不在澄清范围，平台确认后直接**声明**固定框架，不提供"原生小程序/Taro"选项。
+  - **技术栈表**：移动端行改为"移动端 / 微信小程序（强制 uniapp）"并注明双端请求统一走 `adapter.uni.ts`；移动端要点行加禁止项。
+  - **校验清单**：移动端额外检查新增**工程骨架硬门槛**（`manifest.json` + `pages.json` + `@dcloudio/uni-app` 依赖，缺任一停止交付、按模板重建）与"未使用 vue-router"；文件结构检查项注明 `router/` 仅 Web 工程。
+  - **项目结构树**：minigram 补 `manifest.json` / `pages.json` 两个 uniapp 标志文件与"无 router/"说明。
+- **协调技能 `thirdnet-fullstack/SKILL.md`**：全新项目创建路径第 4 步"用户端小程序"补强制框架与模板来源（官方 `uni-preset-vue#vite-ts`），指向 frontend-workflow「平台技术栈分工总则」。
+- **`skills/vue-router-best-practices/`（1.0.0 → 1.0.1）**：frontmatter `description` 与正文顶部新增适用范围——仅 Web 工程（有 `src/router/`）；uniapp 小程序工程禁 vue-router（`pages.json` + uni API），无 `src/router/` 时本技能直接跳过。
+
+### 版本同步
+- `plugin.json` / 协调技能 `thirdnet-fullstack/SKILL.md` `metadata.version` / `marketplace.json` `thirdnet-fullstack` 条目 `version` 三处由 `2.47.0 → 2.48.0`；`marketplace.json` 顶层 `metadata.version` 不变（`0.71.0`，本次为技能规范强化、非 marketplace 级变更）。
+- 子技能 bump：`frontend-workflow` `2.4.0 → 2.5.0`、`vue-router-best-practices` `1.0.0 → 1.0.1`。
+- `hooks.json` 不变。
+
 ## 2.47.0 - 2026-08-11
 
 ### Changed

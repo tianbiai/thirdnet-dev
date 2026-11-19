@@ -7,6 +7,8 @@ metadata:
   version: "18.1.0"
 ---
 
+> **ThirdNet 适用范围注记**：在 Admin 模板工程（create-thirdnet-admin）中开发 CRUD 页面时，以 `thirdnet-fullstack:admin-template-setup` 的单文件页面模式（src/views/{module}/index.vue + useCrudTable/PaginationBar）为准，本技能的组件拆分规则（CRUD 至少拆 4 组件）不强制适用于此类模板 CRUD 页；该拆分规则适用于非模板项目、复杂自研页面与大型组件重构（见 sfc-large-component-refactoring）。
+
 # Vue Best Practices Workflow
 
 Use this skill as an instruction set. Follow the workflow in order unless the user explicitly asks for a different order.

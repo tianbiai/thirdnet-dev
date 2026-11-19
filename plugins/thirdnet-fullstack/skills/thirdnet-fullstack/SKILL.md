@@ -1,19 +1,17 @@
 ---
 name: thirdnet-fullstack
 description: >
-  全栈 Admin 功能开发协调指南。当同时开发前端页面与后端 API 时使用：前端先行开发顺序、
-  Admin 模板 CRUD 页面模式（useCrudTable + PaginationBar）、前后端类型映射、RBAC 权限桥接、
-  共享 API 约定同步检查清单，以及任务路由（全栈 vs 仅前端/仅后端）与全新项目创建路径。
-  本插件自包含（后端 .NET + 前端 Vue 技能全集，统一 thirdnet-fullstack: 命名空间），开箱即用。
-  适用于新增完整 Admin 模块、修改跨前后端 API 契约、排查前后端数据格式不一致。
-  以及子代理调度（backend-developer / frontend-developer，通过 Task 工具派发重型阶段）。
+  全栈 Admin 功能开发协调指南（本插件唯一入口技能）。当同时开发前端页面与后端 API、新增完整
+  Admin 模块、修改跨前后端 API 契约、排查前后端数据/格式/权限不一致时使用：任务路由（全栈 vs
+  仅前端/仅后端）、前端先行开发顺序、前后端类型映射、RBAC 权限桥接、共享 API 约定同步检查清单、
+  全新项目创建路径，以及子代理调度（backend-developer / frontend-developer，Task 派发重型阶段）。
 license: MIT
 metadata:
-  version: "2.47.0"
+  version: "2.51.0"
   author: thirdnet
 ---
 
-> **结构约定**：本技能位于 `plugins/thirdnet-fullstack/` 插件包内（`skills/thirdnet-fullstack/`），由 `marketplace.json` 的 `thirdnet-fullstack` 条目以 `source: ./plugins/thirdnet-fullstack` 加载。插件同时提供两个瘦封装子代理（`agents/backend-developer.md`、`agents/frontend-developer.md`），用于重型阶段的隔离派发（见下文「子代理调度（推荐）」）。版本号以 `.claude-plugin/plugin.json`、本文件 frontmatter `metadata.version` 与根目录 `marketplace.json` 三处为准，三者保持一致。
+> **结构约定**：本技能位于 `plugins/thirdnet-fullstack/` 插件包内（`skills/thirdnet-fullstack/`），由 `marketplace.json` 的 `thirdnet-fullstack` 条目以 `source: ./plugins/thirdnet-fullstack` 加载。插件同时提供两个瘦封装子代理（`agents/backend-developer.md`、`agents/frontend-developer.md`），用于重型阶段的隔离派发（见下文「子代理调度（推荐）」）。版本号以 `.claude-plugin/plugin.json`、本文件 frontmatter `metadata.version` 与 `.claude-plugin/marketplace.json` 三处为准，三者保持一致。
 
 ---
 
@@ -33,6 +31,7 @@ metadata:
 - **E2E 测试生成**：`e2e-test-generator`——纯 UI 驱动的 Playwright（Python）E2E 测试套件生成；探索任意项目代码库后按真实选择器 / 业务流程生成测试（多角色 + 数据范围 + 跨端一致 + 越权负向「按钮 DOM 不存在」），测试不直连后端、仅驱动 DOM。项目无关，适用于任意 web / 移动代码库
 - **文档交付**：`thirdnet-doc-generator`——功能开发完成后基于代码库功能模块生成项目交付文档（需求规格说明书、系统设计文档、用户手册、测试用例文档等，每类有专属模板），输出 Markdown 并可转 Word；与 `fullstack-review` 同级，属交付类技能
 - **原型分支同步编排**：`proto-workflow`——维护固定命名原型分支 `{Project}.Proto`，与 main 双向 `svn merge` 同步（main→.Proto 拉取基线 / .Proto→main 合并回）；支持派生原型功能分支 `{Project}.Proto.{Feature}` 并行开发、选择性合并到主干（一个合并、另一个留分支），六确认门；编码委托前后端工作流；属流程编排类技能
+- **工具与资产**：`thirdnet-template-upgrade`（前后端模板版本升级检测与同步）、`thirdnet-mcp-setup`（Postgres MCP 装配，Admin 创建时默认挂 `@bytebase/dbhub`）、`md-to-word`（Markdown 转 Word 文档转换）、`thirdnet-digital-twin`（园区 3D 数字孪生模块生成，Vue 3 + Three.js 完整范式资产）
 
 ## 任务路由（何时用本技能）
 
@@ -77,9 +76,8 @@ metadata:
 子代理是执行单元，**契约定义与协调**仍在主上下文：
 
 1. **任务路由判断**（用上文「任务路由」表）—— 决定是全栈、仅前端、仅后端
-2. **自包含确认**（见上文「自包含说明」）—— 本插件已集成全部技能，直接可用
-3. **契约与字段定义** —— 与用户对齐模块名 / 实体名 / 字段 / 枚举 / 权限前缀（这些是派发 prompt 的输入）
-4. **派发后的「约定同步检查清单」**（见下文）—— 对照子代理返回的摘要核验跨端一致性
+2. **契约与字段定义** —— 与用户对齐模块名 / 实体名 / 字段 / 枚举 / 权限前缀（这些是派发 prompt 的输入）
+3. **派发后的「约定同步检查清单」**（见下文）—— 对照子代理返回的摘要核验跨端一致性
 
 ### 派发 prompt 必须包含
 
@@ -119,14 +117,16 @@ Task(
   subagent_type: "backend-developer",
   description: "通知管理模块 - 后端实现",
   prompt: """
-    模块：通知管理（notice / Notice），权限前缀 sys:notice。布局：backend/Thirdnet.Admin/。
+    模块：通知管理（notice / Notice），权限前缀 sys:notice。布局：backend/{ProjectName}.Admin/。
     前端已定义契约（前端先行，按此实现）：
-      INoticeApi: getNoticeList(POST /api/manager/notice/list)、getNoticeDetail(/detail)、
-                  addNotice(/add)、updateNotice(/update)、removeNotice(/delete)
+      INoticeApi: getNoticeList(POST /api/manager/notice/list)、getNoticeDetail(GET /api/manager/notice/{id})、
+                  addNotice(POST /api/manager/notice/add)、updateNotice(POST /api/manager/notice/update)、
+                  removeNotice(POST /api/manager/notice/delete/{id})
       类型字段：（同前端子代理返回的类型清单）
     要求：1) 按 backend-workflow 实现 Notice 实体→(缓存按需)→DTO/Service/NoticeManagerController→
           [PermissionAuthorize]→Startup.cs DI→t_sys_menu 数据
-          2) DTO 字段与前端类型一一对应(snake_case+Map 后缀)，权限串 sys:notice:list/add/edit/remove/query
+          2) DTO 字段与前端类型一一对应(snake_case + Map 后缀，端特定带端段如 NoticeItemManagerMap)，
+             权限串 sys:notice:list/add/edit/remove/query
           3) API 仅 GET/POST，路由 /api/manager/notice/{action}
           4) 返回文件清单+端点路由/权限+DI 项+菜单条目+任何契约偏差
   """
@@ -142,8 +142,6 @@ Task(
 - 具体子技能（如仅加权限注解、仅改一个 DTO 字段）→ 直接委派对应子技能（`net-api-developer` / `net-efcore-developer` / `api-typescript-spec` / `vue-best-practices` 等）
 
 详见下文「全栈功能开发流程」各步骤表中的「调用技能」列。子代理派发与 prose 委派产出的代码一致——区别仅在执行上下文与摘要回报方式。
-
-> **自包含说明仍适用**：无论派发子代理还是 prose 委派，请先确认本插件已启用（见上文「自包含说明」）。
 
 ## 全栈项目创建（Admin 模板）
 
@@ -171,11 +169,11 @@ Task(
 
 2. **后端**（`backend-workflow` 例外流程）：用一次 `AskUserQuestion` 确认项目名 `{ProjectName}`，然后**在工作区根目录执行** `dotnet new thirdnet-admin -n {ProjectName} -o {ProjectName}.Admin`（backend-workflow 自带 `mkdir -p backend; cd backend`，产出 `backend/{ProjectName}.Admin/`；`-n` 传裸 `{ProjectName}` 作为命名空间前缀，`-o` 保留 `.Admin` 文件夹名）。跳过需求澄清直接进入项目框架阶段（NuGet 源用默认内网/外网地址）。**模板每次必须取最新**：安装前先 `dotnet nuget locals http-cache clear` 再 `--force` 安装，并 `dotnet new list` 核对版本（`--force` 只为避免"模板已注册"报错，取最新真正靠清 http-cache；完整命令见 backend-workflow）。注意：模板仅生成连接串/Redis/SM2 占位符、无可运行默认值；EF 迁移与运行前需由用户在 `appsettings.json` 填真实值（细节见 backend-workflow）。
 
-3. **前端 Admin**（`frontend-workflow` + `admin-template-setup` 例外流程）：确认品牌参数（`--brand`、`--initial`、`--abbr`，可用默认值），然后**在 `frontend/` 目录内执行** `npm exec --registry http://192.168.1.207:4873/ -- create-thirdnet-admin web --brand …`，项目名传 `web`（落地为 `frontend/web/`，npm 包名为 `web`）。后端 API 地址默认 `http://localhost:5000`。registry 内/外网地址与端口差异见 [internal-registry](../backend-workflow/references/internal-registry.md)。
+3. **前端 Admin**（`frontend-workflow` + `admin-template-setup` 例外流程）：确认品牌参数（`--brand`、`--initial`、`--abbr`，可用默认值），然后**在 `frontend/` 目录内执行** `npm exec --registry <NPM_REGISTRY> -- create-thirdnet-admin web --brand …`（registry 地址唯一来源见 [internal-registry](../backend-workflow/references/internal-registry.md)，默认内网），项目名传 `web`（落地为 `frontend/web/`，npm 包名为 `web`）。后端 API 地址默认 `http://localhost:5000`。
 
    > `create-thirdnet-admin` 的项目名即目录名，无 `--out-dir`/`--parent` 参数，故必须用 cwd 控制落点。
 
-4. **用户端小程序（按需）**：若用户同时要 C 端小程序，按 `frontend-workflow` 的手动初始化流程在 `frontend/minigram/` 创建 uni-app + Vant 项目；无此需求则跳过。
+4. **用户端小程序（按需）**：若用户同时要 C 端小程序，按 `frontend-workflow` 的手动初始化流程在 `frontend/minigram/` 创建 **uniapp 工程（强制框架，用官方 `uni-preset-vue#vite-ts` 模板，禁止原生小程序/Taro——见 frontend-workflow「平台技术栈分工总则」）+ Vant**；无此需求则跳过。
 
 5. **README.md**：在项目根创建 `README.md`，记录三端协调说明与目录布局（指向 `backend/` 与 `frontend/{web,minigram}/`）。
 
@@ -193,16 +191,16 @@ Task(
 
 | 步骤 | 内容 | 调用技能 | 产出文件 |
 |------|------|---------|---------|
-| 1 | TypeScript 类型定义 | `api-typescript-spec` | `api/types/{module}.ts`（枚举 + 出入参接口） |
-| 2 | 接口契约 | `api-typescript-spec` | `api/interfaces/{module}.ts`（`I{Entity}Api`） |
-| 3 | Mock 数据 | `api-typescript-spec` | `mock/data/{module}.ts` |
-| 4 | Mock 实现 | `api-typescript-spec` | `mock/api/{module}.ts` |
-| 5 | Real 实现 + 工厂函数 | `api-typescript-spec` | `api/modules/{module}.ts` |
+| 1 | TypeScript 类型定义 | `api-typescript-spec` | `src/api/types/{module}.ts`（枚举 + 出入参接口） |
+| 2 | 接口契约 | `api-typescript-spec` | `src/api/interfaces/{module}.ts`（`I{Entity}Api`） |
+| 3 | Mock 数据 | `api-typescript-spec` | `src/mock/data/{module}.ts` |
+| 4 | Mock 实现 | `api-typescript-spec` | `src/mock/api/{module}.ts` |
+| 5 | Real 实现 + 工厂函数 | `api-typescript-spec` | `src/api/modules/{module}.ts` |
 | 6 | CRUD 页面开发 | `admin-template-setup`（CRUD 指南） + `vue-best-practices` | `src/views/{module}/index.vue` 等 |
 
 前端阶段完成后，页面已可通过 Mock 数据独立运行和验证交互。
 
-> 上表产出文件位于**管理后台工程**（`frontend/web/`，对应后端 Manager 端）。前端按工程分端、工程内 `api/` 与 `mock/` 扁平；URL 前缀由工程所属端决定（admin 工程用 `/api/manager/...`、小程序工程 `frontend/minigram/` 用 `/api/app/...`）。后端 Controller/Service/DTO 仍按端分目录（见 `net-api-developer`）。详见 `api-typescript-spec`「前端按工程分端」与 `net-api-developer`「前后端对照」。
+> 上表产出文件位于**管理后台工程**（`frontend/web/`，对应后端 Manager 端）。前端按工程分端、工程内 `src/api/` 与 `src/mock/` 扁平（不按端建子目录）；URL 前缀由工程所属端决定（admin 工程用 `/api/manager/...`、小程序工程 `frontend/minigram/` 用 `/api/app/...`）。后端 Controller/Service/DTO 仍按端分目录（见 `net-api-developer`）。详见 `api-typescript-spec`「前端按工程分端」与 `net-api-developer`「前后端对照」。
 
 **步骤 6 详细指引**：Admin 模板提供了完整的 CRUD 页面开发基础设施，新增页面时复用既有 composables / 组件（`useCrudTable`、`PaginationBar`、`useDialogFocus`、`validators`、`confirmAction`、`formatDateTime` 等，并遵守「禁止手写 `usePagination + useActionLoading` 样板」「禁止直接使用 `el-pagination`」等约束）。
 
@@ -232,18 +230,20 @@ Task(
 
 ### 命名映射
 
-| 前端（TypeScript） | 后端（C# DTO） | 示例 |
+| 前端（TypeScript） | 后端（C# DTO，端特定带端段） | 示例（Manager 端） |
 |-------------------|---------------|------|
-| `{Entity}QueryParams` | `{Entity}QueryMap` | `NoticeQueryParams` → `NoticeQueryMap` |
-| `{Entity}CreateParams` | `{Entity}CreateMap` | `NoticeCreateParams` → `NoticeCreateMap` |
-| `{Entity}UpdateParams` | `{Entity}UpdateMap` | `NoticeUpdateParams` → `NoticeUpdateMap` |
-| `{Entity}Item` | `{Entity}ItemMap` | `NoticeItem` → `NoticeItemMap`（前端详情接口 `getXxxDetail()` 同样返回 `{Entity}Item`） |
+| `{Entity}QueryParams` | `{Entity}Query{Endpoint}Map` | `NoticeQueryParams` → `NoticeQueryManagerMap` |
+| `{Entity}CreateParams` | `{Entity}Create{Endpoint}Map` | `NoticeCreateParams` → `NoticeCreateManagerMap` |
+| `{Entity}UpdateParams` | `{Entity}Update{Endpoint}Map` | `NoticeUpdateParams` → `NoticeUpdateManagerMap` |
+| `{Entity}Item` | `{Entity}Item{Endpoint}Map` | `NoticeItem` → `NoticeItemManagerMap`（前端详情接口 `getXxxDetail()` 同样返回 `{Entity}Item`） |
+
+> 端特定 DTO 一律带端段（`{Endpoint}` ∈ Manager/App/Cockpit/Third，以 `net-api-developer` 为权威源）；仅 `DTOs/Shared/` 跨端共用 DTO 不带端段（`{Entity}QueryMap` 形态）。
 
 ### 字段映射
 
 | 规则 | 说明 |
 |------|------|
-| **字段名保持 snake_case** | 前端定义 `snake_case` 字段名，后端 DTO 用 `[JsonPropertyName("snake_case")]` 保持一致 |
+| **字段名保持 snake_case** | 前端定义 `snake_case` 字段名，后端 DTO 属性直接用 snake_case 命名（C# 属性名即 JSON 字段名，无需 `[JsonPropertyName]`，见 `net-api-developer`），两端保持一致 |
 | **类型对应** | `number` ← `long`、`string` ← `string`/`DateTime`（ISO 8601）、`boolean` ← `bool`、`enum` ← `enum`（值完全一致） |
 | **可空类型** | TypeScript `?` 可选属性 ↔ C# `?` 标记，两端保持一致 |
 | **分页参数** | 前端 `PaginatedResponse<T>` ↔ 后端 `PageListInfo<List<T>>`（响应字段：`list`、`total`、`index`、`pages`，两端一致；页大小在请求 `QueryMap.page_size`，响应不重复） |
@@ -253,7 +253,7 @@ Task(
 
 前端定义枚举时，需考虑后端 `[SystemDict]` 的处理方式：
 
-1. **后端管理的枚举**（`dict_source=0`）：前端通过 `/api/manager/dict/type/{dict_type}/data` 接口动态获取，不硬编码
+1. **后端管理的枚举**（`dict_source=0`）：前端通过 `GET /api/manager/dict/options/{dict_type}` 接口动态获取，不硬编码
 2. **前端先定义的枚举**：如果前端先定义了枚举（稳定不变的选项），后端实现时需在 `[SystemDict]` 中保持相同的值
 
 ## RBAC 前后端桥接
@@ -266,7 +266,7 @@ Task(
 // Controller 方法上的权限注解
 [PermissionAuthorize("sys:notice:list")]
 [HttpGet("list")]
-public async Task<PageListInfo<List<NoticeItemMap>>> GetList([FromQuery] NoticeQueryMap query)
+public async Task<PageListInfo<List<NoticeItemManagerMap>>> GetList([FromQuery] NoticeQueryManagerMap query)
 ```
 
 ### 前端层
@@ -298,7 +298,7 @@ const canModify = computed(() => hasPermiOr(['sys:notice:edit', 'sys:notice:remo
 | entity | 实体名称 | `user`、`role`、`notice` |
 | action | 操作类型 | `list`、`query`、`add`、`edit`、`remove`；模块特例如 `resetPwd`、`kick`（用户）、`info`/`clear`（缓存）、`view-key`（API 服务）等，以控制器实际 `[PermissionAuthorize]` 为准 |
 
-> **权限 action 以后端 `net-auth` 为权威源**（`PermissionCatalog` 启动时按 `[PermissionAuthorize]` 实际标注扫描）。注意区分两个命名空间：**权限 action** 用 `query`（详情）、`edit`（编辑）、`remove`（删除）；而前端 **URL 路由 action** 用 `/detail`、`/update`、`/delete`（见 `api-typescript-spec` 的 URL 命名规范）。两者不要混用——例如详情权限是 `sys:notice:query`，不是 `sys:notice:detail`。
+> **权限 action 以后端 `net-auth` 为权威源**（`PermissionCatalog` 启动时按 `[PermissionAuthorize]` 实际标注扫描）。注意区分两个命名空间：**权限 action** 用 `query`（详情）、`edit`（编辑）、`remove`（删除）；而前端 **URL 路由**用 `/{id}`（详情 GET）、`/update`、`/delete/{id}`（与后端 `net-api-developer` 端点模板一致，见 `api-typescript-spec` 的 URL 命名规范）。两者不要混用——例如详情权限是 `sys:notice:query`，不是 `sys:notice:detail`。
 
 **后端定义权限字符串 → 注册到 `PermissionCatalog` 自动同步 → 前端通过 `v-permission` 或 `usePermission()` 使用**。前端不需要硬编码权限列表，权限数据从后端 API 动态获取。
 

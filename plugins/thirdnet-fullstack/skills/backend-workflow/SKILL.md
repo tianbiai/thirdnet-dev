@@ -7,7 +7,7 @@ description: >
   "backend"、"开发流程"时，必须使用此技能。
 license: MIT
 metadata:
-  version: "1.3.0"
+  version: "1.3.1"
   author: thirdnet
 ---
 
@@ -24,7 +24,7 @@ metadata:
 | 层 | 位置 | 说明 |
 |----|------|------|
 | **① 框架库** | NuGet 包 `ThirdNet.Vibe.Common` / `ThirdNet.Vibe.WebAPI` | 加密、分组查询、Redis 缓存/锁、批量、限流、multipart、CIDR、JWT、RBAC、操作日志、访问日志、分页等——**最优先复用**。 |
-| **② 模板生成层** | 生成项目的 `Tools/{ProjectName}.Common` / `.Admin.Cache` / `Admin/{ProjectName}.Admin.APIService` | `AdminControllerBase`、`OperatorContext`、`SystemConfigKeys`、`[OperLog]`、`[SystemDict]`、各缓存域等。随 `dotnet new thirdnet-admin` 生成。 |
+| **② 模板生成层** | 生成项目的 `Tools/{ProjectName}.Common` / `Tools/{ProjectName}.Cache` / `Admin/{ProjectName}.Admin.APIService` | `AdminControllerBase`、`OperatorContext`、`SystemConfigKeys`、`[OperLog]`、`[SystemDict]`、各缓存域等。随 `dotnet new thirdnet-admin` 生成。 |
 | **③ 业务代码** | 生成项目的 `Admin/{ProjectName}.Admin.APIService`（Controllers/Services/DTOs）与 `.Database`（Models/EntityConfigurations） | 你自己写的实体、Service、Controller。 |
 
 **完整的可复用类清单（命名空间 + 文件 + 用途）见 [framework-and-template-catalog](references/framework-and-template-catalog.md)**。不确定「框架是否已提供某个能力」时，先查目录，不要重复造轮子。
@@ -79,8 +79,8 @@ metadata:
 ### 创建 Admin 管理后台项目
 
 ```bash
-# 1. 配置 NuGet 源（一次性；地址与内外网切换见 references/internal-registry.md）
-dotnet nuget add source http://192.168.1.156:8088/nuget -n ThirdNet
+# 1. 配置 NuGet 源（一次性；地址唯一来源见 references/internal-registry.md，勿在正文写死）
+dotnet nuget add source <NUGET_REGISTRY_URL> -n ThirdNet
 
 # 2. 安装最新模板（强制流程：清 http-cache → 卸载 → --force 安装 → list 核对；
 #    四步作用与"为何要清 http-cache"见 references/template-install.md）
@@ -203,7 +203,7 @@ Admin 项目的 Program.cs 和 Startup.cs 遵循固定的启动模式和 10 步 
    └── 定义权限字符串（如 sys:notice:list/add/edit/remove）
 
 8. DI 注册
-   └── Startup.cs 第 9 步添加 services.AddScoped<NoticeService>();
+   └── Startup.cs 第 9 步添加 services.AddScoped<NoticeManagerService>();
 ```
 
 ## 技能路由表
@@ -280,8 +280,8 @@ Admin 项目的 Program.cs 和 Startup.cs 遵循固定的启动模式和 10 步 
 
 ### 强制规则
 
-1. **编码前必须先生成项目级 plan.md 和 changelog.md**
-2. **编码前，`backend/spec.md` 必须存在且已完整阅读**
+1. **编码前必须先生成项目级 plan.md 和 changelog.md**（全栈布局下位于 `backend/{ProjectName}.Admin/` 内，见『项目创建』的生成结果结构树）
+2. **编码前，`backend/{ProjectName}.Admin/spec.md` 必须存在且已完整阅读**
 3. **代码必须与 spec 保持一致**；大变更须更新 changelog.md
 4. **需求变更时先更新 spec 再改代码**
 5. **spec 不存在 → 停止 → 先生成规格文档**
@@ -293,13 +293,15 @@ Admin 项目的 Program.cs 和 Startup.cs 遵循固定的启动模式和 10 步 
 | 创建变更日志 | [changelog-template](references/changelog-template.md) | 版本历史 + API 变更记录 |
 | 创建项目规格 | [project-spec-template](references/project-spec-template.md) | 项目级功能说明书 |
 
+> plan.md 无独立模板——按阶段 0.5 的说明生成（服务拆分、开发顺序、里程碑）。
+
 ## 开发阶段
 
 | 阶段 | 内容 |
 |------|------|
-| 0.5 | 项目规划：生成 `backend/plan.md`（服务拆分、开发顺序、里程碑） |
-| 0.6 | 变更日志：生成 `backend/changelog.md`，初始版本 v0.1.0 |
-| 1 | 项目规格：生成 `backend/spec.md`（项目级规格说明书） |
+| 0.5 | 项目规划：生成 `backend/{ProjectName}.Admin/plan.md`（服务拆分、开发顺序、里程碑） |
+| 0.6 | 变更日志：生成 `backend/{ProjectName}.Admin/changelog.md`，初始版本 v0.1.0 |
+| 1 | 项目规格：生成 `backend/{ProjectName}.Admin/spec.md`（项目级规格说明书） |
 | 2 | 项目框架：使用模板创建标准化项目结构。**Admin 模板项目创建时，可直接从本阶段开始执行**（例外说明见「需求澄清」章节） |
 | 3 | 功能开发：实体 → 配置 → Controller → API → 注册 → 测试 |
 | 4 | 完成校验：逐项检查（见下方校验清单） |

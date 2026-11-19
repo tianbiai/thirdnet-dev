@@ -9,7 +9,7 @@
 **文件存放位置**：
 
 - **Web 应用**：`public/viewer.html` + `public/marked.min.js`
-- **小程序应用**：`static/viewer.html` + `static/marked.min.js`
+- **小程序应用**：`src/static/viewer.html` + `src/static/marked.min.js`
 
 **访问方式**：
 

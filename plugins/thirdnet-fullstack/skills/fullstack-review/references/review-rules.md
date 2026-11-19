@@ -21,7 +21,7 @@
 | View 模型 `View` 后缀（`UserView`），无 Fluent 配置 | `net-efcore-developer` | `View/*.cs` 以 `View` 结尾，无对应 `IEntityTypeConfiguration<>` |
 | 缓存键 `const string` 于 `AdminCacheKeys`，格式 `admin.{module}.{id}` 全小写点分 | `net-cache-use` | 键常量匹配 `^admin\.[a-z_]+(\.[a-z_0-9]+)*$` |
 | 表名 `t_` + snake_case；索引名 `idx_xxx` | `net-efcore-developer` | `ToTable("...")` 参数匹配 `^t_[a-z_]+$` |
-| 权限串格式 `module:entity:action`（module ∈ `sys`/`api`/`biz`/`monitor`） | `net-auth` | `[PermissionAuthorize("...")]` 参数匹配 `^[a-z_]+:[a-z_]+:[a-z_]+$` |
+| 权限串格式 `module:entity:action`（module 常见 `sys`/`api`/`monitor`（框架域）+ 业务模块自定义前缀（如 `biz`），以项目实际 `[PermissionAuthorize]`/`t_sys_menu` 为准） | `net-auth` | `[PermissionAuthorize("...")]` 参数匹配 `^[a-z_]+:[a-z_]+:[a-z_]+$` |
 | 枚举单文件，`[SystemDict("snake_type","中文名")]` + 成员 `[EnumMeta("中文")]` 显式值从 0 | `net-enum-dict` | `Common/Enums/` 一文件一枚举；`[SystemDict]` 首参匹配 `^[a-z_]+$` |
 | 一文件一类型（class/enum/interface） | `backend-workflow` | 单 `.cs` 顶级类型声明数 ≤ 1（排除 Designer/ModelSnapshot） |
 
@@ -60,7 +60,7 @@
 | 批量操作用 `IDbAsyncBulk`（COPY 协议），**禁** `SaveChanges` 循环；**批量后必须手动删缓存** | `net-efcore-developer` | `_bulkCopy.*` 调用后紧跟 `_xxxCache.Remove*` |
 | 已在库的多步操作用**单语句 CTE**，**禁**拆成多次 `SaveChanges()`；SQL 必参数化、表名带 schema 前缀 | `net-efcore-developer` | 无字符串拼接 SQL；多步未拆 SaveChanges |
 | 写入唯一键字段（受唯一索引保护 / 前置 `AnyAsync` 查重）**必须**用 `SaveChangesWithUniqueGuardAsync(db, code, message)` 兜底，**禁**裸 `SaveChangesAsync` + 手写唯一 catch，**禁**裸 `DbUpdateException` 冒泡成 500；`code`/`message` 与查重命中一致 | `net-api-developer` / `net-efcore-developer` | grep 裸 `SaveChangesAsync` 紧跟唯一索引实体 / grep `IsUniqueViolation` 手写 catch → 命中即违例 |
-| 软删用 `StatusEnum`（0=正常,1=停用），**非** `deleted_at` 列 | `postgres-best-practices` | 新实体无 `deleted_at`/`is_deleted` |
+| 软删用 `StatusEnum`（0=正常,1=停用），**非** `deleted_at` 列 | `net-efcore-developer`（references/postgres-best-practices.md） | 新实体无 `deleted_at`/`is_deleted` |
 | 迁移仅在用户明确要求时创建；生产迁移走 expand/contract | `net-efcore-developer` | 无对大表 `AddColumn ... NOT NULL` 无默认 |
 
 ### A4. 认证授权规范
@@ -153,7 +153,7 @@
 
 | 规则 | 来源 | 检查方法 |
 |------|------|----------|
-| `v-permission` 接**数组**（支持 OR），格式 `['sys:notice:add']`；权限 action 用 `query`/`edit`/`remove`，**非** URL action `detail`/`update`/`delete` | `thirdnet-fullstack` / `vue-enum-dict` | 数组形式；action 未与 URL 混用 |
+| `v-permission` 接**数组**（支持 OR），格式 `['sys:notice:add']`；权限 action 用 `list`/`query`/`add`/`edit`/`remove`（+模块特例，以 `[PermissionAuthorize]` 实际标注为准），**非** URL action `detail`/`update`/`delete`/`{id}` | `thirdnet-fullstack` / `vue-enum-dict` | 数组形式；action 未与 URL 混用 |
 | `usePermission()` 返回 `hasPermi`/`hasPermiOr`（非 `hasPermission`） | `admin-template-setup` | 调用名正确 |
 | HelpBubble content 用 `MOCK_ENABLED ? '...' : ''` 守卫（生产构建不含）；用 `v-if` 非 `v-show` | `frontend-workflow` / mock-stripping | content 被 MOCK_ENABLED 守卫 |
 | API 调用按钮**必须** Loading+disabled（同变量）+ `try/finally`；**禁**仅靠防抖/节流或裸 async | `frontend-workflow` | 提交/删除按钮有 :loading+:disabled+try/finally |
@@ -181,7 +181,7 @@
 
 | 规则 | 来源 | 检查方法 |
 |------|------|----------|
-| 命名映射逐项对应：`{Entity}QueryParams`↔`QueryMap`、`CreateParams`↔`CreateMap`、`UpdateParams`↔`UpdateMap`、`Item`↔`ItemMap`（含详情接口 `getXxxDetail()` 返回 `Item`） | `thirdnet-fullstack` | 前后端 DTO 类名一一对应 |
+| 命名映射逐项对应：`{Entity}QueryParams`↔`{Entity}Query{Endpoint}Map`（端特定，如 `QueryManagerMap`；Shared 共用时无端段）；`CreateParams`↔`CreateMap`、`UpdateParams`↔`UpdateMap`、`Item`↔`ItemMap` 同理——端特定带端段，Shared 共用无端段（含详情接口 `getXxxDetail()` 返回 `Item`） | `thirdnet-fullstack` | 前后端 DTO 类名一一对应 |
 | 字段逐个对照：名称（snake_case）、类型（`number`↔`long`、`string`↔`string`/`DateTime`、`boolean`↔`bool`、`enum`↔`enum` 值同）、可空（`?`↔`?`） | `thirdnet-fullstack` | 字段三要素全匹配 |
 | 分页结构：前端 `PaginatedResponse<T>` ↔ 后端 `PageListInfo<List<T>>`（`list`/`total`/`index`/`pages` 一致；页大小只在请求 `QueryMap.page_size`） | `thirdnet-fullstack` | 字段名一致 |
 | 权限串逐字比对：前端 `v-permission`/`usePermission` 串 ↔ 后端 `[PermissionAuthorize]` 串 | `thirdnet-fullstack` | 两侧串逐字一致，无遗漏 |

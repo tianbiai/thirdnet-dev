@@ -44,7 +44,7 @@ Task InitDefaultMappings<T>()
 **示例**:
 
 ```csharp
-await bulkCopy.InitDefaultMappings<User>();
+await bulkCopy.InitDefaultMappings<UserModel>();
 ```
 
 ### 自定义映射
@@ -56,13 +56,13 @@ bulkCopy.Mappings = new List<NpgMappingInfo>
 {
     new NpgMappingInfo
     {
-        ObjectKey = "UserId",
+        ObjectKey = "user_id",
         DbKey = "user_id",
         Type = NpgsqlDbType.Integer
     },
     new NpgMappingInfo
     {
-        ObjectKey = "UserName",
+        ObjectKey = "user_name",
         DbKey = "username",
         Type = NpgsqlDbType.Text
     }
@@ -105,13 +105,13 @@ Task CopyToServer<T>(DbConnection connection, string targetTable, List<T> list)
 **使用示例**:
 
 ```csharp
-var users = new List<User>
+var users = new List<UserModel>
 {
-    new User { Id = 1, Name = "张三", Age = 25 },
-    new User { Id = 2, Name = "李四", Age = 30 }
+    new UserModel { id = 1, name = "张三", age = 25 },
+    new UserModel { id = 2, name = "李四", age = 30 }
 };
-await bulkCopy.InitDefaultMappings<User>();
-await bulkCopy.CopyToServer(connectionString, "users", users);
+await bulkCopy.InitDefaultMappings<UserModel>();
+await bulkCopy.CopyToServer(connectionString, "t_sys_user", users);
 ```
 
 **注意事项**:
@@ -154,18 +154,18 @@ Task CopyToServerWithoutUniqueKey<T>(DbConnection connection, List<string> where
 **使用示例**:
 
 ```csharp
-var users = new List<User>
+var users = new List<UserModel>
 {
-    new User { Id = 1, Name = "张三", Age = 25 },
-    new User { Id = 3, Name = "王五", Age = 28 }
+    new UserModel { id = 1, name = "张三", age = 25 },
+    new UserModel { id = 3, name = "王五", age = 28 }
 };
-await bulkCopy.InitDefaultMappings<User>();
+await bulkCopy.InitDefaultMappings<UserModel>();
 
 // 仅插入 id 不存在的记录
 await bulkCopy.CopyToServerWithoutUniqueKey(
     connectionString,
     new List<string> { "id" },
-    "users",
+    "t_sys_user",
     users
 );
 
@@ -173,7 +173,7 @@ await bulkCopy.CopyToServerWithoutUniqueKey(
 await bulkCopy.CopyToServerWithoutUniqueKey(
     connectionString,
     new List<string> { "id", "name" },
-    "users",
+    "t_sys_user",
     users
 );
 
@@ -181,9 +181,9 @@ await bulkCopy.CopyToServerWithoutUniqueKey(
 await bulkCopy.CopyToServerWithoutUniqueKey(
     connectionString,
     new List<string> { "id" },
-    "users",
+    "t_sys_user",
     users,
-    "temp_users",
+    "temp_t_sys_user",
     new List<string> { "id", "name" }
 );
 
@@ -191,7 +191,7 @@ await bulkCopy.CopyToServerWithoutUniqueKey(
 await bulkCopy.CopyToServerWithoutUniqueKey(
     connectionString,
     new List<string> { "id" },
-    "users",
+    "t_sys_user",
     users,
     where_extend_sql: "age > 20"
 );
@@ -233,18 +233,18 @@ Task MergeToServer<T>(DbConnection connection, List<string> keys, string targetT
 **使用示例**:
 
 ```csharp
-var users = new List<User>
+var users = new List<UserModel>
 {
-    new User { Id = 1, Name = "张三", Age = 26 },
-    new User { Id = 3, Name = "王五", Age = 28 }
+    new UserModel { id = 1, name = "张三", age = 26 },
+    new UserModel { id = 3, name = "王五", age = 28 }
 };
-await bulkCopy.InitDefaultMappings<User>();
+await bulkCopy.InitDefaultMappings<UserModel>();
 
 // 使用 id 作为匹配键，存在则更新所有字段，不存在则插入
 await bulkCopy.MergeToServer(
     connectionString,
     new List<string> { "id" },
-    "users",
+    "t_sys_user",
     users
 );
 
@@ -252,7 +252,7 @@ await bulkCopy.MergeToServer(
 await bulkCopy.MergeToServer(
     connectionString,
     new List<string> { "id" },
-    "users",
+    "t_sys_user",
     users,
     insertmapping: new List<string> { "id", "name", "age" },
     updatemapping: new List<string> { "name", "age" }
@@ -262,7 +262,7 @@ await bulkCopy.MergeToServer(
 await bulkCopy.MergeToServer(
     connectionString,
     new List<string> { "id" },
-    "users",
+    "t_sys_user",
     users,
     update_extend_sql: "visit_count = visit_count + EXCLUDED.visit_count"
 );
@@ -309,19 +309,19 @@ Task UpdateToServer<T>(DbConnection connection, List<string> where_name,
 **使用示例**:
 
 ```csharp
-var users = new List<User>
+var users = new List<UserModel>
 {
-    new User { Id = 1, Name = "张三三", Age = 26 },
-    new User { Id = 2, Name = "李四四", Age = 31 }
+    new UserModel { id = 1, name = "张三三", age = 26 },
+    new UserModel { id = 2, name = "李四四", age = 31 }
 };
-await bulkCopy.InitDefaultMappings<User>();
+await bulkCopy.InitDefaultMappings<UserModel>();
 
 // 根据 id 匹配，更新 name 和 age 字段
 await bulkCopy.UpdateToServer(
     connectionString,
     new List<string> { "id" },
     new List<string> { "name", "age" },
-    "users",
+    "t_sys_user",
     users
 );
 
@@ -330,7 +330,7 @@ await bulkCopy.UpdateToServer(
     connectionString,
     new List<string> { "id" },
     new List<string> { "name" },
-    "users",
+    "t_sys_user",
     users,
     update_extend_sql: "update_time = NOW()"
 );
@@ -340,17 +340,17 @@ await bulkCopy.UpdateToServer(
     connectionString,
     new List<string> { "id" },
     new List<string> { "age" },
-    "users",
+    "t_sys_user",
     users,
     where_extend_sql: "status = 'active'"
 );
 
 // 复用临时表进行多次更新
-await bulkCopy.CopyToServer(connection, "users_temp", users);
+await bulkCopy.CopyToServer(connection, "t_sys_user_temp", users);
 await bulkCopy.UpdateToServer(connection, new List<string> { "id" },
-    new List<string> { "name" }, "users", users, "users_temp", createtemp: false);
+    new List<string> { "name" }, "t_sys_user", users, "t_sys_user_temp", createtemp: false);
 await bulkCopy.UpdateToServer(connection, new List<string> { "id" },
-    new List<string> { "age" }, "users", users, "users_temp", createtemp: false);
+    new List<string> { "age" }, "t_sys_user", users, "t_sys_user_temp", createtemp: false);
 ```
 
 ---
@@ -392,18 +392,18 @@ Task MergeAndDeleteToServer<T>(DbConnection connection, List<string> keys,
 **使用示例**:
 
 ```csharp
-var users = new List<User>
+var users = new List<UserModel>
 {
-    new User { Id = 1, Name = "张三", Age = 26 },
-    new User { Id = 3, Name = "王五", Age = 28 }
+    new UserModel { id = 1, name = "张三", age = 26 },
+    new UserModel { id = 3, name = "王五", age = 28 }
 };
-await bulkCopy.InitDefaultMappings<User>();
+await bulkCopy.InitDefaultMappings<UserModel>();
 
 // 完整同步：更新 id=1 和 id=3，删除其他不在列表中的记录
 await bulkCopy.MergeAndDeleteToServer(
     connectionString,
     new List<string> { "id" },
-    "users",
+    "t_sys_user",
     users
 );
 
@@ -411,7 +411,7 @@ await bulkCopy.MergeAndDeleteToServer(
 await bulkCopy.MergeAndDeleteToServer(
     connectionString,
     new List<string> { "id" },
-    "users",
+    "t_sys_user",
     users,
     insertmapping: new List<string> { "id", "name" },
     updatemapping: new List<string> { "name" },
@@ -429,7 +429,7 @@ using (var connection = new NpgsqlConnection(connectionString))
             await bulkCopy.MergeAndDeleteToServer(
                 connection,
                 new List<string> { "id" },
-                "users",
+                "t_sys_user",
                 users
             );
             await transaction.CommitAsync();
@@ -469,7 +469,7 @@ Task CreateTempTable(string tempTable, string targetTable, DbConnection connecti
 using (var connection = new NpgsqlConnection(connectionString))
 {
     await connection.OpenAsync();
-    await bulkCopy.CreateTempTable("temp_users", "users", connection);
+    await bulkCopy.CreateTempTable("temp_t_sys_user", "t_sys_user", connection);
 }
 ```
 
@@ -494,24 +494,24 @@ using (var connection = new NpgsqlConnection(connectionString))
 using ThirdNet.Vibe.Common;
 using NpgsqlTypes;
 
-public class User
+public class UserModel
 {
     [DbBulk(Ignore = true)]
-    public int InternalId { get; set; }
+    public int internal_id { get; set; }
 
     [DbBulk(ColumnName = "user_id", Type = NpgsqlDbType.Integer)]
-    public int Id { get; set; }
+    public int id { get; set; }
 
     [DbBulk(Type = NpgsqlDbType.Varchar)]
-    public string Name { get; set; }
+    public string name { get; set; }
 
     [DbBulk(UnknownType = "jsonb")]
-    public string Metadata { get; set; }
+    public string metadata { get; set; }
 
     [DbBulk]
-    public int Age { get; set; }
+    public int age { get; set; }
 }
 
 // 初始化时会自动读取这些特性
-await bulkCopy.InitDefaultMappings<User>();
+await bulkCopy.InitDefaultMappings<UserModel>();
 ```

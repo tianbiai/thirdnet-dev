@@ -1,17 +1,14 @@
 ---
 name: net-auth
 description: >
-  ThirdNet 认证与授权（AuthN + AuthZ）开发规范，一个安全域一份技能。认证：三层（Basic 国密 /
-  Bearer-JWT 签名 / API Key）、IAccountValidator/ICheckClient 客户端验证、Token 获取/刷新端点、
-  Token 失效链路。授权：RBAC 权限体系（User→Role→Menu）、权限字符串（module:entity:action）、
-  三层授权（角色/范围/权限+通配符）、CachePermissionProvider 解析、PermissionCatalog 自动同步、
-  OperatorContext、新增权限保护模块步骤。当用户提到"认证"、"登录"、"Token"、"JWT"、"Basic"、
-  "Bearer"、"ApiKey"、"X-API-Key"、"IAccountValidator"、"ICheckClient"、"RBAC"、"permission"、
-  "角色权限"、"菜单权限"、"权限"、"授权"、"PermissionAuthorize"、"PermissionCatalog"、
-  "OperatorContext"、"Policy"时，必须使用此技能。
+  ThirdNet 认证与授权（AuthN/AuthZ）规范，一个安全域一份技能。认证：三层（Basic 国密 / Bearer-JWT /
+  API Key）、AddCrypto 加密套件（SM2/SM3/SM4、PasswordHasher 密码哈希、IAccountValidator/
+  ICheckClient 客户端验证）、Token 登录/刷新/失效。授权：RBAC（角色权限/菜单权限/权限）、
+  PermissionAuthorize/PermissionCatalog/OperatorContext/Policy。当用户提到"认证"、"登录"、
+  "Token"、"JWT"、"ApiKey"、"X-API-Key"、"permission"等时，必须使用此技能。
 license: MIT
 metadata:
-  version: "1.0.1"
+  version: "1.0.2"
   author: thirdnet
 ---
 
@@ -252,10 +249,16 @@ sys:user:add       — 新增用户
 sys:user:edit      — 编辑用户
 sys:user:remove    — 删除用户
 sys:user:resetPwd  — 重置密码
+sys:user:kick      — 踢下线
+sys:cache:info     — 缓存查看
+sys:cache:clear    — 缓存清理
+sys:apiservice:view-key — API 密钥查看
 sys:role:list      — 角色列表
 sys:menu:list      — 菜单列表
 api:service:list   — API 服务列表
 ```
+
+> `sys:user:kick`（踢下线）、`sys:cache:info` / `sys:cache:clear`（缓存查看/清理）、`sys:apiservice:view-key`（API 密钥查看）等为模块特例——以控制器实际 `[PermissionAuthorize]` 标注为准。module 前缀除 `sys` / `api` / `monitor` 外，业务模块可自定义前缀（如 `biz:notice`），以前缀实际使用为准。
 
 ### 三层授权体系
 
@@ -267,7 +270,7 @@ Admin 项目使用三层授权机制：
 [Authorize(Roles = "admin,editor")]
 ```
 
-基于 JWT 中的 role claims 进行角色匹配。
+角色匹配基于 JWT 中的 `admin_roles` claim（登录时构造，逗号分隔多角色；框架已将 RoleClaimType 映射到 admin_roles）——角色名以该 claim 中的 key 为准。
 
 **第二层：范围授权（`[ProviderAuthorize]`）**
 
@@ -287,7 +290,7 @@ public async Task<IActionResult> GetList() { ... }
 [PermissionAuthorize("sys:user:add")]
 ```
 
-这是 Admin 项目最核心的授权方式：`[PermissionAuthorize]` 触发 `PermissionAuthorizationHandler` → 从 JWT 取 `role_keys` → `CachePermissionProvider`/`RoleCache`（Redis 命中或 DB 回退）取权限 → `PermissionMatcher` 匹配（精确 / 模块通配 / 实体通配 / 全局通配，无匹配→403）。完整运行时流程见 [rbac-flow.md](references/rbac-flow.md)「§3 PermissionAuthorize 权限校验流程」。
+这是 Admin 项目最核心的授权方式：`[PermissionAuthorize]` 触发 `PermissionAuthorizationHandler` → 从 JWT 取 `admin_roles` → `CachePermissionProvider`/`RoleCache`（Redis 命中或 DB 回退）取权限 → `PermissionMatcher` 匹配（精确 / 模块通配 / 实体通配 / 全局通配，无匹配→403）。完整运行时流程见 [rbac-flow.md](references/rbac-flow.md)「§3 PermissionAuthorize 权限校验流程」。
 
 ### CachePermissionProvider
 

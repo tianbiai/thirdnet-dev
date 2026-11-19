@@ -208,7 +208,9 @@ public void ConfigureServices(IServiceCollection services)
     // 1. 基础设施（与 Admin 完全一致）
     services.AddResponseCompression(options => { options.EnableForHttps = true; });
     services.AddThirdNetCors(Configuration);
-    services.AddAdminCommonInfrastructure(Configuration, assembly);
+    services.AddRedisExtensionService(Configuration);  // Redis 注册（须先于 AddThirdNetMvcWithPostgresql 调用——AddAdminCommonInfrastructure 内部会调它）
+    // 第二参数为主程序集名字符串（与 di-pipeline 的 "{ProjectName}.Admin.APIService" 形式一致，Service 传 "{ServiceName}.API"）
+    services.AddAdminCommonInfrastructure(Configuration, "{ServiceName}.API");
 
     // 2. Service 数据库
     services.AddPooledDbContextFactory<ServiceDbContext>(options =>
@@ -217,10 +219,10 @@ public void ConfigureServices(IServiceCollection services)
             b => b.MigrationsAssembly("{ServiceName}.Database"));
     });
 
-    // 3. 缓存上下文（使用 Admin 的 DefaultConnectionString）
+    // 3. 缓存上下文（连接 Admin 业务库——缓存域回退 SQL 查询 admin.* schema 表，须与 AdminDbContext 同库；勿用框架库 DefaultConnectionString，否则 admin.* 不可达）
     services.AddPooledDbContextFactory<CacheDbContext>(options =>
     {
-        options.UseNpgsql(defaultConnStr);
+        options.UseNpgsql(connectionString);  // 业务库连接串（ConnectionString，与第 2 步 ServiceDbContext 共用同一变量）
     });
 
     // 4. 健康检查
@@ -230,6 +232,7 @@ public void ConfigureServices(IServiceCollection services)
     // 5. 认证授权（与 Admin 共享，无需 IAccountValidator）
     services.AddAdminCacheServices();
     services.AddScoped<OperatorContext>();
+    services.AddScoped<IOperatorContext>(sp => sp.GetRequiredService<OperatorContext>());  // IOperatorContext 接口来自 {ProjectName}.Common.Interfaces
     services.AddScoped<IPermissionProvider, CachePermissionProvider>();
 
     // 6. 业务服务（按需添加）
@@ -245,7 +248,7 @@ public void ConfigureServices(IServiceCollection services)
 - Service 不注册 `IAccountValidator`（用户认证由 Admin 处理）
 - Service 不注册 `OperLogFilter`、其端点也不加 `[OperLog]` 特性（操作日志统一由 Admin 处理）
 - Service 使用 `ServiceDbContext` 而非 `AdminDbContext`
-- CacheDbContext 使用 Admin 的 `DefaultConnectionString`
+- CacheDbContext 连接 Admin 业务库（`ConnectionString`，与 ServiceDbContext 共用），勿用框架库 `DefaultConnectionString`——缓存域回退查询 admin.* schema 表，须与 AdminDbContext 同库
 
 ## 框架管道与中间件
 
@@ -338,8 +341,8 @@ dotnet ef database update \
 
 | 连接字符串 | 用途 |
 |-----------|------|
-| ConnectionString | Service 业务数据库（ServiceDbContext） |
-| DefaultConnectionString | 框架数据库（ThirdNetDbContext）+ 缓存回退查询 |
+| ConnectionString | Service 业务数据库（ServiceDbContext）+ 缓存回退查询目标（指向 Admin 业务库，CacheDbContext 据此读取 admin.* schema 表） |
+| DefaultConnectionString | 框架数据库（ThirdNetDbContext），仅框架库——admin.* 不在此库，勿用于 CacheDbContext |
 
 ## 相关技能
 

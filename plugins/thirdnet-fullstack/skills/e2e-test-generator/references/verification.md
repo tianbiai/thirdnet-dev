@@ -6,7 +6,7 @@
 
 ```bash
 cd <project>/testing
-python -m py_compile config.py state.py data_factory.py run_all.py calibrate.py lib/*.py tests/*.py
+python -m py_compile config.py state.py data_factory.py run_all.py lib/*.py tests/*.py
 ```
 退出 0 = 所有文件都是语法合法的 Python。这能抓出拼写错、缩进错、import 语法坏——最常见的生成缺陷——而不需要浏览器、服务器或真实环境。**每个文件都必须过。** 有不过的就修了重跑；别在部分通过时就宣布完成。
 

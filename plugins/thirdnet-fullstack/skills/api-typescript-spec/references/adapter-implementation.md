@@ -72,6 +72,7 @@ export class UniAdapter implements RequestAdapter {
 - `uni.request` 不像 Axios 自动处理 query string，GET 请求需要手动拼接
 - 错误通过 `statusCode` 判断（不是 Axios 的 `response.status`）
 - 401 处理使用 `uni.reLaunch` 跳转登录页（不能用 `router.push`，小程序端无 window/router）
+- **上面 401 处理是简化示例**：直接 `clearToken` + 跳登录。生产实现须先走 refreshToken 刷新流程（401 → 尝试刷新 → 重放原请求 → 刷新失败才 `clearToken` 跳登录），且登录/刷新接口设 `skipAuthRefresh: true` 防死循环——完整流程以 [auth-module.md](auth-module.md) 为准
 
 **uniapp 项目适配器选择**：对于纯 uniapp 项目（同时编译 H5 和 MP-WEIXIN），两个平台均使用 `UniAdapter`，无需条件编译选择适配器。条件编译仅在 `token.ts` 等需要区分 `localStorage` 和 `uni.getStorageSync` 的场景中使用。
 
@@ -87,7 +88,7 @@ export function request<TResponse>(config: RequestConfig): Promise<TResponse> {
 }
 ```
 
-**场景 B：双平台项目**（Web 端用 Axios，小程序端用 uni.request）：
+**场景 B：双平台项目**（Web 端用 Axios，小程序端用 uni.request）——**仅特殊场景**：需要 H5 端走 Axios 拦截器生态时才用；默认 uniapp 工程一律走场景 A（双端统一 `UniAdapter`，见 `frontend-workflow` 技术栈）：
 ```typescript
 // #ifdef H5
 import { AxiosAdapter } from './adapter.web'

@@ -20,7 +20,7 @@
 | `lib/web_entities.py` | 实体构造器：开→填→提交→断言→返回 | **适配**（按实体） | `adapt-skeletons/web_entities.py.tpl` |
 | `lib/role_builder.py` | 角色/用户的 UI 准备（菜单树勾选、用户弹窗） | **适配**（如多角色） | `adapt-skeletons/web_entities.py.tpl` 模式 |
 | `lib/verify.py` | 大屏/驾驶舱 DOM 文本校验器 | **适配**（如有大屏） | 探索驱动 |
-| `tests/test_XX_*.py` | 每条一个业务流 | **适配** | `adapt-skeletons/test_template.py.tpl` |
+| `tests/test_s<N>_*.py` | 每条一个业务流 | **适配** | `adapt-skeletons/test_template.py.tpl` |
 
 ## 为什么这样分
 

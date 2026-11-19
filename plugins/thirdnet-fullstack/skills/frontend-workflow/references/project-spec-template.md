@@ -111,7 +111,7 @@
 **uniapp 项目**：H5 模式开发（`npm run dev:h5`），最终发布为微信小程序，需兼容小程序环境（详见 api-typescript-spec 技能）
 
 **默认版本**：
-- **移动端**：Vue 3.4.x、Vant 4.x、Vite 5.x、Pinia 2.x、Vue Router 4.x、Axios 1.x
+- **移动端**：Vue 3.4.x、Vant 4.x、Vite 5.x、Pinia 2.x；路由：pages.json（禁 vue-router）；请求：uni.request（adapter.uni.ts）
 - **Web端**：Vue 3.5.x、Vite 8.x、Element Plus 2.x、Vue Router 4.x、Pinia 3.x（以 npm 最新稳定版为准）、Axios 1.x
 
 ### 项目结构
@@ -121,7 +121,7 @@ frontend/[子系统名]/
 ├── spec.md                    # 子项目级功能说明书（本文档）
 ├── specs/                     # 页面级规格说明目录
 │   └── [页面名].md
-├── {public 或 static}/        # Web: public/  小程序: static/
+├── {public 或 static}/        # 位置：Web 为 src/public/ 或工程根 public/（按模板实际）；小程序为 src/static/
 │   ├── changelog.md           # 变更日志
 │   ├── viewer.html            # 通用 Markdown 查看器
 │   └── marked.min.js          # Markdown 解析库

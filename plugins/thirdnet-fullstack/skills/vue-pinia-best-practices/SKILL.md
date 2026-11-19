@@ -17,5 +17,5 @@ Pinia best practices, common gotchas, and state management patterns.
 - Store methods lose context in template calls → See [store-method-binding-parentheses](references/store-method-binding-parentheses.md)
 
 ### State Patterns
-- Filters reset on refresh or can't be shared → See [state-url-for-ephemeral-filters](references/state-url-for-ephemeral-filters.md)
+- Filters reset on refresh or can't be shared → See [state-url-for-ephemeral-filters](references/state-url-for-ephemeral-filters.md)（Admin 模板 CRUD 页除外——useCrudTable 以内存 defaultQuery 管理筛选，不入 URL）
 - Building production app without DevTools or conventions → See [state-use-pinia-for-large-apps](references/state-use-pinia-for-large-apps.md)

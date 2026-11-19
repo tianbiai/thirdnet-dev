@@ -1,12 +1,8 @@
 ---
 name: thirdnet-mcp-setup
 description: >
-  为 thirdnet 工程装配 Postgres 的 MCP 服务（让 Claude Code 在会话内直查项目的 PostgreSQL 数据库）。
-  在工程根写项目级 .mcp.json，默认从后端 appsettings*.json 读取连接串、由用户确认暴露哪个库
-  （Admin 双库：框架库 ThirdNetDbContext / 业务库 AdminDbContext），挂载 @bytebase/dbhub（npx 运行）。
-  当用户提到「postgres mcp」「安装 mcp」「配置 .mcp.json」「让 Claude 直查数据库」「给工程接上数据库 mcp」
-  「server-postgres」「dbhub」「数据库 MCP」时，必须使用本技能。Admin 项目创建时由 backend-workflow
-  默认调用；用户后续也可单独调用安装，或改用无密 ${ENV} 占位版。
+  为 thirdnet 工程装配 Postgres MCP 服务（让 Claude Code 直查项目数据库）：在工程根写 .mcp.json，连接串取自 appsettings*.json、用户确认暴露哪个库，挂载 @bytebase/dbhub。
+  当用户提到「postgres mcp」「安装 mcp」「配置 .mcp.json」「让 Claude 直查数据库」「server-postgres」「dbhub」「数据库 MCP」时必须使用；Admin 创建时由 backend-workflow 默认调用，也可事后单独安装或改用无密 ${ENV} 占位版。
 license: MIT
 metadata:
   version: "0.1.0"
@@ -89,6 +85,8 @@ backend/{ProjectName}.Admin/Admin/{ProjectName}.Admin.APIService/appsettings.Dev
 # Claude Code MCP 配置（默认含真实数据库账密，不提交）
 .mcp.json
 ```
+
+若工程使用 SVN：改用 `svn propset svn:ignore .mcp.json .`（在工程根目录执行），使含数据库凭据的 `.mcp.json` 不被 svn add/commit 入库；git 工程才用 `.gitignore`。
 
 > 为什么这样：thirdnet 既有约定就是「真实账密只放 gitignored 的 `appsettings.Development.json`、`appsettings.json` 只放说明性占位」。把 `.mcp.json` 纳入同一约定，避免把数据库密码提交进仓库。
 

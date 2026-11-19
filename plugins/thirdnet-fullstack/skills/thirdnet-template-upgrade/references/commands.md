@@ -4,7 +4,7 @@
 
 所有命令默认用**内网** registry；内网不通换**外网**（NuGet `http://61.164.57.61:8088/nuget`、npm `http://61.164.57.61:14873/`，npm 外网端口 **14873**）。
 
-> **v0.8.0 责任模型**：AI 主导模式下，工具**只用 `check` / `diff` / `export-merge` / `init-manifest`**（出对比素材与清单）；**`apply` / `import-merge` / `merge-workdir` 不用**——AI 自己用 Edit/Write 改项目文件。下表对这些命令标注了「主用 / 不用」。仅当你明确走旧的"工具落盘"路径时才用 apply/import-merge（与 AI 主导模式互斥）。
+> **v0.8.0 引入的责任模型（现行）**：AI 主导模式下，工具**只用 `check` / `diff` / `export-merge` / `init-manifest`**（出对比素材与清单）；**`apply` / `import-merge` / `merge-workdir` 不用**——AI 自己用 Edit/Write 改项目文件。下表对这些命令标注了「主用 / 不用」。仅当你明确走旧的"工具落盘"路径时才用 apply/import-merge（与 AI 主导模式互斥）。
 
 ---
 

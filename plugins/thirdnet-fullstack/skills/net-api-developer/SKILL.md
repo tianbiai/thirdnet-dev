@@ -1,13 +1,10 @@
 ---
 name: net-api-developer
 description: >
-  ThirdNet API 接口开发规范：AdminControllerBase（自动 OperatorContext）、端类型分层
-  （Controller/Service/DTO 统一按 Manager/App/Cockpit/Third 分目录 + 类名带端后缀，跨端共用放 Shared/；
-  官方命名端：管理端 Manager / 用户端 App / 驾驶舱 Cockpit（按需）/ 第三方 Third）、
-  GET/POST-only、DTO 命名（{Entity}{Action}{Endpoint}Map）、OperLog 操作日志、
-  Service 层模式（IDbContextFactory + 缓存 + 部门过滤）。禁止匿名对象与直接返回 EF Core 实体。
-  当用户提到"controller"、"AdminControllerBase"、"service"、"DTO"、"OperLog"、"API"、
-  "接口开发"、"写接口"、"CRUD"、"HttpGet"、"HttpPost"时，必须使用此技能。
+  ThirdNet API 接口开发规范：Controller/Service/DTO 按端分层（Manager/App/Cockpit/Third/Shared）、
+  AdminControllerBase（自动 OperatorContext）、OperLog 操作日志。当用户提到"controller"、
+  "AdminControllerBase"、"service"、"DTO"、"OperLog"、"API"、"接口开发"、"写接口"、"CRUD"、"HttpGet"、
+  "HttpPost"时，必须使用此技能。
 license: MIT
 metadata:
   version: "1.4.0"
@@ -211,7 +208,7 @@ public async Task<IActionResult> DeleteBatch([FromBody] List<long> ids)
 
 ### 权限 + 操作日志组合
 
-所有变更端点（create/update/delete）必须同时标注 `[PermissionAuthorize]` + `[OperLog]`。仅查询端点只需 `[PermissionAuthorize]`。
+所有变更端点（create/update/delete）必须同时标注 `[PermissionAuthorize]` + `[OperLog]`（仅登录即可的自服务端点除外，如 profile——见 controller-service-examples）。仅查询端点只需 `[PermissionAuthorize]`。
 
 ## 返回类型规范
 
@@ -393,7 +390,7 @@ queryable = queryable.Where(x => visibleDeptIds.Contains(x.dept_id));
 | `IPasswordHasher` | `ThirdNet.Vibe.Common.Algorithm.Abstractions` | 密码哈希接口，`Hash(plainPassword)` / `Verify(...)`；经 `AddCrypto` 注册 |
 | `PermissionAuthorizeAttribute` | `ThirdNet.Vibe.WebAPI` | 权限授权特性，参数为权限字符串（如 `"sys:user:list"`） |
 | `OperLogAttribute` | `{ProjectName}.Common.OperLog` | 操作日志特性，参数 `Title`、`BusinessType` |
-| `IOperatorContext` / `OperatorContext` | | `{ProjectName}.Common.Interfaces` / `{ProjectName}.Cache.Context` | 操作者上下文（Scoped）。`Initialize(operatorId)`（幂等）、`HasWildcardPermission()`、`GetUserInfo()`、`GetUserRoleIds()`、`GetVisibleDeptIds()`——同一请求内懒加载缓存，避免重复读 Redis |
+| `IOperatorContext` / `OperatorContext` | `{ProjectName}.Common.Interfaces` / `{ProjectName}.Cache.Context` | 操作者上下文（Scoped）。`Initialize(operatorId)`（幂等）、`HasWildcardPermission()`、`GetUserInfo()`、`GetUserRoleIds()`、`GetVisibleDeptIds()`——同一请求内懒加载缓存，避免重复读 Redis |
 | `DeptFilterHelper` | `{ProjectName}.Common.Extensions` | 部门数据范围过滤，`GetVisibleDeptIds()` |
 | `TreeBuilder` | `ThirdNet.Vibe.Common` | 扁平列表 → 树，`BuildForest()`（**仅此方法**） |
 | `TreeHelper` | `ThirdNet.Vibe.Common` | 树操作：`FlattenTree()` / `BuildNameMap()` / `ValidateNoCircularReference()`（与 `TreeBuilder` 是两个类，勿混淆） |

@@ -1,22 +1,19 @@
 ---
 name: design-apple
 description: >
-  Apple 风格设计系统与具体 CSS/SCSS 规范——所有前端项目（Web + 移动端）的默认视觉参考：
-  色板（Apple Blue 强调色 + 纯黑/浅灰双色节奏）、SF Pro 排版层级、组件样式（药丸 CTA / 卡片 / 玻璃导航）、
-  布局与响应式、Vue/Admin CSS 变量与 Element Plus 主题覆盖。当用户要"编写 CSS/SCSS"、"落地 Apple 风格视觉规范"、
-  "配色 / 排版 / 布局 / 圆角 / 阴影"，或在 Admin 模板写样式时，必须使用此技能。
-  与 frontend-design 分工：本技能管具体视觉系统与样式实现，frontend-design 管设计方向与创意风格决策。
+  Apple 风格设计系统与 CSS/SCSS 规范——所有 thirdnet 前端项目（Web + 移动端）强制落地的默认视觉参考：色板（Apple Blue + 纯黑/浅灰）、SF Pro 排版、组件（药丸 CTA/卡片/玻璃导航）、布局与响应式、Element Plus 主题覆盖。
+  当用户要"编写 CSS/SCSS"、"落地 Apple 风格视觉规范"、"配色/排版/布局/圆角/阴影"，或在 Admin 模板写样式时，必须使用此技能。与 frontend-design 分工：本技能为强制规范，frontend-design 仅作创意探索参考。
 license: MIT
 metadata:
-  version: "1.1.0"
+  version: "1.1.1"
   author: thirdnet
 ---
 
 # Apple 设计规范
 
-所有前端项目（Web 端 + 移动端）的默认视觉参考。基于 Apple 官网设计系统提炼。
+所有前端项目（Web 端 + 移动端）的默认视觉参考。基于 Apple 官网设计系统提炼。移动端（uni-app + Vant 小程序）仅取本技能的色彩/间距/排版**原则**；组件与单位落地以 uni 内置组件 + Vant 主题变量为准（references/components.md 的 Element Plus 主题覆盖不适用小程序）。
 
-**何时使用**：所有前端页面的样式实现（Web 端和移动端均适用），或用户明确要求 Apple 风格设计时。
+**何时使用**：所有前端页面的样式实现（Web 端和移动端均适用），或用户明确要求 Apple 风格设计时。与 `frontend-design` 同时触发时，本技能为**强制默认**视觉规范——`frontend-design` 仅作创意探索参考，冲突以本技能为准（偏离须经用户确认并记录在页面 spec）。
 
 ## 参考文件索引
 

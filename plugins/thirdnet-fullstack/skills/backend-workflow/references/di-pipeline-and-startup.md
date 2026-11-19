@@ -34,6 +34,7 @@ public void ConfigureServices(IServiceCollection services)
     services.AddThirdNetCors(Configuration);
 
     // 第 2 步：基础设施（框架DB、JWT、Redis、限流、加密、MVC）
+    //（Redis 由本步内 AddRedisExtensionService 注册，须先于 AddThirdNetMvcWithPostgresql 调用——Service 微服务单独装配时注意此顺序，见 framework-pipeline）
     services.AddAdminCommonInfrastructure(Configuration, "{ProjectName}.Admin.APIService");
 
     // 第 3 步：业务数据库（AdminDbContext）
@@ -48,6 +49,7 @@ public void ConfigureServices(IServiceCollection services)
     // 第 6 步：认证授权层
     services.AddScoped<IAccountValidator, AdminAccountValidator>();
     services.AddAdminCacheServices();                              // 所有缓存域（Singleton）
+    services.AddSingleton<IApiKeyValidator>(sp => sp.GetRequiredService<CachedApiKeyValidator>());
     services.AddScoped<IPermissionProvider, CachePermissionProvider>();
     services.AddSingleton<IGetAccountTokenKey, AccountTokenKeyProvider>();
     services.AddScoped<OperatorContext>();
@@ -64,9 +66,9 @@ public void ConfigureServices(IServiceCollection services)
     services.AddSingleton<IOnlineUserHeartbeatLogger>(sp => sp.GetRequiredService<OnlineUserHeartbeatLogger>());
     services.AddHostedService(sp => sp.GetRequiredService<OnlineUserHeartbeatLogger>());
 
-    // 第 9 步：业务服务（Scoped）
-    services.AddScoped<SysUserService>();
-    services.AddScoped<SysRoleService>();
+    // 第 9 步：业务服务（Scoped）（新模块 Service 一律带端段 {Module}{Endpoint}Service，见 net-api-developer）
+    services.AddScoped<SysUserManagerService>();
+    services.AddScoped<SysRoleManagerService>();
 
     // 第 10 步：帮助页 + 控制器
     services.AddAdminCommonHelpPage(Configuration);

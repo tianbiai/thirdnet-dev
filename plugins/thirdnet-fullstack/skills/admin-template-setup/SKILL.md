@@ -8,7 +8,7 @@ description: >
   模板安装、品牌定制、初始化 admin 项目。
 license: MIT
 metadata:
-  version: "1.3.0"
+  version: "1.3.1"
   author: thirdnet
 ---
 # Admin 管理后台前端模板安装指南
@@ -19,10 +19,10 @@ metadata:
 
 - **所有新的 admin 前端项目必须使用模板创建**——模板不仅是脚手架，而是已实现完整功能的可运行管理后台：
   - 系统管理：用户管理、角色管理（含权限分配）、菜单管理、部门管理、字典管理、配置管理、操作日志、缓存管理
-  - API 管理：应用管理、IP 黑白名单、角色权限、访问日志
+  - API 管理：应用管理、API Key 管理、IP 黑白名单、角色权限、访问日志
   - 认证授权：登录/登出、Token 自动刷新、RBAC 三层权限（角色/范围/权限码）、动态菜单路由
 - 前端采用**真实 API + Mock 数据并行**开发模式——通过单一 `.env` 中 `VITE_MOCK_ENABLED` 切换（见下方「生成项目结构概览」中的 `.env` 权威约定），开发阶段无需后端即可完整运行。API 策略工厂的完整规范（5 文件模块结构、Real/Mock 实现）详见 `api-typescript-spec` 技能；生产构建 Mock 剥离机制详见 [mock-stripping.md](../api-typescript-spec/references/mock-stripping.md)
-- **模板内置模块的业务逻辑受保护，安装后不可修改**——模板已实现的系统管理（用户、角色、菜单、部门、权限、操作日志、配置、字典、缓存）和 API 管理（应用、角色权限、IP 黑白名单、访问日志、接口列表、服务管理）功能模块的**业务逻辑代码**（script 部分、API 调用、组件嵌套关系、事件处理）属于模板资产，安装后禁止修改。页面样式（CSS/SCSS、布局、配色）可以自由调整。如需调整功能逻辑或扩展功能，应通过后端菜单配置新增页面，或新建独立的业务模块来实现。这条规则的目的是保证模板升级时不会与用户定制代码冲突。
+- **模板内置模块的业务逻辑受保护，安装后不可修改**——模板已实现的系统管理（用户、角色、菜单、部门、权限、操作日志、配置、字典、缓存）和 API 管理（应用、API Key、角色权限、IP 黑白名单、访问日志、动作列表、服务管理）功能模块的**业务逻辑代码**（script 部分、API 调用、组件嵌套关系、事件处理）属于模板资产，安装后禁止修改。页面样式（CSS/SCSS、布局、配色）可以自由调整。如需调整功能逻辑或扩展功能，应通过后端菜单配置新增页面，或新建独立的业务模块来实现。这条规则的目的是保证模板升级时不会与用户定制代码冲突。
 - 后端 API 服务需单独安装（参见 `thirdnet-fullstack:backend-workflow` 技能），本技能仅负责前端
 
 ## 前置条件
@@ -31,11 +31,13 @@ metadata:
 | ------------ | ------------------------------------------------ |
 | Node.js      | ≥ 18.0.0                                        |
 | npm          | 随 Node.js 安装                                  |
-| npm registry（内网） | Verdaccio 私有仓库 `http://192.168.1.207:4873`（内网不可达时改用外网，见下方说明） |
+| npm registry（内网） | Verdaccio 私有仓库 `<NPM_REGISTRY>`（内网不可达时改用外网，见下方说明） |
 
-> **网络环境说明**：模板包同时通过内网和外网两条路径提供，二选一即可。默认使用内网 registry `http://192.168.1.207:4873`；若处于非内网环境或内网不可达，改用外网 registry `http://61.164.57.61:14873/`（命令中替换 `--registry` 后的地址即可）。两条路径均能访问 `create-thirdnet-admin` 包。
+> **网络环境说明**：模板包同时通过内网和外网两条路径提供，二选一即可。默认使用内网 registry；若处于非内网环境或内网不可达，改用外网 registry（命令中替换 `--registry` 后的地址即可）。两条路径均能访问 `create-thirdnet-admin` 包。内外网地址唯一来源：[internal-registry](../backend-workflow/references/internal-registry.md)。
 
 ## 安装步骤
+
+> **落点约束（ThirdNet 全栈布局，默认）**：必须在 `frontend/` 目录内执行安装命令，项目名固定传 `web`（落地为 `frontend/web/`，npm 包名 `web`）。即先 `mkdir -p frontend && cd frontend` 再执行 `create-thirdnet-admin web ...`。`create-thirdnet-admin` 的项目名即目录名，无 `--out-dir` 参数，只能用 cwd 控制落点。仅当用户明确要求独立目录（非全栈布局）时才可传自定义项目名。
 
 ### 创建项目
 
@@ -43,21 +45,21 @@ metadata:
 
 ```bash
 # 基础安装（使用默认品牌 ThirdNet）
-npm exec --registry http://192.168.1.207:4873/ -- create-thirdnet-admin my-admin
+npm exec --registry http://192.168.1.207:4873/ -- create-thirdnet-admin web
 
-# 内网不可达时，改用外网 registry
-npm exec --registry http://61.164.57.61:14873/ -- create-thirdnet-admin my-admin
+# 内网不可达时，将 --registry 替换为外网地址（唯一来源：internal-registry）
+npm exec --registry <NPM_REGISTRY> -- create-thirdnet-admin web
 
 # 带品牌定制
-npm exec --registry http://192.168.1.207:4873/ -- create-thirdnet-admin my-admin \
+npm exec --registry <NPM_REGISTRY> -- create-thirdnet-admin web \
   --brand MyApp --initial M --abbr MA
 ```
 
 **命令说明：**
 
-- `--registry http://192.168.1.207:4873/` — 指定从私有 npm registry 获取模板包。内网地址，外网环境用 `--registry http://61.164.57.61:14873/`，两者二选一
+- `--registry` — 指定从私有 npm registry 获取模板包（`<NPM_REGISTRY>`，内外网地址唯一来源：[internal-registry](../backend-workflow/references/internal-registry.md)，内网不可达时替换为外网地址）
 - `--` — 分隔 npm 参数和包名参数
-- `my-admin` — 项目名称（会成为目录名和 npm 包名）
+- `web` — 项目名称（会成为目录名和 npm 包名）；全栈布局固定传 `web`，见上方落点约束
 - `--brand` — 品牌名称，出现在登录页、侧边栏、导航栏、HTML 标题
 - `--initial` — 品牌首字母，显示在 Logo 图标方块内
 - `--abbr` — 品牌缩写，侧边栏折叠时显示
@@ -78,7 +80,7 @@ npm exec --registry http://192.168.1.207:4873/ -- create-thirdnet-admin my-admin
 ### 安装依赖并启动
 
 ```bash
-cd my-admin
+cd frontend/web
 npm install
 npm run dev
 ```
@@ -90,7 +92,7 @@ npm run dev
 模板安装后生成的项目包含完整的 Vue 3 + TypeScript 管理后台。以下是主要目录：
 
 ```
-my-admin/
+frontend/web/
 ├── src/
 │   ├── api/              # 19 个 API 模块（策略工厂模式，工程内扁平，URL 走 /api/manager/...）
 │   ├── views/            # 页面：系统管理 + API 管理 + 登录 + 欢迎页
@@ -104,7 +106,7 @@ my-admin/
 │   ├── directives/       # v-permission 权限指令
 │   ├── components/       # 公共组件（HelpBubble、IconSelect、PaginationBar 等）
 │   └── utils/            # 工具函数（basicAuth、token、tree、permission 等）
-├── public/               # changelog.md + viewer.html
+├── public/               # changelog.md + viewer.html + marked.min.js
 ├── .env                  # 单一环境文件：VITE_MOCK_ENABLED（默认 false 连真实 API；设 true 走 Mock）、VITE_API_BASE_URL、VITE_BASIC_AUTH_APP/KEY、VITE_API_TARGET
 ├── vite.config.ts        # API 代理已配置指向 --api-target；生产构建经 mockDataStripPlugin 剥离 Mock 数据
 └── package.json          # 项目名称已替换
@@ -123,6 +125,7 @@ CRUD 页面开发详细指南（Composable 使用、页面布局模板、工具�
 - [ ] 浏览器访问 `http://localhost:3009`，登录页正常显示
 - [ ] 品牌名称在登录页标题正确显示（非默认 `ThirdNet`）
 - [ ] 品牌首字母在 Logo 图标方块内正确显示
+- [ ] 浏览器访问 `/viewer.html` 与 `/marked.min.js` 确认可访问（changelog 渲染依赖）
 - [ ] API 代理指向正确的后端地址（检查 `vite.config.ts` 中的 proxy target）
 - [ ] Mock 模式：在 `.env` 中将 `VITE_MOCK_ENABLED` 设为 `true`，重启 `npm run dev`，可无后端独立运行全部管理功能
 - [ ] 切换为真实 API：在 `.env` 中将 `VITE_MOCK_ENABLED` 设为 `false`（脚手架默认值），需后端服务已启动且 `--api-target` 正确
@@ -143,9 +146,9 @@ CRUD 页面开发详细指南（Composable 使用、页面布局模板、工具�
 
 模板包提供内网、外网两条路径，二选一即可。**先尝试内网，内网不可达时改用外网：**
 
-1. 确认 Verdaccio 服务器可达——内网 `http://192.168.1.207:4873` 或外网 `http://61.164.57.61:14873/`
-2. 在浏览器中访问对应地址下的 `/create-thirdnet-admin` 确认包存在（如 `http://192.168.1.207:4873/create-thirdnet-admin` 或 `http://61.164.57.61:14873/create-thirdnet-admin`）
-3. 若当前网络无法访问内网，直接在命令中将 `--registry` 替换为外网地址 `http://61.164.57.61:14873/`
+1. 确认 Verdaccio 服务器可达——内网 `<NPM_REGISTRY>` 或外网地址（内外网地址唯一来源：[internal-registry](../backend-workflow/references/internal-registry.md)）
+2. 在浏览器中访问 `<NPM_REGISTRY>/create-thirdnet-admin` 确认包存在（将 `<NPM_REGISTRY>` 替换为实际 registry 地址）
+3. 若当前网络无法访问内网，直接在命令中将 `--registry` 替换为外网地址（见 [internal-registry](../backend-workflow/references/internal-registry.md)）
 
 ### 前端代理 404
 
@@ -193,7 +196,7 @@ CRUD 页面开发详细指南（Composable 使用、页面布局模板、工具�
 
 ## 参考代码
 
-参考仓库 `code/frontend/` 包含前端相关的源码和测试，可供深入学习：
+参考仓库 `code/frontend/` 包含前端相关的源码和测试，可供深入学习（仅当工作区包含 code/ 参考仓库时可用，thirdnet-dev 插件仓库本身不含）：
 
 | 目录 | 内容 | 用途 |
 |------|------|------|

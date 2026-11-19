@@ -8,7 +8,7 @@ description: >
   "分布式锁"、"加缓存"、"CacheDbContext"时，必须使用此技能。
 license: MIT
 metadata:
-  version: "1.0.1"
+  version: "1.0.2"
   author: thirdnet
 ---
 
@@ -69,7 +69,7 @@ RedisCacheManager（框架基类）
 
 ### TTL 参数类型规则
 
-- `GetSingle`、`AddOrUpdate`、`RemoveSingle` 使用 **`TimeSpan?`** 表示过期时长
+- `GetSingle`、`AddOrUpdate` 使用 **`TimeSpan?`** 表示过期时长
 - `GetMultiple`、`AddOrUpdateMultiple` 使用 **`DateTimeOffset?`** 表示过期时间点
 
 ## 三区域结构

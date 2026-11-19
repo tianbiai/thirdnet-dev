@@ -25,4 +25,4 @@ dotnet new list {TemplateShortName}
 
 ## NuGet 源
 
-地址见 [internal-registry](internal-registry.md)（内网默认 `192.168.1.156:8088`，外网 `61.164.57.61:8088`）。
+内外网地址唯一来源：[internal-registry](internal-registry.md)。

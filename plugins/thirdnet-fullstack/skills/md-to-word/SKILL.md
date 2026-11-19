@@ -3,13 +3,15 @@ name: md-to-word
 description: 将 Markdown 文件转换为 Word (.docx) 文件。当用户需要 md 转 word、markdown 转 docx、生成 word 文档、导出 docx 时使用此技能。
 license: MIT
 metadata:
-  version: "0.1.0"
+  version: "0.1.1"
   author: thirdnet
 ---
 
 # Markdown 转 Word 技能
 
 将用户提供的 Markdown 文件转换为格式良好的 Microsoft Word（.docx）文档。转换脚本 `${CLAUDE_PLUGIN_ROOT}/skills/md-to-word/scripts/md_to_docx.py` 是唯一转换工具——直接调用它，不要手写 docx 生成逻辑。
+
+> 上游场景：常由 `thirdnet-fullstack:thirdnet-doc-generator`（交付文档 Step 5）调用本技能做 Markdown → Word 转换。
 
 ## 执行步骤
 
@@ -102,7 +104,7 @@ python ${CLAUDE_PLUGIN_ROOT}/skills/md-to-word/scripts/md_to_docx.py notes.md ou
 
 1. **文件不存在**：检查输入路径是否正确
 2. **权限错误**：检查文件读取/写入权限
-3. **依赖缺失**：运行 `pip install python-docx markdown`
+3. **依赖缺失**：运行 `pip install python-docx markdown Pillow`
 4. **格式异常**：检查 Markdown 文件是否包含特殊格式
 
 ## 注意事项

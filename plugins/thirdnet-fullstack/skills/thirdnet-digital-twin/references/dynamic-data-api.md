@@ -66,7 +66,7 @@ src/
     └── data/digital-twin.ts                 # ⑤ 纯 Mock 数据（generate_data.py 派生）
 ```
 
-> **Admin 模板宿主**（`create-thirdnet-admin`）的 `api/interfaces/` 是**扁平**结构（无 `manager/` 子目录）——此时把 ② 放 `src/api/interfaces/digital-twin.ts`，③④⑤ 仍按 `manager/` 嵌套。详见 §10。
+> **Admin 模板宿主**（`create-thirdnet-admin`）下契约层 ①–⑤ 全部放扁平路径（`src/api/types/digital-twin.ts`、`src/api/interfaces/digital-twin.ts`、`src/api/modules/digital-twin.ts`、`src/mock/api/digital-twin.ts`、`src/mock/data/digital-twin.ts`——工程内扁平、不按端建子目录，与 `api-typescript-spec` 一致），仅复用宿主已有的 `request.ts` 与环境配置。详见 §10。
 
 **①–④ 从 `assets/api/` 模板逐字拷贝**（仅对齐 import 路径）；⑤ 由 `generate_data.py` 生成。下文给出各文件的**字段形状**（与模板逐字一致，供理解 + 后端对齐字段，不需手写）。
 
@@ -152,7 +152,7 @@ export const digitalTwinApi = createDigitalTwinApi()   // 模块级单例
 
 ### 10a. 宿主是 create-thirdnet-admin 项目（`src/api/request.ts` + `src/config/index.ts` 已存在）
 
-**全部复用**：`request<T>()` 复用 `@/api/request`（Axios 封装，含 token 刷新、401 处理）；`MOCK_ENABLED` 复用 `@/config`；Mock 剥离复用 `mockDataStripPlugin`；`.env` 设 `VITE_MOCK_ENABLED=true`（开发/演示）、生产前改 `false`。接口契约文件 ② 放**扁平**路径 `src/api/interfaces/digital-twin.ts`。只新增 ①③④⑤ 四个数字孪生模块文件。
+**全部复用**：`request<T>()` 复用 `@/api/request`（Axios 封装，含 token 刷新、401 处理）；`MOCK_ENABLED` 复用 `@/config`；Mock 剥离复用 `mockDataStripPlugin`；`.env` 设 `VITE_MOCK_ENABLED=true`（开发/演示）、生产前改 `false`。接口契约文件 ①–⑤ 全部放**扁平**路径（工程内扁平、不按端建子目录，与 `api-typescript-spec` 一致）：`src/api/types/digital-twin.ts`、`src/api/interfaces/digital-twin.ts`、`src/api/modules/digital-twin.ts`、`src/mock/api/digital-twin.ts`、`src/mock/data/digital-twin.ts`——只新增这 5 个数字孪生模块文件。
 
 ### 10b. 宿主是独立最小项目
 

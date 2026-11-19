@@ -45,6 +45,12 @@ Apple 标志性的行内 CTA——透明底、蓝色文字、药丸形容器。
   font: 400 15px 'SF Pro Text', sans-serif; /* 药丸链接字号 14–17px 视场景取 */
 }
 .pill-link:hover { text-decoration: underline; }
+/* 深底变体（Hero 区纯黑背景，对应 SKILL.md §8 Hero 药丸用法）：
+   透明底 + 白色文字 + 1px 白色边框 */
+.pill-link--dark {
+  color: #ffffff;
+  border: 1px solid #ffffff;
+}
 ```
 
 ### 搜索/筛选按钮

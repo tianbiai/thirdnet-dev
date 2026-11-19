@@ -13,7 +13,7 @@
          │     ├── 从 AdminDbContext 查询用户
          │     ├── PBKDF2 验证密码
          │     ├── 检查账户锁定状态
-         │     └── 返回 AccountValidationResult { user_id, role_keys }
+         │     └── 返回 AccountValidationResult { user_id, admin_roles }
          │
          ├── 生成 JWT（包含 user_id claim）
          ├── 缓存用户权限到 Redis
@@ -30,7 +30,7 @@
          │     ├── 检查签名（SM2）
          │     ├── 检查过期时间
          │     ├── 检查 Token 失效时间（TokenCache）
-         │     └── 解析 Claims（user_id, role_keys）
+         │     └── 解析 Claims（user_id, admin_roles）
          │
          ├── AdminControllerBase.OnActionExecuting()
          │     └── OperatorContext.Initialize(userId)
@@ -46,7 +46,7 @@
          │
          ├── PermissionAuthorizationHandler.HandleAsync()
          │     │
-         │     ├── 获取用户的 role_keys（从 JWT Claims）
+         │     ├── 获取用户的 admin_roles（从 JWT Claims）
          │     │
          │     ├── IPermissionProvider.GetPermissionsAsync(roleKeys)
          │     │     │

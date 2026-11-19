@@ -1,23 +1,12 @@
 ---
 name: thirdnet-digital-twin
 description: >
-  根据文字需求、手绘草图、效果图或 Pencil `.pen` 设计源，生成一个**园区数字孪生**（park digital-twin）3D 模块——
-  固定 1920×1080 舞台内的中央 Three.js 场景 + 楼栋切换器 + 点击选中/详情交互（外围留空）。产出 Vue 3 + TypeScript + Three.js
-  场景：按类别上色的楼栋、每栋楼顶常驻名称标签、屏幕图例、完整园区环境（内部道路/地面车位/绿化/周边市政道路/路灯）、
-  POI 兴趣点打点、地下车库多层剖面与楼栋间空中连廊；全部由一份用户确认的 Park Spec 驱动、绝不硬编码园区内容。
-  支持 3 种视觉风格（赛博/写实日景/写实夜景）。2 个深色风格（赛博/写实夜景）均走 Park 驾驶舱同款程序化发光窗流水线——
-  逐层砖错位面板窗、分层点亮（底层 0%/中层/顶层）、暖冷双辉光、dirty-gated 开关灯翻转动画（reduced-motion 关闭）。夜景楼幢立体轮廓走淡色 edgeColor（暗天空下可辨）；
-  支持楼栋类型化外观（spec `buildings[].type`，只区分构造不改变颜色：写字楼 office=横带幕墙冷光+无裙楼 / 居民楼 residential=单元小窗暖光+阳台挑板 / 商业 commercial=大裙楼+底盘灯带橱窗，3 种风格全覆盖）；
-  园区边界内地面不透明、边界外透明（漂浮园区岛，市政道路保留）。
-  数据分层：基础信息静态内联，动态数据（楼幢名/楼层数/楼层详情/POI 点位/**POI 业务详情**）走 `IDigitalTwinApi` 契约层
-  （Mock/Real 工厂，`VITE_MOCK_ENABLED` 切换）。
-  只要用户想 构建 / 生成 / 复刻 / 换肤 一个 园区数字孪生、智慧园区驾驶舱、园区 3D 大屏、数字孪生驾驶舱、社区驾驶舱，
-  或提供了园区/社区的草图/效果图/`.pen` 想得到可运行前端，**就必须使用本技能**（即使没明说「数字孪生」这些词）；
-  同样适用于扩展/修复已存在驾驶舱——接入着色器、加图例、按类别重上色、切换风格、丰富环境、打 POI、把写死数据改走后端 API、
-  增加地下场景/连廊等。
+  从文字需求、手绘草图、效果图或 Pencil `.pen` 设计稿，生成**园区数字孪生**（park digital-twin）3D 模块：固定 1920×1080 舞台内的 Vue 3 + TypeScript + Three.js 场景 + 楼栋切换器，Park Spec 驱动、绝不硬编码。
+  只要用户想 构建 / 生成 / 复刻 / 换肤 园区数字孪生、智慧园区驾驶舱、园区 3D 大屏、数字孪生驾驶舱、社区驾驶舱，或提供园区/社区的草图/效果图/`.pen` 想得到可运行前端，**就必须使用本技能**（即使没明说「数字孪生」）；
+  也适用于扩展/修复已存在驾驶舱——加图例、按类别重上色、切换风格（赛博/写实日景/写实夜景）、打 POI、写死数据改走后端 API、加地下场景/连廊等。
 license: MIT
 metadata:
-  version: "2.32.0"
+  version: "2.32.1"
   author: park-cockpit
 compatibility: Vue 3 + TypeScript + Vite + Three.js 项目；赛博风格消费 WebGL 片段着色器（`gridGround.glsl` 网格地面）。动态数据契约层遵循 `api-typescript-spec`（`IDigitalTwinApi` + Real/Mock 工厂，`VITE_MOCK_ENABLED` 切换）。可在范例仓库、create-thirdnet-admin 项目或任何最小化的 Vite+Vue+Three 脚手架中运行。
 ---
@@ -57,6 +46,9 @@ python scripts/validate_spec.py spec.json
 生成前修掉每一个 `FAIL:`。展示摘要（标题、楼栋、车库入口、风格、环境元素、POI 清单），确认后继续。
 
 ### 4. 生成数据层
+
+> 首次 Write `src/` 下任何文件前，先通过 Skill 工具调用 `thirdnet-fullstack:vue-best-practices` 与 `thirdnet-fullstack:api-typescript-spec`（新建 `.vue` 组件另需 `thirdnet-fullstack:frontend-design`），满足本插件 PreToolUse 钩子的技能强制要求。
+
 数据分两层（详见 `references/dynamic-data-api.md`）：**基础信息静态内联**，**动态数据 API 化**。两个数据产物都由脚本确定性生成：
 ```bash
 python scripts/generate_data.py spec.json --out-dir <项目根>      # → src/data/<park>.ts + src/mock/data/digital-twin.ts
@@ -70,7 +62,7 @@ python scripts/generate_theme.py <style> --out <项目根>/src/styles/tokens.css
 **先读 `references/park-scene-impl.md`，然后以 `assets/park-scene.impl.ts` 为基线「拷贝-改」产出 `src/scene/ParkScene.ts`**——同时拷贝 `assets/building-geometry.ts`（楼栋几何装配单一事实来源）、`assets/gridGround.glsl`（cyber 网格地面）。**不要从散文合成渲染管线**——范式实现已落地全部防黑屏项 + 写实增强层；只需替换脚手架数据源、按 `spec.style` 选 profile（**不要手改 PROFILES 表**），逐风格观感改 `assets/themes/<style>.tokens.json`。设计原理见 `references/scene-recipe.md`（§2 渲染器、§3 地面）与 `references/styles.md`。
 
 ### 6. 生成舞台 + 楼栋切换器
-2D 层全部从 `assets/components/` 拷贝范式文件（清单见 `references/shell.md`）：`GlobalTwin/CenterStage/BuildingSwitcher/UnitDetail/GarageCard/LegendPanel/PoiOverlay/TourToggleButton/StyleSwitcher.vue`（9 个）+ `useSelection/useScaleBoard/useTwinData/useTour/useStyle.ts`（5 个）+ `theme.ts`。同时把 `assets/themes/*.tokens.json` 4 个文件拷到 `src/scene/themes/`。组件 CSS 全走 `var(--twin-*)`，零 hex 字面量；风格观感差异由 token `ui` 块驱动。**不生成 TopBar、角括号或任何外围数据面板；舞台左右与底部留空**。
+2D 层全部从 `assets/components/` 拷贝范式文件（清单见 `references/shell.md`）：`GlobalTwin/CenterStage/BuildingSwitcher/UnitDetail/GarageCard/LegendPanel/PoiOverlay/TourToggleButton/StyleSwitcher.vue`（9 个）+ `useSelection/useScaleBoard/useTwinData/useTour/useStyle.ts`（5 个）+ `theme.ts`。同时把 `assets/themes/*.tokens.json` 3 个文件（cyber / night-realistic / realistic）拷到 `src/scene/themes/`。组件 CSS 全走 `var(--twin-*)`，零 hex 字面量；风格观感差异由 token `ui` 块驱动。**不生成 TopBar、角括号或任何外围数据面板；舞台左右与底部留空**。
 
 ### 7. 接入切换器 + 选中
 选中接线已固化在拷贝的 `GlobalTwin.vue` + `useSelection.ts` 里——**不要临场改写**（铁律见 `references/scene-recipe.md §8`：楼层点击只调 `selectFloor`、相机聚焦走 `watch(focusedBuildingId)`、点空白 `clearFocus`）。
@@ -135,7 +127,7 @@ v2.17 起**程序化发光窗流水线覆盖全部 2 个深色风格**（cyber/n
 ## 约定
 
 - **Vue 3 `<script setup lang="ts">`**，Composition API，严格 TS。除非项目已存在，否则不用 router/pinia。
-- **开发服务器端口 3000。** 脚本：`dev`、`build`（`vue-tsc --noEmit && vite build`）、`typecheck`。
+- **开发服务器端口 3000**（独立脚手架默认；嵌入 Admin 模板宿主时沿用宿主端口，Admin 模板 dev 端口为 3009）。脚本：`dev`、`build`（`vue-tsc --noEmit && vite build`）、`typecheck`。
 - **字体**：Noto Sans SC（中文）+ Rajdhani（拉丁/数字），来自 Google Fonts。
 - **固定 1920×1080 舞台**，通过 `useScaleBoard` 信箱式缩放（非响应式）。
 - **数据分层**：基础信息静态内联，动态数据走 `IDigitalTwinApi`（GET-only、snake_case、响应无 `{code,message,data}` 信封；`VITE_MOCK_ENABLED` 字符串 `"true"`/`"false"` 切 Mock/Real——**非** `VITE_USE_MOCK`）。

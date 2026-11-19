@@ -35,7 +35,7 @@ builder.HasIndex("brand_expr")
     // EF Core 不直接支持表达式索引，迁移中手写：
     ;
 // 对应原生 SQL（放在迁移文件里）：
-// CREATE INDEX idx_product_brand ON order.t_product ((extra_info->>'brand'));
+// CREATE INDEX idx_product_brand ON order_.t_product ((extra_info->>'brand'));
 ```
 
 ### 1.2 覆盖索引（INCLUDE）
@@ -175,10 +175,10 @@ xmin 乐观并发（自动注册）+ 安全写操作用 `Serializable` 隔离 + 
 
 ```sql
 -- 单语句原子认领并置位
-UPDATE order.t_job
+UPDATE order_.t_job
 SET status = 'processing', worker_id = @worker, claimed_at = NOW()
 WHERE id = (
-    SELECT id FROM order.t_job
+    SELECT id FROM order_.t_job
     WHERE status = 'pending'
     ORDER BY id
     FOR UPDATE SKIP LOCKED

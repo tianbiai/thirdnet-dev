@@ -80,6 +80,8 @@ public class DataSyncTask : BackgroundRunner
 }
 ```
 
+> **命名约定**：自定义后台任务类与文件统一以 `Task` / `Job` / `Worker` 结尾（如 `DataSyncTask.cs`）——与插件 PreToolUse 钩子的技能强制匹配模式对齐（内置的 Logger/Runner 后缀任务为框架模板存量，不算范例）。
+
 ### 2. 注册服务
 
 在 `Startup.cs` 的 DI 管道中注册后台任务。根据是否需要暴露接口，分为两种模式：
@@ -109,7 +111,7 @@ services.AddHostedService(sp => sp.GetRequiredService<DataSyncTask>());         
 
 ## Scoped 服务模式
 
-`BackgroundRunner` 注册为 Singleton，无法直接注入 Scoped 服务（如 DbContext、缓存域）。必须通过 `IServiceScopeFactory` 创建作用域：
+`BackgroundRunner` 注册为 Singleton，无法直接注入 Scoped 服务（如 DbContext）；缓存域虽为 Singleton，但示例统一经 scope 解析，以与 DbContext 作用域一致。必须通过 `IServiceScopeFactory` 创建作用域：
 
 ```csharp
 public class DataSyncTask : BackgroundRunner

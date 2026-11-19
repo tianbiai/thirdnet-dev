@@ -9,7 +9,7 @@ description: >
   或功能开发收尾时，必须使用此技能。支持 SVN（未提交 / 最近提交）与 git 变更范围自动识别。
 license: MIT
 metadata:
-  version: "1.2.0"
+  version: "1.2.1"
   author: thirdnet
 ---
 
@@ -26,7 +26,7 @@ metadata:
 ## 何时触发 / 与钩子的关系
 
 - **手动**：用户说“审查 / 验证 / review / 代码评审 / 上线前检查 / 功能做完了检查一下”时调用本技能（Skill 工具 `thirdnet-fullstack:fullstack-review`）。
-- **自动**：本插件已扩展第 3 个 **Stop Hook**——当会话涉及前后端功能性代码变更（`backend/**/*.cs` 或 `frontend/**/src/**/*.{vue,ts,tsx}`）且尚未通过本技能审查时，会在收尾时阻断并提示调用本技能。审查报告无 Critical/Major 后方可放行。
+- **自动**：本插件已扩展第 3 个 **Stop Hook**——当会话涉及前后端功能性代码变更（`backend/**/*.cs`、`**/*.csproj`、`**/src/**/*.vue|ts|tsx`——按 Write/Edit 输入路径判定）且尚未通过本技能审查时，会在收尾时阻断并提示调用本技能。审查报告无 Critical/Major 后方可放行；用户明确要求跳过审查时 Hook 放行。
 
 > 因此审者要明白：本技能不是“可选的 nice-to-have”，而是交付闭环的强制一环；但它的产出是**报告与修改方案**，默认**不自动改码**——是否修复由用户决定。
 
@@ -49,7 +49,7 @@ metadata:
 |------|------|--------------|
 | **未提交**（默认） | 当前工作区改动（最贴合“刚写完”） | `svn status` + `svn diff` |
 | **最近提交** | 一段时间内的提交（按次数或日期） | `svn log -l N --verbose` 或 `svn diff -r {YYYY-MM-DD}:HEAD` |
-| **整个项目** | 全量扫描 | 递归扫 `backend/` + `frontend/src/` |
+| **整个项目** | 全量扫描 | 递归扫 `backend/` + `frontend/*/src/` |
 
 无 `.svn` 时回退到 git（`git status --porcelain` / `git diff` / `git log`）；二者皆无则全项目扫描。用户也可直接指定模块名（如 `notice`）或路径列表覆盖自动检测。
 
@@ -95,7 +95,7 @@ metadata:
 
 ## 报告输出
 
-- 写入 `review-report.md`：默认放被审模块的 docs 目录（如 `backend/{Project}.Admin/docs/review-report.md` 或 `frontend/web/docs/review-report.md`）；跨模块/全项目审查放仓库根 `review-report.md`。多次审查覆盖上一次（或按日期归档，由用户定）。
+- 写入 `review-report.md`：默认放被审模块的 docs 目录（如 `backend/{Project}.Admin/docs/review-report.md` 或 `frontend/web/docs/review-report.md`）；跨模块/全项目审查放仓库根 `review-report.md`。多次审查覆盖上一次（或按日期归档，由用户定）；无论是否归档，固定保留一份原名 `review-report.md` 在输出目录（Stop Hook 按此文件名字面校验）。
 - 对话内摘要：审查范围、各级别问题数、最严重的 3-5 条、阻断结论（pass/fail）、下一步建议。
 - 报告必须含 7 段：①审查概要 ②严重级别统计 ③问题清单（按维度分组）④整体优缺点 ⑤歧义与待确认 ⑥修改方案汇总（优先级排序 action list）⑦阻断结论。完整模板见 [references/report-format](references/report-format.md)。
 
@@ -103,9 +103,9 @@ metadata:
 
 这是单侧审查最容易漏、出问题代价最大的一维，必须专门做：
 
-- **类型映射逐字段对照**：前端的 `{Entity}Item` / `{Entity}QueryParams` / `{Entity}CreateParams` / `{Entity}UpdateParams` 与后端的 `{Entity}ItemMap` / `{Entity}QueryMap` / `{Entity}CreateMap` / `{Entity}UpdateMap` 字段一一对应（名称、类型、可空、枚举值）。类型对照：`number`↔`long`、`string`↔`string`/`DateTime`(ISO 8601)、`boolean`↔`bool`、`enum`↔`enum`(值同)；分页 `PaginatedResponse<T>`↔`PageListInfo<List<T>>`（字段 `list`/`total`/`index`/`pages` 一致）。
+- **类型映射逐字段对照**：前端的 `{Entity}Item` / `{Entity}QueryParams` / `{Entity}CreateParams` / `{Entity}UpdateParams` 与后端的 `{Entity}ItemMap` / `{Entity}QueryMap` / `{Entity}CreateMap` / `{Entity}UpdateMap` 字段一一对应（名称、类型、可空、枚举值）。其中 `{Entity}Item` ↔ `{Entity}Item{Endpoint}Map`——端特定 DTO 带端段（如 `ItemManagerMap`），仅 `DTOs/Shared` 跨端共用 DTO 不带端段。类型对照：`number`↔`long`、`string`↔`string`/`DateTime`(ISO 8601)、`boolean`↔`bool`、`enum`↔`enum`(值同)；分页 `PaginatedResponse<T>`↔`PageListInfo<List<T>>`（字段 `list`/`total`/`index`/`pages` 一致）。
 - **权限串逐字比对**：前端 `v-permission="['sys:notice:add']"` 与后端 `[PermissionAuthorize("sys:notice:add")]` 必须逐字一致；遗漏任何一侧会导致按钮不显示或接口 403。
-- **URL action ≠ 权限 action**：URL 用 `/detail` `/update` `/delete`；权限 action 用 `query` `edit` `remove`。混用（如把详情权限写成 `sys:notice:detail`）是典型 bug。
+- **URL 路由 ≠ 权限 action**：URL 详情用 `GET /{module}/{id}`（id 路径段）、删除用 `POST /{module}/delete/{id}`（与后端 `net-api-developer` 端点模板一致）；权限 action 常用 `list` / `query` / `add` / `edit` / `remove`（+模块特例，以 `[PermissionAuthorize]` 实际标注为准）。混用（如把详情权限写成 `sys:notice:detail`）是典型 bug。
 - **snake_case 全链路**：前端字段名、mock 数据、后端 DTO 属性、`[JsonPropertyName]`、DB 列名保持一致。
 - **`约定同步检查清单` 7 项**：HTTP 方法、字段命名、响应格式、DTO 后缀、认证流程、权限串格式、API 路由格式——任一改动必须两侧同步。
 
@@ -113,11 +113,12 @@ metadata:
 
 审查按**项目内一致性**判定，而非把技能里的某处写法当作全局铁律。以下已知分歧，**只 flag 项目内不一致**，不要判 Critical：
 
-1. **`/add` vs `/create` 创建端点 URL**——`api-typescript-spec` 的 URL 表写 `/create`，而 `thirdnet-fullstack` 协调技能派发示例与 `frontend-developer` 子代理用 `/add`。被审模块只要**自身前后端一致**即可（前端调 `/add`、后端路由也是 `/add`）；不一致才是 Major。
+1. **`/add` vs `/create` 创建端点 URL**——`api-typescript-spec` 的 URL 表写 `/create`，而 `thirdnet-fullstack` 协调技能派发示例用 `/add`；`frontend-developer` 允许 `/add` 或 `/create`（二选一，模块内一致，与后端 `net-api-developer` 端点模板对齐）。被审模块只要**自身前后端一致**即可（前端调 `/add`、后端路由也是 `/add`）；不一致才是 Major。
 2. **`IAuthApi` 字段**——以 `api/interfaces/auth.ts` 实际契约为准，不按 reference 文档的形状判错。
 3. **`online-user` 无独立后端 Controller**——前端 `online-user` 模块只管心跳，list/kick 走 `user.ts`。不要报“缺失 `OnlineUserManagerController`”。
 4. **Controller 的 `Sys` 前缀**——多数 Controller 是 `{Entity}ManagerController`（无 `Sys`），仅 `SysConfigManagerController` 等少数带前缀。读实际类名判定，不要假设必须带或不带 `Sys`。
 5. **`vue-jsx-best-practices` 用单数 `reference/` 目录**——历史决策（CHANGELOG 1.7.0），非笔误。
+6. **DTO 端段**——`net-api-developer` 规定端特定 DTO 带端段（`{Entity}{Action}{Endpoint}Map`），仅 `DTOs/Shared` 跨端共用 DTO 不带端段；跨端对照时按项目实际类名判定，不按无端段字面判错。
 
 > 原则：当技能与技能之间、或技能与项目代码之间出现矛盾，**以项目实际既定约定为准**，把矛盾作为「歧义与待确认」上报，而不是强行按某一条判错。
 

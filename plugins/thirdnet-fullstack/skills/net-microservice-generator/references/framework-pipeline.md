@@ -11,7 +11,7 @@
 | MVC | `CustomExceptionFilter` | 全局异常，`WebApiException` 返回对应 HTTP 状态码 |
 | MVC | `ValidateModelAttribute` | 自动校验 ModelState |
 | MVC | JSON 序列化 | 小写策略 + DateTime 转换器 |
-| 认证 | Basic + Bearer | 双层认证 |
+| 认证 | Basic + Bearer + API Key | 三层认证（ApiKey handler 由应用层注册 IApiKeyValidator 启用，见 net-auth） |
 | 授权 | 四个策略 | Default、Logon、Basic、Both |
 | 授权 | 通配符授权 | 支持角色通配符 `*` |
 | 缓存 | 应用/IP/角色缓存 | 内存缓存 |

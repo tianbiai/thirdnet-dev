@@ -31,6 +31,7 @@ public class OrderConfiguration : IEntityTypeConfiguration<OrderModel>
 {
     public void Configure(EntityTypeBuilder<OrderModel> builder)
     {
+        // 显式 schema（微服务场景未设 HasDefaultSchema 时的写法；设了 HasDefaultSchema 则无需重复指定，见 dbcontext-and-queries）
         builder.ToTable("t_order", "order", t => t.HasComment("订单表"));
         builder.HasKey(x => x.id);
 

@@ -1,15 +1,11 @@
 ---
 name: api-typescript-spec
 description: >
-  前端 API 接口 TypeScript 全流程规范，基于接口契约的策略工厂模式（Interface Contract + Strategy Factory）。
-  指导创建类型定义、接口契约、真实实现（RealXxxApi 适配 HTTP）、Mock 实现、工厂函数（createXxxApi），
-  Real/Mock 可互换。当用户需要创建 API 接口、添加接口模块、编写 Mock 数据、定义请求类型、设置 API 层架构，
-  或任何涉及 api/ 与 mock/ 目录的操作时，必须使用此技能。
-  触发词：API、接口、Mock、请求、adapter、类型定义、DTO、策略模式、工厂模式、接口契约、IXxxApi、
-  manager、app、cockpit、third、管理端、用户端、驾驶舱、第三方对接、管理后台、小程序、frontend/web、frontend/minigram、frontend/cockpit、按工程分端、URL 前缀。
+  前端 API 接口 TypeScript 规范（Interface Contract/Strategy Factory）：RealXxxApi/Mock、createXxxApi，Real/Mock 互换；涉及 api/、mock/ 或 API 层架构时必须使用。
+  触发词：API、接口、Mock、请求、adapter、类型定义、DTO、策略模式、工厂模式、接口契约、IXxxApi、管理端、用户端、驾驶舱、第三方对接、管理后台、小程序、frontend/web、frontend/minigram、frontend/cockpit、按工程分端、URL 前缀。
 license: MIT
 metadata:
-  version: "2.4.0"
+  version: "2.5.0"
   author: thirdnet
 ---
 
@@ -155,10 +151,11 @@ interface ApiError { status: number; message: string }
 | 操作 | URL 模式 | 方法 |
 |------|---------|------|
 | 列表 | `/api/{endpoint}/{module}/list` | GET |
-| 详情 | `/api/{endpoint}/{module}/detail` | GET |
+| 详情 | `/api/{endpoint}/{module}/{id}` | GET（id 为路径段，与后端 `[HttpGet("{id}")]` 一致） |
 | 创建 | `/api/{endpoint}/{module}/create` | POST |
 | 更新 | `/api/{endpoint}/{module}/update` | POST |
-| 删除 | `/api/{endpoint}/{module}/delete` | POST |
+| 删除 | `/api/{endpoint}/{module}/delete/{id}` | POST（id 为路径段，与后端 `[HttpPost("delete/{id}")]` 一致） |
+| 批量删除 | `/api/{endpoint}/{module}/delete-batch` | POST |
 | 自定义 | `/api/{endpoint}/{module}/{action}` | POST |
 
 `{endpoint}` 由**工程所属端**决定（admin 工程=`manager`、小程序工程=`app`、驾驶舱工程=`cockpit`、第三方=`third`），小写、与后端路由前缀一致——是工程级常量，并非目录维度。
@@ -222,7 +219,7 @@ import type { PaginatedResponse } from '@/api/types/common'
 
 export interface IOrderApi {
   getOrderList(params: OrderQueryParams): Promise<PaginatedResponse<OrderItem>>
-  getOrderDetail(params: { id: number }): Promise<OrderItem>
+  getOrderDetail(id: number): Promise<OrderItem>
   createOrder(data: OrderCreateParams): Promise<OrderItem>
 }
 ```
@@ -250,8 +247,8 @@ class RealOrderApi implements IOrderApi {
       url: '/api/app/order/list', method: 'GET', params,
     })
   }
-  async getOrderDetail(params: { id: number }) {
-    return request<OrderItem>({ url: '/api/app/order/detail', method: 'GET', params })
+  async getOrderDetail(id: number) {
+    return request<OrderItem>({ url: `/api/app/order/${id}`, method: 'GET' })
   }
   async createOrder(data: OrderCreateParams) {
     return request<OrderItem>({ url: '/api/app/order/create', method: 'POST', data })
@@ -316,9 +313,9 @@ export class MockOrderApi implements IOrderApi {
     const start = (page_index - 1) * page_size
     return { list: mockOrderList.slice(start, start + page_size), total: mockOrderList.length, index: page_index, pages: Math.ceil(mockOrderList.length / page_size) }
   }
-  async getOrderDetail(params: { id: number }): Promise<OrderItem> {
-    const item = mockOrderList.find(i => i.order_id === params.id)
-    if (!item) throw new Error(`Order ${params.id} not found`)
+  async getOrderDetail(id: number): Promise<OrderItem> {
+    const item = mockOrderList.find(i => i.order_id === id)
+    if (!item) throw new Error(`Order ${id} not found`)
     return item
   }
   async createOrder(data: OrderCreateParams): Promise<OrderItem> {
@@ -350,7 +347,9 @@ export class MockOrderApi implements IOrderApi {
 ```typescript
 // src/config/index.ts
 export const MOCK_ENABLED = import.meta.env.VITE_MOCK_ENABLED === 'true'
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? '/api'
+// API_BASE_URL 默认空串：Real 实现的 url 已写完整前缀（/api/...），适配器直接 baseURL+url 拼接——
+// 若默认设 '/api' 会拼出 /api/api/manager/... 双前缀（与 digital-twin 范例 config 一致）
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? ''
 ```
 
 #### 环境文件

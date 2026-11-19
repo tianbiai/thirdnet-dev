@@ -1,0 +1,11 @@
+# 统一行尾为 LF：消除源码仓库（CRLF 为主）与插件安装缓存（LF）的全量假差异
+# 存量文件需执行一次 git add --renormalize . 并单独提交
+* text=auto eol=lf
+
+# 二进制文件不做行尾转换
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary

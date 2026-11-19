@@ -1,15 +1,11 @@
 ---
 name: vue-enum-dict
 description: >
-  ThirdNet 前端枚举字典与自定义字典使用规范。区分两类字典：枚举字典
-  （dict_source=0，int，useDict）与自定义字典（dict_source=1，string，getDictDataByType）。
-  覆盖表单下拉、表单提交（提交数值/字符串，禁止提交 label）、表格列（直接用后端 *_label）、
-  筛选下拉四个场景，含前后端速查对照表。当用户涉及"下拉选项"、"枚举字典"、"自定义字典"、
-  "useDict"、"getDictDataByType"、"el-select"、"*_label"、"dict_type"、"int 还是 string"、
-  "加个下拉"时，必须使用此技能。
+  ThirdNet 前端枚举字典与自定义字典使用规范：枚举字典（dict_source=0，int，useDict）与自定义字典（dict_source=1，string，getDictDataByType），覆盖表单下拉、表单提交（禁止提交 label）、表格列（直接用后端 *_label）、筛选下拉场景。
+  当用户涉及"下拉选项"、"枚举字典"、"自定义字典"、"useDict"、"getDictDataByType"、"el-select"、"*_label"、"dict_type"、"int 还是 string"、"加个下拉"时，必须使用此技能。
 license: MIT
 metadata:
-  version: "1.0.1"
+  version: "1.0.2"
   author: thirdnet
 ---
 
@@ -17,7 +13,7 @@ metadata:
 
 > 后端配套规范见 **`net-enum-dict`** 技能。
 >
-> 兼容性：Vue 3 + TypeScript + Element Plus（Web 端）。
+> 兼容性：Vue 3 + TypeScript + Element Plus（Web 端）。本技能规范基于 Web 端（/api/manager + Element Plus）；小程序工程（frontend/minigram，/api/app + Vant）的字典场景勿照搬本文 Element Plus 用法，接口路径按工程所属端替换。
 
 ## 概览：两条路径不混用
 
@@ -60,10 +56,11 @@ const form = reactive({ priority: 0 as number })   // ← number
 
 <template>
   <el-select v-model="form.priority">
+    <!-- :value 是 int，与 form.priority(number) 严格相等，勿写成字符串 -->
     <el-option
       v-for="o in options"
       :key="o.value"
-      :value="o.value"     <!-- int，与 form.priority(number) 严格相等 -->
+      :value="o.value"
       :label="o.label"
     />
   </el-select>
@@ -101,10 +98,11 @@ onMounted(async () => {
 
 <template>
   <el-select v-model="form.user_source" placeholder="请选择来源">
+    <!-- :value 是 string，与 form.user_source(string) 严格相等 -->
     <el-option
       v-for="o in sourceOptions"
       :key="o.dict_value"
-      :value="o.dict_value"      <!-- string，与 form.user_source 严格相等 -->
+      :value="o.dict_value"
       :label="o.dict_label"
     />
   </el-select>

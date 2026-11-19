@@ -5,7 +5,7 @@
 ## 文件放置位置
 
 - **Web应用**：`public/marked.min.js`
-- **小程序应用**：`static/marked.min.js`
+- **小程序应用**：`src/static/marked.min.js`
 
 ## 获取方式
 
@@ -18,7 +18,7 @@
 curl -o public/marked.min.js https://cdn.jsdelivr.net/npm/marked/marked.min.js
 
 # 小程序应用
-curl -o static/marked.min.js https://cdn.jsdelivr.net/npm/marked/marked.min.js
+curl -o src/static/marked.min.js https://cdn.jsdelivr.net/npm/marked/marked.min.js
 ```
 
 或手动下载：访问 https://cdn.jsdelivr.net/npm/marked/marked.min.js，保存到对应目录。
@@ -36,7 +36,7 @@ npm install marked
 cp node_modules/marked/marked.min.js public/
 
 # 小程序应用
-cp node_modules/marked/marked.min.js static/
+cp node_modules/marked/marked.min.js src/static/
 ```
 
 ## 版本信息

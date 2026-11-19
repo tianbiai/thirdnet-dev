@@ -2,7 +2,7 @@
 
 `thirdnet-template-upgrade` 技能里"AI 充当判定者与合并器"的权威规范——工作目录（对比素材）格式、`meta.json` 全字段、角色分类规则、判定/合并/flag 纪律、以及合并后的 **AI 影响分析（推理维度 + 等级映射 + `risk-items[]`）**。
 
-> **本版（v0.8.0）责任模型**：工具只出对比素材（`diff` / `export-merge`）；AI 读这些素材做判定，并用 Edit/Write **直接改项目文件**，**不写 workdir 的 `merged`/`declined`、不跑 `import-merge`**。workdir 退化为只读素材源。旧的工具落盘路径（import-merge / merge-workdir）见文末「遗留」，AI 主导模式下不用。
+> **v0.8.0 引入（现行）**的责任模型：工具只出对比素材（`diff` / `export-merge`）；AI 读这些素材做判定，并用 Edit/Write **直接改项目文件**，**不写 workdir 的 `merged`/`declined`、不跑 `import-merge`**。workdir 退化为只读素材源。旧的工具落盘路径（import-merge / merge-workdir）见文末「遗留」，AI 主导模式下不用。
 
 ## 工作目录布局（只读素材）
 

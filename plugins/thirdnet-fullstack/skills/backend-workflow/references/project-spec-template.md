@@ -51,10 +51,10 @@
 
 | 方法 | 路由 | Controller | 功能 | 优先级 | 认证 |
 |------|------|------------|------|--------|------|
-| POST | `/api/[module]/[resource]/create` | `[Resource]ManagerController` | 创建资源 | P0 | ✅ |
-| POST | `/api/[module]/[resource]/update` | `[Resource]ManagerController` | 更新资源 | P0 | ✅ |
-| POST | `/api/[module]/[resource]/delete` | `[Resource]ManagerController` | 删除资源 | P0 | ✅ |
-| GET | `/api/[module]/[resource]` | `[Resource]ManagerController` | 获取资源 | P0 | ✅ |
+| POST | `/api/manager/[module]/[resource]/create` | `[Resource]ManagerController` | 创建资源 | P0 | ✅ |
+| POST | `/api/manager/[module]/[resource]/update` | `[Resource]ManagerController` | 更新资源 | P0 | ✅ |
+| POST | `/api/manager/[module]/[resource]/delete` | `[Resource]ManagerController` | 删除资源 | P0 | ✅ |
+| GET | `/api/manager/[module]/[resource]/{id}` | `[Resource]ManagerController` | 获取资源 | P0 | ✅ |
 
 ### 数据模型
 

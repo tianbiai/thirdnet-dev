@@ -6,14 +6,14 @@
 2. [ServiceDbContext 模板](#service-dbcontext-模板)
 3. [DbContext 注册](#dbcontext-注册)
 4. [连接字符串配置](#连接字符串配置)
-5. [迁移自动应用](#迁移自动应用)
+5. [迁移自动应用](#迁移自动应用--database-update-无需手动执行)
 6. [原生 SQL 查询模式](#原生-sql-查询模式)
 
 ---
 
 ## AdminDbContext 模板
 
-AdminDbContext 使用 `HasDefaultSchema("admin")`，所有表自动归属 admin schema：
+AdminDbContext 使用 `HasDefaultSchema("admin")`，所有表自动归属 admin schema（含 timestamptz 全局约定，新实体零配置即合规——见主技能方法一）：
 
 ```csharp
 using Microsoft.EntityFrameworkCore;
@@ -42,6 +42,14 @@ namespace {ProjectName}.Admin.Database
             foreach (var entityType in modelBuilder.Model.GetEntityTypes())
                 modelBuilder.Entity(entityType.ClrType, b =>
                     b.Property<uint>("xmin").IsRowVersion().ValueGeneratedOnAddOrUpdate());
+
+            // timestamptz 全局约定（主技能方法一）— DateTime/DateTime? 属性统一映射为 timestamptz
+            foreach (var prop in modelBuilder.Model.GetEntityTypes()
+                .SelectMany(e => e.GetProperties())
+                .Where(p => p.ClrType == typeof(DateTime) || p.ClrType == typeof(DateTime?)))
+            {
+                prop.SetColumnType("timestamptz");
+            }
         }
     }
 }
@@ -150,14 +158,16 @@ public class SomeService
 
 > **注意**：ThirdNet 框架约定使用 `ConnectionString`（非 `DefaultConnectionString`）作为主业务数据库的连接字符串。`DefaultConnectionString` 由框架内部管理，开发者通常无需直接操作。
 
-## 迁移自动应用
+## 迁移自动应用 —— `database update` 无需手动执行
 
-**禁止手动执行迁移命令**。框架通过 `InitializeDatabasesAsync()` 在应用启动时自动应用迁移：
+框架通过 `InitializeDatabasesAsync()` 在应用启动时自动应用迁移（自动发现所有已注册 DbContext 并执行 `Database.Migrate()`）。迁移文件的创建（`dotnet ef migrations add`）仍按主技能『迁移命令』手动执行；显式回滚到指定迁移仅本地调试使用。
 
 ```csharp
 // 在 Program.cs 中（Admin 项目）
 var host = AdminHostBuilder.BuildAdminWebHost<Startup>(args);
 await host.InitializeDatabasesAsync();           // 框架数据库自动迁移
+await host.InitializeFunctionTableAsync();        // 功能表初始化
+await host.InitializePermissionCatalogTableAsync(); // 权限目录自动同步
 await host.RunAsync();
 
 // 在 Program.cs 中（Service 项目）
@@ -165,8 +175,6 @@ var host = AdminHostBuilder.BuildAdminWebHost<Startup>(args);
 await host.InitializeDatabasesAsync();
 await host.RunAsync();
 ```
-
-`InitializeDatabasesAsync` 会自动发现所有已注册的 DbContext 并执行 `Database.Migrate()`。
 
 ## 原生 SQL 查询模式
 

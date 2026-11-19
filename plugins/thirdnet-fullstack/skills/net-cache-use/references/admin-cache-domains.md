@@ -28,4 +28,4 @@ Admin 项目已提供一组缓存域（生成项目 `Tools/{ProjectName}.Cache/D
 | `OnlineCache` | `BatchCheckOnlineStatus` | 在线状态（心跳驱动）。**例外**：`OnlineCache` 不继承 `RedisCacheManager`、无 Read-Through 语义，构造时直接注入 `IDatabase` |
 | `ApiKeyCache` | `GetByHash`/`RemoveKey` | API Key SHA256 哈希验证；key `admin.apikey.hash.{hash[:16]}`，TTL 8h |
 
-> 新增业务实体才需要新建 `{Entity}Cache`；系统级数据优先复用上表。完整类清单见 [能力目录](../backend-workflow/references/framework-and-template-catalog.md)「缓存域」。
+> 新增业务实体才需要新建 `{Entity}Cache`；系统级数据优先复用上表。完整类清单见 [能力目录](../../backend-workflow/references/framework-and-template-catalog.md)「缓存域」。

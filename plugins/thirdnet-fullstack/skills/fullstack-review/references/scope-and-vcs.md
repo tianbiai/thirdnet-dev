@@ -11,7 +11,7 @@
 ```
 if 存在 .svn 目录或 svn info 可成功执行 → SVN 模式
 elif 存在 .git 目录 → git 模式
-else → 无 VCS，全项目扫描 backend/ + frontend/src/
+else → 无 VCS，全项目扫描 backend/ + frontend/*/src/
 ```
 
 - **SVN**：检查 `.svn/`（工作副本根有，子目录也有）；或运行 `svn info` 看是否返回仓库信息。

@@ -22,16 +22,10 @@ Steps to design an adaptable composable in Vue.js:
 
 ### Type Utilities
 
-```ts
-/**
- * value or writable ref (value/ref/shallowRef/writable computed)
- */
-export type MaybeRef<T = any> = T | Ref<T> | ShallowRef<T> | WritableComputedRef<T>;
+Both types are built into Vue (3.3+). Always import them from `'vue'` instead of redefining custom copies:
 
-/**
- * MaybeRef<T> + ComputedRef<T> + () => T
- */
-export type MaybeRefOrGetter<T = any> = MaybeRef<T> | ComputedRef<T> | (() => T);
+```ts
+import type { MaybeRef, MaybeRefOrGetter } from 'vue'
 ```
 
 ### Policy and Rules
@@ -63,7 +57,7 @@ export function useDocumentTitle(title: MaybeRefOrGetter<string>) {
 Adaptable `useCounter` Composable: two-way writable count parameter
 
 ```ts
-import { watch, toRef } from 'vue'
+import { toRef } from 'vue'
 import type { MaybeRef } from 'vue'
 
 function useCounter(count: MaybeRef<number>) {

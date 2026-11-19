@@ -1,14 +1,13 @@
 ---
 name: frontend-workflow
 description: >
-  前端开发完整工作流程与规范：强制执行规则、需求澄清、项目结构检查、文档驱动开发
-  （plan/changelog/spec → 编码 → 校验）、技术栈版本、演示模式控制、文档模板与交付校验清单。
-  管理后台默认用 admin-template-setup 创建，用户端/小程序走手动初始化。当执行前端开发任务时必须使用，
-  尤其是新建前端项目、创建页面规格、生成 changelog/viewer、校验交付物。即使任务简单也需遵循，
-  以保证代码与文档一致。
+  前端开发工作流程与规范：需求澄清、文档驱动（plan/changelog/spec）、演示模式控制、技术栈强制分工。
+  微信小程序/C 端移动应用一律 uniapp + Vant（禁止原生小程序、Taro）；管理后台（Admin）与用户 Web 一律
+  thirdnet Vue 栈（create-thirdnet-admin + Element Plus）；后端 .NET 由 backend-workflow 负责。
+  当执行前端开发任务时必须使用，尤其是新建前端项目、创建页面规格、生成 changelog/viewer、校验交付物。
 license: MIT
 metadata:
-  version: "2.4.0"
+  version: "2.6.0"
   author: thirdnet
 ---
 # 前端开发工作流
@@ -18,6 +17,22 @@ metadata:
 ## 相关技能
 
 涉及前后端协同时配合：`thirdnet-fullstack`（全栈协调：后端 DTO → 前端类型映射、RBAC 桥接、开发顺序）与 `thirdnet-fullstack:backend-workflow`（后端开发入口、`dotnet new thirdnet-admin` 创建后端项目）。
+
+## 平台技术栈分工总则（强制）
+
+**框架由平台决定，是固定映射，不进入需求澄清议题、不由代理或用户另行选型**：
+
+| 目标平台                                   | 强制技术栈                                              | 创建方式                                                                                   |
+| ------------------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| 微信小程序 / C 端移动应用（H5 + 小程序双端） | **uniapp**（Vue 3.4 + Vite 5 + Pinia 2；组件库双端策略：H5 用 Vant 4、微信小程序用 @vant/weapp） | 按下文「新建项目初始化流程」用官方 `uni-preset-vue`（vite-ts）模板创建，禁止其他方案 |
+| 管理后台 / 用户 Web（Admin）                | **thirdnet Vue 栈**（Vue 3.5 + Vite 8 + Element Plus）   | `admin-template-setup` 技能 + `create-thirdnet-admin` 模板安装，禁止手动搭建                 |
+| 后端 API / 服务                             | **.NET 10 微服务**（thirdnet 模板）                      | `backend-workflow` 技能 + `dotnet new thirdnet-admin`，不属于前端技能范围                     |
+
+**禁止项**：
+
+- 小程序**禁止**使用原生微信小程序、Taro、mpvue、Remax 或任何非 uniapp 方案——代码必须同时编译 H5 与 `mp-weixin` 两个目标
+- Admin / Web 工程**禁止** `npm create vite` 从零手动搭建——必须走 `create-thirdnet-admin` 模板
+- 所有前端工程**禁止**引入本表之外的框架（React / Angular 等；3D 数字孪生场景的 Three.js 由 `thirdnet-fullstack:thirdnet-digital-twin` 技能豁免，仅经该技能引入）
 
 ## 工作流步骤概览
 
@@ -40,7 +55,7 @@ metadata:
 - **简单优先** —— 最少代码、无推测设计，不为假设的未来需求预留扩展
 - **精准修改** —— 只改必须改的，匹配现有风格，不做附带清理
 - **目标驱动执行** —— 定义成功标准，每步验证是否向目标推进
-- **模板功能代码保护** —— → 模板内置模块（`src/views/system/`、`src/views/api/`、`src/api/modules/`、`src/mock/data/`、`src/router/`、`src/stores/auth.ts`、`src/utils/token.ts`、`src/api/adapter.web.ts` 等）业务逻辑受保护、不可修改，仅允许 `<style scoped>` 视觉调整；扩展业务应新建独立模块。详见 `admin-template-setup`「核心原则」。
+- **模板功能代码保护** —— → 模板内置模块（`src/views/system/`、`src/views/api/`、`src/api/modules/`、`src/mock/data/`、`src/router/`、`src/stores/auth.ts`、`src/utils/token.ts`、`src/api/adapter.web.ts` 等）业务逻辑受保护、不可修改，仅允许 `<style scoped>` 视觉调整；扩展业务应新建独立模块。其中 `src/api/modules/`、`src/mock/data/`：目录内模板已有文件不可修改，新增业务模块文件时可在这些目录内新建文件（见 `admin-template-setup` CRUD 指南）。详见 `admin-template-setup`「核心原则」。
 
 ## 代码注释规范
 
@@ -75,10 +90,12 @@ metadata:
 | 创建或修改任何 `.vue` / `.ts` / `.tsx` 文件       | `thirdnet-fullstack:vue-best-practices`          |
 | 创建或修改任何 API 模块（`api/**/*.ts`）          | `thirdnet-fullstack:api-typescript-spec`         |
 | 创建或修改任何 Pinia Store（`stores/**/*.ts`）    | `thirdnet-fullstack:vue-pinia-best-practices`    |
-| 创建或修改路由配置（`router/**/*.ts`）            | `thirdnet-fullstack:vue-router-best-practices`   |
+| 创建或修改路由配置（`router/**/*.ts`，**仅 Web 工程**） | `thirdnet-fullstack:vue-router-best-practices`   |
 | 编写 CSS/SCSS 或落地 Apple 风格视觉系统（配色/排版/间距/组件规范） | `thirdnet-fullstack:design-apple`                |
 | 新建页面/组件时确定设计方向和创意风格               | `thirdnet-fullstack:frontend-design`             |
 | 功能开发完成后 / 交付前全栈审查（编码后）            | `thirdnet-fullstack:fullstack-review`（Stop Hook 强制） |
+
+> **小程序路由例外**：uniapp 工程（`frontend/minigram/`）**没有 `src/router/`，禁止使用 vue-router**——路由由根目录 `pages.json` 声明，跳转用 `uni.navigateTo` / `uni.redirectTo` / `uni.reLaunch` 等 API。`vue-router-best-practices` 仅适用于 Web 工程（`frontend/web/` 等）。
 
 ### 按需技能
 
@@ -96,7 +113,7 @@ metadata:
 - [ ] 涉及 `api/` 或 `mock/` 文件 → 已调用 `api-typescript-spec`
 - [ ] 涉及下拉选项 / 字典字段（`*_label`、`useDict`、`getDictDataByType`）→ 已调用 `vue-enum-dict`
 - [ ] 涉及 `stores/` 文件 → 已调用 `vue-pinia-best-practices`
-- [ ] 涉及 `router/` 文件 → 已调用 `vue-router-best-practices`
+- [ ] 涉及 `router/` 文件 → 已调用 `vue-router-best-practices`（仅 Web 工程；uniapp 工程无 `router/`，路由走 `pages.json`）
 - [ ] 涉及样式/CSS → 已调用 `design-apple`
 - [ ] 新建页面/组件（涉及设计方向决策）→ 已调用 `frontend-design`
 - [ ] 以上所有适用项勾选后，方可开始编码
@@ -105,7 +122,7 @@ metadata:
 
 ### Admin 模板项目创建 —— 直接跳过
 
-如果当前任务为**创建 Admin 管理后台前端项目**（用户明确提出"创建 admin 前端"、"新建管理后台"、"create-thirdnet-admin"等），**直接跳过本节后续的多轮澄清流程**。原因：Admin 前端模板已内置完整的系统管理、API 管理和认证授权功能页面（共 19 个模块），功能范围固定不变，无需确认。
+如果当前任务为**创建 Admin 管理后台前端项目**（用户明确提出"创建 admin 前端"、"新建管理后台"、"create-thirdnet-admin"等），**直接跳过本节后续的多轮澄清流程**。原因：Admin 前端模板已内置完整的系统管理、API 管理和认证授权功能（19 个 API 模块，页面清单见 `admin-template-setup`），功能范围固定不变，无需确认。
 
 **替代操作**：使用一次 `AskUserQuestion` 仅确认品牌参数（项目名称、`--brand` 品牌名称、`--initial` 首字母、`--abbr` 缩写，均可使用默认值）。后端 API 地址使用默认 `http://localhost:5000`，无需确认。
 
@@ -136,6 +153,7 @@ metadata:
 
 4. 进行多轮提问，直到所有需求和功能均已明确。
 5. **即使你认为已经理解需求，也至少调用一次 AskUserQuestion 确认平台和范围。**（Admin 模板项目创建除外——该场景使用上述简化的一次性品牌参数确认即可）
+6. **框架选型不在澄清范围内**：平台确认后，框架即由「平台技术栈分工总则」锁定（微信小程序/C 端移动 → uniapp + Vant）。第 1 轮澄清平台后，直接向用户**声明**将采用的固定框架，不要把"原生小程序 / Taro / 其他框架"作为选项提供；仅当用户明确反对该总则时才升级讨论。
 
 ## 项目结构检查
 
@@ -151,7 +169,7 @@ metadata:
    - 如果存在零散文件，使用 AskUserQuestion 确认：是整合到 `frontend/` 目录结构中，还是在当前位置继续工作
 
 3. **确认目标子系统目录**（如 `frontend/web/`、`frontend/minigram/`）是否存在
-   - 管理后台项目由模板安装时自动创建，无需手动创建子系统目录
+   - 管理后台工程由模板安装命令创建（须在 `frontend/` 目录内执行、项目名传 `web`，见 `admin-template-setup` 落点约束），不要再手动预建 `frontend/web` 空目录再往里装
 
 ## 文档驱动开发
 
@@ -176,16 +194,18 @@ metadata:
 
 | 项目类型 | 初始化方式 | 说明 |
 |----------|-----------|------|
-| 管理后台 Web（Admin） | **调用 `admin-template-setup` 技能**，使用 `npm exec --registry http://192.168.1.207:4873/ -- create-thirdnet-admin` 创建（registry 内/外网地址与端口差异见 [internal-registry](../backend-workflow/references/internal-registry.md)） | 模板已实现完整后台功能（用户/角色/菜单/权限等），采用真实 API + Mock 数据并行模式，禁止手动搭建 |
-| 用户端 / 小程序（Client / Minigram） | 继续执行以下手动初始化步骤 | 使用 uniapp + Vant 开发，面向 C 端用户的移动端项目（H5 + 微信小程序） |
+| 管理后台 Web（Admin） | **调用 `admin-template-setup` 技能**，使用 `npm exec --registry <NPM_REGISTRY> -- create-thirdnet-admin` 创建（在 `frontend/` 目录内执行、项目名传 `web`；registry 地址唯一来源见 [internal-registry](../backend-workflow/references/internal-registry.md)，默认内网） | 模板已实现完整后台功能（用户/角色/菜单/权限等），采用真实 API + Mock 数据并行模式，禁止手动搭建 |
+| 用户端 / 小程序（Client / Minigram） | 继续执行以下手动初始化步骤 | **强制 uniapp + Vant**（见「平台技术栈分工总则」），面向 C 端用户的移动端项目（H5 + 微信小程序双端编译） |
 
-**判断依据**：如果项目需要登录认证、RBAC 权限管理、后台菜单管理等管理后台特征，则为 Admin 类型；面向终端用户的移动应用（无论 H5 还是小程序）均为用户端，使用 uniapp 开发。
+**判断依据**：如果项目需要登录认证、RBAC 权限管理、后台菜单管理等管理后台特征，则为 Admin 类型；面向终端用户的移动应用（无论 H5 还是小程序）均为用户端，**框架锁定 uniapp，禁止原生小程序 / Taro / mpvue 等任何其他方案**。API 后端一律 .NET 栈，由 `backend-workflow` 负责，不在前端初始化范围内。
 
 当项目结构检查发现 `frontend/` 不存在且任务为新建项目时，**严格按以下步骤顺序执行**：
 
 1. **创建顶层目录**：在工作区根目录创建 `frontend/` 文件夹
-2. **创建子项目目录**：根据平台类型创建 `frontend/{子系统名}/`（如 `frontend/web/`、`frontend/minigram/`）
-3. **初始化 Vue 项目**：使用 Vite 在子项目目录中创建对应类型的 Vue 3 + TypeScript 项目
+2. **创建子项目目录**：根据平台类型创建 `frontend/{子系统名}/`（如 `frontend/minigram/`；Admin 工程除外——`frontend/web/` 由 `create-thirdnet-admin` 模板命令在 `frontend/` 目录内以项目名 `web` 创建，勿预建空目录，见 `admin-template-setup` 落点约束）
+3. **初始化项目（按平台执行对应命令，禁止通用 Vite 脚手架创建小程序工程）**：
+   - **Admin / Web 工程（`frontend/web/`）**：本手动流程不适用——改走 `admin-template-setup` 技能用 `create-thirdnet-admin` 模板安装（在 `frontend/` 目录内执行、项目名传 `web`）
+   - **小程序 / 用户端工程（`frontend/minigram/`）**：使用 uniapp 官方 Vite + TS 模板创建：`npx degit dcloudio/uni-preset-vue#vite-ts frontend/minigram`（degit 不可达时退回 `git clone -b vite-ts https://github.com/dcloudio/uni-preset-vue.git frontend/minigram`；团队若有私有 uniapp 模板则优先使用）。**注意：该模板产物把 `manifest.json`/`pages.json`/`static/`/`pages/` 放在 `src/` 目录下**。创建后进入目录 `npm install`，再按双端组件策略安装组件库——H5 端：`npm i vant`；微信小程序端：`npm i @vant/weapp -S --production` 并在 `src/pages.json` 配置 easycom 规则 `"^van-(.*)": "@vant/weapp/lib/$1/index"`（Vant 4 仅支持 H5，无法编译进小程序，详见技术栈「组件双端策略」）。**禁止** `npm create vite` 创建普通 Vue 工程再改造为小程序
 4. **生成强制文件**：changelog.md、viewer.html、marked.min.js（见下方表格）
 5. **生成子项目级 spec.md**：读取 [project-spec-template](references/project-spec-template.md) 按模板生成
 6. **生成页面级 specs**：为每个页面创建 `specs/{页面名}.md`（读取 [page-spec-template](references/page-spec-template.md)）
@@ -197,11 +217,11 @@ metadata:
 
 步骤 4 中提到的强制文件清单：
 
-| 文件          | Web 应用                 | 小程序应用               | 操作                                                               |
-| ------------- | ------------------------ | ------------------------ | ------------------------------------------------------------------ |
-| changelog.md  | `public/changelog.md`  | `static/changelog.md`  | 读取[changelog-template](references/changelog-template.md) 按模板生成 |
-| viewer.html   | `public/viewer.html`   | `static/viewer.html`   | 读取[markdown-viewer](references/markdown-viewer.md) 按模板生成       |
-| marked.min.js | `public/marked.min.js` | `static/marked.min.js` | 读取[marked-js-setup](references/marked-js-setup.md) 获取文件         |
+| 文件          | Web 应用                 | 小程序应用                    | 操作                                                               |
+| ------------- | ------------------------ | ----------------------------- | ------------------------------------------------------------------ |
+| changelog.md  | `public/changelog.md`  | `src/static/changelog.md`  | 读取[changelog-template](references/changelog-template.md) 按模板生成 |
+| viewer.html   | `public/viewer.html`   | `src/static/viewer.html`   | 读取[markdown-viewer](references/markdown-viewer.md) 按模板生成       |
+| marked.min.js | `public/marked.min.js` | `src/static/marked.min.js` | 读取[marked-js-setup](references/marked-js-setup.md) 获取文件         |
 
 **执行步骤**：判断项目类型 → 逐一读取对应 reference 文件 → 按模板生成到目标路径。
 
@@ -232,18 +252,19 @@ metadata:
 
 | 端                         | 技术栈                                                                      |
 | -------------------------- | --------------------------------------------------------------------------- |
-| **移动端（uniapp）** | Vue 3.4.x、Vant 4.x、Vite 5.x、Pinia 2.x、Axios 1.x                         |
+| **移动端 / 微信小程序（强制 uniapp）** | Vue 3.4.x、Vite 5.x、Pinia 2.x、Vant 4.x（**仅 H5**）+ @vant/weapp（**仅 mp-weixin**，easycom）；请求双端统一走 `adapter.uni.ts` 的 `uni.request` |
 | **Web 端**           | Vue 3.5.x、Vite 8.x、Element Plus 2.x、Vue Router 4.x、Pinia 3.x、Axios 1.x |
 
 - **Pinia 版本选择**：Vue 3.5+ / Vite 8+ 项目使用 Pinia 3.x（以 npm 最新稳定版为准）；Vue 3.4 / uniapp 项目使用 Pinia 2.x
 - **TypeScript 强制**：所有代码 `.ts` 扩展名，Vue 组件 `<script setup lang="ts">`，禁止 `.js`
 - **枚举规范**：→ 枚举/字典规范见 `api-typescript-spec`（约定 #7：纯前端常量才用 TS enum）与 `vue-enum-dict`（int/string 字典字段用法）
-- **移动端**：开发用 H5 模式，最终发布微信小程序，代码须兼容 H5 + 小程序
+- **移动端**：**微信小程序一律 uniapp，禁止原生小程序 / Taro / mpvue**；开发用 H5 模式，最终发布微信小程序（`mp-weixin`），代码须兼容 H5 + 小程序
+- **组件双端策略（uniapp 工程）**：跨端 UI 优先用 uni 内置组件（`uni.xxx` / `view`/`text` 等）；H5 专属增强用 Vant 4 并以 `#ifdef H5` 条件编译；微信小程序专属增强用 `@vant/weapp`（easycom 引入）并以 `#ifdef MP-WEIXIN` 条件编译——**Vant 4 依赖 DOM、无法编译进小程序**，禁止双端共用同一套 Vant 组件
 - **API 模块**：接口契约策略工厂模式（`IXxxApi` + `RealXxxApi` + `MockXxxApi` + `createXxxApi()`，`VITE_MOCK_ENABLED` 切换；完整规范见 `api-typescript-spec`）
 
 ## 演示模式与生产剥离
 
-`VITE_MOCK_ENABLED` 控制开发/演示模式（`true`=演示走 Mock、`false`=生产走真实 API）；生产构建经 `mockDataStripPlugin` + tree-shaking 自动剥离 Mock。每个页面右上角必须有 HelpBubble（Web 用 `ElPopover`/`QuestionFilled`，移动端用 `van-popup`/`uni.showModal`），用 `v-if="MOCK_ENABLED"` 而非 `v-show`；辅助文案须用 `MOCK_ENABLED` 条件守卫让生产构建彻底移除（不能仅靠 `v-if`）。Admin 模板项目例外：使用单一 `.env` 文件，详见 `admin-template-setup`。
+`VITE_MOCK_ENABLED` 控制开发/演示模式（`true`=演示走 Mock、`false`=生产走真实 API）；生产构建经 `mockDataStripPlugin` + tree-shaking 自动剥离 Mock。每个页面右上角必须有 HelpBubble（Web 用 `ElPopover`/`QuestionFilled`，移动端用 `uni.showModal` 跨端实现），用 `v-if="MOCK_ENABLED"` 而非 `v-show`；辅助文案须用 `MOCK_ENABLED` 条件守卫让生产构建彻底移除（不能仅靠 `v-if`）。Admin 模板项目例外：使用单一 `.env` 文件，详见 `admin-template-setup`。
 
 > 完整 `mockDataStripPlugin` 源码、tree-shaking 原理与文案剥离代码示例见 `api-typescript-spec` 的 [mock-stripping.md](../api-typescript-spec/references/mock-stripping.md)。
 
@@ -303,12 +324,14 @@ frontend/
 │       ├── stores/
 │       ├── router/
 │       └── styles/
-└── minigram/                     # 小程序（Vant/uniapp）
+└── minigram/                     # 小程序（uniapp + Vant，强制）
     ├── spec.md / specs/
-    ├── static/                   # changelog.md + viewer.html + marked.min.js
-    └── src/
+    └── src/                      # uniapp Vite 模板：manifest/pages/static 均在 src/ 下
+        ├── manifest.json         # uniapp 应用配置（appId、平台配置）——uniapp 工程标志文件
+        ├── pages.json            # 页面路由注册（uniapp 无 vue-router）
+        ├── static/               # changelog.md + viewer.html + marked.min.js
         ├── pages/                # 移动端用 pages/，Web 用 views/
-        └── ...（结构同 web）
+        └── ...（结构同 web，但无 router/）
 ```
 
 ### 结构适配
@@ -346,6 +369,8 @@ frontend/
 
 ### 移动端额外检查（仅 minigram / uniapp 项目）
 
+- [ ] **工程骨架校验（硬门槛）**：`src/manifest.json` 与 `src/pages.json` 存在（uni-preset-vue Vite 模板默认在 `src/` 下；若为团队私有模板放项目根亦可，二者其一），且 `package.json` 含 `@dcloudio/uni-app` 依赖——缺任一项说明初始化未走 uniapp 模板，**停止交付，按「新建项目初始化流程」用 uni-preset-vue 模板重建**
+- [ ] 未使用 vue-router（uniapp 路由走 `pages.json` + `uni.navigateTo` / `uni.reLaunch`）
 - [ ] 使用 `uni.xxx` 替代 `window`/`document`，无直接 DOM 操作
 - [ ] H5 专有功能使用 `#ifdef H5` 条件编译
 
@@ -354,7 +379,7 @@ frontend/
 - [ ] 页面组件在 `src/views/`（Web）或 `src/pages/`（移动端）
 - [ ] API 模块在 `src/api/modules/` 下扁平组织（前端按工程分端，工程内不按端分组）
 - [ ] Mock 数据在 `src/mock/data/` 下与 API 模块一一对应
-- [ ] Store 在 `src/stores/`，路由在 `src/router/`
+- [ ] Store 在 `src/stores/`；路由在 `src/router/`（仅 Web 工程——uniapp 工程路由在根 `pages.json`）
 
 **发现不合规项时，先修正再交付，不要遗留问题。**
 

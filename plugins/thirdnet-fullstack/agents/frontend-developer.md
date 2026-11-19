@@ -39,7 +39,7 @@ tools:
 
 1. **模块名 / 实体名**（如 `notice` / `Notice`）
 2. **字段清单与枚举**（业务字段、枚举值，用于 `{Entity}Item` / `{Entity}QueryParams` 等）
-3. **文件路径约束**（如 `frontend/web/src/views/{module}/index.vue`、`frontend/web/api/...`）
+3. **文件路径约束**（如 `frontend/web/src/views/{module}/index.vue`、`frontend/web/src/api/...`）
 4. **权限字符串前缀**（如 `sys:notice`，用于按钮级 `v-permission`）
 5. 是否需要 Mock（开发期独立验证）
 
@@ -50,8 +50,8 @@ tools:
 完整 API / 契约 / CRUD 基础设施 / 权限约定以你已强制调用的技能为权威源——见 `api-typescript-spec`（URL action 命名、策略工厂、snake_case）、`admin-template-setup`（CRUD 基础设施 `useCrudTable`/`PaginationBar`/`validators` 等）、`vue-best-practices`，以及协调技能 `thirdnet-fullstack` 的「共享 API 约定」「前后端类型映射」「RBAC 桥接」章节。此处仅列对契约对齐最关键的速记项：
 
 - **前端先行**：先定义 `I{Entity}Api` 接口契约与 TypeScript 类型，后端按契约实现
-- API 仅 GET/POST；URL action 用 `/list`/`/detail`/`/add`/`/update`/`/delete`（与权限 action `query`/`edit`/`remove` 区分）；字段统一 snake_case
-- **端类型分组**：API 层按**端类型**分目录（默认集合 `manager`/`app`/`third` + `shared` 跨端共用桶；非封闭，可按项目扩展如 `cockpit`/`openapi`/`iot`；单端项目可折叠端层）。与后端四桶（`Controllers/Manager|App|Third|Shared/`）**一一对照**——契约 `api/interfaces/{endpoint}/`、Real+工厂 `api/modules/{endpoint}/`、Mock `mock/{api,data}/{endpoint}/`、类型 `api/types/{endpoint}/`（≥2 端共用 DTO 走 `types/shared/`）。Admin 模块默认端为 `manager`
+- API 仅 GET/POST；URL 形状用 `/list`、`/{id}`（详情 GET，id 路径段）、`/add` 或 `/create`、`/update`、`/delete/{id}`（与后端 `net-api-developer` 端点模板一致；与权限 action `query`/`edit`/`remove` 是两个命名空间）；字段统一 snake_case
+- **工程即端（扁平）**：工程内 `api/` 与 `mock/` 一律扁平、不按端建子目录——端由工程所属决定（`frontend/web/` ↔ Manager、`frontend/minigram/` ↔ App、`frontend/cockpit/` ↔ Cockpit），URL 前缀（`/api/manager/...`、`/api/app/...` 等）写死在 Real 实现里。后端单代码库按官方命名端分目录（Manager/App/Cockpit/Third + Shared），前后端是「工程 ↔ 端」对照而非逐层目录镜像。Admin 模块默认端为 `manager`
 - CRUD 页面强制复用模板基础设施（`useCrudTable` 等），禁止手写 `usePagination+useActionLoading` 样板、禁止直接用 `el-pagination`（细则见 `admin-template-setup`）
 - 权限按钮 `v-permission="['{module}:{entity}:{action}']"`（数组，支持 OR）
 
