@@ -4,7 +4,7 @@ description: >
   当前会话 Token 消耗统计分析：自动解析本地会话日志（ZCode rollout / Claude Code 与 WorkBuddy·CodeBuddy CLI transcript）或基于 /context 等命令输出的占用报告，先给出「消耗是否正常」体检总评与异常（消耗过大）项识别，再给整个上下文窗口分类占比、子代理消耗汇总、消耗原因诊断与节省 Token 的优化建议。当用户提到 token 统计、token 占用、token 消耗、token 用量、token 消耗是否正常、消耗过大、异常消耗、上下文分析、上下文占用、上下文空间不足、省 token、优化 token 使用、分析 context 报告时，使用此技能。
 license: MIT
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
   author: thirdnet
 ---
 
@@ -30,10 +30,16 @@ metadata:
 | 顺序 | 条件 | 动作 |
 |------|------|------|
 | a | 用户消息已附带报告 | 直接使用 |
-| b | 环境支持 `/context`（Claude Code、WorkBuddy/CodeBuddy Code CLI 等） | 代理无法自行执行 REPL 命令——请用户在输入框执行 `/context` 并粘贴完整输出（WorkBuddy CLI 另有 `/cost`、`/stats`，可一并粘贴补累计口径） |
+| b | 环境支持 `/context`（Claude Code、WorkBuddy/CodeBuddy Code CLI 等） | 代理无法自行执行 REPL 命令——请用户在输入框执行 `/context`（WorkBuddy CLI 用 `/context all` 展开折叠明细）并粘贴完整输出（WorkBuddy CLI 另有 `/cost`、`/stats`，可一并粘贴补累计口径） |
 | c | ZCode 环境（存在 `~/.zcode/cli/rollout/`） | 运行下方脚本，自动定位当前会话并生成完整报告 |
-| d | 有 Claude Code 或 WorkBuddy/CodeBuddy CLI 本地日志（`~/.claude/projects/` / `~/.codebuddy/projects/`） | 脚本 `--source claude` 出基础统计（自动发现两个目录，也可 `--transcript` 指定；WorkBuddy 日志按 Claude 兼容格式解析，字段不匹配会明确报错——此时退回 b 档） |
+| d | 有 Claude Code 或 WorkBuddy/CodeBuddy CLI 本地日志（`~/.claude/projects/` / `~/.codebuddy/projects/`） | 脚本 `--source claude` 出统计与**窗口估算**（自动发现两个目录，也可 `--transcript` 指定；WorkBuddy 日志按 Claude 兼容格式解析，字段不匹配会明确报错——此时退回 b 档） |
 | e | 以上皆不可得 | 询问用户提供报告，并列出最小数据要素：上下文窗口总量 + 各分类 token 数或百分比 |
+
+**推荐操作引导（支持 `/context` 的环境，告知用户一次到位）**：
+
+> 先在输入框执行 `/context`（**WorkBuddy CLI 用 `/context all`**——展开默认折叠的 Memory / Skills / Agents 明细）→ 全选复制 → **随调用语一起粘贴**（如「分析 token 消耗：\<粘贴\>」）。一条消息即命中级联 a 档、直接产出完整体检；不执行 `/context` 也能分析（脚本会按估算口径给窗口项判定），但精确逐项拆分（System prompt / 内置工具 / MCP 各自占比）只有 `/context` 有。
+
+**两源合并（a/b 档命中时仍要做）**：用户已附 `/context` 报告时，若本机存在 Claude/WorkBuddy 日志目录，仍应运行脚本 `--source claude` 合并**累计口径**（会话总消耗、缓存读占比、窗口占用推算）——`/context` 只含当前窗口快照，不含累计数据；两源合并且 `/context` 精确值优先。
 
 脚本调用方式（场景 c，ZCode 自动路径）：
 
@@ -163,6 +169,7 @@ Messages: 33,319 tokens (27.6%)
 - **体检判定以统一阈值为准**：ZCode 路径照抄脚本判定，非脚本来源按 `references/optimization-guide.md` §1 判定（阈值与脚本 `THRESHOLDS` 同步）；可补上下文注记，但不得无数据依据翻转 ❌/⚠️；
 - **体检数据不足时**（无窗口总量 / 无分类明细）：对应项标「不可得」（ℹ️）不判级，建议用户补 `/context` 或 `--window N`，不臆造阈值结论；
 - **WorkBuddy/CodeBuddy 版本差异**：CLI（CodeBuddy Code）支持 `/context`、`/cost`、`/stats`，本地日志在 `~/.codebuddy/projects/`（Claude 兼容）；IDE 版**无** `/context`（上下文压缩用 `/summarize`，用量看账号「用量」页）——只能走 e 档手动提供数字。Trae 等 IDE 类工具同理走 e 档；
+- **Claude/WorkBuddy transcript 估算口径**（`--source claude`）：当前窗口占用由末次 usage **精确**推算（含缓存读写，勿与 ZCode 的 inputTokens 口径混算）；消息占比为 transcript 历史**估算**（脚本按 /compact「会话延续」标记截断，未检出标记但实际压缩过会偏高，报告已如实标注）；System prompt / 内置工具 / MCP 无请求体可查，以**残差合计**呈现、不逐项判级——用户粘贴 `/context` 后以精确值替换估算判定；
 - **ZCode 与 Claude 的缓存口径不同**：ZCode `inputTokens` 已含缓存读；Claude `input_tokens` 不含（缓存读/写单列）。脚本已分别处理，续写分析时不要交叉换算；
 - **统计边界**：ZCode rollout 日志有留存策略（旧文件可能被清理），报告注明「仅统计磁盘上留存的日志」；
 - 子代理消耗是独立上下文，只进「累计消耗」汇总，不进主窗口占比；

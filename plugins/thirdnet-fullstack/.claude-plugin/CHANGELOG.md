@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.55.7 - 2026-11-19
+
+### Optimized
+**`token-usage-analysis` 用户引导 + 不执行 /context 时的估算增强（技能版本 1.2.0 → 1.3.0）**：
+
+- **推荐操作引导**：SKILL.md 级联表后新增显式引导——支持 `/context` 的环境先执行 `/context`（WorkBuddy CLI 用 `/context all` 展开折叠明细）→ 复制 → **随调用语一起粘贴**，一条消息命中级联 a 档直接产出完整体检（消除"技能提示补 /context 才知道要提前执行"的两轮往返困惑）；context-report-guide §2.1 补 `/context all` 展开明细的归一化规则（Memory → Memory files；Skills / Agents 取父级不重复计）
+- **两源合并指引**：a/b 档命中（用户已附 /context）时，仍应运行脚本 `--source claude` 合并累计口径（会话总消耗、缓存读占比、窗口占用推算）——/context 只含窗口快照不含累计；两源合并时 /context 精确值优先
+- **Claude/WorkBuddy transcript 窗口估算**（此前窗口项全 ℹ️ 不可得）：当前窗口占用由**末次 usage 精确推算**（input+缓存读+缓存写+output，模型映射 MODEL_WINDOWS 或 `--window` 补窗口大小）；**消息历史占窗口**按 transcript 估算判定（按 /compact「会话延续」标记截断，未检出标记如实标注可能偏高）；**剩余空间**可判；System prompt/内置工具/MCP 以**残差合计**呈现（➖ 不判级，逐项拆分仍需 /context）；体检横幅与体检节标注「估算口径，/context 粘贴可升级精确判定」
+- 新增「窗口构成估算」表（消息/残差/剩余空间）与估算偏差自检（消息估算高于窗口占用时 ⚠️ 提示以 /context 为准）
+
+### 版本同步
+`plugin.json` 与 `marketplace.json` 条目 2.55.6 → 2.55.7；marketplace `metadata.version` 0.84.0 → 0.85.0；协调技能 frontmatter → 2.55.7；`README.md` 版本行与根 `CLAUDE.md` 版本引用同步。
+
 ## 2.55.6 - 2026-11-19
 
 ### Added

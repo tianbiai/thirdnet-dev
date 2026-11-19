@@ -40,7 +40,7 @@ Free space                    44,749      37.1%
 - 优先取**绝对 token 数**；只有百分数时按总量（Context Left 括号内或 `of N`）折算；
 - 二级条目（缩进行）是父分类的构成明细，归一化时**取父级、不重复计**；
 - 「until auto-compact」说明剩余空间按自动压缩阈值计，非完整窗口，如实转述；
-- WorkBuddy/CodeBuddy Code CLI 的 `/context` 输出同源同构，按同一映射归一化；其 `/cost`（成本与 Token 使用）、`/stats`（Token 用量/调用次数/时长）可作为**累计口径**补充来源，按 §2.4 其他格式处理。
+- WorkBuddy/CodeBuddy Code CLI 的 `/context` 输出同源同构，按同一映射归一化，**建议用 `/context all`**（展开默认折叠的 Memory / Skills / Agents 明细）：Memory 明细行归 Memory files 分类；Skills / Agents 各条目是常驻系统内容（技能 name+description、子代理定义）的构成明细，**取父级合计、不重复计**，父级缺失时按原始口径单列转述；`/cost`（成本与 Token 使用）、`/stats`（Token 用量/调用次数/时长）可作为**累计口径**补充来源，按 §2.4 其他格式处理。
 
 ### 2.2 ZCode 脚本输出（`analyze_token_usage.py` 默认模式）
 
@@ -51,9 +51,9 @@ Free space                    44,749      37.1%
 - **消息：system / text** —— 运行时注入的系统提醒（环境块、todo 快照、工具结果包装等）；
 - **消息：tool / text** —— 工具结果（文件读取、命令输出等，通常是 Messages 中的大头）。
 
-### 2.3 Claude transcript 基础统计（`--source claude`）
+### 2.3 Claude transcript 统计与窗口估算（`--source claude`）
 
-只有累计消耗与消息体量分布，**无 System prompt / 工具定义明细**（transcript 不记录请求体）。缺分类明细时如实告知局限，并建议用户在 Claude Code 执行 `/context` 补充。数据目录自动发现：`~/.claude/projects/`（Claude Code）优先，缺失时回退 `~/.codebuddy/projects/`（WorkBuddy/CodeBuddy Code CLI，Claude 兼容格式；字段不匹配时脚本明确报错，退回 /context 粘贴路径）。
+累计消耗 + **窗口估算**（1.3.0 起）：当前窗口占用由末次 usage 精确推算（input + 缓存读 + 缓存写 + output）；消息历史为 transcript 估算（按 /compact「会话延续」标记截断）；System prompt / 内置工具 / MCP **无请求体可查**，以残差合计呈现、不逐项判级。精确逐项拆分需用户在 Claude Code 执行 `/context` 粘贴补充（用户粘贴后，精确值优先替换估算判定）。数据目录自动发现：`~/.claude/projects/`（Claude Code）优先，缺失时回退 `~/.codebuddy/projects/`（WorkBuddy/CodeBuddy Code CLI，Claude 兼容格式；字段不匹配时脚本明确报错，退回 /context 粘贴路径）。
 
 ### 2.4 其他格式（状态栏 / 桌面端显示 / 手动数字）
 

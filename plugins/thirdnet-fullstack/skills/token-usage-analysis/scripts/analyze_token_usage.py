@@ -373,15 +373,35 @@ def resolve_claude_transcript(args):
     return max(files, key=os.path.getmtime), "auto"
 
 
-def analyze_claude(path):
-    """Claude Code transcript：逐条 usage 基础统计 + 消息体量分布。
+COMPACT_MARK_RE = re.compile(r"continued from a previous conversation", re.I)
 
-    transcript 不含 system prompt / 工具定义，分类明细缺项需 /context 补充。
+
+def _msg_text(content):
+    """提取消息纯文本（仅用于 /compact 会话延续标记识别）。"""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return " ".join(b.get("text") for b in content
+                        if isinstance(b, dict) and isinstance(b.get("text"), str))
+    return ""
+
+
+def analyze_claude(path):
+    """Claude Code transcript：逐条 usage 基础统计 + 消息体量分布 + 窗口估算素材。
+
+    transcript 不含 system prompt / 工具定义，窗口构成只能估算：
+    - 末条 usage（input+cache_read+cache_write+output）≈ 当前窗口占用（精确）；
+    - 自末次「会话延续」标记（/compact 产物）之后的消息估算 ≈ 消息历史占用；
+    - 差值 = System prompt + 工具 + MCP 合计（残差，无法逐项拆分，需 /context）。
+    返回 (totals, sizes, count_usage, first_ts, last_ts, last_info, hist)，
+    hist 为 [(role, est_tokens, is_compact_marker)]。
     """
     totals = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
     sizes = {}
+    hist = []
     count_usage = 0
     first_ts = last_ts = None
+    last_info = None
     with open(path, "r", encoding="utf-8", errors="replace") as f:
         for line in f:
             line = line.strip()
@@ -403,9 +423,19 @@ def analyze_claude(path):
                 totals["output"] += usage.get("output_tokens") or 0
                 totals["cache_read"] += usage.get("cache_read_input_tokens") or 0
                 totals["cache_write"] += usage.get("cache_creation_input_tokens") or 0
+                last_info = {
+                    "input": usage.get("input_tokens") or 0,
+                    "output": usage.get("output_tokens") or 0,
+                    "cache_read": usage.get("cache_read_input_tokens") or 0,
+                    "cache_write": usage.get("cache_creation_input_tokens") or 0,
+                    "model": msg.get("model") or "",
+                }
             role = msg.get("role") or rec.get("type") or "?"
-            sizes[role] = sizes.get(role, 0.0) + obj_tokens(msg.get("content"))
-    return totals, sizes, count_usage, first_ts, last_ts
+            tok = obj_tokens(msg.get("content"))
+            sizes[role] = sizes.get(role, 0.0) + tok
+            compact = bool(COMPACT_MARK_RE.search(_msg_text(msg.get("content"))))
+            hist.append((role, tok, compact))
+    return totals, sizes, count_usage, first_ts, last_ts, last_info, hist
 
 
 # ---------- 正常性体检（是否正常 / 异常=消耗过大 识别） ----------
@@ -657,26 +687,46 @@ def render_zcode_report(path, how, top_n, window_override):
     return "\n".join(out)
 
 
-def render_claude_report(path, top_n, how=""):
-    totals, sizes, count_usage, first_ts, last_ts = analyze_claude(path)
-    if count_usage == 0:
+def render_claude_report(path, top_n, how="", window_override=None):
+    totals, sizes, count_usage, first_ts, last_ts, last_info, hist = analyze_claude(path)
+    if count_usage == 0 or not last_info:
         raise SystemExit(f"[token-usage-analysis] transcript 中未找到 usage 记录：{path}"
                          "（WorkBuddy/CodeBuddy 日志若与 Claude 格式不兼容会在此报错，"
                          "此时请改用 /context 粘贴路径）")
     span = (last_ts - first_ts).total_seconds() if (first_ts and last_ts) else None
 
+    # 窗口估算：末次 usage（精确）+ 消息历史（估算）+ 残差
+    model = last_info.get("model") or "未知模型"
+    window_used = last_info["input"] + last_info["cache_read"] + last_info["cache_write"] + last_info["output"]
+    window = window_override or MODEL_WINDOWS.get(model.lower())
+    cut = -1
+    for i, (_, _, compact) in enumerate(hist):
+        if compact:
+            cut = i
+    tail = hist[cut + 1:]
+    msgs_est = sum(tok for _, tok, _ in tail)
+    residual = max(0.0, window_used - msgs_est)
+    over_est = msgs_est > window_used
+
     out = []
-    out.append("# Token 消耗统计（原始数据 · Claude transcript 基础统计）")
+    out.append("# Token 消耗统计（原始数据 · Claude transcript 统计与窗口估算）")
     out.append("")
     src_note = ("（自动选取最新，来自 `~/.codebuddy/projects/`——WorkBuddy/CodeBuddy 日志，"
                 "按 Claude 兼容格式解析）" if how == "auto-codebuddy" else "")
     out.append(f"- 数据来源：`{path}`{src_note}")
-    out.append("- **局限**：transcript 不含 system prompt / 工具定义，无法给出分类占比明细；"
-               "分类明细请在 Claude Code 中执行 `/context` 后将输出提供给代理分析。")
+    out.append("- **局限**：transcript 不含 system prompt / 工具定义——窗口构成按**估算口径**给出"
+               "（窗口占用来自末次 usage 精确推算、消息为 transcript 估算、System+工具+MCP 为残差合计），"
+               "精确逐项拆分需在 Claude Code 执行 `/context` 后粘贴。")
     out.append("")
     out.append("| 指标 | 数值 |")
     out.append("|------|------|")
     out.append(f"| 含 usage 的响应条数 | {count_usage} |")
+    out.append(f"| 模型 | {model} |")
+    if window:
+        out.append(f"| 上下文窗口 | {fmt(window)} |")
+        out.append(f"| **当前窗口占用（末次 usage 推算）** | **{fmt(window_used)}（{pct(window_used, window):.1f}%），剩余 {fmt(window - window_used)}** |")
+    else:
+        out.append(f"| **当前窗口占用（末次 usage 推算）** | **{fmt(window_used)}**（窗口大小未知，可用 `--window N` 指定） |")
     out.append(f"| 时间跨度 | {human_duration(span)} |")
     out.append(f"| 累计非缓存输入 | {fmt(totals['input'])} |")
     out.append(f"| 累计缓存读（价格更低） | {fmt(totals['cache_read'])} |")
@@ -687,29 +737,88 @@ def render_claude_report(path, top_n, how=""):
     out.append("> 注：Claude transcript 的 `input_tokens` 不含缓存部分（与 ZCode 的 inputTokens 口径不同），各项分开列示、不重复计算。")
     out.append("")
 
-    # 降级体检：transcript 无请求体，窗口构成项不可判，仅累计口径可判
+    # 体检（估算增强）：窗口占用精确、消息/剩余空间估算判定、残差仅参考
+    rows = []
+    if window:
+        d = pct(msgs_est, window)
+        rows.append(("消息历史占窗口（估算）", f"{d:.1f}%（~{fmt(msgs_est)}）",
+                     grade(d, THRESHOLDS["messages"]),
+                     THRESHOLDS["messages"][3] + "；估算口径（transcript 历史），精确值以 /context 为准"))
+        free = max(0, window - window_used)
+        d = pct(free, window)
+        rows.append(("剩余空间", f"{d:.1f}%（{fmt(free)}）",
+                     grade(d, THRESHOLDS["free_space"]), THRESHOLDS["free_space"][3]))
+    else:
+        rows.append(("消息历史占窗口 / 剩余空间", "不可得", "ℹ️",
+                     "窗口大小未知——可用 --window N 指定后按估算口径判定"))
+    d = pct(residual, window if window else window_used)
+    rows.append(("System prompt + 工具 + MCP 合计（残差）", f"{d:.1f}%（~{fmt(residual)}）", "➖",
+                 "transcript 无请求体，无法逐项拆分（拆分需 /context）——仅作参考不判级"))
     input_side = totals["input"] + totals["cache_read"]
     if input_side > 0:
         d = pct(totals["cache_read"], input_side)
-        cache_row = (f"| 缓存读 / 输入侧合计（非缓存 + 缓存读） | {d:.1f}%（{fmt(totals['cache_read'])} / {fmt(input_side)}） | "
-                     f"{grade(d, THRESHOLDS['cache_read'])} | {THRESHOLDS['cache_read'][3]} |")
-        cache_verdict = grade(d, THRESHOLDS["cache_read"])
+        rows.append(("缓存读 / 输入侧合计（非缓存 + 缓存读）",
+                     f"{d:.1f}%（{fmt(totals['cache_read'])} / {fmt(input_side)}）",
+                     grade(d, THRESHOLDS["cache_read"]), THRESHOLDS["cache_read"][3]))
     else:
-        cache_row = "| 缓存读 / 输入侧合计（非缓存 + 缓存读） | 不可得 | ℹ️ | 输入侧合计为 0 |"
-        cache_verdict = "ℹ️"
-    overall = ("ℹ️ 数据不足" if cache_verdict == "ℹ️" else
-               ("🔴 异常" if cache_verdict == "❌" else "🟡 轻度偏离" if cache_verdict == "⚠️" else "🟢 正常"))
-    out.append(f"> **体检总评：{overall}**（降级口径：仅累计消耗可判，窗口构成需 /context 补充）")
+        rows.append(("缓存读 / 输入侧合计（非缓存 + 缓存读）", "不可得", "ℹ️", "输入侧合计为 0"))
+    if window_used > 0:
+        cum_input = totals["input"] + totals["cache_read"] + totals["cache_write"]
+        rows.append(("累计输入 / 窗口占用", f"{cum_input / window_used:.1f}×", "➖",
+                     "参考项不判级：数十倍属正常机制（每轮全量重发 + 缓存读降费），见白名单"))
+
+    graded = [r for r in rows if r[2] in ("✅", "⚠️", "❌")]
+    bad = [r[0] for r in graded if r[2] == "❌"]
+    warn = [r[0] for r in graded if r[2] == "⚠️"]
+    if not graded:
+        overall = "ℹ️ 数据不足"
+    elif bad:
+        overall = "🔴 异常"
+    elif warn:
+        overall = "🟡 轻度偏离"
+    else:
+        overall = "🟢 正常"
+    if graded:
+        banner = f"> **体检总评：{overall}**（{len(bad)} ❌ / {len(warn)} ⚠️）"
+        if bad + warn:
+            banner += " —— 异常（消耗过大）项：" + "、".join(bad + warn)
+        else:
+            banner += " —— 全部检查项在阈值内"
+        banner += "。注：以上为估算口径，粘贴 /context 输出可升级为精确逐项判定"
+    else:
+        banner = "> **体检总评：ℹ️ 数据不足** —— 可判检查项不足（缺窗口数据时可用 `--window N` 指定后复跑）"
+    out.append(banner)
     out.append("")
-    out.append("## 消耗正常性体检（降级：仅累计口径可判）")
+    out.append("## 消耗正常性体检（估算口径：窗口占用精确、消息占比估算、残差不判级）")
     out.append("")
     out.append("| 检查项 | 数值 | 判定 | 阈值与说明 |")
     out.append("|--------|------|:----:|------------|")
-    out.append(cache_row)
-    out.append("| 窗口构成（System prompt / 工具 / 消息 / 剩余空间） | 不可得 | ℹ️ | transcript 不含请求体——在 Claude Code 执行 /context 后交代理按 optimization-guide §1 补判 |")
+    for name, value, verdict, note in rows:
+        out.append(f"| {name} | {value} | {verdict} | {note} |")
+    out.append("")
+    if bad + warn:
+        out.append("**异常项（消耗过大）**：" + "；".join(bad + warn) + " —— 原因分析与优化建议优先针对这些项。")
+        out.append("")
+
+    out.append("## 窗口构成估算（精确逐项拆分需 /context）")
+    out.append("")
+    denom = window if window else window_used
+    out.append("| 分类 | 估算 token | 占窗口 |")
+    out.append("|------|-----------:|-------:|")
+    out.append(f"| 消息历史（transcript 估算，{len(tail)} 条） | ~{fmt(msgs_est)} | {pct(msgs_est, denom):.1f}% |")
+    out.append(f"| System prompt + 工具 + MCP（残差） | ~{fmt(residual)} | {pct(residual, denom):.1f}% |")
+    if window:
+        out.append(f"| 剩余空间 | {fmt(max(0, window - window_used))} | {pct(max(0, window - window_used), denom):.1f}% |")
+    out.append("")
+    compact_note = (f"已按末次 /compact 会话延续标记截断（仅统计压缩后 {len(tail)} 条历史）；"
+                    if cut >= 0 else
+                    f"未检测到 /compact 标记，估算覆盖全量 {len(tail)} 条历史（若发生过压缩会偏高）；")
+    if over_est:
+        compact_note += f"⚠️ 消息估算（~{fmt(msgs_est)}）高于窗口占用（{fmt(window_used)}）——估算偏高或上下文经过裁剪，残差按 0 计，请以 /context 为准。"
+    out.append(f"> {compact_note}")
     out.append("")
 
-    out.append("消息体量分布（估算，仅结构参考）：")
+    out.append("消息体量分布（全量 transcript 估算，仅结构参考）：")
     out.append("")
     out.append("| 角色 | 体量估算 |")
     out.append("|------|---------:|")
@@ -717,7 +826,8 @@ def render_claude_report(path, top_n, how=""):
         out.append(f"| {role} | ~{fmt(sizes[role])} |")
     out.append("")
     out.append("---")
-    out.append("以下由代理基于以上数据续写：**原因分析**（聚焦体检 ❌/⚠️ 项）与**优化建议**（逐条对应异常项；分类明细需 /context 输出补充）。")
+    out.append("以下由代理基于以上数据续写：**原因分析**（聚焦体检 ❌/⚠️ 项）与**优化建议**（逐条对应异常项；"
+               "用户若粘贴 /context 输出，可替换估算值给出精确逐项判定）。")
     return "\n".join(out)
 
 
@@ -740,7 +850,7 @@ def main():
 
     if args.source == "claude":
         path, how = resolve_claude_transcript(args)
-        print(render_claude_report(path, args.top, how))
+        print(render_claude_report(path, args.top, how, args.window))
     else:
         path, how = resolve_zcode_file(args)
         print(render_zcode_report(path, how, args.top, args.window))

@@ -7,7 +7,7 @@ description: >
   全新项目创建路径，以及子代理调度（backend-developer / frontend-developer，Task 派发重型阶段）。
 license: MIT
 metadata:
-  version: "2.55.6"
+  version: "2.55.7"
   author: thirdnet
 ---
 
