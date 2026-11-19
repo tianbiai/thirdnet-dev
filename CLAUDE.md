@@ -9,9 +9,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 thirdnet-dev/
 ├── .claude-plugin/marketplace.json          # 插件集合注册清单（顶层 metadata.version + 各 plugin 条目）
-└── plugins/thirdnet-fullstack/               # 唯一的自包含插件（v2.52.0）
+└── plugins/thirdnet-fullstack/               # 唯一的自包含插件（v2.55.1）
     ├── .claude-plugin/plugin.json            # 插件元数据（version 权威来源之一）
-    ├── .claude-plugin/hooks/hooks.json       # 3 个 Stop + 2 个 PreToolUse + 2 个 PostToolUse 钩子
+    ├── .claude-plugin/hooks/hooks.json       # 1 个 Stop + 3 个 PreToolUse + 1 个 PostToolUse 钩子（2 prompt + 3 command）
+    ├── .claude-plugin/hooks/skill-gate.mjs   # Write|Edit 合规门与软规范告警脚本（command 型钩子）
     ├── agents/                               # 子代理：backend-developer.md / frontend-developer.md
     └── skills/                               # 29 个技能（见下「技能体系」）
 ```
@@ -37,14 +38,17 @@ marketplace 还声明了若干外部插件（superpowers / supabase-postgres-bes
 
 ### 钩子（hooks.json）—— 操作性事实
 
-共 7 个钩子，是本插件「不可跳过」约束的执行点：
+共 5 个钩子（2 个 prompt 型 + 3 个 command 型），是本插件「不可跳过」约束的执行点：
 
-- **PreToolUse × 2**（matcher `Write|Edit`）— **技能合规门**：编辑后端 `*.cs/*.csproj` 或前端 `src/**/*.{vue,ts,tsx,scss,css}` 前，检查本次会话是否已用 Skill 工具加载对应技能；未加载则 `block`。路由表：
-  - 后端：`net-microservice-generator`（新项目/Program.cs）、`net-api-developer`（Controller/API）、`net-efcore-developer`（Models/Configurations/DbContext/Migrations/批量/分组查询）、`net-auth`（认证/加密/权限）、`net-cache-use`（缓存）、`net-background-job`（Job/Task/Worker）、`net-enum-dict`（Enums/SystemDict）。
-  - 前端：`vue-best-practices`（所有 .vue/.ts）、`api-typescript-spec`（api/mock/）、`vue-pinia-best-practices`（stores/）、`vue-router-best-practices`（router/）、`frontend-design`（新建 views/pages/components 文件）。
-  - **因此编辑前后端代码前，必须先 Skill 调用对应技能**——否则写入被拦截，即使父代理指令说跳过也不行。
-- **PostToolUse × 2**（matcher `Write|Edit`）— **规范告警**：编辑后端功能性文件检查「仅 GET/POST、Fluent API（禁数据注解）、单文件单类型、`[ProducesResponseType]`」等；编辑前端 `src/api/modules/**/*.ts` 检查「策略工厂三件套（I{Entity}Api 接口 + Real/Mock 实现 + createXxxApi 工厂）」。
-- **Stop × 3** — **收尾门**：① 后端文档门（backend/ 下功能性变更须更新 spec/changelog/plan + 中文注释完整性）；② 前端文档门（frontend/ 下同，含 Web `public/changelog.md` 或小程序 `static/changelog.md` + viewer.html + marked.min.js）；③ **全栈质量收尾门**——功能性 `*.cs` / `*.vue` / `*.ts` 变更未经 `thirdnet-fullstack:fullstack-review` 审查、或 review-report.md 仍存 Critical/Major 问题时阻断结束（用户明确说「跳过审查」方可放行）。
+- **PreToolUse × 3**：
+  - `Write|Edit`（command 型，`hooks/skill-gate.mjs --pre`）— **技能合规门**：编辑后端 `*.cs/*.csproj` 或前端 `src/**/*.{vue,ts,tsx,scss,css}` 前，按会话 transcript 核验是否已用 Skill 工具加载对应技能（裸名与 `thirdnet-fullstack:` 前缀名均认）；未加载则 `block`；transcript 不可读时 fail-open 放行。路由表：
+    - 后端：`net-microservice-generator`（Program.cs）、`net-api-developer`（Controller）、`net-efcore-developer`（Models/Configurations/DbContext/Migrations/批量/分组查询）、`net-auth`（认证/加密/权限）、`net-cache-use`（缓存）、`net-background-job`（Job/Task/Worker）、`net-enum-dict`（Enums/SystemDict）。
+    - 前端：`vue-best-practices`（所有 .vue/.ts）、`api-typescript-spec`（api/mock/）、`vue-pinia-best-practices`（stores/）、`vue-router-best-practices`（router/）、`frontend-design`（新建 views/pages/components 文件）、`design-apple`（styles/scss/css）。
+    - **因此编辑前后端代码前，必须先 Skill 调用对应技能**——否则写入被拦截，即使父代理指令说跳过也不行。
+  - `Skill`（prompt 型）— **重复调用守卫**：技能正文仍完整可见时阻断重复注入（防等量重复占用上下文）；已被压缩/摘要化则放行重调。
+  - `Read`（command 型，内联 node 脚本）— **技能正文读取拦截**：工作区外 `skills/*/SKILL.md` 禁止 Read（引导改用 Skill 工具）；工作区内放行（插件源码维护）；`references/*.md` 不受限。
+- **PostToolUse × 1**（command 型，`skill-gate.mjs --post`）— **规范告警**（systemMessage，不阻断）：编辑后端功能性文件检查「仅 GET/POST、Fluent API（禁数据注解）、单文件单类型、`[ProducesResponseType]`、路由格式、DbContext ApplyConfiguration」等；编辑前端 `src/api/modules/**/*.ts` 检查策略工厂配套文件存在性（内容级完整性检查仅对 Write 生效）。
+- **Stop × 1**（prompt 型）— **收尾门（三门合一）**：文档门（功能性变更须同步前后端 spec/changelog，脚手架产物与纯 Bug 修复/重构豁免）+ 注释门（中文注释完整性）+ 审查门（功能性变更须经 `thirdnet-fullstack:fullstack-review` 审查且 review-report.md 无 Critical/Major，用户明确说「跳过审查」方可放行）。
 
 ### 版本号三处同步（修改插件内容时必做）
 

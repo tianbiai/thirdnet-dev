@@ -1,5 +1,60 @@
 # Changelog
 
+## 2.55.1 - 2026-11-19
+
+### Fixed
+**代码审查修复（多代理审查发现的遗漏与回归）**：
+
+- `README.md` 钩子章节删除两条旧版残留描述（「PostToolUse（2 个）」「Stop（3 个）」），消除与新版描述在同一章节并存的自相矛盾
+- 仓库根 `CLAUDE.md` 钩子结构描述同步为现状（共 5 个：PreToolUse ×3 / PostToolUse ×1 / Stop ×1 三门合一，2 prompt + 3 command），目录树版本注释 v2.52.0 → v2.55.1
+- `hooks/skill-gate.mjs --post` 补回 command 化迁移时静默丢失的检查项：① DbContext 两条（OnModelCreating 须经 ApplyConfiguration 注册实体配置、禁直写 Fluent API 链式调用——保留 2.50.0 的 xmin 并发令牌/timestamptz 全局约定框架级例外）② Models 字符串禁定长 varchar ③ Controller 路由格式 `api/{端标识}/{模块名}` ④ Http 方法正则改为可捕获无参 `[HttpDelete]` 特性写法；另将 API 策略工厂内容级完整性检查改为仅对 Write 生效（Edit 的 new_string 片段不含类/工厂定义，此前每次局部编辑必误报）
+- Read 拦截内联脚本的工作区豁免判断补 `startsWith` 前提校验（修复「工作区外路径在 cwd 长度位置恰为路径分隔符时被误豁免放行」的逻辑缺口）
+
+### 版本同步
+`plugin.json` 与 `marketplace.json` 条目 2.55.0 → 2.55.1；marketplace `metadata.version` 0.78.0 → 0.79.0；协调技能 frontmatter → 2.55.1；`README.md` 版本行同步。
+
+## 2.55.0 - 2026-11-19
+
+### Changed
+**工作流技能渐进披露瘦身 + Stop 三门合一**（下沉内容逐字核对，无规则/禁令/警示丢失）：
+
+- `frontend-workflow` 正文 30.4K → 23.4K：初始化流程与强制文件三件套表 → `references/project-init.md`；项目结构树与结构适配 → `references/project-structure.md`；技术栈矩阵/组件双端策略/六模板索引 → `references/tech-stack-and-templates.md`（技能版本 2.6.0 → 2.7.0）
+- `backend-workflow` 正文 24.4K → 21.0K：8 步创建命令/slnx 归集/生成产物结构树/Service 创建 → `references/project-creation.md`（技能版本 1.3.1 → 1.4.0）
+- 正文各保留规则骨架 + 「用 Read 打开」指针；8 处内部章节指针同步改指新参考文件
+- 3 条 Stop prompt（4701 字符/次停止尝试）合并为 1 条（1175 字符）：文档门+注释门+审查门语义全保留（脚手架产物豁免、纯 Bug 修复/重构放行、plan.md 条件更新、跳过审查语义）
+
+### 版本同步
+`plugin.json` 与 `marketplace.json` 条目 2.54.0 → 2.55.0；marketplace `metadata.version` 0.77.0 → 0.78.0；协调技能 frontmatter → 2.55.0；`README.md` 钩子章节重写。
+
+## 2.54.0 - 2026-11-19
+
+### Changed
+**Write|Edit 钩子 command 化（prompt 7 → 4）**：新增 `hooks/skill-gate.mjs` 替换 2 个 PreToolUse + 2 个 PostToolUse prompt 钩子——
+
+- `--pre` 技能合规门：stdin 读取 tool_input + transcript_path，解析会话 transcript 的 Skill tool_use 记录（含 sidechain 子代理），按路径关键词映射必需技能，缺失则 block；裸名/`thirdnet-fullstack:` 前缀名视为同一技能；transcript 缺失/不可读/异常一律 fail-open。判定不再受上下文压缩影响（transcript 保留全量历史）
+- `--post` 软规范告警（systemMessage，不阻断）：仅 GET/POST、禁匿名返回、`[ProducesResponseType]`、权限标注、Fluent API、单文件单类型、API 工厂配套文件存在性（fs 检查）、文档同步提醒
+- 收益：消除每次 Write/Edit ~5.8k 字符的 prompt 钩子开销与 `$TOOL_INPUT`（含完整文件内容）四重回显
+- 经真实会话 transcript（含 8 次真实 Skill 调用）+ 13 用例测试矩阵验证；Read 拦截钩子采用零反斜杠内联脚本（规避 shell 对双引号内 `\\` 的折叠）
+
+### 版本同步
+`plugin.json` 与 `marketplace.json` 条目 2.53.0 → 2.54.0；marketplace `metadata.version` 0.76.0 → 0.77.0；协调技能 frontmatter → 2.54.0；`README.md` 钩子章节更新。
+
+## 2.53.0 - 2026-11-19
+
+### Added
+**技能正文重复占用上下文治理**（响应 Token 消耗问题排查：同份 SKILL.md 经 Read 与 Skill 双路径注入，冗余 ~80k token / 占消息区 39%）：
+
+- 协调技能新增「技能加载纪律（强制）」章节（唯一入口=Skill 工具、禁 Read `skills/*/SKILL.md`、references 才可 Read、「详见 X」一律指 Skill 加载）；backend/frontend-workflow 执行规则新增第 2 条「知识入口唯一」（原 2-5 顺延为 3-6）
+- 新增 PreToolUse `Read` command 拦截钩子（工作区外 `skills/*/SKILL.md` 禁止 Read、引导改用 Skill 工具；工作区内放行以支持插件源码维护；七类路径场景测试通过）
+- 新增 PreToolUse `Skill` prompt 重复调用守卫（正文仍完整可见时阻断重复注入；已被压缩/摘要化则放行重调——压缩后重调是正确恢复动作）
+
+### Changed
+- 技能名统一：协调技能步骤表/委派清单/Task 示例、backend-workflow 层级清单/路由表/检查表的全部可执行位点裸名 → `thirdnet-fullstack:` 前缀名（修复「裸名调用 → 钩子误拦 → 重调 → 重复注入」链路）；Write|Edit 合规钩子判定逻辑明确「裸名与前缀名视为同一技能」
+- 清理 15 处指向 `*/SKILL.md` 的 markdown 直链（协调技能 ×2、doc-generator 表格 ×6、net-auth ×1、references 回链 ×8——含 design-apple ×4、fullstack-review ×3）为文字指引
+
+### 版本同步
+`plugin.json` 与 `marketplace.json` 条目 2.52.0 → 2.53.0（描述补 Read 拦截/重复守卫）；marketplace `metadata.version` 0.75.0 → 0.76.0；协调技能 frontmatter → 2.53.0；`README.md` 钩子章节更新。
+
 ## 2.52.0 - 2026-11-19
 
 ### Added

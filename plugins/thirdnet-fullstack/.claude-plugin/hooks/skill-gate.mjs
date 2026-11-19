@@ -129,14 +129,22 @@ function main() {
         msgs.push('本次编辑可能涉及后端功能性变更。完成前请确保更新对应的 spec.md（项目级）和 changelog.md。模板参考：backend-workflow 技能中的 project-spec-template 与 changelog-template（references/ 下）。');
       }
       if (/controller\.cs$/i.test(p)) {
-        if (/Http(Put|Delete|Patch)\s*\(/.test(content)) msgs.push('API 规范：仅允许 [HttpGet] / [HttpPost]（网关限制），发现 HttpPut/HttpDelete/HttpPatch。');
+        if (/Http(Put|Delete|Patch)\s*[\(\]]/.test(content)) msgs.push('API 规范：仅允许 [HttpGet] / [HttpPost]（网关限制），发现 HttpPut/HttpDelete/HttpPatch。');
         if (/return\s+\w+\s*\(\s*new\s*\{/.test(content)) msgs.push('API 规范：禁止匿名对象返回（如 return Ok(new {...})），必须使用类型化 Response DTO。');
         if (/\[\s*Http(Get|Post)/.test(content) && !/\[\s*ProducesResponseType/.test(content)) msgs.push('API 规范：每个 HTTP 端点方法都应添加 [ProducesResponseType]。');
         if (/\[\s*Http(Get|Post)/.test(content) && !/\[\s*(PermissionAuthorize|AllowAnonymous)/.test(content)) msgs.push('API 规范：端点应有 [PermissionAuthorize] 权限标注或显式 [AllowAnonymous]。');
+        if (/\[\s*Route\s*\(\s*"api\/(manager|app|cockpit|third)\//.test(content) === false && /\[\s*Route\s*\(/.test(content)) msgs.push('API 规范：路由应遵循 api/{端标识}/{模块名} 格式（端标识 ∈ manager/app/cockpit/third）。');
+      }
+      if (/DbContext\.cs$/i.test(p)) {
+        if (/OnModelCreating/.test(content) && /modelBuilder\.Entity</.test(content) && !/ApplyConfiguration</.test(content)) msgs.push('EF 规范：DbContext 的 OnModelCreating 应通过 ApplyConfiguration<> 注册实体配置，而非直接内联映射。');
+        if (/modelBuilder\.Entity</.test(content) && !/xmin|timestamptz/i.test(content)) msgs.push('EF 规范：Fluent API 链式调用应拆分到独立 Configuration 文件（xmin 并发令牌全局注册、timestamptz 全局约定等框架级循环除外）。');
       }
       const modelFile = /(^|\/)models\//.test(p.toLowerCase()) || /model\.cs$/i.test(p);
       if (modelFile && /\[\s*(Table|Column|Key|MaxLength|Required|StringLength)\s*\(/.test(content) && !/\[\s*DbBulk/.test(content)) {
         msgs.push('EF 规范：应全部使用 Fluent API（Configurations/），禁止数据注解（[DbBulk] 批量操作标注除外）。');
+      }
+      if (modelFile && /varchar\s*\(/i.test(content)) {
+        msgs.push('EF 规范：字符串属性使用 string 类型（列名/长度约定交给 Fluent API），不要指定定长 varchar(n)。');
       }
       const generated = /Designer\.cs$|ModelSnapshot\.cs$/.test(p);
       if (!generated) {
@@ -155,7 +163,7 @@ function main() {
         const mod = m[2];
         const dir = path.dirname(base);
         const missing = [];
-        if (!/class\s+Real\w*Api/.test(content) || !/function\s+create\w*Api/.test(content)) missing.push('RealXxxApi 实现类 + createXxxApi() 工厂函数 + 导出单例');
+        if (isWrite && (!/class\s+Real\w*Api/.test(content) || !/function\s+create\w*Api/.test(content))) missing.push('RealXxxApi 实现类 + createXxxApi() 工厂函数 + 导出单例（内容级完整性检查仅对 Write 生效——Edit 片段不含全文件定义，不做此检查）');
         for (const [rel, label] of [['../interfaces/' + mod + '.ts', 'src/api/interfaces/' + mod + '.ts'], ['../../mock/api/' + mod + '.ts', 'src/mock/api/' + mod + '.ts'], ['../../mock/data/' + mod + '.ts', 'src/mock/data/' + mod + '.ts']]) {
           try { if (!fs.existsSync(path.resolve(dir, rel))) missing.push(label); } catch { /* 忽略 */ }
         }
