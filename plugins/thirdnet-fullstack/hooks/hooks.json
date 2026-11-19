@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PLUGIN_ROOT/.claude-plugin/hooks/skill-gate.mjs\" --pre",
+            "command": "node \"$CLAUDE_PLUGIN_ROOT/hooks/skill-gate.mjs\" --pre",
             "timeout": 10
           }
         ]
@@ -51,7 +51,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$CLAUDE_PLUGIN_ROOT/.claude-plugin/hooks/skill-gate.mjs\" --post",
+            "command": "node \"$CLAUDE_PLUGIN_ROOT/hooks/skill-gate.mjs\" --post",
             "timeout": 15
           }
         ]

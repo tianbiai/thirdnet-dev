@@ -9,10 +9,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 thirdnet-dev/
 ├── .claude-plugin/marketplace.json          # 插件集合注册清单（顶层 metadata.version + 各 plugin 条目）
-└── plugins/thirdnet-fullstack/               # 唯一的自包含插件（v2.55.1）
-    ├── .claude-plugin/plugin.json            # 插件元数据（version 权威来源之一）
-    ├── .claude-plugin/hooks/hooks.json       # 1 个 Stop + 3 个 PreToolUse + 1 个 PostToolUse 钩子（2 prompt + 3 command）
-    ├── .claude-plugin/hooks/skill-gate.mjs   # Write|Edit 合规门与软规范告警脚本（command 型钩子）
+└── plugins/thirdnet-fullstack/               # 唯一的自包含插件（v2.55.2）
+    ├── .claude-plugin/plugin.json            # 插件清单（.claude-plugin/ 只放清单，其余组件都在插件根）
+    ├── hooks/hooks.json                      # 1 Stop + 3 PreToolUse + 1 PostToolUse（2 prompt + 3 command）——必须在插件根，Claude Code 只认 <插件根>/hooks/hooks.json
+    ├── hooks/skill-gate.mjs                  # Write|Edit 合规门与软规范告警脚本（command 型钩子）
     ├── agents/                               # 子代理：backend-developer.md / frontend-developer.md
     └── skills/                               # 29 个技能（见下「技能体系」）
 ```
@@ -26,7 +26,7 @@ marketplace 还声明了若干外部插件（superpowers / supabase-postgres-bes
 - **plugin**（`thirdnet-fullstack`）：自包含单元，是 ThirdNet 前后端开发技能的**唯一来源**，统一 `thirdnet-fullstack:` 命名空间。
 - **skill**（`skills/*/SKILL.md`）：领域知识与工作流。每个技能有 frontmatter `metadata.version`，技能内可含 `references/`（深度文档）、`assets/`（可拷贝范式代码）、`scripts/`（生成/校验脚本）、`templates/`。
 - **agent**（`agents/*.md`）：瘦封装子代理，由协调技能 `thirdnet-fullstack` 在重型阶段通过 Task 工具派发，隔离上下文（`backend-developer` 跟随前端契约实现后端、`frontend-developer` 先行产出前端契约层）。
-- **hook**（`.claude-plugin/hooks/hooks.json`）：强制规范执行点（见下「钩子」）。
+- **hook**（插件根 `hooks/hooks.json`）：强制规范执行点（见下「钩子」）。
 
 ### 文档驱动开发流程（强制）
 
@@ -57,7 +57,7 @@ marketplace 还声明了若干外部插件（superpowers / supabase-postgres-bes
 2. 协调技能 `skills/thirdnet-fullstack/SKILL.md` 的 `metadata.version`
 3. `.claude-plugin/marketplace.json` 中 `thirdnet-fullstack` 条目的 `version`（重大变更还需同步顶层 `metadata.version`）
 
-每次同步在 `plugins/thirdnet-fullstack/.claude-plugin/CHANGELOG.md` 记录条目。
+每次同步在 `plugins/thirdnet-fullstack/.claude-plugin/CHANGELOG.md` 记录条目。发版前运行 `node scripts/check-layout.mjs`：断言各本地插件的钩子位于插件根 `hooks/hooks.json`——Claude Code 不读取 `.claude-plugin/hooks/`（thirdnet-fullstack ≤2.55.1 曾因此整组钩子静默失效）。
 
 ## 技能体系（29 个，统一 thirdnet-fullstack: 命名空间）
 

@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.55.2 - 2026-11-19
+
+### Fixed
+**P0：钩子目录移至插件根，修复整组钩子自发布以来从未被 Claude Code 加载的问题**（外部实测反馈 + 官方文档核实：Claude Code 只读取 `<插件根>/hooks/hooks.json`，`.claude-plugin/` 仅存放 plugin.json 清单；debug 日志「Registered 1 hooks from 11 plugins」实证此前仅 superpowers（根目录布局）注册成功，本插件 skills/agents 均正常加载、唯 hooks 静默缺失）：
+
+- `git mv .claude-plugin/hooks hooks`——Stop / PreToolUse / PostToolUse 全部 5 个钩子自首次引入（合并前代前后端插件）至 2.55.1 一直处于未激活状态，本次移位后真正生效；README 与 plugin.json 宣称的「技能合规 / 文档门 / 全栈审查收尾」自此名副其实
+- hooks.json 内 2 处 `$CLAUDE_PLUGIN_ROOT/.claude-plugin/hooks/skill-gate.mjs` 引用同步改为 `$CLAUDE_PLUGIN_ROOT/hooks/skill-gate.mjs`
+- 文档路径同步：README 钩子章节、仓库根 CLAUDE.md 目录树 / hook 条目 / 发版检查项
+- 新增 `scripts/check-layout.mjs` 发版断言（本地插件 hooks 必须在插件根、禁止 `.claude-plugin/hooks/` 残留、hooks.json 内不得残留旧路径引用），写入 CLAUDE.md 发版流程，防止再次静默失效
+
+> 注：钩子此前从未实际运行，本次为首次真实激活——skill-gate.mjs 与 Read 拦截虽经离线测试矩阵与真实 transcript 验证，仍建议各端更新后按 README 验证清单做一次线上回归（写 `.cs`/`.vue` 应被技能合规门拦截、Read 缓存内 `skills/*/SKILL.md` 应被拦截）。
+
+### 版本同步
+`plugin.json` 与 `marketplace.json` 条目 2.55.1 → 2.55.2；marketplace `metadata.version` 0.79.0 → 0.80.0；协调技能 frontmatter → 2.55.2；`README.md` 版本行同步。
+
 ## 2.55.1 - 2026-11-19
 
 ### Fixed
