@@ -4,7 +4,7 @@ description: >
   当前会话 Token 消耗统计分析：自动解析本地会话日志（ZCode rollout / Claude Code 与 WorkBuddy·CodeBuddy CLI transcript）或基于 /context 等命令输出的占用报告，先给出「消耗是否正常」体检总评与异常（消耗过大）项识别，再给整个上下文窗口分类占比、子代理消耗汇总、消耗原因诊断与节省 Token 的优化建议。当用户提到 token 统计、token 占用、token 消耗、token 用量、token 消耗是否正常、消耗过大、异常消耗、上下文分析、上下文占用、上下文空间不足、省 token、优化 token 使用、分析 context 报告时，使用此技能。
 license: MIT
 metadata:
-  version: "1.3.0"
+  version: "1.4.0"
   author: thirdnet
 ---
 
@@ -68,7 +68,11 @@ python ${CLAUDE_PLUGIN_ROOT}/skills/token-usage-analysis/scripts/analyze_token_u
 
 ### 3. 子代理消耗汇总
 
-- ZCode 路径：脚本输出已含（经 `~/.zcode/cli/agents/<sessionId>/agent_*/metadata.json` 关联全部子代理）；
+- ZCode 路径：脚本输出已含，用量按三级口径级联（逐代理取首个可用者）：
+  1. **父日志派发段**——主会话日志中每次派发的 usage 回报（Agent 工具结果尾注 + 后台/恢复完成通知）逐段累加，是唯一能穿透 resume 覆盖的完整口径；
+  2. **子代理 rollout 日志**逐行累加（受留存策略清理，常大面积缺失）；
+  3. **metadata.json 的 usage**（`~/.zcode/cli/agents/<sessionId>/agent_*/`；代理被 SendMessage 恢复多轮时被最后一段覆盖而非累加）；
+- 多段代理（同一 agentId 多次派发）在表中标注「父日志×N 段」并附覆盖警告说明；
 - 其他来源：从会话中可见的子代理 usage 信息汇总；不可得时明确标注，不估算。
 
 ### 4. 正常性体检与异常识别
@@ -108,7 +112,7 @@ python ${CLAUDE_PLUGIN_ROOT}/skills/token-usage-analysis/scripts/analyze_token_u
 | 消息历史占窗口 | 31.2%（~34,069） | ✅ | 正常 ≤50%；>70% 异常 |
 | 剩余空间 | 37.1% | ⚠️ | 正常 ≥40%；<20% 异常（接近 autocompact） |
 | 缓存读 / 累计输入 | 93.5% | ✅ | 正常 ≥80%；<60% 异常 |
-| 子代理累计输入 / 主会话累计输入 | 1.8× | ⚠️ | 正常 ≤1×；>3× 异常 |
+| 子代理累计消耗 / 主会话累计输入 | 1.8× | ⚠️ | 正常 ≤1×；>3× 异常 |
 | 累计输入 / 窗口占用 | 13.0× | ➖ | 参考项不判级：数十倍属正常机制（白名单） |
 
 **异常项（消耗过大）**：MCP 工具定义占窗口 ❌；剩余空间、子代理消耗 ⚠️
@@ -126,9 +130,9 @@ MCP：playwright（25 个）       ~6,361 ( 5.8%) ██
 - ...
 
 ### 5. 子代理消耗（独立上下文）
-| 子代理 | 累计输入(含缓存读) | 累计输出 |
-|--------|-------------------:|---------:|
-| Explore ×2 合计 | 549,110 | 14,086 |
+| 子代理 | 累计 tokens | 来源 |
+|--------|------------:|------|
+| Explore（agent_xxx…） | 549,110 | 父日志×2 段 |
 
 ### 6. 原因分析（聚焦体检异常项）
 （❌/⚠️ 项逐一对号：现象 → 原因，引用数据佐证）
@@ -172,6 +176,7 @@ Messages: 33,319 tokens (27.6%)
 - **Claude/WorkBuddy transcript 估算口径**（`--source claude`）：当前窗口占用由末次 usage **精确**推算（含缓存读写，勿与 ZCode 的 inputTokens 口径混算）；消息占比为 transcript 历史**估算**（脚本按 /compact「会话延续」标记截断，未检出标记但实际压缩过会偏高，报告已如实标注）；System prompt / 内置工具 / MCP 无请求体可查，以**残差合计**呈现、不逐项判级——用户粘贴 `/context` 后以精确值替换估算判定；
 - **ZCode 与 Claude 的缓存口径不同**：ZCode `inputTokens` 已含缓存读；Claude `input_tokens` 不含（缓存读/写单列）。脚本已分别处理，续写分析时不要交叉换算；
 - **统计边界**：ZCode rollout 日志有留存策略（旧文件可能被清理），报告注明「仅统计磁盘上留存的日志」；
+- **子代理用量口径**（ZCode 路径）：同一子代理被 SendMessage 恢复多轮时，`metadata.json` 的 usage 被**最后一段覆盖**而非累加，子代理 rollout 日志又常被留存策略清理——脚本按 父日志派发段（逐段累加，完整口径）> 子代理日志 > metadata 级联取值并在表中标注来源；多段代理附覆盖警告。续写分析时沿用脚本口径，不要回退到单一来源；
 - 子代理消耗是独立上下文，只进「累计消耗」汇总，不进主窗口占比；
 - 报告含会话内容预览，仅本地分析使用，不外发；
 - 分析当前会话时，脚本自身的调用也会产生新的 token 计录，属正常现象。

@@ -16,6 +16,13 @@
   注：inputTokens 已含缓存读部分（= 非缓存输入 + cacheReadTokens）。
 - 累计消耗：全部调用逐行累加（配额/计费口径），缓存读单列。
 
+子代理用量按三级口径级联（逐代理取首个可用者）：
+1. 父会话日志派发段回报（Agent 工具结果尾注 + task-notification 通知）——唯一能
+   穿透 resume 覆盖的完整口径：同一代理被 SendMessage 恢复多轮时，metadata.json
+   的 usage 会被最后一段覆盖而非累加，父日志逐段回报累加才是真值；
+2. 子代理 rollout 日志逐行累加（受留存策略清理，常大面积缺失）；
+3. agents/<sessionId>/agent_*/metadata.json 的 usage（resume 覆盖后仅剩最后一段）。
+
 仅用 Python 标准库。输出 markdown 原始统计与「正常性体检」判定（是否正常、
 异常=消耗过大项识别）到 stdout，报告开头即给总评横幅；原因分析与优化建议
 由代理续写，聚焦体检 ❌/⚠️ 项（见技能 SKILL.md 与 references/optimization-guide.md）。
@@ -62,6 +69,20 @@ THRESHOLDS = {
 
 CJK_RE = re.compile(r"[\u3000-\u303f\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]")
 QUERY_SOURCE_RE = re.compile(r'"querySource"\s*:\s*"([^"]+)"')
+
+# 子代理派发段回报在父会话日志中的两种载体：
+# A. Agent 工具结果尾注（前台派发完成）：`agentId: agent_xxx …` +
+#    `<usage>subagent_tokens: N tool_uses: X duration_ms: Y</usage>`
+# B. <task-notification> 通知（后台派发 / SendMessage 恢复段完成）：
+#    `<task-id>agent_xxx</task-id>…<tool-use-id>call_xxx</tool-use-id>…
+#     <usage><subagent_tokens>N</subagent_tokens>…</usage>`
+DISPATCH_PLAIN_RE = re.compile(
+    r"<usage>\s*subagent_tokens:\s*(\d+)\s+tool_uses:\s*(\d+)\s+duration_ms:\s*(\d+)\s*</usage>", re.S)
+DISPATCH_AGENTID_RE = re.compile(r"agentId:\s*(agent_[0-9a-fA-F-]+)")
+DISPATCH_NOTIF_RE = re.compile(
+    r"<task-id>\s*(agent_[0-9a-fA-F-]+)\s*</task-id>.*?<tool-use-id>\s*([^\s<]+)\s*</tool-use-id>.*?"
+    r"<usage>\s*<subagent_tokens>(\d+)</subagent_tokens>\s*<tool_uses>(\d+)</tool_uses>\s*"
+    r"<duration_ms>(\d+)</duration_ms>\s*</usage>", re.S)
 
 
 # ---------- 基础工具 ----------
@@ -324,7 +345,12 @@ def calibrate(items, exact_total):
 # ---------- 子代理关联 ----------
 
 def find_subagents(session_id):
-    """经 agents/<sessionId>/agent_*/metadata.json 关联当前会话派发的全部子代理。"""
+    """经 agents/<sessionId>/agent_*/metadata.json 关联当前会话派发的全部子代理。
+
+    usage 字段（inputTokens/outputTokens/totalTokens/cacheReadTokens）一并读出：
+    子代理 rollout 日志受留存策略清理后，这是磁盘上仅存的用量记录——但注意它
+    在代理被 SendMessage 恢复时会被最后一段覆盖而非累加（详见 extract_dispatch_segments）。
+    """
     if not session_id:
         return []
     metas = []
@@ -335,14 +361,54 @@ def find_subagents(session_id):
                 meta = json.load(f)
         except (OSError, ValueError):
             continue
+        usage = meta.get("usage")
         metas.append({
             "agentId": meta.get("agentId") or os.path.basename(os.path.dirname(p)),
             "profile": meta.get("profileId") or "?",
             "child": meta.get("childSessionId"),
             "prompt": meta.get("prompt"),
             "status": meta.get("status") or "?",
+            "usage": usage if isinstance(usage, dict) else {},
         })
     return metas
+
+
+def extract_dispatch_segments(path):
+    """从主会话日志提取子代理派发段的 usage 回报，按 agentId 逐段累加。
+
+    这是子代理用量中唯一能穿透 resume 覆盖的完整口径：同一代理被 SendMessage
+    恢复多轮时，metadata.json 的 usage 只剩最后一段，子代理 rollout 日志又常被
+    留存策略清理；而父会话日志中每段派发（前台 Agent 调用、后台完成通知）都
+    带精确的 subagent_tokens 回报。同一段会随请求快照在多条记录中重复出现，
+    按 (agentId, toolUseId) 去重后累加。
+    返回 {agentId: {"tokens": 段合计, "segments": 段数}}。
+    """
+    segments = {}
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        for line in f:
+            if "subagent_tokens" not in line:
+                continue
+            try:
+                rec = json.loads(line)
+            except ValueError:
+                continue
+            for m in (rec.get("request") or {}).get("messages") or []:
+                if not isinstance(m, dict):
+                    continue
+                content = m.get("content")
+                text = content if isinstance(content, str) else json.dumps(content, ensure_ascii=False)
+                for um in DISPATCH_PLAIN_RE.finditer(text):
+                    am = DISPATCH_AGENTID_RE.search(text)
+                    if am:
+                        segments[(am.group(1), m.get("toolCallId") or "?")] = int(um.group(1))
+                for nm in DISPATCH_NOTIF_RE.finditer(text):
+                    segments.setdefault((nm.group(1), nm.group(2)), int(nm.group(3)))
+    by_agent = {}
+    for (agent_id, _), tokens in segments.items():
+        agg = by_agent.setdefault(agent_id, {"tokens": 0, "segments": 0})
+        agg["tokens"] += tokens
+        agg["segments"] += 1
+    return by_agent
 
 
 # ---------- Claude transcript 解析 ----------
@@ -453,7 +519,7 @@ def grade(value, spec):
     return "✅" if value <= ok else ("⚠️" if value <= warn else "❌")
 
 
-def health_checks(items, window, window_used, totals, sub_in, sub_count):
+def health_checks(items, window, window_used, totals, sub_tokens, sub_count):
     """对窗口构成 / 累计消耗 / 子代理三口径做正常性体检。
 
     返回 {"rows": [(检查项, 数值, 判定, 说明)], "overall": 总评,
@@ -508,14 +574,16 @@ def health_checks(items, window, window_used, totals, sub_in, sub_count):
         rows.append(("缓存读 / 累计输入", "不可得", "ℹ️", "累计输入为 0 或缺失"))
 
     if sub_count == 0:
-        rows.append(("子代理累计输入 / 主会话累计输入", "无子代理", "✅", "本会话未派发子代理"))
+        rows.append(("子代理累计消耗 / 主会话累计输入", "无子代理", "✅", "本会话未派发子代理"))
     elif totals["input"] > 0:
-        r = sub_in / totals["input"]
-        rows.append(("子代理累计输入 / 主会话累计输入",
-                     f"{r:.1f}×（{fmt(sub_in)} / {fmt(totals['input'])}）",
-                     grade(r, THRESHOLDS["subagent_ratio"]), THRESHOLDS["subagent_ratio"][3]))
+        r = sub_tokens / totals["input"]
+        rows.append(("子代理累计消耗 / 主会话累计输入",
+                     f"{r:.1f}×（{fmt(sub_tokens)} / {fmt(totals['input'])}）",
+                     grade(r, THRESHOLDS["subagent_ratio"]),
+                     THRESHOLDS["subagent_ratio"][3] + "；子代理为 tokens 合计口径（输入+输出，输出通常 <2%），"
+                     "父日志派发段逐段累加、穿透 resume 覆盖"))
     else:
-        rows.append(("子代理累计输入 / 主会话累计输入", "不可得", "ℹ️",
+        rows.append(("子代理累计消耗 / 主会话累计输入", "不可得", "ℹ️",
                      "主会话累计输入缺失，无法计算倍数"))
 
     graded = [r for r in rows if r[2] in ("✅", "⚠️", "❌")]
@@ -586,28 +654,59 @@ def render_zcode_report(path, how, top_n, window_override):
     items, total_est, scale = calibrate(items, last_input)
     items = [it for it in items if it[1] >= 1]
     subs = find_subagents(session_id)
+    dispatch = extract_dispatch_segments(path)
+    # 父日志有派发回报但 metadata 目录已被清理的代理（如最早一批）也要计入
+    known = {s["agentId"] for s in subs}
+    for agent_id in sorted(dispatch):
+        if agent_id not in known:
+            subs.append({"agentId": agent_id, "profile": "?", "child": None,
+                         "prompt": "", "status": "?", "usage": {}})
     sub_rows = []
-    sum_in = sum_out = sum_cr = 0
+    sum_tokens = sum_in = sum_out = sum_cr = 0
+    resumed_ids = []
     for s in subs:
-        child_file = None
+        roll = None
         if s["child"]:
             child_file = os.path.join(ROLLOUT_DIR, f"model-io-{s['child']}.jsonl")
-        if child_file and os.path.isfile(child_file):
-            t, _, _, _, _ = read_rollout(child_file)
+            if os.path.isfile(child_file):
+                roll, _, _, _, _ = read_rollout(child_file)
+        seg = dispatch.get(s["agentId"])
+        # 三级口径级联：父日志派发段（穿透 resume 覆盖）> 子代理 rollout > metadata
+        detail = None
+        if seg:
+            tokens = seg["tokens"]
+            source = f"父日志×{seg['segments']} 段" if seg["segments"] > 1 else "父日志"
+            if seg["segments"] > 1:
+                resumed_ids.append(s["agentId"])
+            detail = roll  # 细分列仅在子日志幸存时可得
+        elif roll and (roll["input"] or roll["output"]):
+            tokens = roll["input"] + roll["output"]
+            source = "子代理日志"
+            detail = roll
+        elif s["usage"]:
+            u = s["usage"]
+            tokens = u.get("totalTokens") or ((u.get("inputTokens") or 0) + (u.get("outputTokens") or 0))
+            source = "metadata"
+            detail = {"input": u.get("inputTokens") or 0, "output": u.get("outputTokens") or 0,
+                      "cache_read": u.get("cacheReadTokens") or 0}
         else:
-            t = {"input": 0, "output": 0, "cache_read": 0, "cache_write": 0}
-        sum_in += t["input"]
-        sum_out += t["output"]
-        sum_cr += t["cache_read"]
-        sub_rows.append((s, t))
-    health = health_checks(items, window, window_used, totals, sum_in, len(subs))
+            tokens = 0
+            source = "缺失"
+        sum_tokens += tokens
+        if detail:
+            sum_in += detail["input"]
+            sum_out += detail["output"]
+            sum_cr += detail["cache_read"]
+        sub_rows.append((s, tokens, source, detail))
+    health = health_checks(items, window, window_used, totals, sum_tokens, len(subs))
 
     out = []
     out.append("# Token 消耗统计（原始数据）")
     out.append("")
     out.append(f"- 数据来源：ZCode rollout 日志 `{path}`"
                + ("（自动选取最新主会话）" if how == "auto" else ""))
-    out.append(f"- 统计边界：仅统计磁盘上留存的日志（留存策略可能已清理更早记录）")
+    out.append(f"- 统计边界：仅统计磁盘上留存的日志（留存策略可能已清理更早记录）；"
+               "子代理用量按 父日志派发段 > 子代理日志 > metadata 级联（见第五节）")
     out.append("")
     out.append(health_banner(health))
     out.append("")
@@ -672,14 +771,31 @@ def render_zcode_report(path, how, top_n, window_override):
     if not subs:
         out.append(f"未发现本会话派发的子代理记录（查找目录：`{os.path.join(AGENTS_DIR, session_id)}`）。")
     else:
-        out.append("| 子代理 | 状态 | 累计输入(含缓存读) | 缓存读 | 累计输出 | 任务书预览 |")
-        out.append("|--------|------|-------------------:|-------:|---------:|------------|")
-        for s, t in sub_rows:
-            out.append(f"| {s['profile']}（{s['agentId'][:20]}…） | {s['status']} | "
-                       f"{fmt(t['input'])} | {fmt(t['cache_read'])} | {fmt(t['output'])} | "
-                       f"`{preview(s['prompt'], 40)}` |")
-        out.append(f"| **合计（{len(subs)} 个）** | — | **{fmt(sum_in)}** | **{fmt(sum_cr)}** | **{fmt(sum_out)}** | |")
+        out.append("> 用量来源级联（逐代理取首个可用者）：**父日志派发段**（Agent 结果尾注 + 完成通知逐段累加，"
+                   "唯一能穿透 resume 覆盖）→ **子代理日志**（rollout，受留存策略清理）→ **metadata**"
+                   "（agents 目录 usage 字段，resume 后仅剩最后一段）。细分列仅在其来源可得时填值。")
         out.append("")
+        out.append("| 子代理 | 状态 | 累计 tokens | 输入(含缓存读) | 缓存读 | 输出 | 来源 | 任务书预览 |")
+        out.append("|--------|------|------------:|---------------:|-------:|-----:|------|------------|")
+        for s, tokens, source, detail in sub_rows:
+            d_in, d_cr, d_out = "—", "—", "—"
+            if detail:
+                d_in, d_cr, d_out = fmt(detail["input"]), fmt(detail["cache_read"]), fmt(detail["output"])
+            out.append(f"| {s['profile']}（{s['agentId'][:20]}…） | {s['status']} | "
+                       f"**{fmt(tokens)}** | {d_in} | {d_cr} | {d_out} | {source} | "
+                       f"`{preview(s['prompt'], 40)}` |")
+        out.append(f"| **合计（{len(subs)} 个）** | — | **{fmt(sum_tokens)}** | {fmt(sum_in)} | {fmt(sum_cr)} | {fmt(sum_out)} | | |")
+        n_detail = sum(1 for _, _, _, d in sub_rows if d)
+        if n_detail < len(subs):
+            out.append("")
+            out.append(f"注：「累计 tokens」列为全量口径合计；细分三列仅覆盖 {n_detail}/{len(subs)} 个"
+                       "有细分来源（子代理日志幸存 / metadata）的代理，父日志派发段只有合计值。")
+        out.append("")
+        if resumed_ids:
+            out.append(f"⚠️ {len(resumed_ids)} 个子代理含多段派发（SendMessage 恢复）：其 `metadata.json` 的 usage "
+                       "会被最后一段**覆盖**而非累加、子代理日志也常被清理——本表对其采用父日志逐段回报累加"
+                       "（来源列为「父日志×N 段」），为完整口径。")
+            out.append("")
 
     out.append("---")
     out.append("以下由代理基于以上数据续写：**原因分析**（聚焦体检 ❌/⚠️ 异常项，见 references/optimization-guide.md 的「现象→原因」清单）"

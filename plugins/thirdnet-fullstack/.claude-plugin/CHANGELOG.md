@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.55.8 - 2026-11-21
+
+### Fixed
+**`token-usage-analysis` 子代理用量统计缺陷修复（技能版本 1.3.0 → 1.4.0）**：
+
+实测暴露三处缺陷（38 个子代理的会话：rollout 子日志仅 1 个幸存、metadata 合计 77.4M、父日志逐段回报 142M）：
+
+- **子代理表大面积计 0**：脚本只从 `model-io-sess_subagent_*.jsonl` 逐行累加，而子代理日志受留存策略清理常大面积缺失——修复为三级口径级联（逐代理取首个可用者）：**父日志派发段**（Agent 工具结果尾注 `<usage>subagent_tokens: N…` + `<task-notification>` 完成通知 `<subagent_tokens>N</subagent_tokens>`，按 (agentId, toolUseId) 去重逐段累加）> **子代理 rollout 日志** > **metadata.json usage 字段**（此前只读清单不读 usage）
+- **resume 覆盖导致低估**：同一代理被 SendMessage 恢复多轮时 metadata.json 的 usage（连同 createdAt/时长）被最后一段**覆盖**而非累加（实测 T4：首轮 9.55M + 修复轮 4.31M，metadata 只剩 4.31M，9 个多段代理合计被吞 64M）——父日志派发段是唯一完整口径，修复后合计 142M 与逐段回报精确吻合
+- **体检项口径同步**：「子代理累计输入 / 主会话累计输入」→「子代理累计消耗 / 主会话累计输入」（分子为 tokens 合计口径并注明；阈值不变），避免修复前 2M/42M = 0.05× 的假阴性 ✅
+- 子代理表新增「累计 tokens / 来源」列（父日志 / 父日志×N 段 / 子代理日志 / metadata / 缺失）与多段覆盖警告行；父日志有回报但 metadata 目录被清理的代理也计入；failed 代理真实消耗（metadata 记 0）一并补全
+- SKILL.md §3 子代理汇总与注意事项、报告模板、optimization-guide §1 阈值表行名同步
+
+### 版本同步
+`plugin.json` 与 `marketplace.json` 条目 2.55.7 → 2.55.8；marketplace `metadata.version` 0.85.0 → 0.86.0；协调技能 frontmatter → 2.55.8；`README.md` 版本行与根 `CLAUDE.md` 版本引用同步。
+
 ## 2.55.7 - 2026-11-19
 
 ### Optimized

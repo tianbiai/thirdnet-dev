@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ```
 thirdnet-dev/
 ├── .claude-plugin/marketplace.json          # 插件集合注册清单（顶层 metadata.version + 各 plugin 条目）
-└── plugins/thirdnet-fullstack/               # 唯一的自包含插件（v2.55.7）
+└── plugins/thirdnet-fullstack/               # 唯一的自包含插件（v2.55.8）
     ├── .claude-plugin/plugin.json            # 插件清单（.claude-plugin/ 只放清单，其余组件都在插件根）
     ├── hooks/hooks.json                      # 1 Stop + 3 PreToolUse + 1 PostToolUse（2 prompt + 3 command）——必须在插件根，Claude Code 只认 <插件根>/hooks/hooks.json
     ├── hooks/skill-gate.mjs                  # Write|Edit 合规门与软规范告警脚本（command 型钩子）
